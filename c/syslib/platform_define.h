@@ -47,7 +47,6 @@
 	#ifndef INFTIM
 		#define	INFTIM				-1
 	#endif
-	#define CONTAINING_RECORD(address, type, field) ((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 #endif
 
 typedef enum {

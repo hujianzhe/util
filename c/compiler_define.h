@@ -5,12 +5,16 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
+#include "extmacro_define.h"
+
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef _MSC_VER
 		#ifdef	_WIN64
-			typedef long long	ssize_t;
+			/* long long*/
+			typedef	__int64		ssize_t;
 		#else
-			typedef long 		ssize_t;
+			/* long */
+			typedef	int			ssize_t;
 		#endif
 		#pragma warning(disable:4200)
 		#pragma warning(disable:4018)
