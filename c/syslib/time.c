@@ -47,14 +47,17 @@ long long gmt_Millisecond(void) {
 		return sec * 1000 + tval.millitm;
 	}
 	*/
-	long long intervals, tv_sec, tv_usec;
+	long long intervals;
 	FILETIME  ft;
 	GetSystemTimeAsFileTime(&ft);
 	intervals = ((long long)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
 	intervals -= 116444736000000000;
+	return intervals / 10000;
+	/*
 	tv_sec = intervals / 10000000;
 	tv_usec = intervals % 10000000 / 10;
 	return tv_sec * 1000 + tv_usec / 1000;
+	*/
 #else
 	struct timeval tval;
 	if (0 == gettimeofday(&tval, NULL)) {
