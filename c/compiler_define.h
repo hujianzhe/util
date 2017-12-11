@@ -5,9 +5,11 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
-#include "extmacro_define.h"
-
 #define	COMPILE_CHECK(exp)	typedef char __compile_check__[(exp) ? 1 : -1]
+
+#define	field_sizeof(type, field)				sizeof(((type*)0)->field)
+#define	field_offset(type, field)				((char*)(&((type *)0)->field) - (char*)(0))
+#define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef _MSC_VER
