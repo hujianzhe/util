@@ -7,6 +7,8 @@
 
 #include "extmacro_define.h"
 
+#define	COMPILE_CHECK(exp)	typedef char __compile_check__[(exp) ? 1 : -1]
+
 #if defined(_WIN32) || defined(_WIN64)
 	#ifdef _MSC_VER
 		#ifdef	_WIN64
@@ -30,11 +32,10 @@
 		#endif
 	#endif
 #else
-	#ifdef	__APPLE__
-		#ifndef	_XOPEN_SOURCE
-			#define	_XOPEN_SOURCE
-		#endif
-	#elif	__linux__
+	#ifndef	_XOPEN_SOURCE
+		#define	_XOPEN_SOURCE
+	#endif
+	#ifdef	__linux__
 		#ifndef	_GNU_SOURCE
 			#define _GNU_SOURCE
 		#endif
