@@ -28,7 +28,11 @@
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
-		#define	_DEBUG	/* same as VC */
+		#ifndef _DEBUG
+			#define	_DEBUG	/* same as VC */
+		#endif	
+	#else
+		#undef	_DEBUG	/* same as VC */
 	#endif
 	#ifndef	_XOPEN_SOURCE
 		#define	_XOPEN_SOURCE
