@@ -27,6 +27,9 @@
 	#define	variable_align(alignment)			__declspec(align(alignment))
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
+	#ifndef NDEBUG	/* ANSI define */
+		#define	_DEBUG	/* same as VC */
+	#endif
 	#ifndef	_XOPEN_SOURCE
 		#define	_XOPEN_SOURCE
 	#endif
