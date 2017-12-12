@@ -3,7 +3,6 @@
 //
 
 #include "database_connect_pool.h"
-#include <assert.h>
 
 namespace Util {
 DatabaseConnectPool::DatabaseConnectPool(int db_type, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) :
@@ -32,7 +31,7 @@ void DatabaseConnectPool::setConnectionAttribute(int timeout_sec, short max_conn
 DB_HANDLE* DatabaseConnectPool::getConnection(void) {
 	bool need_new = false;
 	DB_HANDLE* dbhandle = NULL;
-	assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 	do {
 		if (m_dbhandles.empty()) {
 			if (m_connectNum >= m_connectMaxNum) {
@@ -46,7 +45,7 @@ DB_HANDLE* DatabaseConnectPool::getConnection(void) {
 			m_dbhandles.erase(m_dbhandles.begin());
 		}
 	} while (0);
-	assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 	if (need_new) {
 		dbhandle = connect();
 	}
@@ -59,20 +58,20 @@ void DatabaseConnectPool::pushConnection(DB_HANDLE* dbhandle) {
 	 * if not call this funcion, you should free handle by yourself
 	 */
 	if (dbhandle) {
-		assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+		assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 		m_dbhandles.insert(dbhandle);
-		assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+		assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 	}
 }
 
 void DatabaseConnectPool::cleanConnection(void) {
-	assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 	for (auto it = m_dbhandles.begin(); it != m_dbhandles.end(); m_dbhandles.erase(it++)) {
 		db_CloseHandle(*it);
 		delete (*it);
 	}
 	m_connectNum = 0;
-	assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 }
 
 DB_HANDLE* DatabaseConnectPool::connect(void) {
@@ -92,9 +91,9 @@ DB_HANDLE* DatabaseConnectPool::connect(void) {
 		return dbhandle;
 	} while (0);
 	delete dbhandle;
-	assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 	--m_connectNum;
-	assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 	return NULL;
 }
 }

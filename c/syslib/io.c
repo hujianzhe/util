@@ -9,7 +9,6 @@
 #else
 	#include <sys/socket.h>
 #endif
-#include <assert.h>
 #include <errno.h>
 #include <string.h>
 
@@ -180,10 +179,10 @@ EXEC_RETURN reactor_Create(REACTOR* reactor) {
 		return EXEC_SUCCESS;
 	} while (0);
 	if (nio_ok) {
-		assert(0 == close(reactor->__hNio));
+		assert_true(0 == close(reactor->__hNio));
 	}
 	if (epfd_ok) {
-		assert(0 == close(reactor->__epfd));
+		assert_true(0 == close(reactor->__epfd));
 	}
 	return EXEC_ERROR;
 #elif defined(__FreeBSD__) || defined(__APPLE__)

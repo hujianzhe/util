@@ -6,7 +6,6 @@
 #include "../../c/syslib/statistics.h"
 #include "nio_object.h"
 #include "nio_object_manager.h"
-#include <assert.h>
 
 namespace Util {
 NioObjectManager::NioObjectManager(const NioObjectManager& o) {}
@@ -27,7 +26,7 @@ size_t NioObjectManager::checkObjectValid(void) {
 	size_t count = 0;
 	std::list<std::shared_ptr<NioObject> > expire_objs;
 	//
-	assert(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
 	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ) {
 		if (it->second->checkValid()) {
 			++it;
@@ -37,7 +36,7 @@ size_t NioObjectManager::checkObjectValid(void) {
 			m_validObjects.erase(it++);
 		}
 	}
-	assert(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
 	//
 	for (std::list<std::shared_ptr<NioObject> >::iterator it = expire_objs.begin();
 			it != expire_objs.end(); ++it) {
@@ -48,32 +47,32 @@ size_t NioObjectManager::checkObjectValid(void) {
 }
 
 size_t NioObjectManager::count(void) {
-	assert(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
 	size_t count = m_validObjects.size();
-	assert(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
 	return count;
 }
 
 void NioObjectManager::get(std::list<std::shared_ptr<NioObject> >& l) {
-	assert(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
 	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ++it) {
 		l.push_back(it->second);
 	}
-	assert(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
 }
 void NioObjectManager::get(std::vector<std::shared_ptr<NioObject> >& v) {
-	assert(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
 	v.reserve(m_validObjects.size());
 	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ++it) {
 		v.push_back(it->second);
 	}
-	assert(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
 }
 
 bool NioObjectManager::add(const std::shared_ptr<NioObject>& object) {
-	assert(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
 	bool res = m_validObjects.insert(std::pair<FD_HANDLE, const std::shared_ptr<NioObject>& >(object->fd(), object)).second;
-	assert(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
 	return res;
 }
 
@@ -81,9 +80,9 @@ bool NioObjectManager::del(const std::shared_ptr<NioObject>& object) {
 	bool exist = false;
 	if (object) {
 		object->invalid();
-		assert(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
+		assert_true(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
 		exist = m_validObjects.erase(object->fd());
-		assert(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
+		assert_true(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
 	}
 	else {
 		exist = true;
@@ -100,7 +99,7 @@ list_node_t* NioObjectManager::result(NIO_EVENT* e, int n) {
 	if (n <= 0) {
 		return head;
 	}
-	assert(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
+	assert_true(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
 	for (int i = 0; i < n; ++i) {
 		FD_HANDLE fd;
 		int event;
@@ -120,7 +119,7 @@ list_node_t* NioObjectManager::result(NIO_EVENT* e, int n) {
 			head = tail = &ptr->list_node;
 		}
 	}
-	assert(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
+	assert_true(rwlock_UnlockRead(&m_validLock) == EXEC_SUCCESS);
 	return head;
 }
 

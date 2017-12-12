@@ -7,7 +7,6 @@
 #include "../c/syslib/time.h"
 #include "logger.h"
 #include <iterator>
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -105,7 +104,7 @@ void Logger::debug(const char* format, ...) {
 void Logger::flush(void) {
 	if (m_async) {
 		std::vector<char> cache;
-		assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+		assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 		for (auto it = m_caches.begin(); it != m_caches.end(); m_caches.erase(it++)) {
 			// day rotate
 			if (m_days != it->first.tm_yday) {
@@ -125,7 +124,7 @@ void Logger::flush(void) {
 			std::copy(it->second.begin(), it->second.end(), std::back_inserter(cache));
 			m_filesize += it->second.size();
 		}
-		assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+		assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 		// io
 		if (m_file != INVALID_FD_HANDLE && !cache.empty()) {
 			file_Write(m_file, &cache[0], cache.size());
@@ -183,7 +182,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 		fputs(content, stderr);
 	}
 	if (m_inputOption & InputOption::FILE) {
-		assert(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+		assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
 		if (m_async) {
 			m_caches.push_back(std::make_pair(*dt, std::vector<char>(content, content + len)));
 		}
@@ -203,7 +202,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 			}
 			m_filesize += len;
 		}
-		assert(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+		assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
 	}
 }
 }

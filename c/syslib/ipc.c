@@ -3,7 +3,6 @@
 //
 
 #include "ipc.h"
-#include <assert.h>
 #include <errno.h>
 
 #ifdef	__cplusplus
@@ -95,7 +94,7 @@ EXEC_RETURN cslock_Create(CSLOCK* cs) {
 			break;
 	} while (0);
 	if (attr_ok) {
-		assert(0 == pthread_mutexattr_destroy(&attr));
+		assert_true(0 == pthread_mutexattr_destroy(&attr));
 	}
 	if (res) {
 		errno = res;
@@ -336,10 +335,10 @@ EXEC_RETURN rwlock_Create(RWLOCK* rwlock) {
 		return EXEC_SUCCESS;
 	} while (0);
 	if (read_ev_ok) {
-		assert(CloseHandle(rwlock->__read_ev));
+		assert_true(CloseHandle(rwlock->__read_ev));
 	}
 	if (write_ev_ok) {
-		assert(CloseHandle(rwlock->__write_ev));
+		assert_true(CloseHandle(rwlock->__write_ev));
 	}
 	return EXEC_ERROR;
 #else
@@ -364,7 +363,7 @@ EXEC_RETURN rwlock_Create(RWLOCK* rwlock) {
 		}
 	} while (0);
 	if (attr_ok) {
-		assert(0 == pthread_rwlockattr_destroy(&attr));
+		assert_true(0 == pthread_rwlockattr_destroy(&attr));
 	}
 	#else
 	res = pthread_rwlock_init(rwlock, NULL);
@@ -396,14 +395,14 @@ EXEC_RETURN rwlock_LockRead(RWLOCK* rwlock, BOOL wait_bool) {
 		default:
 			abort();
 	}
-	assert(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
+	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
 	if (0 == rwlock->__read_cnt) {
 		res = WaitForSingleObject(rwlock->__write_ev, wait_bool ? INFINITE : 0);
 		if (WAIT_OBJECT_0 == res) {
 			++(rwlock->__read_cnt);
 		}
 	}
-	assert(SetEvent(rwlock->__wait_ev));
+	assert_true(SetEvent(rwlock->__wait_ev));
 	switch (res) {
 		case WAIT_OBJECT_0:
 			return EXEC_SUCCESS;
@@ -436,7 +435,7 @@ EXEC_RETURN rwlock_LockWrite(RWLOCK* rwlock, BOOL wait_bool) {
 	}
 	return TryAcquireSRWLockExclusive(rwlock) ? EXEC_SUCCESS : EXEC_ERROR;
 	*/
-	assert(ResetEvent(rwlock->__read_ev));
+	assert_true(ResetEvent(rwlock->__read_ev));
 	switch (WaitForSingleObject(rwlock->__write_ev, wait_bool ? INFINITE : 0)) {
 		case WAIT_OBJECT_0:
 			return EXEC_SUCCESS;
@@ -463,11 +462,11 @@ EXEC_RETURN rwlock_LockWrite(RWLOCK* rwlock, BOOL wait_bool) {
 EXEC_RETURN rwlock_UnlockRead(RWLOCK* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*ReleaseSRWLockShared(rwlock);*/
-	assert(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
+	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
 	if (0 == --(rwlock->__read_cnt)) {
-		assert(SetEvent(rwlock->__write_ev));
+		assert_true(SetEvent(rwlock->__write_ev));
 	}
-	assert(SetEvent(rwlock->__wait_ev));
+	assert_true(SetEvent(rwlock->__wait_ev));
 	return EXEC_SUCCESS;
 #else
 	int res = pthread_rwlock_unlock(rwlock);
@@ -482,8 +481,8 @@ EXEC_RETURN rwlock_UnlockRead(RWLOCK* rwlock) {
 EXEC_RETURN rwlock_UnlockWrite(RWLOCK* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*ReleaseSRWLockExclusive(rwlock);*/
-	assert(SetEvent(rwlock->__write_ev));
-	assert(SetEvent(rwlock->__read_ev));
+	assert_true(SetEvent(rwlock->__write_ev));
+	assert_true(SetEvent(rwlock->__read_ev));
 	return EXEC_SUCCESS;
 #else
 	int res = pthread_rwlock_unlock(rwlock);
@@ -522,7 +521,7 @@ SEMID semaphore_Create(const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
 	SEMID semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
-		assert(CloseHandle(semid));
+		assert_true(CloseHandle(semid));
 		return NULL;
 	}
 	return semid;

@@ -10,13 +10,13 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#ifndef	_WIN32_WINNT
 		/* windows 7 */
-		#define	_WIN32_WINNT	0x0701
+		#define	_WIN32_WINNT		0x0701
 	#endif
 	#ifndef WINVER
 		#define WINVER	_WIN32_WINNT
 	#endif
 	#ifndef	_WIN32_IE
-		#define	_WIN32_IE		0x0700
+		#define	_WIN32_IE			0x0700
 	#endif
 	#define	_CRT_RAND_S
 	#include <winsock2.h>
@@ -29,10 +29,10 @@
 	#define	INFTIM					-1
 	#ifdef	_WIN64
 		/* long long*/
-		typedef	__int64		ssize_t;
+		typedef	__int64				ssize_t;
 	#else
 		/* long */
-		typedef	int			ssize_t;
+		typedef	int					ssize_t;
 	#endif
 #else
 	#ifndef _REENTRANT
@@ -43,6 +43,7 @@
 	#include <unistd.h>
 	#include <sys/types.h>
 	#include <sys/param.h>
+	#include <stdlib.h>
 	typedef int						BOOL;
 	#define	TRUE					1
 	#define	FALSE					0
@@ -55,6 +56,8 @@
 		#define	INFTIM				-1
 	#endif
 #endif
+
+#define	assert_true(exp)			if (!(exp)) abort()
 
 typedef enum {
 #if defined(_WIN32) || defined(_WIN64)

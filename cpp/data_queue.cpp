@@ -3,7 +3,6 @@
 //
 
 #include "data_queue.h"
-#include <assert.h>
 
 namespace Util {
 DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
@@ -35,7 +34,7 @@ void DataQueue::push(list_node_t* data) {
 
 	list_node_init(data);
 
-	assert(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
+	assert_true(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
 
 	if (m_tail) {
 		list_node_insert_back(m_tail, data);
@@ -43,10 +42,10 @@ void DataQueue::push(list_node_t* data) {
 	}
 	else {
 		m_head = m_tail = data;
-		assert(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
+		assert_true(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
 	}
 
-	assert(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
+	assert_true(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
 }
 
 list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
@@ -55,12 +54,12 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		return res;
 	}
 
-	assert(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
+	assert_true(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
 	while (NULL == m_head && !m_forcewakeup) {
 		if (condition_Wait(&m_condition, &m_cslock, msec) == EXEC_SUCCESS) {
 			continue;
 		}
-		assert(error_code() == ETIMEDOUT);
+		assert_true(error_code() == ETIMEDOUT);
 		break;
 	}
 	m_forcewakeup = false;
@@ -80,13 +79,13 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		}
 	}
 
-	assert(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
+	assert_true(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
 
 	return res;
 }
 
 void DataQueue::weakup(void) {
 	m_forcewakeup = true;
-	assert(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
+	assert_true(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
 }
 }

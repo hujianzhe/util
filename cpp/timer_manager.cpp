@@ -4,7 +4,6 @@
 
 #include "../c/syslib/time.h"
 #include "timer_manager.h"
-#include <assert.h>
 
 namespace Util {
 TimerManager::TimerManager(void(*deleter)(list_node_t*)) :
@@ -28,17 +27,17 @@ TimerManager::~TimerManager(void) {
 
 long long TimerManager::minTimestamp(void) {
 	long long min_msec = 0;
-	assert(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
+	assert_true(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
 	if (!m_tasks.empty()) {
 		min_msec = m_tasks.begin()->first;
 	}
-	assert(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
+	assert_true(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
 	return min_msec;
 }
 
 void TimerManager::reg(long long timestamp_msec, list_node_t* task_node) {
 	list_node_init(task_node);
-	assert(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
+	assert_true(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
 	auto& list = m_tasks[timestamp_msec];
 	if (list.second) {
 		list_node_insert_back(list.second, task_node);
@@ -47,12 +46,12 @@ void TimerManager::reg(long long timestamp_msec, list_node_t* task_node) {
 	else {
 		list.first = list.second = task_node;
 	}
-	assert(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
+	assert_true(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
 }
 
 list_node_t* TimerManager::expire(long long timestamp_msec) {
 	list_node_t *head = NULL, *tail = NULL;
-	assert(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
+	assert_true(mutex_Lock(&m_mutex, TRUE) == EXEC_SUCCESS);
 	for (auto it = m_tasks.begin(); it != m_tasks.end() && it->first <= timestamp_msec; m_tasks.erase(it++)) {
 		auto& list = it->second;
 		if (tail) {
@@ -63,7 +62,7 @@ list_node_t* TimerManager::expire(long long timestamp_msec) {
 		}
 		tail = list.second;
 	}
-	assert(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
+	assert_true(mutex_Unlock(&m_mutex) == EXEC_SUCCESS);
 	return head;
 }
 }

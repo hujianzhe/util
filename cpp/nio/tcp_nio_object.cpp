@@ -4,7 +4,6 @@
 
 #include "../../c/syslib/error.h"
 #include "tcp_nio_object.h"
-#include <assert.h>
 #include <string.h>
 #include <exception>
 #include <stdexcept>
@@ -130,7 +129,7 @@ bool TcpNioObject::sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_st
 		return true;
 	}
 
-	assert(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
+	assert_true(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
 	do {
 		int res = 0;
 		if (m_outbuf.empty()) {
@@ -173,7 +172,7 @@ bool TcpNioObject::sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_st
 			}
 		}
 	} while (0);
-	assert(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
+	assert_true(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
 	return m_valid;
 }
 int TcpNioObject::onWrite(void) {
@@ -187,7 +186,7 @@ int TcpNioObject::onWrite(void) {
 	if (!m_valid) {
 		return 0;
 	}
-	assert(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
+	assert_true(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
 	for (std::list<struct __NioSendDataInfo>::iterator iter = m_outbuf.begin(); iter != m_outbuf.end(); ) {
 		struct sockaddr_storage* saddr = (iter->saddr.ss_family != AF_UNSPEC ? &iter->saddr : NULL);
 		int res = sock_Send(m_fd, &iter->data[0] + iter->offset, iter->data.size() - iter->offset, 0, saddr);
@@ -211,7 +210,7 @@ int TcpNioObject::onWrite(void) {
 	if (m_outbuf.empty()) {
 		m_writeCommit = false;
 	}
-	assert(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
+	assert_true(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
 	return count;
 }
 }

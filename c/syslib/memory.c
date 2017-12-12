@@ -3,7 +3,6 @@
 //
 
 #include "memory.h"
-#include <assert.h>
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <errno.h>
 #include <fcntl.h>
@@ -42,7 +41,7 @@ EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size
 #if defined(_WIN32) || defined(_WIN64)
 		HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
 		if (GetLastError() == ERROR_ALREADY_EXISTS) {
-			assert(CloseHandle(handle));
+			assert_true(CloseHandle(handle));
 			return EXEC_ERROR;
 		}
 		mm->__handle = handle;
@@ -52,7 +51,7 @@ EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size
 			return EXEC_ERROR;
 		}
 		if (ftruncate(fd, nbytes)) {
-			assert(close(fd) == 0);
+			assert_true(close(fd) == 0);
 			return EXEC_ERROR;
 		}
 		mm->__fd = fd;

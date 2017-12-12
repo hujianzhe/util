@@ -3,7 +3,6 @@
 //
 
 #include "socket.h"
-#include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -310,8 +309,8 @@ NETWORK_INTERFACE_INFO* network_InterfaceInfo(void) {
 			/* mtu */
 			if ((probefd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { ok = 0; break; }
 			strcpy(req.ifr_name, p->ifa_name);
-			if (ioctl(probefd, SIOCGIFMTU, &req)) { assert(0 == close(probefd)); ok = 0; break; }
-			assert(0 == close(probefd));
+			if (ioctl(probefd, SIOCGIFMTU, &req)) { assert_true(0 == close(probefd)); ok = 0; break; }
+			assert_true(0 == close(probefd));
 			info->mtu = (unsigned int)(req.ifr_ifru.ifru_mtu);
 		}
 #endif
