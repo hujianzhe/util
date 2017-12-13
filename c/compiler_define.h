@@ -30,7 +30,7 @@
 	#ifndef NDEBUG	/* ANSI define */
 		#ifndef _DEBUG
 			#define	_DEBUG	/* same as VC */
-		#endif	
+		#endif
 	#else
 		#undef	_DEBUG	/* same as VC */
 	#endif

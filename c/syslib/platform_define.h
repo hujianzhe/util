@@ -51,7 +51,7 @@
 	#define	iobuffer_buf(iobuf)		((iobuf)->iov_base)
 	#define iobuffer_len(iobuf)		((iobuf)->iov_len)
 	typedef	int						FD_HANDLE;
-    #define INVALID_FD_HANDLE       -1
+	#define INVALID_FD_HANDLE       -1
 	#ifndef INFTIM
 		#define	INFTIM				-1
 	#endif
