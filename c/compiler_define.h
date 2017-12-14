@@ -25,6 +25,7 @@
 		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
 	#endif
 	#define	variable_align(alignment)			__declspec(align(alignment))
+	#define	embed_asm(exp)						__asm {exp}
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
@@ -43,6 +44,7 @@
 		#endif
 	#endif
 	#define	variable_align(alignment)			__attribute__ ((aligned(alignment)))
+	#define	embed_asm(exp)						asm __volatile__(exp)
 
 #else
 	#error "Unknown Compiler"
