@@ -56,7 +56,7 @@ bool TcpNioObject::onConnect(void) {
 	try {
 		if (m_connectCallback) {
 			ok = m_connectCallback(this, reactor_ConnectCheckSuccess(m_fd));
-			m_connectCallback = NULL;
+			m_connectCallback = nullptr;//std::function<bool(NioObject*, bool)>();
 		}
 		else {
 			ok = onConnect(reactor_ConnectCheckSuccess(m_fd));
