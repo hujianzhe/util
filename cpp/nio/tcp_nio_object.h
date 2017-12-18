@@ -15,8 +15,8 @@ public:
 	TcpNioObject(FD_HANDLE fd);
 	~TcpNioObject(void);
 
-	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(NioObject*, bool)>& cb = NULL);
-	bool reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(NioObject*, bool)>& cb = NULL);
+	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(NioObject*, bool)>& cb = nullptr);
+	bool reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(NioObject*, bool)>& cb = nullptr);
 
 	virtual bool sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 
