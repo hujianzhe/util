@@ -26,6 +26,10 @@ typedef struct {
 extern "C" {
 #endif
 
+/* memory align alloc */
+#define	ctr_align_alloca(nbytes, alignment)	((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((int)alignment) - 1)))
+void* crt_align_malloc(size_t nbytes, int alignment);
+void crt_align_free(void* p);
 /* mmap */
 EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size_t nbytes);
 EXEC_RETURN mmap_Open(MEMORY_MAPPING* mm, const char* name);
