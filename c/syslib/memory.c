@@ -14,7 +14,10 @@ extern "C" {
 #endif
 
 /* memory align alloc */
-void* crt_align_malloc(size_t nbytes, int alignment) {
+void* crt_align_malloc(size_t nbytes, int alignment) { /* alignment must signed integer type ! */
+	if (alignment <= 0) {
+		return NULL;
+	}
 	size_t padsize = alignment > sizeof(size_t) ? alignment : sizeof(size_t);
 	size_t ptr = (size_t)malloc(nbytes + padsize);
 	if (NULL == (void*)ptr) {

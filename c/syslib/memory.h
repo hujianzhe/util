@@ -8,6 +8,9 @@
 #include "platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
+	#ifndef alloca
+		#define alloca		_alloca
+	#endif
 	#define	MAP_FAILED		NULL
 #else
 	#include <sys/mman.h>
