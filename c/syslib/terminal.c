@@ -10,16 +10,17 @@ extern "C" {
 
 #if	defined(_WIN32) || defined(_WIN64)
 #else
-static int __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
+#include <sys/ioctl.h>
+static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
+	struct termios newt;
 	tcgetattr(ttyfd, old);
-	struct termios newt = *old;
+	newt = *old;
 	newt.c_lflag &= ~ICANON;
 	newt.c_lflag &= ~ECHO;
 	newt.c_lflag &= ~ISIG;
 	newt.c_cc[VMIN] = min;
 	newt.c_cc[VTIME] = time;
 	tcsetattr(ttyfd, TCSANOW, &newt);
-	return 0;
 }
 #endif
 
@@ -31,7 +32,7 @@ int t_Kbhit(void) {
 	char c;
 	struct termios old;
 	__unix_set_tty(STDIN_FILENO, &old, 0, 0);
-	res = read(STDIN_FILENO, &c, 1);
+	ioctl(STDIN_FILENO, FIONREAD, &res);
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
 	return res > 0;
 #endif
