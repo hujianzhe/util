@@ -8,7 +8,6 @@
 #include "platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-	#include <conio.h>
 	typedef HANDLE					DIRECTORY;
 	typedef	WIN32_FIND_DATAA		DIR_ITEM;
 	#pragma comment(lib, "ws2_32.lib")
@@ -16,7 +15,6 @@
 	#include <fcntl.h>
 	#include <sys/stat.h>
 	#include <dirent.h>
-	#include <termios.h>
 	typedef	DIR*					DIRECTORY;
 	typedef	struct dirent*			DIR_ITEM;
 #endif
@@ -44,9 +42,6 @@ typedef enum {
 extern "C" {
 #endif
 
-/* terminate */
-int t_Kbhit(void);
-int t_Getch(void);
 /* FD_HANDLE generate operator */
 EXEC_RETURN fd_Type(FD_HANDLE fd, FD_HANDLE_TYPE* type);
 EXEC_RETURN fd_GetInheritFlag(FD_HANDLE fd, BOOL* bool_val);
