@@ -11,9 +11,6 @@ extern "C" {
 #if	defined(_WIN32) || defined(_WIN64)
 #else
 static int __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
-	if (!isatty(ttyfd)) {
-		return -1;
-	}
 	tcgetattr(ttyfd, old);
 	struct termios newt = *old;
 	newt.c_lflag &= ~ICANON;
@@ -30,12 +27,16 @@ int t_Kbhit(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _kbhit();
 #else
+	int res = -1;
+	char c;
 	struct termios old;
 	__unix_set_tty(STDIN_FILENO, &old, 0, 0);
-	char c = -1;
-	ssize_t n = read(STDIN_FILENO, &c, 1);
+	res = read(STDIN_FILENO, &c, 1);
+	if (res >= 0) {
+		res = (unsigned char)c;
+	}
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
-	return !n ? 0 : c;
+	return res;
 #endif
 }
 
@@ -43,10 +44,14 @@ int t_Getch(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _getch();
 #else
-	char c = -1;
+	int res = -1;
+	char c;
 	struct termios old;
 	__unix_set_tty(STDIN_FILENO, &old, 1, 0);
-	read(STDIN_FILENO, &c, 1);
+	res = read(STDIN_FILENO, &c, 1);
+	if (res >= 0) {
+		res = (unsigned char)c;
+	}
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
 	return c;
 #endif
