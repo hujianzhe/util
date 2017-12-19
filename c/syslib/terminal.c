@@ -32,11 +32,8 @@ int t_Kbhit(void) {
 	struct termios old;
 	__unix_set_tty(STDIN_FILENO, &old, 0, 0);
 	res = read(STDIN_FILENO, &c, 1);
-	if (res >= 0) {
-		res = (unsigned char)c;
-	}
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
-	return res;
+	return res > 0;
 #endif
 }
 
