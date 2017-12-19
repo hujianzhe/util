@@ -11,6 +11,7 @@ extern "C" {
 #if	defined(_WIN32) || defined(_WIN64)
 #else
 #include <sys/ioctl.h>
+#include <errno.h>
 static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
 	struct termios newt;
 	tcgetattr(ttyfd, old);
@@ -24,7 +25,32 @@ static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
 }
 #endif
 
-int t_Kbhit(void) {
+char* terminal_Name(char* buf, size_t buflen) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD res = GetConsoleTitleA(buf, buflen);
+	if (res) {
+		buf[buflen - 1] = 0;
+		if (res < buflen) {
+			buf[res] = 0;
+		}
+		return buf;
+	}
+	return NULL;
+#else
+	/*ctermid(buf);*/
+	int res = ttyname_r(STDIN_FILENO, buf, buflen);
+	if (res) {
+		errno = res;
+		return NULL;
+	}
+	else {
+		buf[buflen - 1] = 0;
+		return buf;
+	}
+#endif
+}
+
+int terminal_Kbhit(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _kbhit();
 #else
@@ -38,7 +64,7 @@ int t_Kbhit(void) {
 #endif
 }
 
-int t_Getch(void) {
+int terminal_Getch(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _getch();
 #else

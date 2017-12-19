@@ -17,8 +17,9 @@
 extern "C" {
 #endif
 
-int t_Kbhit(void);
-int t_Getch(void);
+char* terminal_Name(char* buf, size_t buflen);
+int terminal_Kbhit(void);
+int terminal_Getch(void);
 
 #ifdef	__cplusplus
 }
