@@ -16,6 +16,7 @@
 	typedef HANDLE					THREAD;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					THREAD_LOCAL_KEY;
+	#define	__tls					__declspec(thread)
 #else
 	#include <dlfcn.h>
 	#include <pthread.h>
@@ -29,6 +30,7 @@
 	typedef pthread_t				THREAD;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			THREAD_LOCAL_KEY;
+	#define	__tls					__thread
 #endif
 
 #ifdef	__cplusplus
