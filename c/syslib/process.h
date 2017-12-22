@@ -14,6 +14,7 @@
 		DWORD id;
 	} PROCESS;
 	#define	__dllexport				__declspec(dllexport)
+	#define	__dllimport				__declspec(dllimport)
 	typedef HANDLE					THREAD;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					THREAD_LOCAL_KEY;
@@ -29,6 +30,7 @@
 		pid_t id;
 	} PROCESS;
 	#define	__dllexport
+	#define	__dllimport
 	typedef pthread_t				THREAD;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			THREAD_LOCAL_KEY;
