@@ -13,6 +13,7 @@
 		HANDLE handle;
 		DWORD id;
 	} PROCESS;
+	#define	__dllexport				__declspec(dllexport)
 	typedef HANDLE					THREAD;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					THREAD_LOCAL_KEY;
@@ -27,6 +28,7 @@
 	typedef struct {
 		pid_t id;
 	} PROCESS;
+	#define	__dllexport
 	typedef pthread_t				THREAD;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			THREAD_LOCAL_KEY;

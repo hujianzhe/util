@@ -17,8 +17,8 @@ typedef	union var_t {
 	float f32;
 	double f64;
 
-	char* str;
 	void* p_void;
+	char* str;
 	char* p_char, *p_i8;
 	unsigned char* p_byte, *p_u8;
 	short* p_i16;
