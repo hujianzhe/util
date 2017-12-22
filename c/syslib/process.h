@@ -47,7 +47,7 @@ EXEC_RETURN process_Cancel(PROCESS* process);
 size_t process_Id(void);
 EXEC_RETURN process_TryFreeZombie(PROCESS* process, unsigned char* retcode);
 void* process_LoadModule(const char* path);
-void* process_GetModuleSymbolAddress(void* handle, const char* proc_name);
+void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name);
 EXEC_RETURN process_UnloadModule(void* handle);
 /* thread operator */
 EXEC_RETURN thread_Create(THREAD* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);

@@ -145,11 +145,11 @@ void* process_LoadModule(const char* path) {
 #endif
 }
 
-void* process_GetModuleSymbolAddress(void* handle, const char* symbol) {
+void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name) {
 #if	defined(_WIN32) || defined(_WIN64)
-	return GetProcAddress(handle, symbol);
+	return GetProcAddress(handle, symbol_name);
 #else
-	return dlsym(handle, symbol);
+	return dlsym(handle, symbol_name);
 #endif
 }
 
