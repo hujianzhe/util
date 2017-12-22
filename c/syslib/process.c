@@ -136,7 +136,7 @@ EXEC_RETURN process_TryFreeZombie(PROCESS* process, unsigned char* retcode) {
 #endif
 }
 
-void* process_LoadDLL(const char* path) {
+void* process_LoadModule(const char* path) {
 #if	defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
 	return (void*)LoadLibraryA(__win32_path(strcpy(szFullPath, path)));
@@ -145,15 +145,15 @@ void* process_LoadDLL(const char* path) {
 #endif
 }
 
-void* process_GetDLLProcAddress(void* handle, const char* proc_name) {
+void* process_GetModuleSymbolAddress(void* handle, const char* symbol) {
 #if	defined(_WIN32) || defined(_WIN64)
-	return GetProcAddress(handle, proc_name);
+	return GetProcAddress(handle, symbol);
 #else
-	return dlsym(handle, proc_name);
+	return dlsym(handle, symbol);
 #endif
 }
 
-EXEC_RETURN process_UnloadDLL(void* handle) {
+EXEC_RETURN process_UnloadModule(void* handle) {
 	if (NULL == handle) {
 		return EXEC_SUCCESS;
 	}
