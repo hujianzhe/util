@@ -138,8 +138,13 @@ EXEC_RETURN process_TryFreeZombie(PROCESS* process, unsigned char* retcode) {
 
 void* process_LoadModule(const char* path) {
 #if	defined(_WIN32) || defined(_WIN64)
-	char szFullPath[MAX_PATH];
-	return (void*)LoadLibraryA(__win32_path(strcpy(szFullPath, path)));
+	if (path) {
+		char szFullPath[MAX_PATH];
+		return (void*)LoadLibraryA(__win32_path(strcpy(szFullPath, path)));
+	}
+	else {
+		return (void*)GetModuleHandleA(NULL);
+	}
 #else
 	return dlopen(path, RTLD_NOW);
 #endif
