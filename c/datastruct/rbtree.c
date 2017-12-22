@@ -122,7 +122,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-void rbtree_node_init(struct rbtree_node_t* node, union rbtree_node_key_t key) {
+void rbtree_node_init(struct rbtree_node_t* node, var_t key) {
 	node->rb_color = RB_RED;
 	node->rb_parent = node->rb_left = node->rb_right = (struct rbtree_node_t*)0;
 	node->rb_key = key;
@@ -309,7 +309,7 @@ void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node)
 		__rb_remove_color(child, parent, root);
 }
 
-int rbtree_remove_key(struct rbtree_t* root, union rbtree_node_key_t key, rbtree_node_key_cmp cmp)
+int rbtree_remove_key(struct rbtree_t* root, var_t key, rbtree_node_key_cmp cmp)
 {
 	struct rbtree_node_t *node = rbtree_search_node(root, key, cmp);
 	if (node) {
@@ -320,7 +320,7 @@ int rbtree_remove_key(struct rbtree_t* root, union rbtree_node_key_t key, rbtree
 	}
 }
 
-struct rbtree_node_t* rbtree_search_node(struct rbtree_t* root, union rbtree_node_key_t key, rbtree_node_key_cmp cmp)
+struct rbtree_node_t* rbtree_search_node(struct rbtree_t* root, var_t key, rbtree_node_key_cmp cmp)
 {
 	struct rbtree_node_t *node = root->rb_tree_node;
 	while (node) {
