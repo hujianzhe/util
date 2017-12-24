@@ -164,6 +164,33 @@ struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_no
 	return node;
 }
 
+struct rbtree_node_t* rbtree_replace_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key) {
+	struct rbtree_node_t* exist_node = rbtree_insert_node(root, node, key);
+	if (exist_node != node) {
+		if (exist_node->rb_left) {
+			exist_node->rb_left->rb_parent = node;
+		}
+		if (exist_node->rb_right) {
+			exist_node->rb_right->rb_parent = node;
+		}
+		if (exist_node->rb_parent) {
+			if (exist_node->rb_parent->rb_left == exist_node) {
+				exist_node->rb_parent->rb_left = node;
+			}
+			if (exist_node->rb_parent->rb_right == exist_node) {
+				exist_node->rb_parent->rb_right = node;
+			}
+		}
+		else {
+			root->rb_tree_node = node;
+		}
+		*node = *exist_node;
+
+		return exist_node;
+	}
+	return (struct rbtree_node_t*)0;
+}
+
 static void __rb_remove_color(struct rbtree_node_t *node, struct rbtree_node_t *parent, struct rbtree_t *root)
 {
 	struct rbtree_node_t *other;

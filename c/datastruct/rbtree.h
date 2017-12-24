@@ -26,6 +26,7 @@ extern "C" {
 
 struct rbtree_t rbtree_create(int (*cmp)(var_t, var_t));
 struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key);
+struct rbtree_node_t* rbtree_replace_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key);
 void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node);
 
 struct rbtree_node_t* rbtree_search_key(struct rbtree_t* root, var_t key);
