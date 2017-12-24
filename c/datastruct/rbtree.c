@@ -122,17 +122,16 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-void rbtree_node_init(struct rbtree_node_t* node, var_t key) {
-	node->rb_color = RB_RED;
-	node->rb_parent = node->rb_left = node->rb_right = (struct rbtree_node_t*)0;
-	node->rb_key = key;
+struct rbtree_t rbtree_create(int (*cmp)(var_t, var_t)) {
+	struct rbtree_t root = { (struct rbtree_node_t*)0, cmp };
+	return root;
 }
 
-int rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, rbtree_node_key_cmp cmp)
+struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key)
 {
 	struct rbtree_node_t* parent = root->rb_tree_node;
 	while (parent) {
-		if (cmp(parent->rb_key, node->rb_key) < 0) {
+		if (root->rb_key_cmp(parent->rb_key, key) < 0) {
 			if (parent->rb_left) {
 				parent = parent->rb_left;
 			}
@@ -141,7 +140,7 @@ int rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, rbtree
 				break;
 			}
 		}
-		else if (cmp(parent->rb_key, node->rb_key) > 0) {
+		else if (root->rb_key_cmp(parent->rb_key, key) > 0) {
 			if (parent->rb_right) {
 				parent = parent->rb_right;
 			}
@@ -151,15 +150,18 @@ int rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, rbtree
 			}
 		}
 		else {
-			return 0;
+			return (struct rbtree_node_t*)parent;
 		}
 	}
+	node->rb_color = RB_RED;
+	node->rb_left = node->rb_right = (struct rbtree_node_t*)0;
 	node->rb_parent = parent;
+	node->rb_key = key;
 	if (!parent) {
 		root->rb_tree_node = node;
 	}
 	__rb_insert_color(node, root);
-	return 1;
+	return node;
 }
 
 static void __rb_remove_color(struct rbtree_node_t *node, struct rbtree_node_t *parent, struct rbtree_t *root)
@@ -304,30 +306,19 @@ void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node)
 	else
 		root->rb_tree_node = child;
 
- color:
+color:
 	if (color == RB_BLACK)
 		__rb_remove_color(child, parent, root);
 }
 
-int rbtree_remove_key(struct rbtree_t* root, var_t key, rbtree_node_key_cmp cmp)
-{
-	struct rbtree_node_t *node = rbtree_search_node(root, key, cmp);
-	if (node) {
-		rbtree_remove_node(root, node);
-		return 1;
-	} else {
-		return 0;
-	}
-}
-
-struct rbtree_node_t* rbtree_search_node(struct rbtree_t* root, var_t key, rbtree_node_key_cmp cmp)
+struct rbtree_node_t* rbtree_search_key(struct rbtree_t* root, var_t key)
 {
 	struct rbtree_node_t *node = root->rb_tree_node;
 	while (node) {
-		if (cmp(node->rb_key, key) < 0) {
+		if (root->rb_key_cmp(node->rb_key, key) < 0) {
 			node = node->rb_left;
 		}
-		else if (cmp(node->rb_key, key) > 0) {
+		else if (root->rb_key_cmp(node->rb_key, key) > 0) {
 			node = node->rb_right;
 		}
 		else {
@@ -335,6 +326,16 @@ struct rbtree_node_t* rbtree_search_node(struct rbtree_t* root, var_t key, rbtre
 		}
 	}
 	return node;
+}
+struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, var_t key)
+{
+	struct rbtree_node_t *node = rbtree_search_key(root, key);
+	if (node) {
+		rbtree_remove_node(root, node);
+		return node;
+	} else {
+		return (struct rbtree_node_t*)0;
+	}
 }
 
 /*
