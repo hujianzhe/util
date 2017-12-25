@@ -34,6 +34,7 @@ struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 	hashtable->buckets_size = buckets_size;
 	hashtable->hash_key_cmp = hash_key_cmp;
 	hashtable->hash_fn = hash_fn;
+	return hashtable;
 }
 
 struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, var_t key) {

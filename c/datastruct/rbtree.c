@@ -287,7 +287,7 @@ void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node)
 		struct rbtree_node_t *old = node, *left;
 
 		node = node->rb_right;
-		while (left = node->rb_left)
+		while ((left = node->rb_left))
 			node = left;
 		child = node->rb_right;
 		parent = node->rb_parent;
