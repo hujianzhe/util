@@ -371,7 +371,7 @@ int HttpProtocol::parseNextChunkedBody(const char* data, size_t len) {
 
 bool HttpProtocol::buildResponseHeader(std::string& s) {
 	const char* status_desc = statusDesc(m_statusCode);
-	if ('\0' == *statusDesc) {
+	if ('\0' == *status_desc) {
 		return false;
 	}
 	std::stringstream ss;

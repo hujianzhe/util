@@ -25,7 +25,9 @@ int WebSocketProtocol::parseHandshake(char* data, size_t len, std::string& respo
 		}
 	}
 	m_frameLength = key - data + 4;
-	if (key = strnstr(data, "Sec-WebSocket-Key:", m_frameLength)) {
+
+	key = strnstr(data, "Sec-WebSocket-Key:", m_frameLength);
+	if (key) {
 		for (key += 18; ' ' == *key; ++key);
 	}
 	else {

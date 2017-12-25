@@ -79,7 +79,7 @@ std::vector<std::string> split(const char* str, const char* s) {
 	std::vector<std::string> res;
 	size_t len = s ? strlen(s) : 0;
 	const char* p;
-	while (p = strstr(str, s)) {
+	while ((p = strstr(str, s))) {
 		res.push_back(std::string(str, p - str));
 		p += len;
 		str = p;

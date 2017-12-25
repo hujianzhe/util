@@ -1,8 +1,8 @@
-SOURCE_FILE += $(shell find -name "*.h" && find -name "*.c" && find -name "*.cpp")
+SOURCE_FILE += $(shell find -name "*.c" && find -name "*.cpp")
 OBJECT_O += $(shell find -name "*.o")
 OBJECT_GCH += $(shell find -name "*.gch")
 
-COMPILE_OPTION := -c -std=c++11
+COMPILE_OPTION := -c -std=c++11 -Wno-deprecated
 TARGET := libutil.a
 
 all:
