@@ -24,7 +24,8 @@ typedef struct rbtree_t {
 extern "C" {
 #endif
 
-struct rbtree_t rbtree_create(int (*cmp)(var_t, var_t));
+struct rbtree_t* rbtree_init(struct rbtree_t* root, int (*cmp)(var_t, var_t));
+
 struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key);
 struct rbtree_node_t* rbtree_replace_node(struct rbtree_t* root, struct rbtree_node_t* node, var_t key);
 void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node);

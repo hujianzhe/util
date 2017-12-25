@@ -122,8 +122,10 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-struct rbtree_t rbtree_create(int (*cmp)(var_t, var_t)) {
-	struct rbtree_t root = { (struct rbtree_node_t*)0, cmp };
+struct rbtree_t* rbtree_init(struct rbtree_t* root, int (*cmp)(var_t, var_t))
+{
+	root->rb_tree_node = (struct rbtree_node_t*)0;
+	root->rb_key_cmp = cmp;
 	return root;
 }
 
@@ -185,6 +187,7 @@ struct rbtree_node_t* rbtree_replace_node(struct rbtree_t* root, struct rbtree_n
 			root->rb_tree_node = node;
 		}
 		*node = *exist_node;
+		node->rb_key = key;
 
 		return exist_node;
 	}
