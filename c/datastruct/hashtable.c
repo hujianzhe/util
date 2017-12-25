@@ -49,7 +49,7 @@ struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, st
 	node->table = hashtable;
 	node->prev = (struct hashtable_node_t*)0;
 	node->next = *bucket_list_head;
-	node->bucket_index = bucket_list_head - hashtable->buckets;
+	node->bucket_index = (unsigned int)(bucket_list_head - hashtable->buckets);
 	node->hash_key = key;
 	*bucket_list_head = node;
 	return node;
@@ -79,7 +79,7 @@ struct hashtable_node_t* hashtable_replace_node(struct hashtable_t* hashtable, s
 	node->table = hashtable;
 	node->prev = (struct hashtable_node_t*)0;
 	node->next = *bucket_list_head;
-	node->bucket_index = bucket_list_head - hashtable->buckets;
+	node->bucket_index = (unsigned int)(bucket_list_head - hashtable->buckets);
 	node->hash_key = key;
 	*bucket_list_head = node;
 	return (struct hashtable_node_t*)0;
