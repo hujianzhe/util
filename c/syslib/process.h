@@ -16,9 +16,9 @@
 	#define	__dllexport				__declspec(dllexport)
 	#define	__dllimport				__declspec(dllimport)
 	#define	DLL_CALL				__stdcall
-	typedef HANDLE					THREAD;
+	typedef HANDLE					Thread_t;
 	#define	THREAD_CALL				__stdcall
-	typedef	DWORD					THREAD_LOCAL_KEY;
+	typedef	DWORD					Tls_t;
 	#define	__tls					__declspec(thread)
 #else
 	#include <dlfcn.h>
@@ -33,9 +33,9 @@
 	#define	__dllexport
 	#define	__dllimport
 	#define	DLL_CALL
-	typedef pthread_t				THREAD;
+	typedef pthread_t				Thread_t;
 	#define	THREAD_CALL
-	typedef	pthread_key_t			THREAD_LOCAL_KEY;
+	typedef	pthread_key_t			Tls_t;
 	#define	__tls					__thread
 #endif
 
@@ -52,9 +52,9 @@ void* process_LoadModule(const char* path);
 void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name);
 EXEC_RETURN process_UnloadModule(void* handle);
 /* thread operator */
-EXEC_RETURN thread_Create(THREAD* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
-EXEC_RETURN thread_Detach(THREAD thread);
-EXEC_RETURN thread_Join(THREAD thread, unsigned int* retcode);
+EXEC_RETURN thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+EXEC_RETURN thread_Detach(Thread_t thread);
+EXEC_RETURN thread_Join(Thread_t thread, unsigned int* retcode);
 void thread_Exit(unsigned int retcode);
 #if defined(_WIN32) || defined(_WIN64)
 #define	thread_Self()		GetCurrentThread()
@@ -65,12 +65,12 @@ void thread_Exit(unsigned int retcode);
 #endif
 void thread_Sleep(unsigned int msec);
 void thread_Yield(void);
-EXEC_RETURN thread_SetAffinity(THREAD thread, unsigned int processor_index);
+EXEC_RETURN thread_SetAffinity(Thread_t thread, unsigned int processor_index);
 /* thread local operator */
-EXEC_RETURN thread_AllocLocalKey(THREAD_LOCAL_KEY* key);
-EXEC_RETURN thread_SetLocalValue(THREAD_LOCAL_KEY key, void* value);
-void* thread_GetLocalValue(THREAD_LOCAL_KEY key);
-EXEC_RETURN thread_FreeLocalKey(THREAD_LOCAL_KEY key);
+EXEC_RETURN thread_AllocLocalKey(Tls_t* key);
+EXEC_RETURN thread_SetLocalValue(Tls_t key, void* value);
+void* thread_GetLocalValue(Tls_t key);
+EXEC_RETURN thread_FreeLocalKey(Tls_t key);
 
 #ifdef	__cplusplus
 }

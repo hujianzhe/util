@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /* uuid */
-EXEC_RETURN uuid_Create(UUID* uuid){
+EXEC_RETURN uuid_Create(uuid_t* uuid){
 #if defined(_WIN32) || defined(_WIN64)
 	return CoCreateGuid(uuid) == S_OK ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -18,7 +18,7 @@ EXEC_RETURN uuid_Create(UUID* uuid){
 	return EXEC_SUCCESS;
 #endif
 }
-EXEC_RETURN uuid_GetString(UUID* uuid, UUID_STRING* uuid_string) {
+EXEC_RETURN uuid_GetString(uuid_t* uuid, uuid_string_t* uuid_string) {
 #if defined(_WIN32) || defined(_WIN64)
     unsigned char* buffer;
 	if (UuidToStringA(uuid,&buffer) != RPC_S_OK)
@@ -51,27 +51,27 @@ size_t processor_Count(void) {
 }
 
 /* name */
-EXEC_RETURN current_Username(char* buffer, size_t nbytes) {
+char* current_Username(char* buffer, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD len = nbytes;
-	return GetUserNameA(buffer, &len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return GetUserNameA(buffer, &len) ? buffer : NULL;
 #else
 	struct passwd pwd, *res = NULL;
 	int r = getpwuid_r(getuid(), &pwd, buffer, nbytes, &res);
 	if (!res && r) {
 		errno = r;
-		return EXEC_ERROR;
+		return NULL;
 	}
-	return EXEC_SUCCESS;
+	return buffer;
 #endif
 }
 
-EXEC_RETURN host_Name(HOST_NAME* hostName) {
+char* host_Name(char* buf, size_t len) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD len = sizeof(HOST_NAME);
-	return GetComputerNameA(*hostName, &len) ? EXEC_SUCCESS : EXEC_ERROR;
+	DWORD dwLen = len;
+	return GetComputerNameA(buf, &dwLen) ? buf : NULL;
 #else
-	return gethostname(*hostName, sizeof(HOST_NAME)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return gethostname(buf, len) == 0 ? buf : NULL;
 #endif
 }
 

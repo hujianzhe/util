@@ -14,7 +14,7 @@ namespace Util {
 Logger::Logger(void) :
 	m_async(false),
 	m_inputOption(InputOption::CONSOLE),
-	m_pid((size_t)process_Id()),
+	m_pid(process_Id()),
 	m_days(-1),
 	m_file(INVALID_FD_HANDLE),
 	m_filesize(0),
@@ -22,7 +22,7 @@ Logger::Logger(void) :
 {
 	m_ident[0] = 0;
 	m_path[0] = 0;
-	cslock_Create(&m_lock);
+	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
 }
 Logger::~Logger(void) {
 	if (m_file != INVALID_FD_HANDLE) {

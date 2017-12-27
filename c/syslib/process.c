@@ -170,7 +170,7 @@ EXEC_RETURN process_UnloadModule(void* handle) {
 }
 
 /* thread operator */
-EXEC_RETURN thread_Create(THREAD* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
+EXEC_RETURN thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = (HANDLE)_beginthreadex(NULL, 0, entry, arg, 0, NULL);
 	if ((HANDLE)-1 == handle) {
@@ -190,7 +190,7 @@ EXEC_RETURN thread_Create(THREAD* p_thread, unsigned int (THREAD_CALL *entry)(vo
 #endif
 }
 
-EXEC_RETURN thread_Detach(THREAD thread) {
+EXEC_RETURN thread_Detach(Thread_t thread) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(thread) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -203,7 +203,7 @@ EXEC_RETURN thread_Detach(THREAD thread) {
 #endif
 }
 
-EXEC_RETURN thread_Join(THREAD thread, unsigned int* retcode) {
+EXEC_RETURN thread_Join(Thread_t thread, unsigned int* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0) {
 		if (retcode && !GetExitCodeThread(thread, (DWORD*)retcode)) {
@@ -257,7 +257,7 @@ void thread_Yield(void) {
 #endif
 }
 
-EXEC_RETURN thread_SetAffinity(THREAD thread, unsigned int processor_index) {
+EXEC_RETURN thread_SetAffinity(Thread_t thread, unsigned int processor_index) {
 	/* processor_index start 0...n */
 #if defined(_WIN32) || defined(_WIN64)
 	processor_index %= 32;
@@ -278,7 +278,7 @@ EXEC_RETURN thread_SetAffinity(THREAD thread, unsigned int processor_index) {
 }
 
 /* thread local operator */
-EXEC_RETURN thread_AllocLocalKey(THREAD_LOCAL_KEY* key) {
+EXEC_RETURN thread_AllocLocalKey(Tls_t* key) {
 #if defined(_WIN32) || defined(_WIN64)
 	*key = TlsAlloc();
 	return *key != TLS_OUT_OF_INDEXES ? EXEC_SUCCESS : EXEC_ERROR;
@@ -292,7 +292,7 @@ EXEC_RETURN thread_AllocLocalKey(THREAD_LOCAL_KEY* key) {
 #endif
 }
 
-EXEC_RETURN thread_SetLocalValue(THREAD_LOCAL_KEY key, void* value) {
+EXEC_RETURN thread_SetLocalValue(Tls_t key, void* value) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsSetValue(key, value) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -305,7 +305,7 @@ EXEC_RETURN thread_SetLocalValue(THREAD_LOCAL_KEY key, void* value) {
 #endif
 }
 
-void* thread_GetLocalValue(THREAD_LOCAL_KEY key) {
+void* thread_GetLocalValue(Tls_t key) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsGetValue(key);
 #else
@@ -313,7 +313,7 @@ void* thread_GetLocalValue(THREAD_LOCAL_KEY key) {
 #endif
 }
 
-EXEC_RETURN thread_FreeLocalKey(THREAD_LOCAL_KEY key) {
+EXEC_RETURN thread_FreeLocalKey(Tls_t key) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsFree(key) ? EXEC_SUCCESS:EXEC_ERROR;
 #else
