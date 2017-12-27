@@ -30,6 +30,10 @@ struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 		struct hashtable_node_t** buckets, unsigned int buckets_size,
 		int (*hash_key_cmp)(var_t, var_t), unsigned int (*hash_fn)(var_t))
 {
+	unsigned int i;
+	for (i = 0; i < buckets_size; ++i) {
+		buckets[i] = (struct hashtable_node_t*)0;
+	}
 	hashtable->buckets = buckets;
 	hashtable->buckets_size = buckets_size;
 	hashtable->hash_key_cmp = hash_key_cmp;
