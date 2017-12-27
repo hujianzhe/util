@@ -28,7 +28,6 @@ bool TcplistenNioObject::bindlisten(const char* ip, unsigned short port, REACTOR
 }
 bool TcplistenNioObject::bindlisten(const struct sockaddr_storage* saddr, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	if (sock_BindSockaddr(m_fd, saddr) != EXEC_SUCCESS) {
-		printf("error code:%d\n", WSAGetLastError());
 		return false;
 	}
 	if (sock_TcpListen(m_fd) != EXEC_SUCCESS) {
