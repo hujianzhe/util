@@ -25,7 +25,7 @@ void block_linked_queue_push(block_linked_queue_t* q, list_node_t* data) {
 
 	assert_true(cslock_Enter(&q->m_cslock, TRUE) == EXEC_SUCCESS);
 
-	if (m_tail) {
+	if (q->m_tail) {
 		list_node_insert_back(q->m_tail, data);
 		q->m_tail = data;
 	}
@@ -51,7 +51,7 @@ list_node_t* block_linked_queue_pop(block_linked_queue_t* q, int msec, size_t ex
 		assert_true(error_code() == ETIMEDOUT);
 		break;
 	}
-	q->m_forcewakeup = false;
+	q->m_forcewakeup = FALSE;
 
 	res = q->m_head;
 	if (~0 == expect_cnt) {
@@ -59,7 +59,7 @@ list_node_t* block_linked_queue_pop(block_linked_queue_t* q, int msec, size_t ex
 	}
 	else {
 		list_node_t *cur;
-		for (cur = m_head; cur && --expect_cnt; cur = cur->next);
+		for (cur = q->m_head; cur && --expect_cnt; cur = cur->next);
 		if (0 == expect_cnt && cur && cur->next) {
 			q->m_head = cur->next;
 		}
@@ -74,7 +74,7 @@ list_node_t* block_linked_queue_pop(block_linked_queue_t* q, int msec, size_t ex
 }
 
 void block_linked_queue_weakup(block_linked_queue_t* q) {
-	q->m_forcewakeup = true;
+	q->m_forcewakeup = TRUE;
 	assert_true(condition_WakeThread(&q->m_condition) == EXEC_SUCCESS);
 }
 
