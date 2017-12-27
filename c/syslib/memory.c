@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* memory align alloc */
-void* crt_align_malloc(size_t nbytes, int alignment) { /* alignment must signed integer type ! */
+void* crt_AlignMalloc(size_t nbytes, int alignment) { /* alignment must signed integer type ! */
 	if (alignment <= 0) {
 		return NULL;
 	}
@@ -27,7 +27,7 @@ void* crt_align_malloc(size_t nbytes, int alignment) { /* alignment must signed 
 	*(((size_t*)new_ptr) - 1) = new_ptr - ptr;
 	return (void*)new_ptr;
 }
-void crt_align_free(void* ptr) {
+void crt_AlignFree(void* ptr) {
 	if (ptr) {
 		size_t off = *(((size_t*)ptr) - 1);
 		free((char*)ptr - off);
@@ -48,7 +48,7 @@ static long __granularity(void) {
 #endif
 }
 
-EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size_t nbytes) {
+EXEC_RETURN mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
 	mm->granularity = __granularity();
 	if (fd != INVALID_FD_HANDLE) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -81,7 +81,7 @@ EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size
 	return EXEC_SUCCESS;
 }
 
-EXEC_RETURN mmap_Open(MEMORY_MAPPING* mm, const char* name) {
+EXEC_RETURN mmap_Open(MemoryMapping_t* mm, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return mm->__handle ? EXEC_SUCCESS : EXEC_ERROR;
@@ -91,7 +91,7 @@ EXEC_RETURN mmap_Open(MEMORY_MAPPING* mm, const char* name) {
 #endif
 }
 
-EXEC_RETURN mmap_Close(MEMORY_MAPPING* mm) {
+EXEC_RETURN mmap_Close(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle((HANDLE)(mm->__handle)) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -99,7 +99,7 @@ EXEC_RETURN mmap_Close(MEMORY_MAPPING* mm) {
 #endif
 }
 
-void* mmap_Map(MEMORY_MAPPING* mm, void* va_base, long long offset, size_t nbytes) {
+void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return MapViewOfFileEx((HANDLE)(mm->__handle), FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
 #else

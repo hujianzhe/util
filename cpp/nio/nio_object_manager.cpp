@@ -20,7 +20,7 @@ NioObjectManager::~NioObjectManager(void) {
 	reactor_Close(&m_reactor);
 }
 
-REACTOR* NioObjectManager::getReactor(void) { return &m_reactor; }
+Reactor_t* NioObjectManager::getReactor(void) { return &m_reactor; }
 
 size_t NioObjectManager::checkObjectValid(void) {
 	size_t count = 0;
@@ -71,7 +71,7 @@ void NioObjectManager::get(std::vector<std::shared_ptr<NioObject> >& v) {
 
 bool NioObjectManager::add(const std::shared_ptr<NioObject>& object) {
 	assert_true(rwlock_LockWrite(&m_validLock, TRUE) == EXEC_SUCCESS);
-	bool res = m_validObjects.insert(std::pair<FD_HANDLE, const std::shared_ptr<NioObject>& >(object->fd(), object)).second;
+	bool res = m_validObjects.insert(std::pair<FD_t, const std::shared_ptr<NioObject>& >(object->fd(), object)).second;
 	assert_true(rwlock_UnlockWrite(&m_validLock) == EXEC_SUCCESS);
 	return res;
 }
@@ -90,18 +90,18 @@ bool NioObjectManager::del(const std::shared_ptr<NioObject>& object) {
 	return exist;
 }
 
-int NioObjectManager::wait(NIO_EVENT* e, int n, int msec) {
+int NioObjectManager::wait(NioEv_t* e, int n, int msec) {
 	return reactor_Wait(&m_reactor, e, n, msec);
 }
 
-list_node_t* NioObjectManager::result(NIO_EVENT* e, int n) {
+list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 	list_node_t* head = NULL, *tail = NULL;
 	if (n <= 0) {
 		return head;
 	}
 	assert_true(rwlock_LockRead(&m_validLock, TRUE) == EXEC_SUCCESS);
 	for (int i = 0; i < n; ++i) {
-		FD_HANDLE fd;
+		FD_t fd;
 		int event;
 		void* ol;
 		reactor_Result(&e[i], &fd, &event, &ol);

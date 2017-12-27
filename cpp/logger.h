@@ -71,11 +71,11 @@ private:
 	char m_ident[64];
 	char m_path[64];
 	int m_days;
-	FD_HANDLE m_file;
+	FD_t m_file;
 	size_t m_filesize;
 	size_t m_maxfilesize;
 	std::list<std::pair<struct tm, std::vector<char> > > m_caches;
-	CSLOCK m_lock;
+	CSLock_t m_lock;
 };
 }
 

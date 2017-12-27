@@ -21,10 +21,10 @@
 	#define	_CRT_RAND_S
 	#include <winsock2.h>
 	#include <windows.h>
-	typedef	WSABUF					IO_BUFFER;
+	typedef	WSABUF					IoBuf_t;
 	#define	iobuffer_buf(iobuf)		((iobuf)->buf)
 	#define	iobuffer_len(iobuf)		((iobuf)->len)
-	typedef SOCKET					FD_HANDLE;
+	typedef SOCKET					FD_t;
 	#define INVALID_FD_HANDLE       ((SOCKET)INVALID_HANDLE_VALUE)
 	#define	INFTIM					-1
 	#ifdef	_WIN64
@@ -47,10 +47,10 @@
 	typedef int						BOOL;
 	#define	TRUE					1
 	#define	FALSE					0
-	typedef	struct iovec			IO_BUFFER;
+	typedef	struct iovec			IoBuf_t;
 	#define	iobuffer_buf(iobuf)		((iobuf)->iov_base)
 	#define iobuffer_len(iobuf)		((iobuf)->iov_len)
-	typedef	int						FD_HANDLE;
+	typedef	int						FD_t;
 	#define INVALID_FD_HANDLE       -1
 	#ifndef INFTIM
 		#define	INFTIM				-1

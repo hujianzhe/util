@@ -37,7 +37,7 @@ private:
 	const std::string m_pwd;
 	const std::string m_database;
 
-	CSLOCK m_lock;
+	CSLock_t m_lock;
 	std::unordered_set<DB_HANDLE*> m_dbhandles;
 };
 }

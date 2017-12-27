@@ -23,7 +23,7 @@ public:
 
 private:
 	void(*m_deleter)(list_node_t*);
-	MUTEX m_mutex;
+	Mutex_t m_mutex;
 	std::map<long long, std::pair<list_node_t*, list_node_t*> > m_tasks;//timestamp
 };
 }

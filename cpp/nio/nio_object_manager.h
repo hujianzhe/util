@@ -20,7 +20,7 @@ public:
 	NioObjectManager(void);
 	~NioObjectManager(void);
 
-	REACTOR* getReactor(void);
+	Reactor_t* getReactor(void);
 
 	size_t count(void);
 	void get(std::list<std::shared_ptr<NioObject> >& l);
@@ -46,8 +46,8 @@ public:
 		}
 	};
 
-	int wait(NIO_EVENT* e, int n, int msec);
-	list_node_t* result(NIO_EVENT* e, int n);
+	int wait(NioEv_t* e, int n, int msec);
+	list_node_t* result(NioEv_t* e, int n);
 	void exec(struct NioEvent* objev);
 
 private:
@@ -55,10 +55,10 @@ private:
 	NioObjectManager& operator=(const NioObjectManager& o);
 
 private:
-	REACTOR m_reactor;
+	Reactor_t m_reactor;
 	//
-	RWLOCK m_validLock;
-	std::unordered_map<FD_HANDLE, std::shared_ptr<NioObject> > m_validObjects;
+	RWLock_t m_validLock;
+	std::unordered_map<FD_t, std::shared_ptr<NioObject> > m_validObjects;
 };
 }
 

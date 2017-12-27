@@ -7,7 +7,7 @@
 #include "tcplisten_nio_object.h"
 
 namespace Util {
-TcplistenNioObject::TcplistenNioObject(FD_HANDLE sockfd, int sa_family) :
+TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int sa_family) :
 	NioObject(sockfd, SOCK_STREAM),
 	m_saFamily(sa_family),
 	m_cbfunc(NULL),
@@ -40,7 +40,7 @@ bool TcplistenNioObject::bindlisten(const struct sockaddr_storage* saddr, REACTO
 
 bool TcplistenNioObject::accept(int msec) {
 	struct sockaddr_storage saddr;
-	FD_HANDLE connfd = sock_TcpAccept(m_fd, msec, &saddr);
+	FD_t connfd = sock_TcpAccept(m_fd, msec, &saddr);
 	if (connfd != INVALID_FD_HANDLE) {
 		if (m_cbfunc) {
 			m_cbfunc(connfd, &saddr, m_arg);
@@ -67,7 +67,7 @@ bool TcplistenNioObject::reactorAccept(void) {
 int TcplistenNioObject::recv(void) {
 	struct sockaddr_storage saddr;
 	socklen_t slen = sizeof(saddr);
-	FD_HANDLE connfd;
+	FD_t connfd;
 	if (!reactor_AcceptPretreatment(m_fd, m_readOl, m_cbfunc, m_arg)) {
 		invalid();
 		return 0;

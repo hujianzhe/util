@@ -21,8 +21,8 @@ public:
 	void weakup(void);
 
 private:
-	CSLOCK m_cslock;
-	CONDITION m_condition;
+	CSLock_t m_cslock;
+	ConditionVariable_t m_condition;
 	list_node_t *m_head, *m_tail;
 	bool m_forcewakeup;
 	void(*m_deleter)(list_node_t*);

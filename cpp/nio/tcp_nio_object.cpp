@@ -9,7 +9,7 @@
 #include <stdexcept>
 
 namespace Util {
-TcpNioObject::TcpNioObject(FD_HANDLE fd) :
+TcpNioObject::TcpNioObject(FD_t fd) :
 	NioObject(fd, SOCK_STREAM),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),
@@ -84,8 +84,8 @@ void TcpNioObject::inbufRemove(unsigned int nbytes) {
 		m_inbuf.erase(m_inbuf.begin(), m_inbuf.begin() + nbytes);
 	}
 }
-IO_BUFFER TcpNioObject::inbuf(void) {
-	IO_BUFFER __buf;
+IoBuf_t TcpNioObject::inbuf(void) {
+	IoBuf_t __buf;
 	iobuffer_len(&__buf) = m_inbuf.size();
 	iobuffer_buf(&__buf) = m_inbuf.empty() ? NULL : (char*)&m_inbuf[0];
 	return __buf;
@@ -114,7 +114,7 @@ int TcpNioObject::recv(void) {
 	return res;
 }
 
-bool TcpNioObject::sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
+bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
 	if (!m_valid) {
 		return false;
 	}

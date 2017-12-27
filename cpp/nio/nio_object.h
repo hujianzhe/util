@@ -20,14 +20,14 @@ class NioObjectManager;
 class NioObject : public std::enable_shared_from_this<NioObject> {
 friend class NioObjectManager;
 public:
-	NioObject(FD_HANDLE fd, int socktype = -1);
+	NioObject(FD_t fd, int socktype = -1);
 	virtual ~NioObject(void);
 
-	FD_HANDLE fd(void) const;
+	FD_t fd(void) const;
 	int socktype(void) const;
 	bool isListen(void) const;
 
-	bool reactorInit(REACTOR* reactor);
+	bool reactorInit(Reactor_t* reactor);
 	bool reactorRead(void);
 
 	time_t createTime(void);
@@ -42,7 +42,7 @@ public:
 	bool checkTimeout(void);
 	bool checkValid(void);
 
-	virtual bool sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
+	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 	virtual bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
 	bool send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL);
 	bool send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL);
@@ -61,21 +61,21 @@ private:
 	time_t updateLastActiveTime(void);
 
 protected:
-	virtual int onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	virtual int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 	bool reactorWrite(void);
 
 protected:
-	const FD_HANDLE m_fd;
+	const FD_t m_fd;
 	const int m_socktype;
 	void* m_readOl;
 	void* m_writeOl;
-	REACTOR* m_reactor;
+	Reactor_t* m_reactor;
 	volatile bool m_valid;
 	bool m_isListen;
 
 private:
-	ATOM8 m_readCommit;
-	ATOM8 m_shutdown;
+	Atom8_t m_readCommit;
+	Atom8_t m_shutdown;
 	//
 	time_t m_createTime;
 	time_t m_lastActiveTime;

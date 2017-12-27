@@ -20,7 +20,7 @@
 			} out;
 		#pragma pack()
 		};
-		FD_HANDLE aio_fildes;
+		FD_t aio_fildes;
 		void* aio_buf;
 		unsigned int aio_nbytes;
 		int aio_lio_opcode;
@@ -38,18 +38,18 @@
 	#define	LIO_NOP				0
 	#define	LIO_READ			1
 	#define	LIO_WRITE			2
-	typedef OVERLAPPED_ENTRY	NIO_EVENT;
+	typedef OVERLAPPED_ENTRY	NioEv_t;
 	#pragma comment(lib, "wsock32.lib")
 	#pragma comment(lib, "ws2_32.lib")
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	#include <sys/event.h>
 	#include <aio.h>
 	#define	LIO_NONE_NOTIFY		SIGEV_NONE
-	typedef struct kevent		NIO_EVENT;
+	typedef struct kevent		NioEv_t;
 #elif __linux__
 	#include <sys/epoll.h>
 	#include <aio.h>
-	typedef struct epoll_event	NIO_EVENT;
+	typedef struct epoll_event	NioEv_t;
 #endif
 struct sockaddr_storage;
 
@@ -63,7 +63,7 @@ void aio_SetOffset(struct aiocb* cb, long long offset);
 EXEC_RETURN aio_Commit(struct aiocb* cb);
 BOOL aio_HasCompleted(const struct aiocb* cb);
 EXEC_RETURN aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec);
-EXEC_RETURN aio_Cancel(FD_HANDLE fd, struct aiocb* cb);
+EXEC_RETURN aio_Cancel(FD_t fd, struct aiocb* cb);
 int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
 /* NIO */
 #define	REACTOR_NOP		0
@@ -72,21 +72,21 @@ int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
 #define	REACTOR_ACCEPT	3
 #define REACTOR_CONNECT	4
 typedef struct {
-	FD_HANDLE __hNio;
+	FD_t __hNio;
 #ifdef	__linux__
-	FD_HANDLE __epfd;
+	FD_t __epfd;
 #endif
-} REACTOR;
-typedef void (*REACTOR_ACCEPT_CALLBACK) (FD_HANDLE, struct sockaddr_storage*, size_t);
-EXEC_RETURN reactor_Create(REACTOR* reactor);
-EXEC_RETURN reactor_Reg(REACTOR* reactor, FD_HANDLE fd);
-EXEC_RETURN reactor_Cancel(REACTOR* reactor, FD_HANDLE fd);
-EXEC_RETURN reactor_Commit(REACTOR* reactor, FD_HANDLE fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
-int reactor_Wait(REACTOR* reactor, NIO_EVENT* e, unsigned int count, int msec);
-void reactor_Result(const NIO_EVENT* e, FD_HANDLE* p_fd, int* p_event, void** p_ol);
-BOOL reactor_ConnectCheckSuccess(FD_HANDLE sockfd);
-BOOL reactor_AcceptPretreatment(FD_HANDLE listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
-EXEC_RETURN reactor_Close(REACTOR* reactor);
+} Reactor_t;
+typedef void (*REACTOR_ACCEPT_CALLBACK) (FD_t, struct sockaddr_storage*, size_t);
+EXEC_RETURN reactor_Create(Reactor_t* reactor);
+EXEC_RETURN reactor_Reg(Reactor_t* reactor, FD_t fd);
+EXEC_RETURN reactor_Cancel(Reactor_t* reactor, FD_t fd);
+EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
+int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
+BOOL reactor_ConnectCheckSuccess(FD_t sockfd);
+BOOL reactor_AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
+EXEC_RETURN reactor_Close(Reactor_t* reactor);
 
 #ifdef	__cplusplus
 }

@@ -8,10 +8,10 @@
 #include "platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-	typedef char volatile					ATOM8;
-	typedef SHORT volatile					ATOM16;
-	typedef	LONG volatile					ATOM32;
-	typedef LONGLONG volatile				ATOM64;
+	typedef char volatile					Atom8_t;
+	typedef SHORT volatile					Atom16_t;
+	typedef	LONG volatile					Atom32_t;
+	typedef LONGLONG volatile				Atom64_t;
 	#define	_xchg8(addr, val8)				InterlockedExchange8(addr, val8)
 	#define	_xchg16(addr, val16)			InterlockedExchange16(addr, val16)
 	#define	_xchg32(addr, val32)			InterlockedExchange(addr, val32)
@@ -31,10 +31,10 @@
 		#define	_xaddsize					_xadd32
 	#endif
 #else
-	typedef char volatile					ATOM8;
-	typedef	short volatile					ATOM16;
-	typedef	int volatile					ATOM32;
-	typedef long long volatile				ATOM64;
+	typedef char volatile					Atom8_t;
+	typedef	short volatile					Atom16_t;
+	typedef	int volatile					Atom32_t;
+	typedef long long volatile				Atom64_t;
 	#define	_xchg8(addr, val8)				__sync_lock_test_and_set((char volatile*)(addr), (char)(val8))
 	#define	_xchg16(addr, val16)			__sync_lock_test_and_set((short volatile*)(addr), (short)(val16))
 	#define	_xchg32(addr, val32)			__sync_lock_test_and_set((int volatile*)(addr), (int)(val32))

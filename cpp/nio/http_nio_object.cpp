@@ -6,7 +6,7 @@
 #include <string.h>
 
 namespace Util {
-HttpNioObject::HttpNioObject(FD_HANDLE fd, size_t frame_length_limit) :
+HttpNioObject::HttpNioObject(FD_t fd, size_t frame_length_limit) :
 	TcpNioObject(fd),
 	m_readbody(false),
 	m_protocol(frame_length_limit)
@@ -15,7 +15,7 @@ HttpNioObject::HttpNioObject(FD_HANDLE fd, size_t frame_length_limit) :
 
 size_t HttpNioObject::frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
 
-int HttpNioObject::onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
+int HttpNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
 	size_t offset = 0;
 	const char* data = (const char*)iobuffer_buf(&inbuf);
 	size_t data_len = iobuffer_len(&inbuf);

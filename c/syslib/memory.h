@@ -23,21 +23,21 @@ typedef struct {
 #else
 	int __fd;
 #endif
-} MEMORY_MAPPING;
+} MemoryMapping_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 /* memory align alloc */
-#define	ctr_align_alloca(nbytes, alignment)	((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((int)alignment) - 1)))
-void* crt_align_malloc(size_t nbytes, int alignment);
-void crt_align_free(void* p);
+#define	ctr_AlignAlloca(nbytes, alignment)	((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((int)alignment) - 1)))
+void* crt_AlignMalloc(size_t nbytes, int alignment);
+void crt_AlignFree(void* p);
 /* mmap */
-EXEC_RETURN mmap_Create(MEMORY_MAPPING* mm, FD_HANDLE fd, const char* name, size_t nbytes);
-EXEC_RETURN mmap_Open(MEMORY_MAPPING* mm, const char* name);
-EXEC_RETURN mmap_Close(MEMORY_MAPPING* mm);
-void* mmap_Map(MEMORY_MAPPING* mm, void* va_base, long long offset, size_t nbytes);
+EXEC_RETURN mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
+EXEC_RETURN mmap_Open(MemoryMapping_t* mm, const char* name);
+EXEC_RETURN mmap_Close(MemoryMapping_t* mm);
+void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
 EXEC_RETURN mmap_Sync(void* addr, size_t nbytes);
 EXEC_RETURN mmap_Unmap(void* addr, size_t nbytes);
 

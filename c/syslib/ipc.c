@@ -29,7 +29,7 @@ sighandler_t signal_Handle(int signo, sighandler_t func) {
 }
 
 /* pipe */
-EXEC_RETURN pipe_Create(FD_HANDLE* r, FD_HANDLE* w) {
+EXEC_RETURN pipe_Create(FD_t* r, FD_t* w) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* note: IOCP can't use anonymous pipes(without an overlapped flag) */
 	SECURITY_ATTRIBUTES sa = {0};
@@ -48,7 +48,7 @@ EXEC_RETURN pipe_Create(FD_HANDLE* r, FD_HANDLE* w) {
 #endif
 }
 
-EXEC_RETURN pipe_NonBlock(FD_HANDLE pipefd, BOOL bool_val) {
+EXEC_RETURN pipe_NonBlock(FD_t pipefd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = bool_val ? PIPE_NOWAIT : PIPE_WAIT;
 	return SetNamedPipeHandleState((HANDLE)pipefd, &mode, NULL, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
@@ -57,7 +57,7 @@ EXEC_RETURN pipe_NonBlock(FD_HANDLE pipefd, BOOL bool_val) {
 #endif
 }
 
-int pipe_ReadableBytes(FD_HANDLE r) {
+int pipe_ReadableBytes(FD_t r) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD bytes;
 	return PeekNamedPipe((HANDLE)r, NULL, 0, NULL, &bytes, NULL) ? bytes : -1;
@@ -68,7 +68,7 @@ int pipe_ReadableBytes(FD_HANDLE r) {
 }
 
 /* critical section */
-EXEC_RETURN cslock_Create(CSLOCK* cs) {
+EXEC_RETURN cslock_Create(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	__try {
 		InitializeCriticalSection(cs);
@@ -104,7 +104,7 @@ EXEC_RETURN cslock_Create(CSLOCK* cs) {
 #endif
 }
 
-EXEC_RETURN cslock_Enter(CSLOCK* cs, BOOL wait_bool) {
+EXEC_RETURN cslock_Enter(CSLock_t* cs, BOOL wait_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (wait_bool) {
 		EnterCriticalSection(cs);
@@ -125,7 +125,7 @@ EXEC_RETURN cslock_Enter(CSLOCK* cs, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN cslock_Leave(CSLOCK* cs) {
+EXEC_RETURN cslock_Leave(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	LeaveCriticalSection(cs);
 	return EXEC_SUCCESS;
@@ -139,7 +139,7 @@ EXEC_RETURN cslock_Leave(CSLOCK* cs) {
 #endif
 }
 
-EXEC_RETURN cslock_Close(CSLOCK* cs) {
+EXEC_RETURN cslock_Close(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	DeleteCriticalSection(cs);
 	return EXEC_SUCCESS;
@@ -154,7 +154,7 @@ EXEC_RETURN cslock_Close(CSLOCK* cs) {
 }
 
 /* condition */
-EXEC_RETURN condition_Create(CONDITION* condition) {
+EXEC_RETURN condition_Create(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	InitializeConditionVariable(condition);
 	return EXEC_SUCCESS;
@@ -168,7 +168,7 @@ EXEC_RETURN condition_Create(CONDITION* condition) {
 #endif
 }
 
-EXEC_RETURN condition_Wait(CONDITION* condition,CSLOCK* cs, int msec) {
+EXEC_RETURN condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return SleepConditionVariableCS(condition, cs, msec) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -205,7 +205,7 @@ EXEC_RETURN condition_Wait(CONDITION* condition,CSLOCK* cs, int msec) {
 #endif
 }
 
-EXEC_RETURN condition_WakeThread(CONDITION* condition) {
+EXEC_RETURN condition_WakeThread(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeConditionVariable(condition);
 	return EXEC_SUCCESS;
@@ -219,7 +219,7 @@ EXEC_RETURN condition_WakeThread(CONDITION* condition) {
 #endif
 }
 
-EXEC_RETURN condition_WakeAllThread(CONDITION* condition) {
+EXEC_RETURN condition_WakeAllThread(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeAllConditionVariable(condition);
 	return EXEC_SUCCESS;
@@ -233,7 +233,7 @@ EXEC_RETURN condition_WakeAllThread(CONDITION* condition) {
 #endif
 }
 
-EXEC_RETURN condition_Close(CONDITION* condition) {
+EXEC_RETURN condition_Close(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	return EXEC_SUCCESS;
 #else
@@ -247,7 +247,7 @@ EXEC_RETURN condition_Close(CONDITION* condition) {
 }
 
 /* mutex */
-EXEC_RETURN mutex_Create(MUTEX* mutex) {
+EXEC_RETURN mutex_Create(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* windows mutex will auto release after it's owner thread exit. */
 	/* then...if another thread call WaitForSingleObject for that mutex,it will return WAIT_ABANDONED */
@@ -267,7 +267,7 @@ EXEC_RETURN mutex_Create(MUTEX* mutex) {
 #endif
 }
 
-EXEC_RETURN mutex_Lock(MUTEX* mutex, BOOL wait_bool) {
+EXEC_RETURN mutex_Lock(Mutex_t* mutex, BOOL wait_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(*mutex, wait_bool ? INFINITE : 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -284,7 +284,7 @@ EXEC_RETURN mutex_Lock(MUTEX* mutex, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN mutex_Unlock(MUTEX* mutex) {
+EXEC_RETURN mutex_Unlock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	return SetEvent(*mutex) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -297,7 +297,7 @@ EXEC_RETURN mutex_Unlock(MUTEX* mutex) {
 #endif
 }
 
-EXEC_RETURN mutex_Close(MUTEX* mutex) {
+EXEC_RETURN mutex_Close(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(*mutex) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -311,7 +311,7 @@ EXEC_RETURN mutex_Close(MUTEX* mutex) {
 }
 
 /* read/write lock */
-EXEC_RETURN rwlock_Create(RWLOCK* rwlock) {
+EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* I don't use SRW Locks because SRW Locks are neither fair nor FIFO. */
 	/*InitializeSRWLock(rwlock);*/
@@ -376,7 +376,7 @@ EXEC_RETURN rwlock_Create(RWLOCK* rwlock) {
 #endif
 }
 
-EXEC_RETURN rwlock_LockRead(RWLOCK* rwlock, BOOL wait_bool) {
+EXEC_RETURN rwlock_LockRead(RWLock_t* rwlock, BOOL wait_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*
 	if (wait_bool) {
@@ -426,7 +426,7 @@ EXEC_RETURN rwlock_LockRead(RWLOCK* rwlock, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN rwlock_LockWrite(RWLOCK* rwlock, BOOL wait_bool) {
+EXEC_RETURN rwlock_LockWrite(RWLock_t* rwlock, BOOL wait_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*
 	if (wait_bool) {
@@ -459,7 +459,7 @@ EXEC_RETURN rwlock_LockWrite(RWLOCK* rwlock, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN rwlock_UnlockRead(RWLOCK* rwlock) {
+EXEC_RETURN rwlock_UnlockRead(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*ReleaseSRWLockShared(rwlock);*/
 	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
@@ -478,7 +478,7 @@ EXEC_RETURN rwlock_UnlockRead(RWLOCK* rwlock) {
 #endif
 }
 
-EXEC_RETURN rwlock_UnlockWrite(RWLOCK* rwlock) {
+EXEC_RETURN rwlock_UnlockWrite(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*ReleaseSRWLockExclusive(rwlock);*/
 	assert_true(SetEvent(rwlock->__write_ev));
@@ -494,7 +494,7 @@ EXEC_RETURN rwlock_UnlockWrite(RWLOCK* rwlock) {
 #endif
 }
 
-EXEC_RETURN rwlock_Close(RWLOCK* rwlock) {
+EXEC_RETURN rwlock_Close(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (!CloseHandle(rwlock->__read_ev)) {
 		return EXEC_ERROR;
@@ -517,9 +517,9 @@ EXEC_RETURN rwlock_Close(RWLOCK* rwlock) {
 }
 
 /* semaphore */
-SEMID semaphore_Create(const char* name, unsigned short val) {
+SemId_t semaphore_Create(const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
-	SEMID semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
+	SemId_t semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
 		assert_true(CloseHandle(semid));
 		return NULL;
@@ -532,7 +532,7 @@ SEMID semaphore_Create(const char* name, unsigned short val) {
 #endif
 }
 
-SEMID semaphore_Open(const char* name) {
+SemId_t semaphore_Open(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
 #else
@@ -540,7 +540,7 @@ SEMID semaphore_Open(const char* name) {
 #endif
 }
 
-EXEC_RETURN semaphore_Wait(SEMID id, BOOL wait_bool) {
+EXEC_RETURN semaphore_Wait(SemId_t id, BOOL wait_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(id, wait_bool ? INFINITE : 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -553,7 +553,7 @@ EXEC_RETURN semaphore_Wait(SEMID id, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN semaphore_Post(SEMID id) {
+EXEC_RETURN semaphore_Post(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
 	return ReleaseSemaphore(id, 1, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -561,7 +561,7 @@ EXEC_RETURN semaphore_Post(SEMID id) {
 #endif
 }
 
-EXEC_RETURN semaphore_Close(SEMID id) {
+EXEC_RETURN semaphore_Close(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(id) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -586,7 +586,7 @@ BOOL CALLBACK __win32InitOnceCallback(PINIT_ONCE InitOnce, PVOID Parameter, PVOI
 }
 #endif
 
-EXEC_RETURN initonce_Call(INIT_ONCE* once, void(*callback)(void)) {
+EXEC_RETURN initonce_Call(InitOnce_t* once, void(*callback)(void)) {
 #if defined(_WIN32) || defined(_WIN64)
 	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
 #else

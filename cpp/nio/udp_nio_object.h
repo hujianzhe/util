@@ -10,7 +10,7 @@
 namespace Util {
 class UdpNioObject : public NioObject {
 public:
-	UdpNioObject(FD_HANDLE sockfd, unsigned short frame_length_limit);
+	UdpNioObject(FD_t sockfd, unsigned short frame_length_limit);
 
 	unsigned short frameLengthLimit(void) const;
 

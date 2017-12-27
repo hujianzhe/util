@@ -6,7 +6,7 @@
 #include "../protocol/websocket_protocol.h"
 
 namespace Util {
-WebsocketNioObject::WebsocketNioObject(FD_HANDLE fd, unsigned long long frame_length_limit) :
+WebsocketNioObject::WebsocketNioObject(FD_t fd, unsigned long long frame_length_limit) :
 	TcpNioObject(fd),
 	m_hasHandshake(false),
 	m_frameLengthLimit(frame_length_limit)
@@ -20,7 +20,7 @@ bool WebsocketNioObject::send(const void* data, unsigned int nbytes, struct sock
 	size_t headlen = WebSocketProtocol::responseHeaderLength(nbytes);
 	void* head = alloca(headlen);
 	if (protocol.buildHeader((unsigned char*)head, nbytes)) {
-		IO_BUFFER iov[2];
+		IoBuf_t iov[2];
 		iobuffer_buf(iov + 0) = (char*)head;
 		iobuffer_len(iov + 0) = headlen;
 		iobuffer_buf(iov + 1) = (char*)data;
@@ -29,7 +29,7 @@ bool WebsocketNioObject::send(const void* data, unsigned int nbytes, struct sock
 	}
 	return false;
 }
-int WebsocketNioObject::onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
+int WebsocketNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
 	size_t offset = 0;
 	WebSocketProtocol protocol(m_frameLengthLimit);
 	unsigned char* data = (unsigned char*)iobuffer_buf(&inbuf);

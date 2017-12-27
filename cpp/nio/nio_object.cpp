@@ -9,7 +9,7 @@
 namespace Util {
 NioObject::NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_socktype(-1) {}
 NioObject& NioObject::operator=(const NioObject& o) { return *this; }
-NioObject::NioObject(FD_HANDLE fd, int socktype) :
+NioObject::NioObject(FD_t fd, int socktype) :
 	m_fd(fd),
 	m_socktype(-1 == socktype ? sock_Type(fd) : socktype),
 	m_readOl(NULL),
@@ -31,11 +31,11 @@ NioObject::~NioObject(void) {
 	free(m_writeOl);
 }
 
-FD_HANDLE NioObject::fd(void) const { return m_fd; }
+FD_t NioObject::fd(void) const { return m_fd; }
 int NioObject::socktype(void) const { return m_socktype; }
 bool NioObject::isListen(void) const { return m_isListen; }
 
-bool NioObject::reactorInit(REACTOR* reactor) {
+bool NioObject::reactorInit(Reactor_t* reactor) {
 	if (sock_NonBlock(m_fd, TRUE) != EXEC_SUCCESS) {
 		return false;
 	}
@@ -106,7 +106,7 @@ bool NioObject::checkValid(void) {
 	return m_valid;
 }
 
-bool NioObject::sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
+bool NioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
 	if (!m_valid) {
 		return false;
 	}
@@ -130,7 +130,7 @@ bool NioObject::sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_stora
 }
 
 bool NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
-	IO_BUFFER iov;
+	IoBuf_t iov;
 	iobuffer_buf(&iov) = (char*)data;
 	iobuffer_len(&iov) = nbytes;
 	return sendv(&iov, 1, saddr);
@@ -163,7 +163,7 @@ int NioObject::onRead(void) {
 	}
 	return res;
 }
-int NioObject::onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes) { return transfer_bytes; }
+int NioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) { return transfer_bytes; }
 int NioObject::onWrite(void) { return 0; }
 void NioObject::onRemove(void) {}
 }

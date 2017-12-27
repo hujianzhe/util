@@ -10,12 +10,12 @@
 namespace Util {
 class FixedFieldNioObject : public TcpNioObject {
 public:
-	FixedFieldNioObject(FD_HANDLE fd, size_t fixed_field_size);
+	FixedFieldNioObject(FD_t fd, size_t fixed_field_size);
 
 	short lengthFieldSize(void) const;
 
 private:
-	int onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 	virtual bool onRead(unsigned char* data, size_t len, struct sockaddr_storage* from);
 
 private:

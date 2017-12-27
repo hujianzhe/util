@@ -10,13 +10,13 @@
 namespace Util {
 class LengthFieldNioObject : public TcpNioObject {
 public:
-	LengthFieldNioObject(FD_HANDLE fd, short length_field_size, size_t frame_length_limit);
+	LengthFieldNioObject(FD_t fd, short length_field_size, size_t frame_length_limit);
 
 	short lengthFieldSize(void) const;
 	size_t frameLengthLimit(void) const;
 
 private:
-	int onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 	virtual bool onRead(unsigned char* data, size_t len, struct sockaddr_storage* from);
 
 private:

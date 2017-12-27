@@ -12,13 +12,13 @@
 namespace Util {
 class TcpNioObject : public NioObject {
 public:
-	TcpNioObject(FD_HANDLE fd);
+	TcpNioObject(FD_t fd);
 	~TcpNioObject(void);
 
 	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(NioObject*, bool)>& cb = nullptr);
 	bool reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(NioObject*, bool)>& cb = nullptr);
 
-	virtual bool sendv(IO_BUFFER* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
+	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 
 private:
 	bool onConnect(void);
@@ -27,7 +27,7 @@ private:
 
 	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);
 	void inbufRemove(unsigned int nbytes);
-	IO_BUFFER inbuf(void);
+	IoBuf_t inbuf(void);
 	virtual int recv(void);
 
 private:
@@ -35,7 +35,7 @@ private:
 	volatile bool m_connecting;
 
 	std::vector<unsigned char> m_inbuf;
-	MUTEX m_outbufMutex;
+	Mutex_t m_outbufMutex;
 	bool m_outbufMutexInitOk;
 	bool m_writeCommit;
 	struct __NioSendDataInfo {

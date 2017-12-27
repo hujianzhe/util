@@ -21,8 +21,8 @@ static const char* __win32_path(char* path) {
 }
 #endif
 
-/* FD_HANDLE generate operator */
-EXEC_RETURN fd_Type(FD_HANDLE fd, FD_HANDLE_TYPE* type) {
+/* FD_t generate operator */
+EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = GetFileType((HANDLE)fd);
 	switch (mode) {
@@ -89,7 +89,7 @@ EXEC_RETURN fd_Type(FD_HANDLE fd, FD_HANDLE_TYPE* type) {
 #endif
 }
 
-EXEC_RETURN fd_GetInheritFlag(FD_HANDLE fd, BOOL* bool_val) {
+EXEC_RETURN fd_GetInheritFlag(FD_t fd, BOOL* bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD flag;
 	if (!GetHandleInformation((HANDLE)fd, &flag)) {
@@ -107,7 +107,7 @@ EXEC_RETURN fd_GetInheritFlag(FD_HANDLE fd, BOOL* bool_val) {
 #endif
 }
 
-EXEC_RETURN fd_SetInheritFlag(FD_HANDLE fd, BOOL bool_val) {
+EXEC_RETURN fd_SetInheritFlag(FD_t fd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	return SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, bool_val ? HANDLE_FLAG_INHERIT : 0) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -115,22 +115,22 @@ EXEC_RETURN fd_SetInheritFlag(FD_HANDLE fd, BOOL bool_val) {
 #endif
 }
 
-FD_HANDLE fd_Dup(FD_HANDLE fd) {
+FD_t fd_Dup(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE new_fd = INVALID_HANDLE_VALUE;
 	DuplicateHandle(GetCurrentProcess(), (HANDLE)fd, GetCurrentProcess(), &new_fd, 0, FALSE, DUPLICATE_SAME_ACCESS);
-	return (FD_HANDLE)new_fd;
+	return (FD_t)new_fd;
 #else
 	return dup(fd);
 #endif
 }
 
-FD_HANDLE fd_Dup2(FD_HANDLE oldfd, FD_HANDLE newfd) {
+FD_t fd_Dup2(FD_t oldfd, FD_t newfd) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (oldfd != newfd) {
 		HANDLE new_fd = (HANDLE)newfd;
 		if (!DuplicateHandle(GetCurrentProcess(), (HANDLE)oldfd, GetCurrentProcess(), (LPHANDLE)&newfd, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-			return (FD_HANDLE)INVALID_HANDLE_VALUE;
+			return (FD_t)INVALID_HANDLE_VALUE;
 		}
 		CloseHandle(new_fd);
 	}
@@ -141,7 +141,7 @@ FD_HANDLE fd_Dup2(FD_HANDLE oldfd, FD_HANDLE newfd) {
 }
 
 /* file operator */
-FD_HANDLE file_Open(const char* path, int obit) {
+FD_t file_Open(const char* path, int obit) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
 	DWORD dwDesiredAccess = 0, dwCreationDisposition = 0, dwFlagsAndAttributes = 0;
@@ -178,7 +178,7 @@ FD_HANDLE file_Open(const char* path, int obit) {
 		dwFlagsAndAttributes |= FILE_FLAG_OVERLAPPED;
 	dwFlagsAndAttributes |= FILE_ATTRIBUTE_NORMAL;
 	//
-	return (FD_HANDLE)CreateFileA(
+	return (FD_t)CreateFileA(
 		__win32_path(strcpy(szFullPath, path)), dwDesiredAccess,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		&sa, dwCreationDisposition, dwFlagsAndAttributes, NULL);
@@ -216,7 +216,7 @@ FD_HANDLE file_Open(const char* path, int obit) {
 #endif
 }
 
-int file_Read(FD_HANDLE fd, void* buf, unsigned int nbytes) {
+int file_Read(FD_t fd, void* buf, unsigned int nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _readbytes;
 	return ReadFile((HANDLE)fd, buf, nbytes, &_readbytes, NULL) ? _readbytes : -1;
@@ -225,7 +225,7 @@ int file_Read(FD_HANDLE fd, void* buf, unsigned int nbytes) {
 #endif
 }
 
-int file_Write(FD_HANDLE fd, const void* buf, unsigned int nbytes) {
+int file_Write(FD_t fd, const void* buf, unsigned int nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _writebytes = 0;
 	return WriteFile((HANDLE)fd, buf, nbytes, &_writebytes, NULL) ? _writebytes : -1;
@@ -234,7 +234,7 @@ int file_Write(FD_HANDLE fd, const void* buf, unsigned int nbytes) {
 #endif
 }
 
-long long file_Seek(FD_HANDLE fd, long long offset, int whence) {
+long long file_Seek(FD_t fd, long long offset, int whence) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
@@ -248,7 +248,7 @@ long long file_Seek(FD_HANDLE fd, long long offset, int whence) {
 #endif
 }
 
-long long file_Tell(FD_HANDLE fd) {
+long long file_Tell(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
@@ -261,7 +261,7 @@ long long file_Tell(FD_HANDLE fd) {
 #endif
 }
 
-EXEC_RETURN file_Flush(FD_HANDLE fd) {
+EXEC_RETURN file_Flush(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FlushFileBuffers((HANDLE)fd) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -269,7 +269,7 @@ EXEC_RETURN file_Flush(FD_HANDLE fd) {
 #endif
 }
 
-EXEC_RETURN file_Close(FD_HANDLE fd) {
+EXEC_RETURN file_Close(FD_t fd) {
 	if (INVALID_FD_HANDLE == fd) {
 		return EXEC_SUCCESS;
 	}
@@ -280,7 +280,7 @@ EXEC_RETURN file_Close(FD_HANDLE fd) {
 #endif
 }
 
-long long file_Size(FD_HANDLE fd) {
+long long file_Size(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER n = {0};
 	return GetFileSizeEx((HANDLE)fd, &n) ? n.QuadPart : -1;
@@ -290,7 +290,7 @@ long long file_Size(FD_HANDLE fd) {
 #endif
 }
 
-EXEC_RETURN file_ChangeLength(FD_HANDLE fd, long long length) {
+EXEC_RETURN file_ChangeLength(FD_t fd, long long length) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL res;
 	LARGE_INTEGER pos = {0};
@@ -309,7 +309,7 @@ EXEC_RETURN file_ChangeLength(FD_HANDLE fd, long long length) {
 }
 
 /* file lock */
-EXEC_RETURN file_LockExclusive(FD_HANDLE fd, long long offset, long long nbytes, BOOL block_bool) {
+EXEC_RETURN file_LockExclusive(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dwFlags;
 	OVERLAPPED overlapvar = {0};
@@ -330,7 +330,7 @@ EXEC_RETURN file_LockExclusive(FD_HANDLE fd, long long offset, long long nbytes,
 #endif
 }
 
-EXEC_RETURN file_LockShared(FD_HANDLE fd, long long offset, long long nbytes, BOOL block_bool) {
+EXEC_RETURN file_LockShared(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dwFlags = 0;
 	OVERLAPPED overlapvar = {0};
@@ -350,7 +350,7 @@ EXEC_RETURN file_LockShared(FD_HANDLE fd, long long offset, long long nbytes, BO
 #endif
 }
 
-EXEC_RETURN file_Unlock(FD_HANDLE fd, long long offset, long long nbytes) {
+EXEC_RETURN file_Unlock(FD_t fd, long long offset, long long nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED overlapvar = {0};
 	overlapvar.Offset = (DWORD)offset;
@@ -428,7 +428,7 @@ EXEC_RETURN file_DeleteHardLink(const char* existpath) {
 #endif
 }
 
-EXEC_RETURN file_HardLinkCount(FD_HANDLE fd, unsigned int* count) {
+EXEC_RETURN file_HardLinkCount(FD_t fd, unsigned int* count) {
 #if defined(_WIN32) || defined(_WIN64)
 	BY_HANDLE_FILE_INFORMATION info;
 	if (!GetFileInformationByHandle((HANDLE)fd, &info))
@@ -472,7 +472,7 @@ EXEC_RETURN dir_Sheft(const char* path) {
 #endif
 }
 
-DIRECTORY dir_Open(const char* path) {
+Dir_t dir_Open(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
 	size_t len;
 	WIN32_FIND_DATAA fd;
@@ -489,7 +489,7 @@ DIRECTORY dir_Open(const char* path) {
 #endif
 }
 
-EXEC_RETURN dir_Close(DIRECTORY dir) {
+EXEC_RETURN dir_Close(Dir_t dir) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FindClose(dir) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -497,7 +497,7 @@ EXEC_RETURN dir_Close(DIRECTORY dir) {
 #endif
 }
 
-EXEC_RETURN dir_Read(DIRECTORY dir, DIR_ITEM* item) {
+EXEC_RETURN dir_Read(Dir_t dir, DirItem_t* item) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (FindNextFileA(dir, item)) {
 		if (!strcmp(".", item->cFileName) || !strcmp("..", item->cFileName))
@@ -517,7 +517,7 @@ EXEC_RETURN dir_Read(DIRECTORY dir, DIR_ITEM* item) {
 #endif
 }
 
-char* dir_FileName(DIR_ITEM* item) {
+char* dir_FileName(DirItem_t* item) {
 #if defined(_WIN32) || defined(_WIN64)
 	return item->cFileName;
 #else

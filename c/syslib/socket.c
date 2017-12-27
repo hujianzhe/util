@@ -554,7 +554,7 @@ EXEC_RETURN sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port
 	return EXEC_SUCCESS;
 }
 
-EXEC_RETURN sock_BindSockaddr(FD_HANDLE sockfd, const struct sockaddr_storage* saddr) {
+EXEC_RETURN sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	int on = 1;
 /*
 #ifdef  SO_REUSEPORT
@@ -567,30 +567,30 @@ EXEC_RETURN sock_BindSockaddr(FD_HANDLE sockfd, const struct sockaddr_storage* s
 	return bind(sockfd, (struct sockaddr*)saddr, sizeof(*saddr)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_GetSockAddr(FD_HANDLE sockfd, struct sockaddr_storage* saddr) {
+EXEC_RETURN sock_GetSockAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
 	socklen_t slen = sizeof(*saddr);
 	return getsockname(sockfd, (struct sockaddr*)saddr, &slen) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_GetPeerAddr(FD_HANDLE sockfd, struct sockaddr_storage* saddr) {
+EXEC_RETURN sock_GetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
 	socklen_t slen = sizeof(*saddr);
 	return getpeername(sockfd, (struct sockaddr*)saddr, &slen) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
 /* SOCKET */
-static int sock_Family(FD_HANDLE sockfd) {
+static int sock_Family(FD_t sockfd) {
 	struct sockaddr_storage ss; 
 	socklen_t len = sizeof(ss);
 	return getsockname(sockfd, (struct sockaddr*)&ss, &len) ? -1 : ss.ss_family;
 }
 
-int sock_Type(FD_HANDLE sockfd) {
+int sock_Type(FD_t sockfd) {
 	int type;
 	socklen_t len = sizeof(type);
 	return getsockopt(sockfd, SOL_SOCKET, SO_TYPE, (char*)&type, &len) ? -1 : type;
 }
 
-int sock_Error(FD_HANDLE sockfd) {
+int sock_Error(FD_t sockfd) {
 	int error;
 	socklen_t len = sizeof(int);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len) == 0) {
@@ -602,11 +602,11 @@ int sock_Error(FD_HANDLE sockfd) {
 	return error;
 }
 
-EXEC_RETURN sock_UdpConnect(FD_HANDLE sockfd, const struct sockaddr_storage* saddr) {
+EXEC_RETURN sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	return connect(sockfd, (struct sockaddr*)saddr, sizeof(*saddr)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpDisconnect(FD_HANDLE sockfd) {
+EXEC_RETURN sock_UdpDisconnect(FD_t sockfd) {
 	int res;
 	struct sockaddr sa = {0};
 	sa.sa_family = AF_UNSPEC;
@@ -614,8 +614,8 @@ EXEC_RETURN sock_UdpDisconnect(FD_HANDLE sockfd) {
 	return (res != 0 && __GetErrorCode() != SOCKET_ERROR_VALUE(EAFNOSUPPORT)) ? EXEC_ERROR : EXEC_SUCCESS;
 }
 
-FD_HANDLE sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
-	FD_HANDLE sockfd = INVALID_SOCKET;
+FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
+	FD_t sockfd = INVALID_SOCKET;
 	int res, error;
 	/* create a TCP socket */
 	sockfd = socket(addr->ss_family, SOCK_STREAM, 0);
@@ -686,13 +686,13 @@ end:
 	return sockfd;
 }
 
-EXEC_RETURN sock_IsListened(FD_HANDLE sockfd, BOOL* bool_value) {
+EXEC_RETURN sock_IsListened(FD_t sockfd, BOOL* bool_value) {
 	socklen_t len = sizeof(*bool_value);
 	return getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-FD_HANDLE sock_TcpAccept(FD_HANDLE listenfd, int msec, struct sockaddr_storage* from) {
-	FD_HANDLE confd = INVALID_SOCKET;
+FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
+	FD_t confd = INVALID_SOCKET;
 	socklen_t slen = sizeof(*from);
 	socklen_t* p_slen = from ? &slen : NULL;
 	if (msec < 0) {
@@ -726,7 +726,7 @@ FD_HANDLE sock_TcpAccept(FD_HANDLE listenfd, int msec, struct sockaddr_storage* 
 	return confd;
 }
 
-EXEC_RETURN sock_Pair(int type, FD_HANDLE sockfd[2]) {
+EXEC_RETURN sock_Pair(int type, FD_t sockfd[2]) {
 #if defined(_WIN32) || defined(_WIN64)
 	socklen_t slen = sizeof(struct sockaddr_in);
 	struct sockaddr_in saddr = { 0 };
@@ -799,7 +799,7 @@ EXEC_RETURN sock_Pair(int type, FD_HANDLE sockfd[2]) {
 }
 
 /* SOCKET IO */
-EXEC_RETURN sock_NonBlock(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_NonBlock(FD_t sockfd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	u_long ctl = bool_val ? 1 : 0;
 	return ioctlsocket(sockfd, FIONBIO, &ctl) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
@@ -808,7 +808,7 @@ EXEC_RETURN sock_NonBlock(FD_HANDLE sockfd, BOOL bool_val) {
 #endif
 }
 
-int sock_TcpReadableBytes(FD_HANDLE sockfd) {
+int sock_TcpReadableBytes(FD_t sockfd) {
 	/* for udp: there is no a reliable sysapi to get udp next pending dgram size in different platform */
 #if defined(_WIN32) || defined(_WIN64)
 	u_long bytes;
@@ -819,16 +819,16 @@ int sock_TcpReadableBytes(FD_HANDLE sockfd) {
 #endif
 }
 
-int sock_Recv(FD_HANDLE sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
+int sock_Recv(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
 	socklen_t slen = from ? sizeof(*from) : 0;
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
-int sock_Send(FD_HANDLE sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
+int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
 	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, to ? sizeof(*to) : 0);
 }
 
-int sock_RecvVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
+int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
 	int slen = saddr ? sizeof(*saddr) : 0;
@@ -843,7 +843,7 @@ int sock_RecvVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flag
 #endif	
 }
 
-int sock_SendVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
+int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
 	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, (struct sockaddr*)saddr, saddr ? sizeof(*saddr) : 0, NULL, NULL) ? -1 : realbytes;
@@ -857,7 +857,7 @@ int sock_SendVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flag
 #endif
 }
 
-int sock_TcpSendAll(FD_HANDLE sockfd, const void* buf, unsigned int nbytes) {
+int sock_TcpSendAll(FD_t sockfd, const void* buf, unsigned int nbytes) {
 	int wn = 0;
 	int res;
 	while (wn < (int)nbytes) {
@@ -870,7 +870,7 @@ int sock_TcpSendAll(FD_HANDLE sockfd, const void* buf, unsigned int nbytes) {
 	return nbytes;
 }
 
-int sock_TcpRecvAll(FD_HANDLE sockfd, void* buf, unsigned int nbytes) {
+int sock_TcpRecvAll(FD_t sockfd, void* buf, unsigned int nbytes) {
 #ifdef	MSG_WAITALL
 	return recv(sockfd, (char*)buf, nbytes, MSG_WAITALL);
 #else
@@ -887,7 +887,7 @@ int sock_TcpRecvAll(FD_HANDLE sockfd, void* buf, unsigned int nbytes) {
 #endif
 }
 
-int sock_TcpCanRecvOOB(FD_HANDLE sockfd){
+int sock_TcpCanRecvOOB(FD_t sockfd){
 #if defined(_WIN32) || defined(_WIN64)
     u_long ok;
 	return !ioctlsocket(sockfd,SIOCATMARK,&ok) ? ok:-1;
@@ -896,7 +896,7 @@ int sock_TcpCanRecvOOB(FD_HANDLE sockfd){
 #endif
 }
 
-EXEC_RETURN sock_TcpRecvOOB(FD_HANDLE sockfd, unsigned char* p_oob) {
+EXEC_RETURN sock_TcpRecvOOB(FD_t sockfd, unsigned char* p_oob) {
 	unsigned char c;
 	void* p = p_oob;
 	if (p == NULL) {
@@ -905,7 +905,7 @@ EXEC_RETURN sock_TcpRecvOOB(FD_HANDLE sockfd, unsigned char* p_oob) {
     return recv(sockfd, (char*)p, 1, MSG_OOB) == 1 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-/* SOCKET REACTOR */
+/* SOCKET Reactor_t */
 int sock_Select(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec) {
 	int res;
 	struct timeval tval;
@@ -932,7 +932,7 @@ int sock_Poll(struct pollfd* fdarray, unsigned long nfds, int msec) {
 }
 
 /* SOCKET OPTION */
-EXEC_RETURN sock_SetSendTimeOut(FD_HANDLE sockfd, int msec) {
+EXEC_RETURN sock_SetSendTimeOut(FD_t sockfd, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&msec, sizeof(msec)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -944,7 +944,7 @@ EXEC_RETURN sock_SetSendTimeOut(FD_HANDLE sockfd, int msec) {
 #endif
 }
 
-EXEC_RETURN sock_SetRecvTimeOut(FD_HANDLE sockfd, int msec) {
+EXEC_RETURN sock_SetRecvTimeOut(FD_t sockfd, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&msec, sizeof(msec)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -956,37 +956,37 @@ EXEC_RETURN sock_SetRecvTimeOut(FD_HANDLE sockfd, int msec) {
 #endif
 }
 
-EXEC_RETURN sock_SetRecvMininumSize(FD_HANDLE sockfd, int size) {
+EXEC_RETURN sock_SetRecvMininumSize(FD_t sockfd, int size) {
     /* nio use(eg. select) */
     return setsockopt(sockfd, SOL_SOCKET, SO_RCVLOWAT, (char*)&size, sizeof(size)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_SetSendMininumSize(FD_HANDLE sockfd, int size) {
+EXEC_RETURN sock_SetSendMininumSize(FD_t sockfd, int size) {
     /* nio use(eg. select) */
     return setsockopt(sockfd, SOL_SOCKET, SO_SNDLOWAT, (char*)&size, sizeof(size)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-int sock_GetSendBufSize(FD_HANDLE sockfd) {
+int sock_GetSendBufSize(FD_t sockfd) {
 	int res;
 	socklen_t len = sizeof(res);
 	return getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF,(char*)&res, &len) ? -1 : res;
 }
 
-EXEC_RETURN sock_SetSendBufSize(FD_HANDLE sockfd, int size) {
+EXEC_RETURN sock_SetSendBufSize(FD_t sockfd, int size) {
 	return setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char*)&size, sizeof(size)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-int sock_GetRecvBufSize(FD_HANDLE sockfd) {
+int sock_GetRecvBufSize(FD_t sockfd) {
 	int res;
 	socklen_t len = sizeof(res);
 	return getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char*)&res, &len) ? -1 : res;
 }
 
-EXEC_RETURN sock_SetRecvBufSize(FD_HANDLE sockfd, int size) {
+EXEC_RETURN sock_SetRecvBufSize(FD_t sockfd, int size) {
 	return setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char*)&size, sizeof(size)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_SetUniCastTTL(FD_HANDLE sockfd, unsigned char ttl) {
+EXEC_RETURN sock_SetUniCastTTL(FD_t sockfd, unsigned char ttl) {
 	int val = ttl;
 	int family = sock_Family(sockfd);
 	if (family == AF_INET)
@@ -998,7 +998,7 @@ EXEC_RETURN sock_SetUniCastTTL(FD_HANDLE sockfd, unsigned char ttl) {
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_SetMultiCastTTL(FD_HANDLE sockfd, int ttl) {
+EXEC_RETURN sock_SetMultiCastTTL(FD_t sockfd, int ttl) {
 	int family = sock_Family(sockfd);
 	if (family == AF_INET) {
 		unsigned char val = ttl > 0xff ? 0xff : ttl;
@@ -1011,31 +1011,31 @@ EXEC_RETURN sock_SetMultiCastTTL(FD_HANDLE sockfd, int ttl) {
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpGetMSS(FD_HANDLE sockfd, int* mss) {
+EXEC_RETURN sock_TcpGetMSS(FD_t sockfd, int* mss) {
 	socklen_t len = sizeof(*mss);
 	return getsockopt(sockfd, IPPROTO_TCP, TCP_MAXSEG, (char*)mss, &len) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpSetMSS(FD_HANDLE sockfd, int mss) {
+EXEC_RETURN sock_TcpSetMSS(FD_t sockfd, int mss) {
 	return setsockopt(sockfd, IPPROTO_TCP, TCP_MAXSEG, (char*)&mss, sizeof(mss)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpNoDelay(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_TcpNoDelay(FD_t sockfd, BOOL bool_val) {
 	int on = (bool_val != 0);
 	return setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpEnableProbePeerAlive(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_TcpEnableProbePeerAlive(FD_t sockfd, BOOL bool_val) {
 	int on = (bool_val != 0);
 	return setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*)&on, sizeof(on)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpEnableOOBInLine(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_TcpEnableOOBInLine(FD_t sockfd, BOOL bool_val) {
 	int on = (bool_val != 0);
 	return setsockopt(sockfd, SOL_SOCKET, SO_OOBINLINE, (char*)&on, sizeof(on)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_TcpEnableLinger(FD_HANDLE sockfd, BOOL bool_val, unsigned int sec) {
+EXEC_RETURN sock_TcpEnableLinger(FD_t sockfd, BOOL bool_val, unsigned int sec) {
 	/* it is used by close()/closesocket(), not shutdown */
 	struct linger sl = {0};
 	sl.l_onoff = bool_val;
@@ -1046,12 +1046,12 @@ EXEC_RETURN sock_TcpEnableLinger(FD_HANDLE sockfd, BOOL bool_val, unsigned int s
 	return setsockopt(sockfd, SOL_SOCKET, SO_LINGER, (char*)&sl, sizeof(sl)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpEnableBroadcast(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_UdpEnableBroadcast(FD_t sockfd, BOOL bool_val) {
 	bool_val = bool_val ? 1:0;
 	return setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (char*)&bool_val, sizeof(bool_val)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpMcastGroupJoin(FD_HANDLE sockfd, const struct sockaddr_storage* grp) {
+EXEC_RETURN sock_UdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
 	if (grp->ss_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -1068,7 +1068,7 @@ EXEC_RETURN sock_UdpMcastGroupJoin(FD_HANDLE sockfd, const struct sockaddr_stora
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpMcastGroupLeave(FD_HANDLE sockfd, const struct sockaddr_storage* grp) {
+EXEC_RETURN sock_UdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp) {
 	if (grp->ss_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -1085,7 +1085,7 @@ EXEC_RETURN sock_UdpMcastGroupLeave(FD_HANDLE sockfd, const struct sockaddr_stor
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpMcastEnableLoop(FD_HANDLE sockfd, BOOL bool_val) {
+EXEC_RETURN sock_UdpMcastEnableLoop(FD_t sockfd, BOOL bool_val) {
 	int family = sock_Family(sockfd);
 	if (family == AF_INET) {
 		unsigned char val = (bool_val != 0);
@@ -1101,7 +1101,7 @@ EXEC_RETURN sock_UdpMcastEnableLoop(FD_HANDLE sockfd, BOOL bool_val) {
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpMcastGetInterface(FD_HANDLE sockfd, struct in_addr* iaddr, unsigned int* ifindex) {
+EXEC_RETURN sock_UdpMcastGetInterface(FD_t sockfd, struct in_addr* iaddr, unsigned int* ifindex) {
 	int family = sock_Family(sockfd);
 	socklen_t optlen;
 	if (family == AF_INET) {
@@ -1118,7 +1118,7 @@ EXEC_RETURN sock_UdpMcastGetInterface(FD_HANDLE sockfd, struct in_addr* iaddr, u
 	return EXEC_ERROR;
 }
 
-EXEC_RETURN sock_UdpMcastSetInterface(FD_HANDLE sockfd, struct in_addr iaddr, unsigned int ifindex) {
+EXEC_RETURN sock_UdpMcastSetInterface(FD_t sockfd, struct in_addr iaddr, unsigned int ifindex) {
 	int family = sock_Family(sockfd);
 	if (family == AF_INET)
 		return setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&iaddr, sizeof(struct in_addr)) == 0 ? EXEC_SUCCESS : EXEC_ERROR;

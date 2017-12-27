@@ -11,12 +11,12 @@
 namespace Util {
 class HttpNioObject : public TcpNioObject {
 public:
-	HttpNioObject(FD_HANDLE fd, size_t frame_length_limit);
+	HttpNioObject(FD_t fd, size_t frame_length_limit);
 
 	size_t frameLengthLimit(void) const;
 
 private:
-	int onRead(IO_BUFFER inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 
 	virtual bool handleRequestHeader(const HttpProtocol& protocol, struct sockaddr_storage* from);
 	virtual bool handleGetRequest(const HttpProtocol& protocol, struct sockaddr_storage* from);

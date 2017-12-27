@@ -115,63 +115,63 @@ struct addrinfo* sock_AddrInfoList(const char* host, const char* serv, int ai_so
 EXEC_RETURN sock_Text2Addr(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
 EXEC_RETURN sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
 EXEC_RETURN sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
-EXEC_RETURN sock_BindSockaddr(FD_HANDLE sockfd, const struct sockaddr_storage* saddr);
-EXEC_RETURN sock_GetSockAddr(FD_HANDLE sockfd, struct sockaddr_storage* saddr);
-EXEC_RETURN sock_GetPeerAddr(FD_HANDLE sockfd, struct sockaddr_storage* saddr);
+EXEC_RETURN sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr);
+EXEC_RETURN sock_GetSockAddr(FD_t sockfd, struct sockaddr_storage* saddr);
+EXEC_RETURN sock_GetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 /* SOCKET */
 #if defined(_WIN32) || defined(_WIN64)
 #define	sock_Close(sockfd)	(closesocket((SOCKET)(sockfd)) == 0 ? EXEC_SUCCESS : EXEC_ERROR)
 #else
 #define	sock_Close(sockfd)	(close(sockfd) == 0 ? EXEC_SUCCESS : EXEC_ERROR)
 #endif
-int sock_Type(FD_HANDLE sockfd);
-int sock_Error(FD_HANDLE sockfd);
-EXEC_RETURN sock_UdpConnect(FD_HANDLE sockfd, const struct sockaddr_storage* saddr);
-EXEC_RETURN sock_UdpDisconnect(FD_HANDLE sockfd);
-FD_HANDLE sock_TcpConnect(const struct sockaddr_storage* saddr, int msec);
+int sock_Type(FD_t sockfd);
+int sock_Error(FD_t sockfd);
+EXEC_RETURN sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
+EXEC_RETURN sock_UdpDisconnect(FD_t sockfd);
+FD_t sock_TcpConnect(const struct sockaddr_storage* saddr, int msec);
 #define sock_TcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0 ? EXEC_SUCCESS : EXEC_ERROR)
-EXEC_RETURN sock_IsListened(FD_HANDLE sockfd, BOOL* bool_value);
-FD_HANDLE sock_TcpAccept(FD_HANDLE listenfd, int msec, struct sockaddr_storage* from);
+EXEC_RETURN sock_IsListened(FD_t sockfd, BOOL* bool_value);
+FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
 #define	sock_Shutdown(sockfd, how)	(shutdown(sockfd, how) == 0 ? EXEC_SUCCESS : EXEC_ERROR)
-EXEC_RETURN sock_Pair(int type, FD_HANDLE sockfd[2]);
+EXEC_RETURN sock_Pair(int type, FD_t sockfd[2]);
 /* SOCKET IO */
-EXEC_RETURN sock_NonBlock(FD_HANDLE sockfd, BOOL bool_val);
-int sock_TcpReadableBytes(FD_HANDLE sockfd);
-int sock_Recv(FD_HANDLE sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
-int sock_Send(FD_HANDLE sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
-int sock_RecvVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-int sock_SendVec(FD_HANDLE sockfd, IO_BUFFER* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
-int sock_TcpRecvAll(FD_HANDLE sockfd, void* buf, unsigned int nbytes);
-int sock_TcpSendAll(FD_HANDLE sockfd, const void* buf, unsigned int nbytes);
+EXEC_RETURN sock_NonBlock(FD_t sockfd, BOOL bool_val);
+int sock_TcpReadableBytes(FD_t sockfd);
+int sock_Recv(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
+int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
+int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
+int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
+int sock_TcpRecvAll(FD_t sockfd, void* buf, unsigned int nbytes);
+int sock_TcpSendAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 #define sock_TcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1 ? EXEC_SUCCESS : EXEC_ERROR)
-int sock_TcpCanRecvOOB(FD_HANDLE sockfd);
-EXEC_RETURN sock_TcpRecvOOB(FD_HANDLE sockfd, unsigned char* oob);
-/* SOCKET REACTOR */
+int sock_TcpCanRecvOOB(FD_t sockfd);
+EXEC_RETURN sock_TcpRecvOOB(FD_t sockfd, unsigned char* oob);
+/* SOCKET Reactor_t */
 int sock_Select(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
 int sock_Poll(struct pollfd* fdarray, unsigned long nfds, int msec);
 /* SOCKET OPTION */
-EXEC_RETURN sock_SetSendTimeOut(FD_HANDLE sockfd, int msec);
-EXEC_RETURN sock_SetRecvTimeOut(FD_HANDLE sockfd, int msec);
-EXEC_RETURN sock_SetRecvMininumSize(FD_HANDLE sockfd, int size);
-EXEC_RETURN sock_SetSendMininumSize(FD_HANDLE sockfd, int size);
-int sock_GetSendBufSize(FD_HANDLE sockfd);
-EXEC_RETURN sock_SetSendBufSize(FD_HANDLE sockfd, int size);
-int sock_GetRecvBufSize(FD_HANDLE sockfd);
-EXEC_RETURN sock_SetRecvBufSize(FD_HANDLE sockfd, int size);
-EXEC_RETURN sock_SetUniCastTTL(FD_HANDLE sockfd, unsigned char ttl);
-EXEC_RETURN sock_SetMultiCastTTL(FD_HANDLE sockfd, int ttl);
-EXEC_RETURN sock_TcpGetMSS(FD_HANDLE sockfd, int* mss);
-EXEC_RETURN sock_TcpSetMSS(FD_HANDLE sockfd, int mss);
-EXEC_RETURN sock_TcpNoDelay(FD_HANDLE sockfd, BOOL bool_val);
-EXEC_RETURN sock_TcpEnableProbePeerAlive(FD_HANDLE sockfd, BOOL bool_val);
-EXEC_RETURN sock_TcpEnableOOBInLine(FD_HANDLE sockfd, BOOL bool_val);
-EXEC_RETURN sock_TcpEnableLinger(FD_HANDLE sockfd, BOOL bool_val, unsigned int sec);
-EXEC_RETURN sock_UdpEnableBroadcast(FD_HANDLE sockfd, BOOL bool_val);
-EXEC_RETURN sock_UdpMcastGroupJoin(FD_HANDLE sockfd, const struct sockaddr_storage* grp);
-EXEC_RETURN sock_UdpMcastGroupLeave(FD_HANDLE sockfd, const struct sockaddr_storage* grp);
-EXEC_RETURN sock_UdpMcastEnableLoop(FD_HANDLE sockfd, BOOL bool_val);
-EXEC_RETURN sock_UdpMcastGetInterface(FD_HANDLE sockfd, struct in_addr* iaddr, unsigned int* ifindex);
-EXEC_RETURN sock_UdpMcastSetInterface(FD_HANDLE sockfd, struct in_addr iaddr, unsigned int ifindex);
+EXEC_RETURN sock_SetSendTimeOut(FD_t sockfd, int msec);
+EXEC_RETURN sock_SetRecvTimeOut(FD_t sockfd, int msec);
+EXEC_RETURN sock_SetRecvMininumSize(FD_t sockfd, int size);
+EXEC_RETURN sock_SetSendMininumSize(FD_t sockfd, int size);
+int sock_GetSendBufSize(FD_t sockfd);
+EXEC_RETURN sock_SetSendBufSize(FD_t sockfd, int size);
+int sock_GetRecvBufSize(FD_t sockfd);
+EXEC_RETURN sock_SetRecvBufSize(FD_t sockfd, int size);
+EXEC_RETURN sock_SetUniCastTTL(FD_t sockfd, unsigned char ttl);
+EXEC_RETURN sock_SetMultiCastTTL(FD_t sockfd, int ttl);
+EXEC_RETURN sock_TcpGetMSS(FD_t sockfd, int* mss);
+EXEC_RETURN sock_TcpSetMSS(FD_t sockfd, int mss);
+EXEC_RETURN sock_TcpNoDelay(FD_t sockfd, BOOL bool_val);
+EXEC_RETURN sock_TcpEnableProbePeerAlive(FD_t sockfd, BOOL bool_val);
+EXEC_RETURN sock_TcpEnableOOBInLine(FD_t sockfd, BOOL bool_val);
+EXEC_RETURN sock_TcpEnableLinger(FD_t sockfd, BOOL bool_val, unsigned int sec);
+EXEC_RETURN sock_UdpEnableBroadcast(FD_t sockfd, BOOL bool_val);
+EXEC_RETURN sock_UdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
+EXEC_RETURN sock_UdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
+EXEC_RETURN sock_UdpMcastEnableLoop(FD_t sockfd, BOOL bool_val);
+EXEC_RETURN sock_UdpMcastGetInterface(FD_t sockfd, struct in_addr* iaddr, unsigned int* ifindex);
+EXEC_RETURN sock_UdpMcastSetInterface(FD_t sockfd, struct in_addr iaddr, unsigned int ifindex);
 
 #ifdef	__cplusplus
 }
