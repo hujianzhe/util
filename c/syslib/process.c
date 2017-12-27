@@ -27,7 +27,7 @@ static const char* __win32_path(char* path) {
 #endif
 
 /* process operator */
-EXEC_RETURN process_Create(PROCESS* p_process, const char* path, const char* cmdarg) {
+EXEC_RETURN process_Create(Process_t* p_process, const char* path, const char* cmdarg) {
 	char* _cmdarg = NULL;
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
@@ -98,7 +98,7 @@ EXEC_RETURN process_Create(PROCESS* p_process, const char* path, const char* cmd
 #endif
 }
 
-EXEC_RETURN process_Cancel(PROCESS* process) {
+EXEC_RETURN process_Cancel(Process_t* process) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TerminateProcess(process->handle, 0) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
@@ -114,7 +114,7 @@ size_t process_Id(void) {
 #endif
 }
 
-EXEC_RETURN process_TryFreeZombie(PROCESS* process, unsigned char* retcode) {
+EXEC_RETURN process_TryFreeZombie(Process_t* process, unsigned char* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _code;
 	if (WaitForSingleObject(process->handle, 0) == WAIT_OBJECT_0) {

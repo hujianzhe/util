@@ -12,7 +12,7 @@
 	typedef struct {
 		HANDLE handle;
 		DWORD id;
-	} PROCESS;
+	} Process_t;
 	#define	__dllexport				__declspec(dllexport)
 	#define	__dllimport				__declspec(dllimport)
 	#define	DLL_CALL				__stdcall
@@ -29,7 +29,7 @@
 	#include <ucontext.h>
 	typedef struct {
 		pid_t id;
-	} PROCESS;
+	} Process_t;
 	#define	__dllexport
 	#define	__dllimport
 	#define	DLL_CALL
@@ -44,10 +44,10 @@ extern "C" {
 #endif
 
 /* process operator */
-EXEC_RETURN process_Create(PROCESS* p_process, const char* path, const char* cmdarg);
-EXEC_RETURN process_Cancel(PROCESS* process);
+EXEC_RETURN process_Create(Process_t* p_process, const char* path, const char* cmdarg);
+EXEC_RETURN process_Cancel(Process_t* process);
 size_t process_Id(void);
-EXEC_RETURN process_TryFreeZombie(PROCESS* process, unsigned char* retcode);
+EXEC_RETURN process_TryFreeZombie(Process_t* process, unsigned char* retcode);
 void* process_LoadModule(const char* path);
 void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name);
 EXEC_RETURN process_UnloadModule(void* handle);
