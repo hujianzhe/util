@@ -15,7 +15,6 @@
 #include <vector>
 
 namespace Util {
-class NioWorker;
 class NioObjectManager;
 class NioObject : public std::enable_shared_from_this<NioObject> {
 friend class NioObjectManager;
