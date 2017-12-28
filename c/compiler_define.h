@@ -12,6 +12,11 @@
 #define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
 #ifdef _MSC_VER
+	#if	_MSC_VER >= 1900
+		#define	__CPP_VERSION	2011
+	#else
+		#define	__CPP_VERSION	1998
+	#endif
 	#pragma warning(disable:4200)
 	#pragma warning(disable:4018)
 	#pragma warning(disable:4244)
@@ -28,6 +33,11 @@
 	#define	embed_asm(exp)						__asm {exp}
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
+	#if	__cplusplus > 199711L
+		#define	__CPP_VERSION	2011
+	#else
+		#define	__CPP_VERSION	1998
+	#endif
 	#ifndef NDEBUG	/* ANSI define */
 		#ifndef _DEBUG
 			#define	_DEBUG	/* same as VC */
