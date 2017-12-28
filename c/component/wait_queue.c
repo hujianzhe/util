@@ -2,13 +2,13 @@
 // Created by hujianzhe
 //
 
-#include "block_linked_queue.h"
+#include "wait_queue.h"
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-void block_linked_queue_init(BlockLinkedQueue_t* q, void(*deleter)(list_node_t*)) {
+void wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*)) {
 	q->m_head = q->m_tail = NULL;
 	q->m_forcewakeup = FALSE;
 	q->m_deleter = deleter;
@@ -16,7 +16,7 @@ void block_linked_queue_init(BlockLinkedQueue_t* q, void(*deleter)(list_node_t*)
 	condition_Create(&q->m_condition);
 }
 
-void block_linked_queue_push(BlockLinkedQueue_t* q, list_node_t* data) {
+void wait_queue_push(WaitQueue_t* q, list_node_t* data) {
 	if (!data) {
 		return;
 	}
@@ -37,7 +37,7 @@ void block_linked_queue_push(BlockLinkedQueue_t* q, list_node_t* data) {
 	assert_true(cslock_Leave(&q->m_cslock) == EXEC_SUCCESS);
 }
 
-list_node_t* block_linked_queue_pop(BlockLinkedQueue_t* q, int msec, size_t expect_cnt) {
+list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
 	list_node_t* res = NULL;
 	if (0 == expect_cnt) {
 		return res;
@@ -73,12 +73,12 @@ list_node_t* block_linked_queue_pop(BlockLinkedQueue_t* q, int msec, size_t expe
 	return res;
 }
 
-void block_linked_queue_weakup(BlockLinkedQueue_t* q) {
+void wait_queue_weakup(WaitQueue_t* q) {
 	q->m_forcewakeup = TRUE;
 	assert_true(condition_WakeThread(&q->m_condition) == EXEC_SUCCESS);
 }
 
-static void __block_linked_queue_clear(BlockLinkedQueue_t* q) {
+static void __wait_queue_clear(WaitQueue_t* q) {
 	if (q->m_deleter) {
 		list_node_t *next, *cur;
 		for (cur = q->m_head; cur; cur = next) {
@@ -88,14 +88,14 @@ static void __block_linked_queue_clear(BlockLinkedQueue_t* q) {
 	}
 	q->m_head = q->m_tail = NULL;
 }
-void block_linked_queue_clear(BlockLinkedQueue_t* q) {
+void wait_queue_clear(WaitQueue_t* q) {
 	assert_true(cslock_Enter(&q->m_cslock, TRUE) == EXEC_SUCCESS);
-	__block_linked_queue_clear(q);
+	__wait_queue_clear(q);
 	assert_true(cslock_Leave(&q->m_cslock) == EXEC_SUCCESS);
 }
 
-void block_linked_queue_destroy(BlockLinkedQueue_t* q) {
-	__block_linked_queue_clear(q);
+void wait_queue_destroy(WaitQueue_t* q) {
+	__wait_queue_clear(q);
 	cslock_Close(&q->m_cslock);
 	condition_Close(&q->m_condition);
 }
