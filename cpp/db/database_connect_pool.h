@@ -6,7 +6,7 @@
 #define	UTIL_CPP_DB_DATABASE_CONNECT_POOL_H
 
 #include "../../c/syslib/ipc.h"
-#include "db.h"
+#include "../../c/component/db.h"
 #include <string>
 #include <unordered_set>
 
