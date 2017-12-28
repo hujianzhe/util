@@ -46,7 +46,7 @@ void wait_queue_push(WaitQueue_t* q, struct list_node_t* data) {
 	assert_true(cslock_Leave(&q->m_cslock) == EXEC_SUCCESS);
 }
 
-struct list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
+list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
 	struct list_node_t* res = NULL;
 	if (0 == expect_cnt) {
 		return res;
