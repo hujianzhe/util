@@ -3,21 +3,29 @@
 //
 
 #include "wait_queue.h"
+#include "../syslib/error.h"
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-WaitQueue_t* wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*)) {
+WaitQueue_t* wait_queue_init(WaitQueue_t* q, void(*deleter)(struct list_node_t*)) {
+	q->m_initOk = FALSE;
+	if (cslock_Create(&q->m_cslock) != EXEC_SUCCESS) {
+		return NULL;
+	}
+	if (condition_Create(&q->m_condition) != EXEC_SUCCESS) {
+		assert_true(cslock_Close(&q->m_cslock) == EXEC_SUCCESS);
+		return NULL;
+	}
 	q->m_head = q->m_tail = NULL;
 	q->m_forcewakeup = FALSE;
 	q->m_deleter = deleter;
-	cslock_Create(&q->m_cslock);
-	condition_Create(&q->m_condition);
+	q->m_initOk = TRUE;
 	return q;
 }
 
-void wait_queue_push(WaitQueue_t* q, list_node_t* data) {
+void wait_queue_push(WaitQueue_t* q, struct list_node_t* data) {
 	if (!data) {
 		return;
 	}
@@ -38,8 +46,8 @@ void wait_queue_push(WaitQueue_t* q, list_node_t* data) {
 	assert_true(cslock_Leave(&q->m_cslock) == EXEC_SUCCESS);
 }
 
-list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
-	list_node_t* res = NULL;
+struct list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
+	struct list_node_t* res = NULL;
 	if (0 == expect_cnt) {
 		return res;
 	}
@@ -59,7 +67,7 @@ list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt) {
 		q->m_head = q->m_tail = NULL;
 	}
 	else {
-		list_node_t *cur;
+		struct list_node_t *cur;
 		for (cur = q->m_head; cur && --expect_cnt; cur = cur->next);
 		if (0 == expect_cnt && cur && cur->next) {
 			q->m_head = cur->next;
@@ -81,7 +89,7 @@ void wait_queue_weakup(WaitQueue_t* q) {
 
 static void __wait_queue_clear(WaitQueue_t* q) {
 	if (q->m_deleter) {
-		list_node_t *next, *cur;
+		struct list_node_t *next, *cur;
 		for (cur = q->m_head; cur; cur = next) {
 			next = cur->next;
 			q->m_deleter(cur);
@@ -96,9 +104,11 @@ void wait_queue_clear(WaitQueue_t* q) {
 }
 
 void wait_queue_destroy(WaitQueue_t* q) {
-	__wait_queue_clear(q);
-	cslock_Close(&q->m_cslock);
-	condition_Close(&q->m_condition);
+	if (q->m_initOk) {
+		__wait_queue_clear(q);
+		assert_true(cslock_Close(&q->m_cslock) == EXEC_SUCCESS);
+		assert_true(condition_Close(&q->m_condition) == EXEC_SUCCESS);
+	}
 }
 
 #ifdef	__cplusplus

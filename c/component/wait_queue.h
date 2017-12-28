@@ -6,7 +6,6 @@
 #define	UTIL_C_COMPONENT_WAIT_QUEUE_H
 
 #include "../datastruct/list.h"
-#include "../syslib/error.h"
 #include "../syslib/ipc.h"
 
 #ifdef	__cplusplus
@@ -17,7 +16,8 @@ typedef struct WaitQueue_t {
 	CSLock_t m_cslock;
 	ConditionVariable_t m_condition;
 	list_node_t* m_head, *m_tail;
-	BOOL m_forcewakeup;
+	volatile BOOL m_forcewakeup;
+	BOOL m_initOk;
 	void(*m_deleter)(list_node_t*);
 } WaitQueue_t;
 

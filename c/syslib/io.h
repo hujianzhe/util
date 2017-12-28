@@ -71,7 +71,7 @@ int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
 #define	REACTOR_WRITE	2
 #define	REACTOR_ACCEPT	3
 #define REACTOR_CONNECT	4
-typedef struct {
+typedef struct Reactor_t {
 	FD_t __hNio;
 #ifdef	__linux__
 	FD_t __epfd;
