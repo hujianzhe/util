@@ -21,7 +21,7 @@ typedef struct WaitQueue_t {
 	void(*m_deleter)(list_node_t*);
 } WaitQueue_t;
 
-void wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*));
+WaitQueue_t* wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*));
 void wait_queue_push(WaitQueue_t* q, list_node_t* data);
 list_node_t* wait_queue_pop(WaitQueue_t* q, int msec, size_t expect_cnt);
 void wait_queue_weakup(WaitQueue_t* q);

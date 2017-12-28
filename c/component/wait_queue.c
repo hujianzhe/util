@@ -8,12 +8,13 @@
 extern "C" {
 #endif
 
-void wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*)) {
+WaitQueue_t* wait_queue_init(WaitQueue_t* q, void(*deleter)(list_node_t*)) {
 	q->m_head = q->m_tail = NULL;
 	q->m_forcewakeup = FALSE;
 	q->m_deleter = deleter;
 	cslock_Create(&q->m_cslock);
 	condition_Create(&q->m_condition);
+	return q;
 }
 
 void wait_queue_push(WaitQueue_t* q, list_node_t* data) {
