@@ -3,7 +3,7 @@
 //
 
 #include "websocket_nio_object.h"
-#include "../protocol/websocket_protocol.h"
+#include "../protocol/websocket_frame.h"
 
 namespace Util {
 WebsocketNioObject::WebsocketNioObject(FD_t fd, unsigned long long frame_length_limit) :
@@ -16,8 +16,8 @@ WebsocketNioObject::WebsocketNioObject(FD_t fd, unsigned long long frame_length_
 unsigned long long WebsocketNioObject::frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 bool WebsocketNioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
-	WebSocketProtocol protocol(m_frameLengthLimit);
-	size_t headlen = WebSocketProtocol::responseHeaderLength(nbytes);
+	WebSocketFrame protocol(m_frameLengthLimit);
+	size_t headlen = WebSocketFrame::responseHeaderLength(nbytes);
 	void* head = alloca(headlen);
 	if (protocol.buildHeader((unsigned char*)head, nbytes)) {
 		IoBuf_t iov[2];
@@ -31,21 +31,21 @@ bool WebsocketNioObject::send(const void* data, unsigned int nbytes, struct sock
 }
 int WebsocketNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
 	size_t offset = 0;
-	WebSocketProtocol protocol(m_frameLengthLimit);
+	WebSocketFrame protocol(m_frameLengthLimit);
 	unsigned char* data = (unsigned char*)iobuffer_buf(&inbuf);
 	size_t data_len = iobuffer_len(&inbuf);
 	if (m_hasHandshake) {
 		do {
 			int retcode = protocol.parseDataFrame(data + offset, data_len - offset);
-			if (WebSocketProtocol::PARSE_OVERRANGE == retcode) {
+			if (WebSocketFrame::PARSE_OVERRANGE == retcode) {
 				invalid();
 				offset = data_len;
 				break;
 			}
-			if (WebSocketProtocol::PARSE_INCOMPLETION == retcode) {
+			if (WebSocketFrame::PARSE_INCOMPLETION == retcode) {
 				break;
 			}
-			if (protocol.frameType() == WebSocketProtocol::FRAME_TYPE_CLOSE) {
+			if (protocol.frameType() == WebSocketFrame::FRAME_TYPE_CLOSE) {
 				invalid();
 				offset = data_len;
 				break;
@@ -63,7 +63,7 @@ int WebsocketNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, siz
 	else {
 		std::string response;
 		int retcode = protocol.parseHandshake((char*)data, data_len, response);
-		if (WebSocketProtocol::PARSE_OK == retcode) {
+		if (WebSocketFrame::PARSE_OK == retcode) {
 			if (Util::NioObject::send(response.data(), response.size(), from)) {
 				offset = protocol.frameLength();
 				m_hasHandshake = true;
@@ -73,7 +73,7 @@ int WebsocketNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, siz
 				offset = data_len;
 			}
 		}
-		else if (WebSocketProtocol::PARSE_INVALID == retcode || WebSocketProtocol::PARSE_OVERRANGE == retcode) {
+		else if (WebSocketFrame::PARSE_INVALID == retcode || WebSocketFrame::PARSE_OVERRANGE == retcode) {
 			invalid();
 			offset = data_len;
 		}

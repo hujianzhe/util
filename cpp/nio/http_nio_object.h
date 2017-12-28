@@ -6,7 +6,7 @@
 #define	UTIL_CPP_NIO_HTTP_NIO_OBJECT_H
 
 #include "tcp_nio_object.h"
-#include "../protocol/http_protocol.h"
+#include "../protocol/http_frame.h"
 
 namespace Util {
 class HttpNioObject : public TcpNioObject {
@@ -18,12 +18,12 @@ public:
 private:
 	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 
-	virtual bool handleRequestHeader(const HttpProtocol& protocol, struct sockaddr_storage* from);
-	virtual bool handleGetRequest(const HttpProtocol& protocol, struct sockaddr_storage* from);
-	virtual bool handlePostRequestBody(const HttpProtocol& protocol, struct sockaddr_storage* from);
+	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from);
+	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from);
+	virtual bool handlePostRequestBody(const HttpFrame& protocol, struct sockaddr_storage* from);
 
-	virtual bool handleResponseHeader(const HttpProtocol& protocol, struct sockaddr_storage* from);
-	virtual bool handleResponseBody(const HttpProtocol& protocol, struct sockaddr_storage* from);
+	virtual bool handleResponseHeader(const HttpFrame& protocol, struct sockaddr_storage* from);
+	virtual bool handleResponseBody(const HttpFrame& protocol, struct sockaddr_storage* from);
 
 	virtual bool onMessageEnd(void);
 
@@ -32,7 +32,7 @@ private:
 
 private:
 	bool m_readbody;
-	HttpProtocol m_protocol;
+	HttpFrame m_protocol;
 };
 }
 

@@ -6,10 +6,10 @@
 #include "../../c/syslib/socket.h"
 #include "../../c/syslib/string.h"
 #include "../exception.h"
-#include "websocket_protocol.h"
+#include "websocket_frame.h"
 
 namespace Util {
-int WebSocketProtocol::parseHandshake(char* data, size_t len, std::string& response) {
+int WebSocketFrame::parseHandshake(char* data, size_t len, std::string& response) {
 	const char* key;
 	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	if (m_frameLengthLimit < len) {
@@ -52,7 +52,7 @@ int WebSocketProtocol::parseHandshake(char* data, size_t len, std::string& respo
 	return PARSE_OK;
 }
 
-size_t WebSocketProtocol::responseHeaderLength(size_t datalen) {
+size_t WebSocketFrame::responseHeaderLength(size_t datalen) {
 	const size_t basic_header_len = 2;
 	size_t header_len = 0;
 	if (datalen < 126) {
@@ -67,7 +67,7 @@ size_t WebSocketProtocol::responseHeaderLength(size_t datalen) {
 	return header_len;
 }
 
-bool WebSocketProtocol::buildHeader(unsigned char* headbuf, size_t datalen) {
+bool WebSocketFrame::buildHeader(unsigned char* headbuf, size_t datalen) {
 	const size_t basic_header_len = 2;
 	size_t header_len = 0;
 
@@ -90,7 +90,7 @@ bool WebSocketProtocol::buildHeader(unsigned char* headbuf, size_t datalen) {
 	return header_len + datalen <= m_frameLengthLimit;
 }
 
-WebSocketProtocol::WebSocketProtocol(unsigned long long frame_length_limit, short frame_type, bool is_fin) :
+WebSocketFrame::WebSocketFrame(unsigned long long frame_length_limit, short frame_type, bool is_fin) :
 	m_frameLengthLimit(frame_length_limit),
 	m_isFin(is_fin),
 	m_frameType(frame_type),
@@ -100,7 +100,7 @@ WebSocketProtocol::WebSocketProtocol(unsigned long long frame_length_limit, shor
 {
 }
 
-int WebSocketProtocol::parseDataFrame(unsigned char* data, size_t len) {
+int WebSocketFrame::parseDataFrame(unsigned char* data, size_t len) {
 	size_t mask_len = 0;
 	size_t ext_payload_filed_len = 0;
 	const size_t header_size = 2;

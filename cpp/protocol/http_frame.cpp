@@ -3,12 +3,12 @@
 //
 
 #include "../string_util.h"
-#include "http_protocol.h"
+#include "http_frame.h"
 #include <sstream>
 #include <vector>
 
 namespace Util {
-const char* HttpProtocol::statusDesc(int status_code) {
+const char* HttpFrame::statusDesc(int status_code) {
 	switch (status_code) {
 		case 100:
 			return "Continue";
@@ -122,14 +122,14 @@ const char* HttpProtocol::statusDesc(int status_code) {
 			return "";
 	}
 }
-std::string HttpProtocol::uriQuery(const std::string& uri) {
+std::string HttpFrame::uriQuery(const std::string& uri) {
 	size_t pos = uri.find("?");
 	if (std::string::npos == pos || uri.size() - 1 <= pos) {
 		return "";
 	}
 	return uri.substr(pos + 1);
 }
-void HttpProtocol::parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv) {
+void HttpFrame::parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv) {
 	if (qs.empty()) {
 		return;
 	}
@@ -143,7 +143,7 @@ void HttpProtocol::parseQuery(const std::string& qs, std::unordered_map<std::str
 	}
 }
 
-HttpProtocol::HttpProtocol(size_t frame_length_limit)
+HttpFrame::HttpFrame(size_t frame_length_limit)
 	:m_frameLengthLimit(frame_length_limit)
 	,m_frameLength(0)
 	,m_data(NULL)
@@ -152,7 +152,7 @@ HttpProtocol::HttpProtocol(size_t frame_length_limit)
 {
 	memset(m_method, 0, sizeof(m_method));
 }
-HttpProtocol::HttpProtocol(size_t frame_length_limit, const char* method, const char* uri)
+HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri)
 	:m_frameLengthLimit(frame_length_limit)
 	,m_frameLength(0)
 	,m_data(NULL)
@@ -168,7 +168,7 @@ HttpProtocol::HttpProtocol(size_t frame_length_limit, const char* method, const 
 		memset(m_method, 0, sizeof(m_method));
 	}
 }
-HttpProtocol::HttpProtocol(size_t frame_length_limit, const char* method, const char* uri, size_t urilen)
+HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri, size_t urilen)
 	:m_frameLengthLimit(frame_length_limit)
 	,m_frameLength(0)
 	,m_data(NULL)
@@ -184,7 +184,7 @@ HttpProtocol::HttpProtocol(size_t frame_length_limit, const char* method, const 
 		memset(m_method, 0, sizeof(m_method));
 	}
 }
-HttpProtocol::HttpProtocol(size_t frame_length_limit, int status_code)
+HttpFrame::HttpFrame(size_t frame_length_limit, int status_code)
 	:m_frameLengthLimit(frame_length_limit)
 	,m_frameLength(0)
 	,m_data(NULL)
@@ -194,26 +194,26 @@ HttpProtocol::HttpProtocol(size_t frame_length_limit, int status_code)
 	memset(m_method, 0, sizeof(m_method));
 }
 
-std::string HttpProtocol::getHeader(const std::string& key) const {
+std::string HttpFrame::getHeader(const std::string& key) const {
 	auto it = m_headers.find(key);
 	return it != m_headers.end() ? it->second : std::string();
 }
-void HttpProtocol::setHeader(const std::string& key, const std::string& value) {
+void HttpFrame::setHeader(const std::string& key, const std::string& value) {
 	if (key.empty() || value.empty()) {
 		return;
 	}
 	m_headers[key] = value;
 }
-void HttpProtocol::setContentLengthHeader(size_t len) {
+void HttpFrame::setContentLengthHeader(size_t len) {
 	char number[21];
 	sprintf(number, "%zu", len);
 	m_headers["Content-Length"] = number;
 }
-void HttpProtocol::setAccessControlAllowOriginHeader(const std::string& origin) {
+void HttpFrame::setAccessControlAllowOriginHeader(const std::string& origin) {
 	m_headers["Access-Control-Allow-Origin"] = origin;
 }
 
-int HttpProtocol::parseHeader(const char* data, size_t len) {
+int HttpFrame::parseHeader(const char* data, size_t len) {
 	const char* key, *p;
 	if (m_frameLengthLimit < len) {
 		key = strnstr(data, "\r\n\r\n", m_frameLengthLimit);
@@ -285,7 +285,7 @@ int HttpProtocol::parseHeader(const char* data, size_t len) {
 	return PARSE_OK;
 }
 
-int HttpProtocol::parseContentLengthBody(const char* data, size_t len) {
+int HttpFrame::parseContentLengthBody(const char* data, size_t len) {
 	m_data = NULL;
 	m_dataLength = m_frameLength = 0;
 	auto it = m_headers.find("Content-Length");
@@ -314,7 +314,7 @@ int HttpProtocol::parseContentLengthBody(const char* data, size_t len) {
 	return PARSE_OK;
 }
 
-int HttpProtocol::parseNextChunkedBody(const char* data, size_t len) {
+int HttpFrame::parseNextChunkedBody(const char* data, size_t len) {
 	m_data = NULL;
 	m_dataLength = m_frameLength = 0;
 	auto it = m_headers.find("Transfer-Encoding");
@@ -369,7 +369,7 @@ int HttpProtocol::parseNextChunkedBody(const char* data, size_t len) {
 	return PARSE_OK;
 }
 
-bool HttpProtocol::buildResponseHeader(std::string& s) {
+bool HttpFrame::buildResponseHeader(std::string& s) {
 	const char* status_desc = statusDesc(m_statusCode);
 	if ('\0' == *status_desc) {
 		return false;

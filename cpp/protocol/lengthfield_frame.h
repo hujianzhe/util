@@ -2,14 +2,14 @@
 // Created by hujianzhe on 16-5-20.
 //
 
-#ifndef UTIL_CPP_PROTOCOL_LENGTHFIELD_PROTOCOL_H
-#define UTIL_CPP_PROTOCOL_LENGTHFIELD_PROTOCOL_H
+#ifndef UTIL_CPP_PROTOCOL_LENGTHFIELD_FRAME_H
+#define UTIL_CPP_PROTOCOL_LENGTHFIELD_FRAME_H
 
 #include <stddef.h>
 #include <vector>
 
 namespace Util {
-class LengthFieldProtocol {
+class LengthFieldFrame {
 public:
 	enum {
 		LENGTH_FIELD_BYTE_SIZE	= 1,
@@ -22,7 +22,7 @@ public:
 		PARSE_OK
 	};
 
-	LengthFieldProtocol(short length_field_size, size_t frame_length_limit);
+	LengthFieldFrame(short length_field_size, size_t frame_length_limit);
 
 	bool buildHeader(void* headbuf, unsigned int datalen);
 	int parseDataFrame(unsigned char* data, size_t len);

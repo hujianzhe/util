@@ -2,15 +2,15 @@
 // Created by hujianzhe on 17-2-25.
 //
 
-#ifndef	UTIL_CPP_PROTOCOL_HTTP_PROTOCOL_H
-#define	UTIL_CPP_PROTOCOL_HTTP_PROTOCOL_H
+#ifndef	UTIL_CPP_PROTOCOL_HTTP_FRAME_H
+#define	UTIL_CPP_PROTOCOL_HTTP_FRAME_H
 
 #include <stddef.h>
 #include <string>
 #include <unordered_map>
 
 namespace Util {
-class HttpProtocol {
+class HttpFrame {
 public:
 	enum {
 		PARSE_OVERRANGE,
@@ -23,10 +23,10 @@ public:
 	static std::string uriQuery(const std::string& uri);
 	static void parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv);
 
-	HttpProtocol(size_t frame_length_limit);
-	HttpProtocol(size_t frame_length_limit, const char* method, const char* uri);
-	HttpProtocol(size_t frame_length_limit, const char* method, const char* uri, size_t urilen);
-	HttpProtocol(size_t frame_length_limit, int status_code);
+	HttpFrame(size_t frame_length_limit);
+	HttpFrame(size_t frame_length_limit, const char* method, const char* uri);
+	HttpFrame(size_t frame_length_limit, const char* method, const char* uri, size_t urilen);
+	HttpFrame(size_t frame_length_limit, int status_code);
 
 	int parseHeader(const char* data, size_t len);
 	int parseContentLengthBody(const char* data, size_t len);

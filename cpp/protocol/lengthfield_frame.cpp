@@ -3,11 +3,11 @@
 //
 
 #include "../../c/syslib/socket.h"
-#include "lengthfield_protocol.h"
+#include "lengthfield_frame.h"
 #include <string.h>
 
 namespace Util {
-bool LengthFieldProtocol::buildHeader(void* headbuf, unsigned int datalen) {
+bool LengthFieldFrame::buildHeader(void* headbuf, unsigned int datalen) {
 	if (m_frameLengthLimit < datalen + m_lengthFieldSize) {
 		return false;
 	}
@@ -30,7 +30,7 @@ bool LengthFieldProtocol::buildHeader(void* headbuf, unsigned int datalen) {
 	return true;
 }
 
-LengthFieldProtocol::LengthFieldProtocol(short length_field_size, size_t frame_length_limit) :
+LengthFieldFrame::LengthFieldFrame(short length_field_size, size_t frame_length_limit) :
 	m_lengthFieldSize(length_field_size),
 	m_frameLengthLimit(frame_length_limit),
 	m_data(NULL),
@@ -62,7 +62,7 @@ LengthFieldProtocol::LengthFieldProtocol(short length_field_size, size_t frame_l
 	}
 }
 
-int LengthFieldProtocol::parseDataFrame(unsigned char* data, size_t len) {
+int LengthFieldFrame::parseDataFrame(unsigned char* data, size_t len) {
 	if (m_lengthFieldSize > len) {
 		return PARSE_INCOMPLETION;
 	}
