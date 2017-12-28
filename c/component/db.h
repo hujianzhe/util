@@ -7,7 +7,7 @@
 
 #ifdef DB_ENABLE_MYSQL
 	#if defined(_WIN32) || defined(_WIN64)
-		#include "../c/syslib/platform_define.h"
+		#include "../syslib/platform_define.h"
 		#include <mysql.h>
 		#pragma comment(lib, "libmysql.lib")/* you need copy libmysql.dll to your exe path */
 	#else
