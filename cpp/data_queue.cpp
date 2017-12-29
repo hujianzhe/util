@@ -34,7 +34,7 @@ void DataQueue::push(list_node_t* data) {
 
 	list_node_init(data);
 
-	assert_true(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
+	cslock_Enter(&m_cslock);
 
 	if (m_tail) {
 		list_node_insert_back(m_tail, data);
@@ -42,10 +42,10 @@ void DataQueue::push(list_node_t* data) {
 	}
 	else {
 		m_head = m_tail = data;
-		assert_true(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
+		condition_WakeThread(&m_condition);
 	}
 
-	assert_true(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
+	cslock_Leave(&m_cslock);
 }
 
 list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
@@ -54,7 +54,7 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		return res;
 	}
 
-	assert_true(cslock_Enter(&m_cslock, TRUE) == EXEC_SUCCESS);
+	cslock_Enter(&m_cslock);
 	while (NULL == m_head && !m_forcewakeup) {
 		if (condition_Wait(&m_condition, &m_cslock, msec) == EXEC_SUCCESS) {
 			continue;
@@ -79,13 +79,13 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		}
 	}
 
-	assert_true(cslock_Leave(&m_cslock) == EXEC_SUCCESS);
+	cslock_Leave(&m_cslock);
 
 	return res;
 }
 
 void DataQueue::weakup(void) {
 	m_forcewakeup = true;
-	assert_true(condition_WakeThread(&m_condition) == EXEC_SUCCESS);
+	condition_WakeThread(&m_condition);
 }
 }

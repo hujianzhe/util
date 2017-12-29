@@ -129,7 +129,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 		return true;
 	}
 
-	assert_true(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
+	mutex_Lock(&m_outbufMutex);
 	do {
 		int res = 0;
 		if (m_outbuf.empty()) {
@@ -172,7 +172,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 			}
 		}
 	} while (0);
-	assert_true(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
+	mutex_Unlock(&m_outbufMutex);
 	return m_valid;
 }
 int TcpNioObject::onWrite(void) {
@@ -186,7 +186,7 @@ int TcpNioObject::onWrite(void) {
 	if (!m_valid) {
 		return 0;
 	}
-	assert_true(mutex_Lock(&m_outbufMutex, TRUE) == EXEC_SUCCESS);
+	mutex_Lock(&m_outbufMutex);
 	for (std::list<struct __NioSendDataInfo>::iterator iter = m_outbuf.begin(); iter != m_outbuf.end(); ) {
 		struct sockaddr_storage* saddr = (iter->saddr.ss_family != AF_UNSPEC ? &iter->saddr : NULL);
 		int res = sock_Send(m_fd, &iter->data[0] + iter->offset, iter->data.size() - iter->offset, 0, saddr);
@@ -210,7 +210,7 @@ int TcpNioObject::onWrite(void) {
 	if (m_outbuf.empty()) {
 		m_writeCommit = false;
 	}
-	assert_true(mutex_Unlock(&m_outbufMutex) == EXEC_SUCCESS);
+	mutex_Unlock(&m_outbufMutex);
 	return count;
 }
 }

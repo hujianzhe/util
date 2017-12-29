@@ -104,19 +104,11 @@ EXEC_RETURN cslock_Create(CSLock_t* cs) {
 #endif
 }
 
-EXEC_RETURN cslock_Enter(CSLock_t* cs, BOOL wait_bool) {
+EXEC_RETURN cslock_TryEnter(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (wait_bool) {
-		EnterCriticalSection(cs);
-		return EXEC_SUCCESS;
-	}
 	return TryEnterCriticalSection(cs) ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-	int res;
-	if (wait_bool)
-		res = pthread_mutex_lock(cs);
-	else
-		res = pthread_mutex_trylock(cs);
+	int res = pthread_mutex_trylock(cs);
 	if (res) {
 		errno = res;
 		return EXEC_ERROR;
@@ -125,31 +117,27 @@ EXEC_RETURN cslock_Enter(CSLock_t* cs, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN cslock_Leave(CSLock_t* cs) {
+void cslock_Enter(CSLock_t* cs) {
+#if defined(_WIN32) || defined(_WIN64)
+	EnterCriticalSection(cs);
+#else
+	assert_true(pthread_mutex_lock(cs) == 0);
+#endif
+}
+
+void cslock_Leave(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	LeaveCriticalSection(cs);
-	return EXEC_SUCCESS;
 #else
-	int res = pthread_mutex_unlock(cs);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_mutex_unlock(cs) == 0);
 #endif
 }
 
-EXEC_RETURN cslock_Close(CSLock_t* cs) {
+void cslock_Close(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	DeleteCriticalSection(cs);
-	return EXEC_SUCCESS;
 #else
-	int res = pthread_mutex_destroy(cs);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_mutex_destroy(cs) == 0);
 #endif
 }
 
@@ -205,44 +193,26 @@ EXEC_RETURN condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec
 #endif
 }
 
-EXEC_RETURN condition_WakeThread(ConditionVariable_t* condition) {
+void condition_WakeThread(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeConditionVariable(condition);
-	return EXEC_SUCCESS;
 #else
-	int res = pthread_cond_signal(condition);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_cond_signal(condition) == 0);
 #endif
 }
 
-EXEC_RETURN condition_WakeAllThread(ConditionVariable_t* condition) {
+void condition_WakeAllThread(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeAllConditionVariable(condition);
-	return EXEC_SUCCESS;
 #else
-	int res = pthread_cond_broadcast(condition);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_cond_broadcast(condition) == 0);
 #endif
 }
 
-EXEC_RETURN condition_Close(ConditionVariable_t* condition) {
+void condition_Close(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
-	return EXEC_SUCCESS;
 #else
-	int res = pthread_cond_destroy(condition);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_cond_destroy(condition) == 0);
 #endif
 }
 
@@ -267,15 +237,11 @@ EXEC_RETURN mutex_Create(Mutex_t* mutex) {
 #endif
 }
 
-EXEC_RETURN mutex_Lock(Mutex_t* mutex, BOOL wait_bool) {
+EXEC_RETURN mutex_TryLock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	return WaitForSingleObject(*mutex, wait_bool ? INFINITE : 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return WaitForSingleObject(*mutex, 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-	int res;
-	if (wait_bool)
-		res = pthread_mutex_lock(mutex);
-	else
-		res = pthread_mutex_trylock(mutex);
+	int res = res = pthread_mutex_trylock(mutex);
 	if (res) {
 		errno = res;
 		return EXEC_ERROR;
@@ -284,29 +250,27 @@ EXEC_RETURN mutex_Lock(Mutex_t* mutex, BOOL wait_bool) {
 #endif
 }
 
-EXEC_RETURN mutex_Unlock(Mutex_t* mutex) {
+void mutex_Lock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	return SetEvent(*mutex) ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(WaitForSingleObject(*mutex, INFINITE) == WAIT_OBJECT_0);
 #else
-	int res = pthread_mutex_unlock(mutex);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_mutex_lock(mutex) == 0);
 #endif
 }
 
-EXEC_RETURN mutex_Close(Mutex_t* mutex) {
+void mutex_Unlock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(*mutex) ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(SetEvent(*mutex));
 #else
-	int res = pthread_mutex_destroy(mutex);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_mutex_unlock(mutex) == 0);
+#endif
+}
+
+void mutex_Close(Mutex_t* mutex) {
+#if defined(_WIN32) || defined(_WIN64)
+	assert_true(CloseHandle(*mutex));
+#else
+	assert_true(pthread_mutex_destroy(mutex) == 0);
 #endif
 }
 
@@ -540,32 +504,35 @@ SemId_t semaphore_Open(const char* name) {
 #endif
 }
 
-EXEC_RETURN semaphore_Wait(SemId_t id, BOOL wait_bool) {
+EXEC_RETURN semaphore_TryWait(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	return WaitForSingleObject(id, wait_bool ? INFINITE : 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return WaitForSingleObject(id, 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-	int res;
-	if (wait_bool)
-		res = sem_wait(id);
-	else
-		res = sem_trywait(id);
-	return res == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return sem_trywait(id) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
 #endif
 }
 
-EXEC_RETURN semaphore_Post(SemId_t id) {
+void semaphore_Wait(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	return ReleaseSemaphore(id, 1, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(WaitForSingleObject(id, INFINITE) == WAIT_OBJECT_0);
 #else
-	return sem_post(id) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(sem_wait(id) == 0);
 #endif
 }
 
-EXEC_RETURN semaphore_Close(SemId_t id) {
+void semaphore_Post(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(id) ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(ReleaseSemaphore(id, 1, NULL));
 #else
-	return sem_close(id) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	assert_true(sem_post(id) == 0);
+#endif
+}
+
+void semaphore_Close(SemId_t id) {
+#if defined(_WIN32) || defined(_WIN64)
+	assert_true(CloseHandle(id));
+#else
+	assert_true(sem_close(id) == 0);
 #endif
 }
 

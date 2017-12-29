@@ -54,20 +54,22 @@ EXEC_RETURN pipe_NonBlock(FD_t pipefd, BOOL bool_val);
 int pipe_ReadableBytes(FD_t r);
 /* critical section */
 EXEC_RETURN cslock_Create(CSLock_t* cs);
-EXEC_RETURN cslock_Enter(CSLock_t* cs, BOOL wait_bool);
-EXEC_RETURN cslock_Leave(CSLock_t* cs);
-EXEC_RETURN cslock_Close(CSLock_t* cs);
+EXEC_RETURN cslock_TryEnter(CSLock_t* cs);
+void cslock_Enter(CSLock_t* cs);
+void cslock_Leave(CSLock_t* cs);
+void cslock_Close(CSLock_t* cs);
 /* condition */
 EXEC_RETURN condition_Create(ConditionVariable_t* condition);
 EXEC_RETURN condition_Wait(ConditionVariable_t* condition, CSLock_t* cs, int msec);
-EXEC_RETURN condition_WakeThread(ConditionVariable_t* condition);
-EXEC_RETURN condition_WakeAllThread(ConditionVariable_t* condition);
-EXEC_RETURN condition_Close(ConditionVariable_t* condition);
+void condition_WakeThread(ConditionVariable_t* condition);
+void condition_WakeAllThread(ConditionVariable_t* condition);
+void condition_Close(ConditionVariable_t* condition);
 /* mutex */
 EXEC_RETURN mutex_Create(Mutex_t* mutex);
-EXEC_RETURN mutex_Lock(Mutex_t* mutex, BOOL wait_bool);
-EXEC_RETURN mutex_Unlock(Mutex_t* mutex);
-EXEC_RETURN mutex_Close(Mutex_t* mutex);
+EXEC_RETURN mutex_TryLock(Mutex_t* mutex);
+void mutex_Lock(Mutex_t* mutex);
+void mutex_Unlock(Mutex_t* mutex);
+void mutex_Close(Mutex_t* mutex);
 /* read/write lock */
 EXEC_RETURN rwlock_Create(RWLock_t* rwlock);
 EXEC_RETURN rwlock_LockRead(RWLock_t* rwlock, BOOL wait_bool);
@@ -78,9 +80,10 @@ EXEC_RETURN rwlock_Close(RWLock_t* rwlock);
 /* semaphore */
 SemId_t semaphore_Create(const char* name, unsigned short val);
 SemId_t semaphore_Open(const char* name);
-EXEC_RETURN semaphore_Wait(SemId_t id, BOOL wait_bool);
-EXEC_RETURN semaphore_Post(SemId_t id);
-EXEC_RETURN semaphore_Close(SemId_t id);
+EXEC_RETURN semaphore_TryWait(SemId_t id);
+void semaphore_Wait(SemId_t id);
+void semaphore_Post(SemId_t id);
+void semaphore_Close(SemId_t id);
 EXEC_RETURN semaphore_Unlink(const char* name);
 /* once call */
 EXEC_RETURN initonce_Call(InitOnce_t* once, void(*callback)(void));

@@ -31,7 +31,7 @@ void DatabaseConnectPool::setConnectionAttribute(int timeout_sec, short max_conn
 DB_HANDLE* DatabaseConnectPool::getConnection(void) {
 	bool need_new = false;
 	DB_HANDLE* dbhandle = NULL;
-	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	cslock_Enter(&m_lock);
 	do {
 		if (m_dbhandles.empty()) {
 			if (m_connectNum >= m_connectMaxNum) {
@@ -45,7 +45,7 @@ DB_HANDLE* DatabaseConnectPool::getConnection(void) {
 			m_dbhandles.erase(m_dbhandles.begin());
 		}
 	} while (0);
-	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	cslock_Leave(&m_lock);
 	if (need_new) {
 		dbhandle = connect();
 	}
@@ -58,20 +58,20 @@ void DatabaseConnectPool::pushConnection(DB_HANDLE* dbhandle) {
 	 * if not call this funcion, you should free handle by yourself
 	 */
 	if (dbhandle) {
-		assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+		cslock_Enter(&m_lock);
 		m_dbhandles.insert(dbhandle);
-		assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+		cslock_Leave(&m_lock);
 	}
 }
 
 void DatabaseConnectPool::cleanConnection(void) {
-	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	cslock_Enter(&m_lock);
 	for (auto it = m_dbhandles.begin(); it != m_dbhandles.end(); m_dbhandles.erase(it++)) {
 		db_CloseHandle(*it);
 		delete (*it);
 	}
 	m_connectNum = 0;
-	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	cslock_Leave(&m_lock);
 }
 
 DB_HANDLE* DatabaseConnectPool::connect(void) {
@@ -91,9 +91,9 @@ DB_HANDLE* DatabaseConnectPool::connect(void) {
 		return dbhandle;
 	} while (0);
 	delete dbhandle;
-	assert_true(cslock_Enter(&m_lock, TRUE) == EXEC_SUCCESS);
+	cslock_Enter(&m_lock);
 	--m_connectNum;
-	assert_true(cslock_Leave(&m_lock) == EXEC_SUCCESS);
+	cslock_Leave(&m_lock);
 	return NULL;
 }
 }
