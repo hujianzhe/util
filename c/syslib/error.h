@@ -8,6 +8,19 @@
 #include "platform_define.h"
 #include <errno.h>
 
+#ifdef _MSC_VER
+	#pragma warning(disable:4091)/* avoid bug(dbghelp.h warning C4091: "typedef ") */
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	#include <Dbghelp.h>
+	#pragma comment(lib, "Dbghelp.lib")
+#else
+	#include <execinfo.h>
+#endif
+#ifdef _MSC_VER
+	#pragma warning(default:4091)
+#endif
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
