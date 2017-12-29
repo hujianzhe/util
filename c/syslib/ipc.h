@@ -17,6 +17,7 @@
 	#define	INVALID_SEMID			NULL
 	/*typedef SRWLOCK				RWLock_t;*/
 	typedef struct RWLock_t {
+		volatile BOOL __exclusive_lock;
 		volatile LONG __read_cnt;
 		HANDLE __read_ev, __write_ev, __wait_ev;
 	} RWLock_t;
@@ -72,11 +73,10 @@ void mutex_Unlock(Mutex_t* mutex);
 void mutex_Close(Mutex_t* mutex);
 /* read/write lock */
 EXEC_RETURN rwlock_Create(RWLock_t* rwlock);
-EXEC_RETURN rwlock_LockRead(RWLock_t* rwlock, BOOL wait_bool);
-EXEC_RETURN rwlock_LockWrite(RWLock_t* rwlock, BOOL wait_bool);
-EXEC_RETURN rwlock_UnlockRead(RWLock_t* rwlock);
-EXEC_RETURN rwlock_UnlockWrite(RWLock_t* rwlock);
-EXEC_RETURN rwlock_Close(RWLock_t* rwlock);
+void rwlock_LockRead(RWLock_t* rwlock);
+void rwlock_LockWrite(RWLock_t* rwlock);
+void rwlock_Unlock(RWLock_t* rwlock);
+void rwlock_Close(RWLock_t* rwlock);
 /* semaphore */
 SemId_t semaphore_Create(const char* name, unsigned short val);
 SemId_t semaphore_Open(const char* name);

@@ -295,6 +295,7 @@ EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 		if (!rwlock->__wait_ev) {
 			break;
 		}
+		rwlock->__exclusive_lock = FALSE;
 		rwlock->__read_cnt = 0;
 		return EXEC_SUCCESS;
 	} while (0);
@@ -340,7 +341,7 @@ EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 #endif
 }
 
-EXEC_RETURN rwlock_LockRead(RWLock_t* rwlock, BOOL wait_bool) {
+void rwlock_LockRead(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*
 	if (wait_bool) {
@@ -349,48 +350,26 @@ EXEC_RETURN rwlock_LockRead(RWLock_t* rwlock, BOOL wait_bool) {
 	}
 	return TryAcquireSRWLockShared(rwlock) ? EXEC_SUCCESS : EXEC_ERROR;
 	*/
-	DWORD res = WAIT_OBJECT_0;
-	switch (WaitForSingleObject(rwlock->__read_ev, wait_bool ? INFINITE : 0)) {
-		case WAIT_OBJECT_0:
-			break;
-		case WAIT_TIMEOUT:
-			SetLastError(ERROR_TIMEOUT);
-			return EXEC_ERROR;
-		default:
-			abort();
-	}
+	assert_true(WaitForSingleObject(rwlock->__read_ev, INFINITE) == WAIT_OBJECT_0);
 	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
-	if (0 == rwlock->__read_cnt) {
-		res = WaitForSingleObject(rwlock->__write_ev, wait_bool ? INFINITE : 0);
-		if (WAIT_OBJECT_0 == res) {
-			++(rwlock->__read_cnt);
-		}
+	if (0 == rwlock->__read_cnt++) {
+		assert_true(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
 	}
 	assert_true(SetEvent(rwlock->__wait_ev));
-	switch (res) {
-		case WAIT_OBJECT_0:
-			return EXEC_SUCCESS;
-		case WAIT_TIMEOUT:
-			SetLastError(ERROR_TIMEOUT);
-			return EXEC_ERROR;
-		default:
-			abort();
-	}
 #else
-	int res;
-	if (wait_bool)
-		res = pthread_rwlock_rdlock(rwlock);
-	else
-		res = pthread_rwlock_tryrdlock(rwlock);
+	assert_true(pthread_rwlock_rdlock(rwlock) == 0);
+	/*
+	int res = pthread_rwlock_tryrdlock(rwlock);
 	if (res) {
 		errno = res;
 		return EXEC_ERROR;
 	}
 	return EXEC_SUCCESS;
+	*/
 #endif
 }
 
-EXEC_RETURN rwlock_LockWrite(RWLock_t* rwlock, BOOL wait_bool) {
+void rwlock_LockWrite(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/*
 	if (wait_bool) {
@@ -400,83 +379,49 @@ EXEC_RETURN rwlock_LockWrite(RWLock_t* rwlock, BOOL wait_bool) {
 	return TryAcquireSRWLockExclusive(rwlock) ? EXEC_SUCCESS : EXEC_ERROR;
 	*/
 	assert_true(ResetEvent(rwlock->__read_ev));
-	switch (WaitForSingleObject(rwlock->__write_ev, wait_bool ? INFINITE : 0)) {
-		case WAIT_OBJECT_0:
-			return EXEC_SUCCESS;
-		case WAIT_TIMEOUT:
-			SetLastError(ERROR_TIMEOUT);
-			return EXEC_ERROR;
-		default:
-			abort();
-	}
+	assert_true(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
+	rwlock->__exclusive_lock = TRUE;
 #else
-	int res;
-	if (wait_bool)
-		res = pthread_rwlock_wrlock(rwlock);
-	else
-		res = pthread_rwlock_trywrlock(rwlock);
+	assert_true(pthread_rwlock_wrlock(rwlock) == 0);
+	/*
+	int res = pthread_rwlock_trywrlock(rwlock);
 	if (res) {
 		errno = res;
 		return EXEC_ERROR;
 	}
 	return EXEC_SUCCESS;
+	*/
 #endif
 }
 
-EXEC_RETURN rwlock_UnlockRead(RWLock_t* rwlock) {
+void rwlock_Unlock(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
-	/*ReleaseSRWLockShared(rwlock);*/
-	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
-	if (0 == --(rwlock->__read_cnt)) {
+	if (rwlock->__exclusive_lock) {
+		/*ReleaseSRWLockExclusive(rwlock);*/
+		rwlock->__exclusive_lock = FALSE;
 		assert_true(SetEvent(rwlock->__write_ev));
+		assert_true(SetEvent(rwlock->__read_ev));
 	}
-	assert_true(SetEvent(rwlock->__wait_ev));
-	return EXEC_SUCCESS;
+	else {
+		/*ReleaseSRWLockShared(rwlock);*/
+		assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
+		if (0 == --rwlock->__read_cnt) {
+			assert_true(SetEvent(rwlock->__write_ev));
+		}
+		assert_true(SetEvent(rwlock->__wait_ev));
+	}
 #else
-	int res = pthread_rwlock_unlock(rwlock);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_rwlock_unlock(rwlock) == 0);
 #endif
 }
 
-EXEC_RETURN rwlock_UnlockWrite(RWLock_t* rwlock) {
+void rwlock_Close(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
-	/*ReleaseSRWLockExclusive(rwlock);*/
-	assert_true(SetEvent(rwlock->__write_ev));
-	assert_true(SetEvent(rwlock->__read_ev));
-	return EXEC_SUCCESS;
+	assert_true(CloseHandle(rwlock->__read_ev));
+	assert_true(CloseHandle(rwlock->__write_ev));
+	assert_true(CloseHandle(rwlock->__wait_ev));
 #else
-	int res = pthread_rwlock_unlock(rwlock);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
-#endif
-}
-
-EXEC_RETURN rwlock_Close(RWLock_t* rwlock) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (!CloseHandle(rwlock->__read_ev)) {
-		return EXEC_ERROR;
-	}
-	if (!CloseHandle(rwlock->__write_ev)) {
-		return EXEC_ERROR;
-	}
-	if (!CloseHandle(rwlock->__wait_ev)) {
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
-#else
-	int res = pthread_rwlock_destroy(rwlock);
-	if (res) {
-		errno = res;
-		return EXEC_ERROR;
-	}
-	return EXEC_SUCCESS;
+	assert_true(pthread_rwlock_destroy(rwlock) == 0);
 #endif
 }
 
