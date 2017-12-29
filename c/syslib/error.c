@@ -174,19 +174,15 @@ char* error_msg(int errnum, char* buf, size_t bufsize) {
 #endif
 }
 
-static void(*__GLOBAL_ERROR_HANDLER__)(const char*, unsigned int, const char*, const char*) = NULL;
+static void __default_error_handler(const char* file, unsigned int line, size_t wparam, size_t lparam) {}
+static void(*__c_error_handler__)(const char*, unsigned int, size_t, size_t) = __default_error_handler;
 
-void error_set_handler(void(*handler)(const char*, unsigned int, const char*, const char*)) {
-	__GLOBAL_ERROR_HANDLER__ = handler;
+void error_set_handler(void(*handler)(const char*, unsigned int, size_t, size_t)) {
+	__c_error_handler__ = handler;
 }
 
-void error_call_handler(const char* file, unsigned int line, const char* expression, const char* msgtxt) {
-	if (__GLOBAL_ERROR_HANDLER__) {
-		__GLOBAL_ERROR_HANDLER__(file, line, expression, msgtxt);
-	}
-	else {
-		abort();
-	}
+void (error_call_handler)(const char* file, unsigned int line, size_t wparam, size_t lparam) {
+	__c_error_handler__(file, line, wparam, lparam);
 }
 
 #ifdef  __cplusplus
