@@ -326,6 +326,19 @@ EXEC_RETURN thread_FreeLocalKey(Tls_t key) {
 #endif
 }
 
+/* stack back trace */
+unsigned short callstack_BackTrace(void** buf, unsigned short depth) {
+#if defined(_WIN32) || defined(_WIN64)
+	return CaptureStackBackTrace(0, depth, buf, NULL);
+#else
+	int total_cnt = backtrace(buf, depth);
+	if (total_cnt < 0) {
+		total_cnt = 0;
+	}
+	return total_cnt;
+#endif
+}
+
 #ifdef	__cplusplus
 }
 #endif

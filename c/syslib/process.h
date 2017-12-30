@@ -9,6 +9,13 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <process.h>
+	#ifdef _MSC_VER
+		#pragma warning(disable:4091)/* avoid bug(dbghelp.h warning C4091: "typedef ") */
+	#endif
+	#include <Dbghelp.h>
+	#ifdef _MSC_VER
+		#pragma warning(default:4091)
+	#endif
 	typedef struct {
 		HANDLE handle;
 		DWORD id;
@@ -20,12 +27,14 @@
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
 	#define	__tls					__declspec(thread)
+	#pragma comment(lib, "Dbghelp.lib")
 #else
 	#include <dlfcn.h>
 	#include <pthread.h>
 	#include <sys/select.h>
 	#include <sys/time.h>
 	#include <sys/wait.h>
+	#include <execinfo.h>
 	#include <ucontext.h>
 	typedef struct {
 		pid_t id;
@@ -71,6 +80,8 @@ EXEC_RETURN thread_AllocLocalKey(Tls_t* key);
 EXEC_RETURN thread_SetLocalValue(Tls_t key, void* value);
 void* thread_GetLocalValue(Tls_t key);
 EXEC_RETURN thread_FreeLocalKey(Tls_t key);
+/* stack back trace */
+unsigned short callstack_BackTrace(void** buf, unsigned short depth);
 
 #ifdef	__cplusplus
 }
