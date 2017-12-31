@@ -8,6 +8,7 @@
 #include "../c/datastruct/list.h"
 #include "../c/syslib/ipc.h"
 #include <stddef.h>
+#include <stdarg.h>
 #include <time.h>
 
 namespace Util {
