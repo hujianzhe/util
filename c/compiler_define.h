@@ -11,6 +11,14 @@
 #define	field_offset(type, field)				((char*)(&((type *)0)->field) - (char*)(0))
 #define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
+#define	__ADD_LABEL_PREFIX__(_prefix, _label)	_prefix##_##_label
+
+#ifndef __cplusplus
+typedef	char	bool;
+#define	true	1
+#define	false	0
+#endif
+
 #ifdef _MSC_VER
 	#if	_MSC_VER >= 1900
 		#define	__CPP_VERSION	2011
@@ -58,12 +66,6 @@
 
 #else
 	#error "Unknown Compiler"
-#endif
-
-#ifndef __cplusplus
-	typedef	char	bool;
-	#define	true	1
-	#define	false	0
 #endif
 
 #endif
