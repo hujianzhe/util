@@ -577,7 +577,9 @@ EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfu
 #else
 	switch (errno) {
 		case EAGAIN:
+	#if	EAGAIN != EWOULDBLOCK
 		case EWOULDBLOCK:
+	#endif
 		case ENFILE:
 		case EMFILE:
 		case ENOBUFS:
