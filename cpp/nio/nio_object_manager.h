@@ -32,7 +32,7 @@ public:
 
 public:
 	struct NioEvent {
-		list_node_t list_node;
+		list_node_t m_listnode;
 		std::shared_ptr<NioObject> obj;
 		int event;
 		void* ol;
@@ -42,7 +42,7 @@ public:
 			event(event_),
 			ol(ol_)
 		{
-			list_node_init(&list_node);
+			list_node_init(&m_listnode);
 		}
 	};
 

@@ -6,8 +6,8 @@
 #include "../c/syslib/process.h"
 #include "../c/syslib/time.h"
 #include "logger.h"
-#include <iterator>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 
 namespace Util {
@@ -18,7 +18,9 @@ Logger::Logger(void) :
 	m_days(-1),
 	m_file(INVALID_FD_HANDLE),
 	m_filesize(0),
-	m_maxfilesize(~0)
+	m_maxfilesize(~0),
+	m_cachehead(NULL),
+	m_cachetail(NULL)
 {
 	m_ident[0] = 0;
 	m_path[0] = 0;
@@ -37,12 +39,6 @@ void Logger::ident(const char* format, ...) {
 	vsnprintf(m_ident, sizeof(m_ident), format, varg);
 	va_end(varg);
 }
-const char* Logger::ident(void) { return m_ident; }
-
-void Logger::enableAsync(bool b) { m_async = b; }
-
-void Logger::inputOption(int o) { m_inputOption = o; }
-short Logger::inputOption(void) { return m_inputOption; }
 
 void Logger::path(const char* format, ...) {
 	va_list varg;
@@ -102,34 +98,60 @@ void Logger::debug(const char* format, ...) {
 }
 
 void Logger::flush(void) {
-	if (m_async) {
-		std::vector<char> cache;
-		cslock_Enter(&m_lock);
-		for (auto it = m_caches.begin(); it != m_caches.end(); m_caches.erase(it++)) {
-			// day rotate
-			if (m_days != it->first.tm_yday) {
-				m_days = it->first.tm_yday;
-				if (!cache.empty() && m_file != INVALID_FD_HANDLE) {
-					file_Write(m_file, &cache[0], cache.size());
-				}
-				cache.clear();
-				rotate(&it->first, false);
+	list_node_t* cachehead;
+
+	cslock_Enter(&m_lock);
+
+	cachehead = m_cachehead;
+	m_cachehead = m_cachetail = NULL;
+
+	cslock_Leave(&m_lock);
+
+	char* txt = NULL;
+	size_t txtlen = 0;
+	for (list_node_t* node = cachehead; node; ) {
+		list_node_t* next_node = node->next;
+		CacheBlock* cache = field_container(node, CacheBlock, m_listnode);
+		// day rotate
+		if (m_days != cache->dt.tm_yday) {
+			m_days = cache->dt.tm_yday;
+			if (txt && m_file != INVALID_FD_HANDLE) {
+				file_Write(m_file, txt, txtlen);
 			}
-			// size rotate
-			else if (m_filesize + it->second.size() >= m_maxfilesize) {
-				cache.clear();
-				rotate(&it->first, true);
-			}
-			// copy data to cache
-			std::copy(it->second.begin(), it->second.end(), std::back_inserter(cache));
-			m_filesize += it->second.size();
+			free(txt);
+			txt = NULL;
+			txtlen = 0;
+			rotate(&cache->dt, false);
 		}
-		cslock_Leave(&m_lock);
-		// io
-		if (m_file != INVALID_FD_HANDLE && !cache.empty()) {
-			file_Write(m_file, &cache[0], cache.size());
+		// size rotate
+		else if (m_filesize + cache->len >= m_maxfilesize) {
+			free(txt);
+			txt = NULL;
+			txtlen = 0;
+			rotate(&cache->dt, true);
 		}
+		// copy data to cache
+		char* p = (char*)realloc(txt, txtlen + cache->len);
+		if (p) {
+			txt = p;
+			memcpy(txt + txtlen, cache->txt, cache->len);
+			txtlen += cache->len;
+			m_filesize += cache->len;
+		}
+		else {
+			free(txt);
+			txt = NULL;
+			txtlen = 0;
+		}
+		free(cache);
+
+		node = next_node;
 	}
+	// io
+	if (m_file != INVALID_FD_HANDLE && txt) {
+		file_Write(m_file, txt, txtlen);
+	}
+	free(txt);
 }
 
 void Logger::build(const char* priority, const char* format, va_list varg) {
@@ -168,7 +190,7 @@ void Logger::rotate(const struct tm* dt, bool trunc) {
 	}
 	m_filesize = 0;
 	char path[256];
-	if (snprintf(path, sizeof(path), "%s%s.%d-%d-%d.txt", m_path, ident(), dt->tm_year, dt->tm_mon, dt->tm_mday) < 0) {
+	if (snprintf(path, sizeof(path), "%s%s.%d-%d-%d.txt", m_path, m_ident, dt->tm_year, dt->tm_mon, dt->tm_mday) < 0) {
 		return;
 	}
 	m_file = file_Open(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
@@ -182,9 +204,29 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 		fputs(content, stderr);
 	}
 	if (m_inputOption & InputOption::FILE) {
+		CacheBlock* cache = NULL;
+		bool is_async = m_async;
+		if (is_async) {
+			cache = (CacheBlock*)malloc(sizeof(CacheBlock) + len);
+			if (!cache) {
+				return;
+			}
+			cache->dt = *dt;
+			cache->len = len;
+			memcpy(cache->txt, content, len);
+		}
+
 		cslock_Enter(&m_lock);
-		if (m_async) {
-			m_caches.push_back(std::make_pair(*dt, std::vector<char>(content, content + len)));
+
+		if (is_async) {
+			if (m_cachetail) {
+				list_node_insert_back(m_cachetail, &cache->m_listnode);
+				m_cachetail = &cache->m_listnode;
+			}
+			else {
+				list_node_init(&cache->m_listnode);
+				m_cachehead = m_cachetail = &cache->m_listnode;
+			}
 		}
 		else {
 			// day rotate
@@ -202,6 +244,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 			}
 			m_filesize += len;
 		}
+
 		cslock_Leave(&m_lock);
 	}
 }

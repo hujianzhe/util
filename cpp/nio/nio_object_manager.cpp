@@ -116,11 +116,11 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 
 		struct NioEvent* ptr = new struct NioEvent(iter->second, event, ol);
 		if (tail) {
-			list_node_insert_back(tail, &ptr->list_node);
-			tail = &ptr->list_node;
+			list_node_insert_back(tail, &ptr->m_listnode);
+			tail = &ptr->m_listnode;
 		}
 		else {
-			head = tail = &ptr->list_node;
+			head = tail = &ptr->m_listnode;
 		}
 	}
 

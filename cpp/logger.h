@@ -5,11 +5,8 @@
 #ifndef	UTIL_CPP_LOGGER_H
 #define	UTIL_CPP_LOGGER_H
 
+#include "../c/datastruct/list.h"
 #include "../c/syslib/ipc.h"
-#include <list>
-#include <utility>
-#include <vector>
-#include <stdarg.h>
 #include <stddef.h>
 #include <time.h>
 
@@ -37,12 +34,12 @@ public:
 	virtual ~Logger(void);
 
 	void ident(const char* format, ...);
-	const char* ident(void);
+	const char* ident(void) const { return m_ident; }
 
-	void enableAsync(bool b);
+	void enableAsync(bool b) { m_async = b; }
 
-	void inputOption(int o);
-	short inputOption(void);
+	void inputOption(int o) { m_inputOption = o; }
+	short inputOption(void) const { return m_inputOption; }
 
 	void path(const char* format, ...);
 	const char* path(void);
@@ -59,6 +56,13 @@ public:
 	void flush(void);
 
 private:
+	struct CacheBlock {
+		list_node_t m_listnode;
+		struct tm dt;
+		size_t len;
+		char txt[1];
+	};
+
 	void rotate(const struct tm* dt, bool trunc);
 
 	void build(const char* priority, const char* format, va_list varg);
@@ -74,7 +78,7 @@ private:
 	FD_t m_file;
 	size_t m_filesize;
 	size_t m_maxfilesize;
-	std::list<std::pair<struct tm, std::vector<char> > > m_caches;
+	list_node_t *m_cachehead, *m_cachetail;
 	CSLock_t m_lock;
 };
 }
