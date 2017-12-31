@@ -10,6 +10,13 @@
 #define	field_sizeof(type, field)				sizeof(((type*)0)->field)
 #define	field_offset(type, field)				((char*)(&((type *)0)->field) - (char*)(0))
 #define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
+typedef struct class_reflect_field_desc_t {
+	const char* name;
+	unsigned int offset;
+	unsigned int len;
+} class_reflect_field_desc_t;
+#define	field_reflect(type, field)				{ #field, field_offset(type, field), field_sizeof(type, field) }
+#define	class_reflect(type)						struct class_reflect_field_desc_t type##_reflect_desc[]
 
 #define	__ADD_LABEL_PREFIX__(_prefix, _label)	_prefix##_##_label
 
