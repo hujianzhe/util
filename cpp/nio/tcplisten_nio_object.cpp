@@ -65,20 +65,7 @@ bool TcplistenNioObject::reactorAccept(void) {
 }
 
 int TcplistenNioObject::recv(void) {
-	struct sockaddr_storage saddr;
-	socklen_t slen = sizeof(saddr);
-	FD_t connfd;
-	if (!reactor_AcceptPretreatment(m_fd, m_readOl, m_cbfunc, m_arg)) {
-		invalid();
-		return 0;
-	}
-	while ((connfd = ::accept(m_fd, (struct sockaddr*)&saddr, &slen)) != INVALID_FD_HANDLE) {
-		slen = sizeof(saddr);
-		if (m_cbfunc) {
-			m_cbfunc(connfd, &saddr, m_arg);
-		}
-	}
-	if (error_code() == EWOULDBLOCK || error_code() == ENFILE || error_code() == EMFILE || error_code() == ECONNABORTED) {
+	if (reactor_Accept(m_fd, m_readOl, m_cbfunc, m_arg) == EXEC_SUCCESS) {
 		reactorAccept();
 	}
 	else {

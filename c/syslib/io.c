@@ -509,8 +509,8 @@ BOOL reactor_ConnectCheckSuccess(FD_t sockfd) {
 #endif
 }
 
-BOOL reactor_AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 #if defined(_WIN32) || defined(_WIN64)
+static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	SOCKET* pConnfd = ol ? (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED)) : NULL;
 	if (!pConnfd) {
 		return TRUE;
@@ -544,9 +544,52 @@ BOOL reactor_AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK
 		}
 	} while (0);
 	return *pConnfd != INVALID_SOCKET;
-#else
-	return TRUE;
+}
 #endif
+
+EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
+	FD_t connfd;
+	struct sockaddr_storage saddr;
+#if defined(_WIN32) || defined(_WIN64)
+	int slen = sizeof(saddr);
+	if (!__win32AcceptPretreatment(listenfd, ol, cbfunc, arg)) {
+		return FALSE;
+	}
+#else
+	socklen_t slen = sizeof(saddr);
+#endif
+	while ((connfd = accept(listenfd, (struct sockaddr*)&saddr, &slen)) != INVALID_FD_HANDLE) {
+		slen = sizeof(saddr);
+		if (cbfunc) {
+			cbfunc(connfd, &saddr, arg);
+		}
+	}
+#if defined(_WIN32) || defined(_WIN64)
+	switch (WSAGetLastError()) {
+		case WSAEMFILE:
+		case WSAENOBUFS:
+		case WSAEWOULDBLOCK:
+			return EXEC_SUCCESS;
+		case WSAECONNRESET:
+		case WSAEINTR:
+			return EXEC_SUCCESS;
+	}
+#else
+	switch (errno) {
+		case EAGAIN:
+		case EWOULDBLOCK:
+		case ENFILE:
+		case EMFILE:
+		case ENOBUFS:
+		case ENOMEM:
+			return EXEC_SUCCESS;
+		case ECONNABORTED:
+		case EPERM:/* maybe linux firewall */
+		case EINTR:
+			return EXEC_SUCCESS;
+	}
+#endif
+	return EXEC_ERROR;
 }
 
 EXEC_RETURN reactor_Close(Reactor_t* reactor) {

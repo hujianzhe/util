@@ -31,9 +31,10 @@ NioObject::~NioObject(void) {
 	free(m_writeOl);
 }
 
-FD_t NioObject::fd(void) const { return m_fd; }
-int NioObject::socktype(void) const { return m_socktype; }
-bool NioObject::isListen(void) const { return m_isListen; }
+time_t NioObject::updateLastActiveTime(void) {
+	m_lastActiveTime = gmt_Second();
+	return m_lastActiveTime;
+}
 
 bool NioObject::reactorInit(Reactor_t* reactor) {
 	if (sock_NonBlock(m_fd, TRUE) != EXEC_SUCCESS) {
@@ -68,15 +69,6 @@ bool NioObject::reactorWrite(void) {
 	return false;
 }
 
-time_t NioObject::createTime(void) { return m_createTime; }
-time_t NioObject::lastActiveTime(void) { return m_lastActiveTime; }
-time_t NioObject::updateLastActiveTime(void) {
-	m_lastActiveTime = gmt_Second();
-	return m_lastActiveTime;
-}
-
-void NioObject::invalid(void) { m_valid = false; }
-
 void NioObject::shutdownDirect(void) {
 	if (!_xchg8(&m_shutdown, 0)) {
 		return;
@@ -94,7 +86,6 @@ void NioObject::shutdownWaitAck(void) {
 	shutdownDirect();
 }
 
-void NioObject::timeoutSecond(int sec) { m_timeoutSecond = sec; }
 bool NioObject::checkTimeout(void) {
 	return m_timeoutSecond >= 0 && gmt_Second() - m_timeoutSecond > m_lastActiveTime;
 }
@@ -154,7 +145,6 @@ bool NioObject::send(const std::string& str, struct sockaddr_storage* saddr) {
 	return send(str.data(), str.size(), saddr);
 }
 
-int NioObject::recv(void) { return 0; }
 int NioObject::onRead(void) {
 	int res = recv();
 	if (m_valid && !m_isListen) {
@@ -163,7 +153,4 @@ int NioObject::onRead(void) {
 	}
 	return res;
 }
-int NioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) { return transfer_bytes; }
-int NioObject::onWrite(void) { return 0; }
-void NioObject::onRemove(void) {}
 }

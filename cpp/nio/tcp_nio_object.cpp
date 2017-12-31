@@ -26,7 +26,7 @@ TcpNioObject::~TcpNioObject(void) {
 	}
 }
 
-bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(NioObject*, bool)>& cb) {
+bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb) {
 	struct sockaddr_storage saddr;
 	if (sock_Text2Addr(&saddr, family, ip, port) != EXEC_SUCCESS) {
 		return false;
@@ -40,7 +40,7 @@ bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short por
 	m_valid = false;
 	return false;
 }
-bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(NioObject*, bool)>& cb) {
+bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(TcpNioObject*, bool)>& cb) {
 	m_connecting = true;
 	m_connectCallback = cb;
 	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr) == EXEC_SUCCESS) {

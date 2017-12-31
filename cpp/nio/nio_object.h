@@ -22,22 +22,22 @@ public:
 	NioObject(FD_t fd, int socktype = -1);
 	virtual ~NioObject(void);
 
-	FD_t fd(void) const;
-	int socktype(void) const;
-	bool isListen(void) const;
+	FD_t fd(void) const { return m_fd; }
+	int socktype(void) const { return m_socktype; }
+	bool isListen(void) const { return m_isListen; }
 
 	bool reactorInit(Reactor_t* reactor);
 	bool reactorRead(void);
 
-	time_t createTime(void);
-	time_t lastActiveTime(void);
+	time_t createTime(void) { return m_createTime; }
+	time_t lastActiveTime(void) { return m_lastActiveTime; }
 
-	void invalid(void);
+	void invalid(void) { m_valid = false; }
 
 	void shutdownDirect(void);
 	void shutdownWaitAck(void);
 
-	void timeoutSecond(int sec);
+	void timeoutSecond(int sec) { m_timeoutSecond = sec; }
 	bool checkTimeout(void);
 	bool checkValid(void);
 
@@ -51,16 +51,16 @@ private:
 	NioObject(const NioObject& o);
 	NioObject& operator=(const NioObject& o);
 
-	virtual int recv(void);
+	virtual int recv(void) { return 0; }
 
 	int onRead(void);
-	virtual int onWrite(void);
-	virtual void onRemove(void);
+	virtual int onWrite(void) { return 0; }
+	virtual void onRemove(void) {}
 
 	time_t updateLastActiveTime(void);
 
 protected:
-	virtual int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	virtual int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) { return transfer_bytes; }
 	bool reactorWrite(void);
 
 protected:

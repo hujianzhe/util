@@ -85,7 +85,7 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
 void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
 BOOL reactor_ConnectCheckSuccess(FD_t sockfd);
-BOOL reactor_AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
+EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
 EXEC_RETURN reactor_Close(Reactor_t* reactor);
 
 #ifdef	__cplusplus
