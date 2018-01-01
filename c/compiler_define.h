@@ -17,8 +17,8 @@ typedef struct class_field_reflect_desc_t {
 	unsigned int len;
 } class_field_reflect_desc_t;
 #define	field_reflect_init(type, field)			{ #field, field_offset(type, field), field_sizeof(type, field) }
-#define	class_reflect_declare(type)				extern struct class_field_reflect_desc_t type##_reflect_desc[]
-#define	class_reflect_define(type)				struct class_field_reflect_desc_t type##_reflect_desc[]
+#define	class_reflect_declare(type, suffix)		extern struct class_field_reflect_desc_t type##_##suffix##_reflect_desc[]
+#define	class_reflect_define(type, suffix)		struct class_field_reflect_desc_t type##_##suffix##_reflect_desc[]
 
 #define	__ADD_LABEL_PREFIX__(_prefix, _label)	_prefix##_##_label
 
