@@ -5,9 +5,9 @@
 #ifndef	UTIL_CPP_NIO_TCP_NIO_OBJECT_H
 #define	UTIL_CPP_NIO_TCP_NIO_OBJECT_H
 
+#include "../../c/datastruct/list.h"
 #include "nio_object.h"
 #include <functional>
-#include <list>
 
 namespace Util {
 class TcpNioObject : public NioObject {
@@ -38,12 +38,13 @@ private:
 	Mutex_t m_outbufMutex;
 	bool m_outbufMutexInitOk;
 	bool m_writeCommit;
-	struct __NioSendDataInfo {
-		std::vector<unsigned char> data;
+	struct WaitSendData {
+		list_node_t m_listnode;
 		size_t offset;
-		struct sockaddr_storage saddr;
+		size_t len;
+		unsigned char data[1];
 	};
-	std::list<struct __NioSendDataInfo> m_outbuf;
+	list_node_t *m_outbufhead, *m_outbuftail;
 };
 }
 

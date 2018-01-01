@@ -73,6 +73,9 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		for (cur = m_head; cur && --expect_cnt; cur = cur->next);
 		if (0 == expect_cnt && cur && cur->next) {
 			m_head = cur->next;
+			if (m_head) {
+				list_node_split(m_head);
+			}
 		}
 		else {
 			m_head = m_tail = NULL;

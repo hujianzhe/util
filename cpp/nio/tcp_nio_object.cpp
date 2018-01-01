@@ -13,7 +13,9 @@ TcpNioObject::TcpNioObject(FD_t fd) :
 	NioObject(fd, SOCK_STREAM),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),
-	m_writeCommit(false)
+	m_writeCommit(false),
+	m_outbufhead(NULL),
+	m_outbuftail(NULL)
 {
 	if (mutex_Create(&m_outbufMutex) != EXEC_SUCCESS) {
 		throw std::logic_error("Util::TcpNioObject mutex_Create failure");
@@ -130,9 +132,10 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 	}
 
 	mutex_Lock(&m_outbufMutex);
+
 	do {
 		int res = 0;
-		if (m_outbuf.empty()) {
+		if (!m_outbuftail) {
 			res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
 			if (res < 0) {
 				if (error_code() != EWOULDBLOCK) {
@@ -143,16 +146,13 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 			}
 		}
 		if (res < nbytes) {
-			m_outbuf.push_back(__NioSendDataInfo());
-			struct __NioSendDataInfo& nsdi = m_outbuf.back();
-			if (saddr) {
-				nsdi.saddr = *saddr;
+			WaitSendData* wsd = (WaitSendData*)malloc(sizeof(WaitSendData) + (nbytes - res));
+			if (!wsd) {
+				m_valid = false;
+				break;
 			}
-			else {
-				nsdi.saddr.ss_family = AF_UNSPEC;
-			}
-			nsdi.offset = 0;
-			nsdi.data.resize(nbytes - res);
+			wsd->len = nbytes - res;
+			wsd->offset = 0;
 
 			unsigned int i, off;
 			for (off = 0, i = 0; i < iovcnt; ++i) {
@@ -160,10 +160,19 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 					res -= iobuffer_len(iov + i);
 				}
 				else {
-					memcpy(&nsdi.data[off], ((char*)iobuffer_buf(iov + i)) + res, iobuffer_len(iov + i) - res);
+					memcpy(wsd->data + off, ((char*)iobuffer_buf(iov + i)) + res, iobuffer_len(iov + i) - res);
 					off += iobuffer_len(iov + i) - res;
 					res = 0;
 				}
+			}
+
+			if (m_outbuftail) {
+				list_node_insert_back(m_outbuftail, &wsd->m_listnode);
+				m_outbuftail = &wsd->m_listnode;
+			}
+			else {
+				list_node_init(&wsd->m_listnode);
+				m_outbufhead = m_outbuftail = &wsd->m_listnode;
 			}
 			//
 			if (!m_writeCommit) {
@@ -172,7 +181,9 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 			}
 		}
 	} while (0);
+
 	mutex_Unlock(&m_outbufMutex);
+
 	return m_valid;
 }
 int TcpNioObject::onWrite(void) {
@@ -186,10 +197,12 @@ int TcpNioObject::onWrite(void) {
 	if (!m_valid) {
 		return 0;
 	}
+
 	mutex_Lock(&m_outbufMutex);
-	for (std::list<struct __NioSendDataInfo>::iterator iter = m_outbuf.begin(); iter != m_outbuf.end(); ) {
-		struct sockaddr_storage* saddr = (iter->saddr.ss_family != AF_UNSPEC ? &iter->saddr : NULL);
-		int res = sock_Send(m_fd, &iter->data[0] + iter->offset, iter->data.size() - iter->offset, 0, saddr);
+
+	for (list_node_t* iter = m_outbufhead; iter; ) {
+		WaitSendData* wsd = field_container(iter, WaitSendData, m_listnode);
+		int res = sock_Send(m_fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
 		if (res < 0) {
 			if (error_code() != EWOULDBLOCK) {
 				m_valid = false;
@@ -198,19 +211,29 @@ int TcpNioObject::onWrite(void) {
 			res = 0;
 		}
 		count += res;
-		iter->offset += res;
-		if (iter->offset >= iter->data.size()) {
-			m_outbuf.erase(iter++);
+		wsd->offset += res;
+		if (wsd->offset >= wsd->len) {
+			list_node_remove(iter);
+			if (iter == m_outbufhead) {
+				m_outbufhead = iter->next;
+			}
+			if (iter == m_outbuftail) {
+				m_outbuftail = iter->next;
+			}
+			iter = iter->next;
+			free(wsd);
 		}
 		else if (m_valid) {
 			reactorWrite();
 			break;
 		}
 	}
-	if (m_outbuf.empty()) {
+	if (!m_outbuftail) {
 		m_writeCommit = false;
 	}
+
 	mutex_Unlock(&m_outbufMutex);
+
 	return count;
 }
 }
