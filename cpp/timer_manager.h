@@ -7,7 +7,6 @@
 
 #include "../c/datastruct/list.h"
 #include "../c/syslib/ipc.h"
-#include <list>
 #include <map>
 
 namespace Util {
@@ -24,7 +23,7 @@ public:
 private:
 	void(*m_deleter)(list_node_t*);
 	Mutex_t m_mutex;
-	std::map<long long, std::pair<list_node_t*, list_node_t*> > m_tasks;//timestamp
+	std::map<long long, list_t> m_tasks;//timestamp
 };
 }
 

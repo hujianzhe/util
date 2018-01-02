@@ -37,13 +37,11 @@ public:
 		int event;
 		void* ol;
 
-		NioEvent(const std::shared_ptr<NioObject>& obj_, int event_, void* ol_) :
-			obj(obj_),
-			event(event_),
-			ol(ol_)
-		{
-			list_node_init(&m_listnode);
-		}
+		NioEvent(const std::shared_ptr<NioObject>& _obj, int _event, void* _ol) :
+			obj(_obj),
+			event(_event),
+			ol(_ol)
+		{}
 	};
 
 	int wait(NioEv_t* e, int n, int msec);

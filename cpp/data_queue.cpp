@@ -6,23 +6,22 @@
 
 namespace Util {
 DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
-	m_head(NULL),
-	m_tail(NULL),
 	m_forcewakeup(false),
 	m_deleter(deleter)
 {
 	cslock_Create(&m_cslock);
 	condition_Create(&m_condition);
+	list_init(&m_datalist);
 }
 DataQueue::~DataQueue(void) {
 	if (m_deleter) {
-		list_node_t *next, *cur;
-		for (cur = m_head; cur; cur = next) {
-			next = cur->next;
+		for (list_node_t* cur = m_datalist.head; cur; ) {
+			list_node_t* next = cur->next;
 			m_deleter(cur);
+			cur = next;
 		}
 	}
-	m_head = m_tail = NULL;
+	list_init(&m_datalist);
 	cslock_Close(&m_cslock);
 	condition_Close(&m_condition);
 }
@@ -32,16 +31,11 @@ void DataQueue::push(list_node_t* data) {
 		return;
 	}
 
-	list_node_init(data);
-
 	cslock_Enter(&m_cslock);
 
-	if (m_tail) {
-		list_node_insert_back(m_tail, data);
-		m_tail = data;
-	}
-	else {
-		m_head = m_tail = data;
+	bool is_empty = !m_datalist.head;
+	list_insert_node_back(&m_datalist, m_datalist.tail, data);
+	if (is_empty) {
 		condition_WakeThread(&m_condition);
 	}
 
@@ -55,7 +49,7 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	}
 
 	cslock_Enter(&m_cslock);
-	while (NULL == m_head && !m_forcewakeup) {
+	while (!m_datalist.head && !m_forcewakeup) {
 		if (condition_Wait(&m_condition, &m_cslock, msec) == EXEC_SUCCESS) {
 			continue;
 		}
@@ -64,21 +58,18 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	}
 	m_forcewakeup = false;
 
-	res = m_head;
+	res = m_datalist.head;
 	if (~0 == expect_cnt) {
-		m_head = m_tail = NULL;
+		list_init(&m_datalist);
 	}
 	else {
 		list_node_t *cur;
-		for (cur = m_head; cur && --expect_cnt; cur = cur->next);
+		for (cur = m_datalist.head; cur && --expect_cnt; cur = cur->next);
 		if (0 == expect_cnt && cur && cur->next) {
-			m_head = cur->next;
-			if (m_head) {
-				list_node_split(m_head);
-			}
+			m_datalist = list_split(&m_datalist, cur->next);
 		}
 		else {
-			m_head = m_tail = NULL;
+			list_init(&m_datalist);
 		}
 	}
 

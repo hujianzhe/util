@@ -17,13 +17,12 @@ Logger::Logger(void) :
 	m_days(-1),
 	m_file(INVALID_FD_HANDLE),
 	m_filesize(0),
-	m_maxfilesize(~0),
-	m_cachehead(NULL),
-	m_cachetail(NULL)
+	m_maxfilesize(~0)
 {
+	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
+	list_init(&m_cachelist);
 	m_ident[0] = 0;
 	m_path[0] = 0;
-	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
 }
 Logger::~Logger(void) {
 	if (m_file != INVALID_FD_HANDLE) {
@@ -101,8 +100,8 @@ void Logger::flush(void) {
 
 	cslock_Enter(&m_lock);
 
-	cachehead = m_cachehead;
-	m_cachehead = m_cachetail = NULL;
+	cachehead = m_cachelist.head;
+	list_init(&m_cachelist);
 
 	cslock_Leave(&m_lock);
 
@@ -218,14 +217,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 		cslock_Enter(&m_lock);
 
 		if (is_async) {
-			if (m_cachetail) {
-				list_node_insert_back(m_cachetail, &cache->m_listnode);
-				m_cachetail = &cache->m_listnode;
-			}
-			else {
-				list_node_init(&cache->m_listnode);
-				m_cachehead = m_cachetail = &cache->m_listnode;
-			}
+			list_insert_node_back(&m_cachelist, m_cachelist.tail, &cache->m_listnode);
 		}
 		else {
 			// day rotate

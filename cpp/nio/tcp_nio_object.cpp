@@ -13,14 +13,13 @@ TcpNioObject::TcpNioObject(FD_t fd) :
 	NioObject(fd, SOCK_STREAM),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),
-	m_writeCommit(false),
-	m_outbufhead(NULL),
-	m_outbuftail(NULL)
+	m_writeCommit(false)
 {
 	if (mutex_Create(&m_outbufMutex) != EXEC_SUCCESS) {
 		throw std::logic_error("Util::TcpNioObject mutex_Create failure");
 	}
 	m_outbufMutexInitOk = true;
+	list_init(&m_outbuflist);
 }
 TcpNioObject::~TcpNioObject(void) {
 	if (m_outbufMutexInitOk) {
@@ -135,7 +134,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 
 	do {
 		int res = 0;
-		if (!m_outbuftail) {
+		if (!m_outbuflist.head) {
 			res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
 			if (res < 0) {
 				if (error_code() != EWOULDBLOCK) {
@@ -166,14 +165,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 				}
 			}
 
-			if (m_outbuftail) {
-				list_node_insert_back(m_outbuftail, &wsd->m_listnode);
-				m_outbuftail = &wsd->m_listnode;
-			}
-			else {
-				list_node_init(&wsd->m_listnode);
-				m_outbufhead = m_outbuftail = &wsd->m_listnode;
-			}
+			list_insert_node_back(&m_outbuflist, m_outbuflist.tail, &wsd->m_listnode);
 			//
 			if (!m_writeCommit) {
 				m_writeCommit = true;
@@ -200,7 +192,7 @@ int TcpNioObject::onWrite(void) {
 
 	mutex_Lock(&m_outbufMutex);
 
-	for (list_node_t* iter = m_outbufhead; iter; ) {
+	for (list_node_t* iter = m_outbuflist.head; iter; ) {
 		WaitSendData* wsd = field_container(iter, WaitSendData, m_listnode);
 		int res = sock_Send(m_fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
 		if (res < 0) {
@@ -213,13 +205,7 @@ int TcpNioObject::onWrite(void) {
 		count += res;
 		wsd->offset += res;
 		if (wsd->offset >= wsd->len) {
-			list_node_remove(iter);
-			if (iter == m_outbufhead) {
-				m_outbufhead = iter->next;
-			}
-			if (iter == m_outbuftail) {
-				m_outbuftail = iter->next;
-			}
+			list_remove_node(&m_outbuflist, iter);
 			iter = iter->next;
 			free(wsd);
 		}
@@ -228,7 +214,7 @@ int TcpNioObject::onWrite(void) {
 			break;
 		}
 	}
-	if (!m_outbuftail) {
+	if (!m_outbuflist.head) {
 		m_writeCommit = false;
 	}
 

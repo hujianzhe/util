@@ -11,8 +11,8 @@ namespace Util {
 NioObjectManager::NioObjectManager(const NioObjectManager& o) {}
 NioObjectManager& NioObjectManager::operator=(const NioObjectManager& o) { return *this; }
 NioObjectManager::NioObjectManager(void) {
-	rwlock_Create(&m_validLock);
-	reactor_Create(&m_reactor);
+	assert_true(rwlock_Create(&m_validLock) == EXEC_SUCCESS);
+	assert_true(reactor_Create(&m_reactor) == EXEC_SUCCESS);
 }
 
 NioObjectManager::~NioObjectManager(void) {
@@ -97,10 +97,12 @@ int NioObjectManager::wait(NioEv_t* e, int n, int msec) {
 }
 
 list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
-	list_node_t* head = NULL, *tail = NULL;
 	if (n <= 0) {
-		return head;
+		return NULL;
 	}
+
+	list_t list;
+	list_init(&list);
 
 	rwlock_LockRead(&m_validLock);
 
@@ -114,19 +116,18 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 			continue;
 		}
 
-		struct NioEvent* ptr = new struct NioEvent(iter->second, event, ol);
-		if (tail) {
-			list_node_insert_back(tail, &ptr->m_listnode);
-			tail = &ptr->m_listnode;
+		NioEvent* ptr = new (std::nothrow) NioEvent(iter->second, event, ol);
+		if (ptr) {
+			list_insert_node_back(&list, list.tail, &ptr->m_listnode);
 		}
 		else {
-			head = tail = &ptr->m_listnode;
+			iter->second->invalid();
 		}
 	}
 
 	rwlock_Unlock(&m_validLock);
 
-	return head;
+	return list.head;
 }
 
 void NioObjectManager::exec(struct NioEvent* objev) {

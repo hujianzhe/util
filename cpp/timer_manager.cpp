@@ -9,15 +9,15 @@ namespace Util {
 TimerManager::TimerManager(void(*deleter)(list_node_t*)) :
 	m_deleter(deleter)
 {
-	mutex_Create(&m_mutex);
+	assert_true(mutex_Create(&m_mutex) == EXEC_SUCCESS);
 }
 TimerManager::~TimerManager(void) {
 	if (m_deleter) {
 		for (auto& it : m_tasks) {
-			list_node_t *next, *cur;
-			for (cur = it.second.first; cur; cur = next) {
-				next = cur->next;
+			for (list_node_t* cur = it.second.head; cur; ) {
+				list_node_t* next = cur->next;
 				m_deleter(cur);
+				cur = next;
 			}
 		}
 	}
@@ -36,33 +36,20 @@ long long TimerManager::minTimestamp(void) {
 }
 
 void TimerManager::reg(long long timestamp_msec, list_node_t* task_node) {
-	list_node_init(task_node);
 	mutex_Lock(&m_mutex);
 	auto& list = m_tasks[timestamp_msec];
-	if (list.second) {
-		list_node_insert_back(list.second, task_node);
-		list.second = task_node;
-	}
-	else {
-		list.first = list.second = task_node;
-	}
+	list_insert_node_back(&list, list.tail, task_node);
 	mutex_Unlock(&m_mutex);
 }
 
 list_node_t* TimerManager::expire(long long timestamp_msec) {
-	list_node_t *head = NULL, *tail = NULL;
+	list_t to_list;
+	list_init(&to_list);
 	mutex_Lock(&m_mutex);
 	for (auto it = m_tasks.begin(); it != m_tasks.end() && it->first <= timestamp_msec; m_tasks.erase(it++)) {
-		auto& list = it->second;
-		if (tail) {
-			list_node_merge(tail, list.first);
-		}
-		else {
-			head = list.first;
-		}
-		tail = list.second;
+		list_merge(&to_list, &it->second);
 	}
 	mutex_Unlock(&m_mutex);
-	return head;
+	return to_list.tail;
 }
 }

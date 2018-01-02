@@ -23,7 +23,7 @@ public:
 private:
 	CSLock_t m_cslock;
 	ConditionVariable_t m_condition;
-	list_node_t *m_head, *m_tail;
+	list_t m_datalist;
 	bool m_forcewakeup;
 	void(*m_deleter)(list_node_t*);
 };

@@ -79,7 +79,7 @@ private:
 	FD_t m_file;
 	size_t m_filesize;
 	size_t m_maxfilesize;
-	list_node_t *m_cachehead, *m_cachetail;
+	list_t m_cachelist;
 	CSLock_t m_lock;
 };
 }

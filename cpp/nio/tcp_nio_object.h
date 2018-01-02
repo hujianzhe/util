@@ -44,7 +44,7 @@ private:
 		size_t len;
 		unsigned char data[1];
 	};
-	list_node_t *m_outbufhead, *m_outbuftail;
+	list_t m_outbuflist;
 };
 }
 
