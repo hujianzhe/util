@@ -49,9 +49,10 @@
 	#define	_xaddsize(addr, val)			__sync_fetch_and_add((ssize_t volatile*)(addr), (ssize_t)(val))
 #endif
 
-#define	_spinlock_init(p_atom8)				(*(Atom8_t*)(p_atom8) = 0)
-#define	_spinlock_lock(p_atom8)				while (_xchg8((Atom8_t*)(p_atom8), 1))
-#define	_spinlock_trylock(p_atom8)			(!_xchg8((Atom8_t*)(p_atom8), 1))
-#define	_spinlock_unlock(p_atom8)			(_xchg8((Atom8_t*)(p_atom8), 0))
+typedef	Atom8_t								AtomBool_t;
+#define	_spinlock_init(p_atom)				(*(Atom8_t*)(p_atom) = 0)
+#define	_spinlock_lock(p_atom)				while (_xchg8((Atom8_t*)(p_atom), 1))
+#define	_spinlock_trylock(p_atom)			(!_xchg8((Atom8_t*)(p_atom), 1))
+#define	_spinlock_unlock(p_atom)			(_xchg8((Atom8_t*)(p_atom), 0))
 
 #endif
