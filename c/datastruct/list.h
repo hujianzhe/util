@@ -8,6 +8,9 @@
 typedef struct list_node_t {
 	struct list_node_t *prev, *next;
 } list_node_t;
+typedef struct list_t {
+	struct list_node_t *head, *tail;
+} list_t;
 
 /*
 #define list_node_foreach(start, next, cur, list_node) \
@@ -25,13 +28,13 @@ typedef struct list_node_t {
 extern "C" {
 #endif
 
-void list_node_init(struct list_node_t* node);
-void list_node_insert_front(struct list_node_t* node, struct list_node_t* new_node);
-void list_node_insert_back(struct list_node_t* node, struct list_node_t* new_node);
-void list_node_remove(struct list_node_t* node);
-void list_node_replace(struct list_node_t* node, struct list_node_t* new_node);
-void list_node_merge(struct list_node_t* tail, struct list_node_t* head);
-struct list_node_t* list_node_split(struct list_node_t* new_head);
+struct list_t* list_init(struct list_t* list);
+void list_insert_node_front(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node);
+void list_insert_node_back(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node);
+void list_remove_node(struct list_t* list, struct list_node_t* node);
+void list_replace_node(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node);
+void list_merge(struct list_t* to, struct list_t* from);
+struct list_t list_split(struct list_t* old_list, struct list_node_t* new_head);
 
 #ifdef	__cplusplus
 }

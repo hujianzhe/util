@@ -55,7 +55,6 @@ int terminal_Kbhit(void) {
 	return _kbhit();
 #else
 	int res = -1;
-	char c;
 	struct termios old;
 	__unix_set_tty(STDIN_FILENO, &old, 0, 0);
 	ioctl(STDIN_FILENO, FIONREAD, &res);

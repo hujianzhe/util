@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 
+/*
 static unsigned short check_sum(unsigned short* buffer, int iSize) {
 	unsigned long ulCksum = 0;
 	while (iSize > 1) {
@@ -27,6 +28,7 @@ static unsigned short check_sum(unsigned short* buffer, int iSize) {
 	ulCksum += (ulCksum >> 16);
 	return (unsigned short)~ulCksum;
 }
+*/
 
 /* Network */
 #if defined(_WIN32) || defined(_WIN64)
@@ -703,7 +705,6 @@ FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
 				 errno == EPROTO || errno == EINTR));
 	}
 	else {
-		int on = 1;
 		struct pollfd poll_fd;
 		poll_fd.fd = listenfd;
 		poll_fd.events = POLLIN;

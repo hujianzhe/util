@@ -107,7 +107,7 @@ EXEC_RETURN memory_Size(unsigned long long* total) {
 	}
 	return EXEC_ERROR;
 #elif __linux__
-	unsigned long page_size, total_page, free_page;
+	unsigned long page_size, total_page;
 	if ((page_size = sysconf(_SC_PAGESIZE)) == -1)
 		return EXEC_ERROR;
 	if ((total_page = sysconf(_SC_PHYS_PAGES)) == -1)
