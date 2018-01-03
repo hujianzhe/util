@@ -5,6 +5,10 @@
 #ifndef UTIL_CPP_CPP_COMPILER_DEFINE_H
 #define	UTIL_CPP_CPP_COMPILER_DEFINE_H
 
+#ifndef __cplusplus
+	#error "Compiler isn't a C++"
+#endif
+
 #include "../c/compiler_define.h"
 
 #ifdef _MSC_VER
