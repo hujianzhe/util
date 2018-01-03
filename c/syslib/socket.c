@@ -494,7 +494,6 @@ EXEC_RETURN sock_Text2Addr(struct sockaddr_storage* saddr, int af, const char* s
 }
 
 EXEC_RETURN sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
-	int res;
 	unsigned long len;
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
@@ -502,14 +501,14 @@ EXEC_RETURN sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, un
 		if (port)
 			*port = ntohs(addr_in->sin_port);
 #if defined(_WIN32) || defined(_WIN64)
-		res = WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in), NULL, strIP, &len);
-		if (!res) {
+		if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in), NULL, strIP, &len)) {
 			char* p;
 			if (p = strchr(strIP, ':')) {
 				*p = 0;
 			}
+			return EXEC_SUCCESS;
 		}
-		return res == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+		return EXEC_ERROR;
 #else
 		return inet_ntop(AF_INET, &addr_in->sin_addr, strIP, len) ? EXEC_SUCCESS : EXEC_ERROR;
 #endif
@@ -521,8 +520,7 @@ EXEC_RETURN sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, un
 		if (port)
 			*port = ntohs(addr_in6->sin6_port);
 #if defined(_WIN32) || defined(_WIN64)
-		res = WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in6), NULL, buf, &len);
-		if (!res) {
+		if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in6), NULL, buf, &len)) {
 			char* p;
 			if (p = strchr(buf, '%'))
 				*p = 0;
@@ -530,8 +528,9 @@ EXEC_RETURN sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, un
 			if (*p == '[')
 				*strchr(++p,']') = 0;
 			strcpy(strIP, p);
+			return EXEC_SUCCESS;
 		}
-		return res == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+		return EXEC_ERROR;
 #else
 		return inet_ntop(AF_INET6, &addr_in6->sin6_addr, strIP, len) ? EXEC_SUCCESS : EXEC_ERROR;
 #endif
