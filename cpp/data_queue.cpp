@@ -9,8 +9,8 @@ DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
 	m_forcewakeup(false),
 	m_deleter(deleter)
 {
-	cslock_Create(&m_cslock);
-	condition_Create(&m_condition);
+	assert_true(cslock_Create(&m_cslock) == EXEC_SUCCESS);
+	assert_true(condition_Create(&m_condition) == EXEC_SUCCESS);
 	list_init(&m_datalist);
 }
 DataQueue::~DataQueue(void) {
