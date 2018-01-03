@@ -2,9 +2,9 @@
 // Created by hujianzhe on 17-3-6.
 //
 
-#include "../c/syslib/file.h"
-#include "../c/syslib/process.h"
-#include "../c/syslib/time.h"
+#include "../../c/syslib/file.h"
+#include "../../c/syslib/process.h"
+#include "../../c/syslib/time.h"
 #include "logger.h"
 #include <stdio.h>
 #include <string.h>

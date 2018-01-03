@@ -5,9 +5,9 @@
 #ifndef UTIL_CPP_DATA_QUEUE_H
 #define UTIL_CPP_DATA_QUEUE_H
 
-#include "../c/datastruct/list.h"
-#include "../c/syslib/error.h"
-#include "../c/syslib/ipc.h"
+#include "../../c/datastruct/list.h"
+#include "../../c/syslib/error.h"
+#include "../../c/syslib/ipc.h"
 
 namespace Util {
 class DataQueue {

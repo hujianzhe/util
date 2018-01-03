@@ -5,8 +5,8 @@
 #ifndef	UTIL_CPP_TIMER_MANAGER_H
 #define	UTIL_CPP_TIMER_MANAGER_H
 
-#include "../c/datastruct/list.h"
-#include "../c/syslib/ipc.h"
+#include "../../c/datastruct/list.h"
+#include "../../c/syslib/ipc.h"
 #include <map>
 
 namespace Util {

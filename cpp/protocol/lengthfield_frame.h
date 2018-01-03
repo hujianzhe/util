@@ -6,7 +6,6 @@
 #define UTIL_CPP_PROTOCOL_LENGTHFIELD_FRAME_H
 
 #include <stddef.h>
-#include <vector>
 
 namespace Util {
 class LengthFieldFrame {

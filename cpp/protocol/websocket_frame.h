@@ -6,7 +6,6 @@
 #define UTIL_CPP_PROTOCOL_WEBSOCKET_FRAME_H
 
 #include <string>
-#include <vector>
 
 namespace Util {
 class WebSocketFrame {

@@ -29,11 +29,6 @@ typedef	char	bool;
 #endif
 
 #ifdef _MSC_VER
-	#if	_MSC_VER >= 1900
-		#define	__CPP_VERSION	2011
-	#else
-		#define	__CPP_VERSION	1998
-	#endif
 	#pragma warning(disable:4200)
 	#pragma warning(disable:4018)
 	#pragma warning(disable:4244)
@@ -46,15 +41,10 @@ typedef	char	bool;
 	#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
 		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
 	#endif
-	#define	variable_align(alignment)			__declspec(align(alignment))
+	#define	__declspec_align(alignment)			__declspec(align(alignment))
 	#define	embed_asm(exp)						__asm {exp}
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
-	#if	__cplusplus > 199711L
-		#define	__CPP_VERSION	2011
-	#else
-		#define	__CPP_VERSION	1998
-	#endif
 	#ifndef NDEBUG	/* ANSI define */
 		#ifndef _DEBUG
 			#define	_DEBUG	/* same as VC */
@@ -70,7 +60,7 @@ typedef	char	bool;
 			#define _GNU_SOURCE
 		#endif
 	#endif
-	#define	variable_align(alignment)			__attribute__ ((aligned(alignment)))
+	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
 	#define	embed_asm(exp)						asm __volatile__(exp)
 
 #else

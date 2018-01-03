@@ -5,8 +5,8 @@
 #ifndef	UTIL_CPP_LOGGER_H
 #define	UTIL_CPP_LOGGER_H
 
-#include "../c/datastruct/list.h"
-#include "../c/syslib/ipc.h"
+#include "../../c/datastruct/list.h"
+#include "../../c/syslib/ipc.h"
 #include <stddef.h>
 #include <stdarg.h>
 #include <time.h>

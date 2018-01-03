@@ -22,13 +22,13 @@
 		HANDLE handle;
 		DWORD id;
 	} Process_t;
-	#define	__dllexport				__declspec(dllexport)
-	#define	__dllimport				__declspec(dllimport)
+	#define	__declspec_dllexport	__declspec(dllexport)
+	#define	__declspec_dllimport	__declspec(dllimport)
 	#define	DLL_CALL				__stdcall
 	typedef HANDLE					Thread_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
-	#define	__tls					__declspec(thread)
+	#define	__declspec_tls			__declspec(thread)
 	#pragma comment(lib, "Dbghelp.lib")
 #else
 	#include <dlfcn.h>
@@ -49,7 +49,7 @@
 	typedef pthread_t				Thread_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
-	#define	__tls					__thread
+	#define	__declspec_tls			__thread
 #endif
 
 #ifdef	__cplusplus

@@ -4,7 +4,6 @@
 
 #include "../../c/syslib/socket.h"
 #include "lengthfield_frame.h"
-#include <string.h>
 
 namespace Util {
 bool LengthFieldFrame::buildHeader(void* headbuf, unsigned int datalen) {
