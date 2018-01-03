@@ -174,17 +174,6 @@ char* error_msg(int errnum, char* buf, size_t bufsize) {
 #endif
 }
 
-static void __default_error_handler(const char* file, unsigned int line, size_t wparam, size_t lparam) {}
-static void(*__c_error_handler__)(const char*, unsigned int, size_t, size_t) = __default_error_handler;
-
-void error_set_handler(void(*handler)(const char*, unsigned int, size_t, size_t)) {
-	__c_error_handler__ = handler;
-}
-
-void (error_call_handler)(const char* file, unsigned int line, size_t wparam, size_t lparam) {
-	__c_error_handler__(file, line, wparam, lparam);
-}
-
 #ifdef  __cplusplus
 }
 #endif
