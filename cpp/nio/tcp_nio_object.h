@@ -36,7 +36,7 @@ public:
 
 private:
 	bool onConnect(void);
-	virtual bool onConnect(bool success);
+	virtual bool onConnect(bool success) { return success; }
 	virtual int onWrite(void);
 
 	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);

@@ -126,24 +126,6 @@ bool NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_stor
 	iobuffer_len(&iov) = nbytes;
 	return sendv(&iov, 1, saddr);
 }
-bool NioObject::send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr) {
-	if (data.empty()) {
-		return true;
-	}
-	return send(&data[0], data.size(), saddr);
-}
-bool NioObject::send(const std::vector<char>& data, struct sockaddr_storage* saddr) {
-	if (data.empty()) {
-		return true;
-	}
-	return send(&data[0], data.size(), saddr);
-}
-bool NioObject::send(const std::string& str, struct sockaddr_storage* saddr) {
-	if (str.empty()) {
-		return true;
-	}
-	return send(str.data(), str.size(), saddr);
-}
 
 int NioObject::onRead(void) {
 	int res = recv();

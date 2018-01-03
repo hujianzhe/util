@@ -16,16 +16,12 @@ DatabaseConnectPool::DatabaseConnectPool(int db_type, const char* ip, unsigned s
 	m_pwd(pwd),
 	m_database(database)
 {
-	cslock_Create(&m_lock);
+	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
 }
 
 DatabaseConnectPool::~DatabaseConnectPool(void) {
+	clean();
 	cslock_Close(&m_lock);
-}
-
-void DatabaseConnectPool::setConnectionAttribute(int timeout_sec, short max_connect_num) {
-	m_connectTimeout = timeout_sec;
-	m_connectMaxNum = max_connect_num;
 }
 
 DB_HANDLE* DatabaseConnectPool::getConnection(void) {
@@ -64,13 +60,16 @@ void DatabaseConnectPool::pushConnection(DB_HANDLE* dbhandle) {
 	}
 }
 
-void DatabaseConnectPool::cleanConnection(void) {
-	cslock_Enter(&m_lock);
+void DatabaseConnectPool::clean(void) {
 	for (auto it = m_dbhandles.begin(); it != m_dbhandles.end(); m_dbhandles.erase(it++)) {
 		db_CloseHandle(*it);
 		delete (*it);
 	}
 	m_connectNum = 0;
+}
+void DatabaseConnectPool::cleanConnection(void) {
+	cslock_Enter(&m_lock);
+	clean();
 	cslock_Leave(&m_lock);
 }
 

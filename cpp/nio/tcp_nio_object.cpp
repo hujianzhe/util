@@ -90,7 +90,6 @@ bool TcpNioObject::onConnect(void) {
 	catch (...) {}
 	return ok;
 }
-bool TcpNioObject::onConnect(bool success) { return success; }
 
 int TcpNioObject::inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr) {
 	size_t offset = m_inbuf.size();

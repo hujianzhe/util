@@ -12,12 +12,12 @@ class LengthFieldNioObject : public TcpNioObject {
 public:
 	LengthFieldNioObject(FD_t fd, short length_field_size, size_t frame_length_limit);
 
-	short lengthFieldSize(void) const;
-	size_t frameLengthLimit(void) const;
+	short lengthFieldSize(void) const { return m_lengthFieldSize; }
+	size_t frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 private:
 	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
-	virtual bool onRead(unsigned char* data, size_t len, struct sockaddr_storage* from);
+	virtual bool onRead(unsigned char* data, size_t len, struct sockaddr_storage* from) { return true; }
 
 private:
 	const short m_lengthFieldSize;

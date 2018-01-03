@@ -12,7 +12,7 @@ class UdpNioObject : public NioObject {
 public:
 	UdpNioObject(FD_t sockfd, unsigned short frame_length_limit);
 
-	unsigned short frameLengthLimit(void) const;
+	unsigned short frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 	virtual int recv(void);
 

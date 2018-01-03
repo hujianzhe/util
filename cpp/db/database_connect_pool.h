@@ -16,7 +16,10 @@ public:
 	DatabaseConnectPool(int db_type, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database);
 	~DatabaseConnectPool(void);
 
-	void setConnectionAttribute(int timeout_sec, short max_connect_num);
+	void setConnectionAttribute(int timeout_sec, short max_connect_num) {
+		m_connectTimeout = timeout_sec;
+		m_connectMaxNum = max_connect_num;
+	}
 
 	DB_HANDLE* getConnection(void);
 	void pushConnection(DB_HANDLE* dbhandle);
@@ -24,6 +27,7 @@ public:
 
 private:
 	DB_HANDLE* connect(void);
+	void clean(void);
 
 private:
 	int m_connectTimeout;

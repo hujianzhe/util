@@ -43,9 +43,9 @@ public:
 
 	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 	virtual bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
-	bool send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL);
-	bool send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL);
-	bool send(const std::string& str, struct sockaddr_storage* saddr = NULL);
+	bool send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
+	bool send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
+	bool send(const std::string& str, struct sockaddr_storage* saddr = NULL) { return send(str.empty() ? NULL : str.data(), str.size(), saddr); }
 
 private:
 	NioObject(const NioObject& o);

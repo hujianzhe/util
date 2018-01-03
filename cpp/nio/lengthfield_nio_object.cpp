@@ -13,9 +13,6 @@ LengthFieldNioObject::LengthFieldNioObject(FD_t fd, short length_field_size, siz
 {
 }
 
-short LengthFieldNioObject::lengthFieldSize(void) const { return m_lengthFieldSize; }
-size_t LengthFieldNioObject::frameLengthLimit(void) const { return m_frameLengthLimit; }
-
 int LengthFieldNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
 	size_t offset = 0;
 	unsigned char* data = (unsigned char*)iobuffer_buf(&inbuf);
@@ -41,9 +38,5 @@ int LengthFieldNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, s
 		}
 	} while (1);
 	return offset;
-}
-
-bool LengthFieldNioObject::onRead(unsigned char* data, size_t len, struct sockaddr_storage* from) {
-	return true;
 }
 }

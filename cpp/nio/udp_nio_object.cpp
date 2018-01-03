@@ -11,8 +11,6 @@ UdpNioObject::UdpNioObject(FD_t sockfd, unsigned short frame_length_limit) :
 {
 }
 
-unsigned short UdpNioObject::frameLengthLimit(void) const { return m_frameLengthLimit; }
-
 int UdpNioObject::recv(void) {
 	struct sockaddr_storage saddr;
 	void* buffer = alloca(m_frameLengthLimit);

@@ -13,8 +13,6 @@ WebsocketNioObject::WebsocketNioObject(FD_t fd, unsigned long long frame_length_
 {
 }
 
-unsigned long long WebsocketNioObject::frameLengthLimit(void) const { return m_frameLengthLimit; }
-
 bool WebsocketNioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
 	WebSocketFrame protocol(m_frameLengthLimit);
 	size_t headlen = WebSocketFrame::responseHeaderLength(nbytes);
@@ -79,9 +77,5 @@ int WebsocketNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, siz
 		}
 	}
 	return offset;
-}
-
-bool WebsocketNioObject::onRead(unsigned char* data, size_t len, struct sockaddr_storage* from) {
-	return true;
 }
 }
