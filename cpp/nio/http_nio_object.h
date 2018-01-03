@@ -13,19 +13,19 @@ class HttpNioObject : public TcpNioObject {
 public:
 	HttpNioObject(FD_t fd, size_t frame_length_limit);
 
-	size_t frameLengthLimit(void) const;
+	size_t frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
 
 private:
 	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
 
-	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from);
-	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from);
-	virtual bool handlePostRequestBody(const HttpFrame& protocol, struct sockaddr_storage* from);
+	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
+	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
+	virtual bool handlePostRequestBody(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 
-	virtual bool handleResponseHeader(const HttpFrame& protocol, struct sockaddr_storage* from);
-	virtual bool handleResponseBody(const HttpFrame& protocol, struct sockaddr_storage* from);
+	virtual bool handleResponseHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
+	virtual bool handleResponseBody(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 
-	virtual bool onMessageEnd(void);
+	virtual bool onMessageEnd(void) { return true; }
 
 private:
 	bool handle(struct sockaddr_storage* from);

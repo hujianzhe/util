@@ -7,7 +7,9 @@
 
 #include "../../c/datastruct/list.h"
 #include "nio_object.h"
+#if __CPP_VERSION >= 2011
 #include <functional>
+#endif
 
 namespace Util {
 class TcpNioObject : public NioObject {
@@ -15,8 +17,19 @@ public:
 	TcpNioObject(FD_t fd);
 	~TcpNioObject(void);
 
+#if __CPP_VERSION >= 2011
 	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb = nullptr);
 	bool reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(TcpNioObject*, bool)>& cb = nullptr);
+#endif
+	class ConnectFunctor {
+	protected:
+		ConnectFunctor(void) {} // forbid create on stack memory
+	public:
+		virtual ~ConnectFunctor(void) {}
+		virtual bool operator() (TcpNioObject*, bool) = 0;
+	};
+	bool reactorConnect(int family, const char* ip, unsigned short port, ConnectFunctor* cb = NULL);
+	bool reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor* cb = NULL);
 
 	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 
@@ -31,7 +44,10 @@ private:
 	virtual int recv(void);
 
 private:
+#if __CPP_VERSION >= 2011
 	std::function<bool(TcpNioObject*, bool)> m_connectCallback;
+#endif
+	ConnectFunctor* m_connectCallbackFunctor;
 	volatile bool m_connecting;
 
 	std::vector<unsigned char> m_inbuf;

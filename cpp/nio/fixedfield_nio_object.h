@@ -12,7 +12,7 @@ class FixedFieldNioObject : public TcpNioObject {
 public:
 	FixedFieldNioObject(FD_t fd, size_t fixed_field_size);
 
-	short lengthFieldSize(void) const;
+	short lengthFieldSize(void) const { return m_fixedFieldSize; }
 
 private:
 	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);

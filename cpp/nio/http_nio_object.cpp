@@ -13,8 +13,6 @@ HttpNioObject::HttpNioObject(FD_t fd, size_t frame_length_limit) :
 {
 }
 
-size_t HttpNioObject::frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
-
 int HttpNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
 	size_t offset = 0;
 	const char* data = (const char*)iobuffer_buf(&inbuf);
@@ -124,15 +122,6 @@ int HttpNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t t
 	}
 	return offset;
 }
-
-bool HttpNioObject::handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
-bool HttpNioObject::handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
-bool HttpNioObject::handlePostRequestBody(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
-
-bool HttpNioObject::handleResponseHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
-bool HttpNioObject::handleResponseBody(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
-
-bool HttpNioObject::onMessageEnd(void) { return true; }
 
 bool HttpNioObject::handle(struct sockaddr_storage* from) {
 	if (m_protocol.statusCode()) {
