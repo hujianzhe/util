@@ -17,8 +17,12 @@ public:
 
 	void push(list_node_t* data);
 	list_node_t* pop(int msec, size_t expect_cnt = ~0);
+	void clear(void);
 
 	void weakup(void);
+
+private:
+	void _clear(void);
 
 private:
 	CSLock_t m_cslock;

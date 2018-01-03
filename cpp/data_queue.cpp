@@ -14,14 +14,7 @@ DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
 	list_init(&m_datalist);
 }
 DataQueue::~DataQueue(void) {
-	if (m_deleter) {
-		for (list_node_t* cur = m_datalist.head; cur; ) {
-			list_node_t* next = cur->next;
-			m_deleter(cur);
-			cur = next;
-		}
-	}
-	list_init(&m_datalist);
+	_clear();
 	cslock_Close(&m_cslock);
 	condition_Close(&m_condition);
 }
@@ -49,6 +42,7 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	}
 
 	cslock_Enter(&m_cslock);
+
 	while (!m_datalist.head && !m_forcewakeup) {
 		if (condition_Wait(&m_condition, &m_cslock, msec) == EXEC_SUCCESS) {
 			continue;
@@ -76,6 +70,22 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	cslock_Leave(&m_cslock);
 
 	return res;
+}
+
+void DataQueue::clear(void) {
+	cslock_Enter(&m_cslock);
+	_clear();
+	cslock_Leave(&m_cslock);
+}
+void DataQueue::_clear(void) {
+	if (m_deleter) {
+		for (list_node_t* cur = m_datalist.head; cur; ) {
+			list_node_t* next = cur->next;
+			m_deleter(cur);
+			cur = next;
+		}
+	}
+	list_init(&m_datalist);
 }
 
 void DataQueue::weakup(void) {
