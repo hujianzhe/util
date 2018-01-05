@@ -50,6 +50,6 @@ list_node_t* TimerManager::expire(long long timestamp_msec) {
 		list_merge(&to_list, &it->second);
 	}
 	mutex_Unlock(&m_mutex);
-	return to_list.tail;
+	return to_list.head;
 }
 }
