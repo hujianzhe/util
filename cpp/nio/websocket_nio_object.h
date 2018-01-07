@@ -10,18 +10,16 @@
 namespace Util {
 class WebsocketNioObject : public TcpNioObject {
 public:
-	WebsocketNioObject(FD_t fd, unsigned long long frame_length_limit);
-
-	unsigned long long frameLengthLimit(void) const { return m_frameLengthLimit; }
+	WebsocketNioObject(FD_t fd, unsigned int frame_length_limit);
 
 private:
 	bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
-	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
-	virtual bool onRead(unsigned char* data, size_t len, struct sockaddr_storage* from) { return true; }
+
+	int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
+	virtual bool onRecvPacket(unsigned char* data, size_t len, struct sockaddr_storage* from) { return true; }
 
 private:
 	bool m_hasHandshake;
-	const unsigned long long m_frameLengthLimit;
 };
 }
 

@@ -60,7 +60,6 @@ private:
 	time_t updateLastActiveTime(void);
 
 protected:
-	virtual int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) { return transfer_bytes; }
 	bool reactorWrite(void);
 
 protected:

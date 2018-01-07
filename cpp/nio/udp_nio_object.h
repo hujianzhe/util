@@ -15,8 +15,10 @@ public:
 	unsigned short frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 	virtual int recv(void);
+	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) { return buflen; }
+	virtual void onParseEmptyPacket(struct sockaddr_storage* from) {}
 
-private:
+protected:
 	const unsigned short m_frameLengthLimit;
 };
 }

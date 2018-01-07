@@ -13,10 +13,8 @@ class HttpNioObject : public TcpNioObject {
 public:
 	HttpNioObject(FD_t fd, size_t frame_length_limit);
 
-	size_t frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
-
 private:
-	int onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes);
+	int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
 	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }

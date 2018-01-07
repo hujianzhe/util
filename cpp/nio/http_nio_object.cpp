@@ -7,120 +7,92 @@
 
 namespace Util {
 HttpNioObject::HttpNioObject(FD_t fd, size_t frame_length_limit) :
-	TcpNioObject(fd),
+	TcpNioObject(fd, frame_length_limit),
 	m_readbody(false),
 	m_protocol(frame_length_limit)
 {
 }
 
-int HttpNioObject::onRead(IoBuf_t inbuf, struct sockaddr_storage* from, size_t transfer_bytes) {
-	size_t offset = 0;
-	const char* data = (const char*)iobuffer_buf(&inbuf);
-	size_t data_len = iobuffer_len(&inbuf);
-
-	bool isok = true;
-	do {
-		if (m_readbody) {
-			if (!strncmp(m_protocol.method(), "GET", 3)) {
-				if (handle(from)) {
-					m_readbody = false;
-					if (onMessageEnd()) {
-						break;
-					}
-					continue;
-				}
-				else {
-					isok = false;
-					break;
-				}
+int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
+	if (m_readbody) {
+		if (strncmp(m_protocol.method(), "POST", 4)) {
+			return -1;
+		}
+		// Content-Length
+		int ret = m_protocol.parseContentLengthBody((char*)buf, buflen);
+		if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
+			return -1;
+		}
+		if (HttpFrame::PARSE_INCOMPLETION == ret) {
+			return 0;
+		}
+		if (HttpFrame::PARSE_BODY_NOT_EXIST != ret) {
+			if (!handle(from)) {
+				return -1;
 			}
-			else if (!strncmp(m_protocol.method(), "POST", 4)) {
-				// Content-Length
-				int ret = m_protocol.parseContentLengthBody(data + offset, data_len - offset);
-				if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
-					isok = false;
-					break;
-				}
-				if (HttpFrame::PARSE_INCOMPLETION == ret) {
-					break;
-				}
-				if (HttpFrame::PARSE_BODY_NOT_EXIST != ret) {
-					if (handle(from)) {
-						offset += m_protocol.frameLength();
-						m_readbody = false;
-						if (onMessageEnd()) {
-							break;
-						}
-						continue;
-					}
-					else {
-						isok = false;
-						break;
-					}
-				}
-				// Transfer-Encoding: chunked
-				ret = m_protocol.parseNextChunkedBody(data + offset, data_len - offset);
-				if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
-					isok = false;
-					break;
-				}
-				if (HttpFrame::PARSE_INCOMPLETION == ret) {
-					break;
-				}
-				if (HttpFrame::PARSE_BODY_NOT_EXIST != ret) {
-					if (0 == m_protocol.dataLength()) {
-						offset += m_protocol.frameLength();
-						m_readbody = false;
-						if (onMessageEnd()) {
-							break;
-						}
-						continue;
-					}
-					else if (handle(from)) {
-						offset += m_protocol.frameLength();
-						continue;
-					}
-					else {
-						isok = false;
-						break;
-					}
-				}
+			m_readbody = false;
+			if (onMessageEnd()) {
+				return -1;
 			}
-			else {
-				isok = false;
-				break;
+			return m_protocol.frameLength();
+		}
+		// Transfer-Encoding: chunked
+		ret = m_protocol.parseNextChunkedBody((char*)buf, buflen);
+		if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
+			return -1;
+		}
+		if (HttpFrame::PARSE_INCOMPLETION == ret) {
+			return 0;
+		}
+		if (HttpFrame::PARSE_BODY_NOT_EXIST != ret) {
+			if (0 == m_protocol.dataLength()) {
+				m_readbody = false;
+				if (onMessageEnd()) {
+					return -1;
+				}
+				return m_protocol.frameLength();
 			}
+			return handle(from) ? m_protocol.frameLength() : -1;
+		}
+		//
+		return -1;
+	}
+	else {
+		int ret = m_protocol.parseHeader((char*)buf, buflen);
+		if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
+			return -1;
+		}
+		if (HttpFrame::PARSE_INCOMPLETION == ret) {
+			return 0;
+		}
+		if (m_protocol.statusCode()) {
+			ret = handleResponseHeader(m_protocol, from);
+			if (!ret) {
+				return -1;
+			}
+			m_readbody = true;
+			return m_protocol.frameLength();
 		}
 		else {
-			int ret = m_protocol.parseHeader(data + offset, data_len - offset);
-			if (HttpFrame::PARSE_OVERRANGE == ret || HttpFrame::PARSE_INVALID == ret) {
-				isok = false;
-				break;
+			ret = handleRequestHeader(m_protocol, from);
+			if (!ret) {
+				return -1;
 			}
-			if (HttpFrame::PARSE_INCOMPLETION == ret) {
-				break;
-			}
-			if (m_protocol.statusCode()) {
-				ret = handleResponseHeader(m_protocol, from);
-			}
-			else {
-				ret = handleRequestHeader(m_protocol, from);
-			}
-			if (ret) {
-				offset += m_protocol.frameLength();
+			if (strncmp(m_protocol.method(), "GET", 3)) {
 				m_readbody = true;
+				return m_protocol.frameLength();
+			}
+			if (handle(from)) {
+				if (onMessageEnd()) {
+					return -1;
+				}
+				return m_protocol.frameLength();
 			}
 			else {
-				isok = false;
-				break;
+				return -1;
 			}
 		}
-	} while (1);
-	if (!isok) {
-		invalid();
-		offset = data_len;
 	}
-	return offset;
 }
 
 bool HttpNioObject::handle(struct sockaddr_storage* from) {

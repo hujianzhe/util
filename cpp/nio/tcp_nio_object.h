@@ -15,8 +15,10 @@
 namespace Util {
 class TcpNioObject : public NioObject {
 public:
-	TcpNioObject(FD_t fd);
+	TcpNioObject(FD_t fd, unsigned int frame_length_limit);
 	~TcpNioObject(void);
+
+	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 #if __CPP_VERSION >= 2011
 	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb = nullptr);
@@ -41,9 +43,11 @@ private:
 
 	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);
 	void inbufRemove(unsigned int nbytes);
-	IoBuf_t inbuf(void);
 	virtual int recv(void);
+	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) { return buflen; }
 
+protected:
+	const unsigned short m_frameLengthLimit;
 private:
 #if __CPP_VERSION >= 2011
 	std::function<bool(TcpNioObject*, bool)> m_connectCallback;

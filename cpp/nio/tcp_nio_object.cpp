@@ -9,8 +9,9 @@
 #include <stdexcept>
 
 namespace Util {
-TcpNioObject::TcpNioObject(FD_t fd) :
+TcpNioObject::TcpNioObject(FD_t fd, unsigned int frame_length_limit) :
 	NioObject(fd, SOCK_STREAM),
+	m_frameLengthLimit(frame_length_limit),
 	m_connectCallbackFunctor(NULL),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),
@@ -108,12 +109,7 @@ void TcpNioObject::inbufRemove(unsigned int nbytes) {
 		m_inbuf.erase(m_inbuf.begin(), m_inbuf.begin() + nbytes);
 	}
 }
-IoBuf_t TcpNioObject::inbuf(void) {
-	IoBuf_t __buf;
-	iobuffer_len(&__buf) = m_inbuf.size();
-	iobuffer_buf(&__buf) = m_inbuf.empty() ? NULL : (char*)&m_inbuf[0];
-	return __buf;
-}
+
 int TcpNioObject::recv(void) {
 	struct sockaddr_storage saddr;
 	int res = sock_TcpReadableBytes(m_fd);
@@ -127,13 +123,20 @@ int TcpNioObject::recv(void) {
 			m_valid = false;
 			break;
 		}
-		try {
-			inbufRemove(onRead(inbuf(), &saddr, res));
+		size_t offset = 0;
+		while (offset < m_inbuf.size()) {
+			int len = onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
+			if (0 == len) {
+				break;
+			}
+			if (len < 0) {
+				m_valid = false;
+				offset = m_inbuf.size();
+				break;
+			}
+			offset += len;
 		}
-		catch (...) {
-			m_valid = false;
-			break;
-		}
+		inbufRemove(offset);
 	} while (0);
 	return res;
 }
