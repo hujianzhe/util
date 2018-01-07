@@ -4,6 +4,7 @@
 
 #include "../../c/syslib/error.h"
 #include "tcp_nio_object.h"
+#include "nio_packet_worker.h"
 #include <string.h>
 #include <exception>
 #include <stdexcept>
@@ -125,7 +126,7 @@ int TcpNioObject::recv(void) {
 		}
 		size_t offset = 0;
 		while (offset < m_inbuf.size()) {
-			int len = onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
+			int len = m_packetWorker->onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
 			if (0 == len) {
 				break;
 			}

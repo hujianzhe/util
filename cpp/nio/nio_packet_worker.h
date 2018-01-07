@@ -16,10 +16,10 @@ public:
 
 	NioObject* object(void) { return m_object; }
 
-private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
 		return buflen > 0x7fffffff ? 0x7fffffff : (int)buflen;
 	}
+	virtual void onParseEmptyPacket(struct sockaddr_storage* from) {}
 	virtual bool onRecvPacket(unsigned char* data, size_t len, struct sockaddr_storage* from) { return true; }
 
 private:

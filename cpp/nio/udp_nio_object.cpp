@@ -3,6 +3,7 @@
 //
 
 #include "udp_nio_object.h"
+#include "nio_packet_worker.h"
 
 namespace Util {
 UdpNioObject::UdpNioObject(FD_t sockfd, unsigned short frame_length_limit) :
@@ -17,12 +18,12 @@ int UdpNioObject::recv(void) {
 	int res = sock_Recv(m_fd, buffer, m_frameLengthLimit, 0, &saddr);
 	if (res >= 0) {
 		if (res) {
-			if (onParsePacket(buffer, res, &saddr) < 0) {
+			if (m_packetWorker->onParsePacket(buffer, res, &saddr) < 0) {
 				m_valid = false;
 			}
 		}
 		else {
-			onParseEmptyPacket(&saddr);
+			m_packetWorker->onParseEmptyPacket(&saddr);
 		}
 	}
 	else {

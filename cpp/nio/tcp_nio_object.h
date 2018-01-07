@@ -44,7 +44,6 @@ private:
 	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);
 	void inbufRemove(unsigned int nbytes);
 	virtual int recv(void);
-	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) { return buflen; }
 
 protected:
 	const unsigned short m_frameLengthLimit;
