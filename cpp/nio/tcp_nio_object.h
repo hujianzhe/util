@@ -25,11 +25,11 @@ public:
 	bool reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(TcpNioObject*, bool)>& cb = nullptr);
 #endif
 	class ConnectFunctor {
-	protected:
-		ConnectFunctor(void) {} // forbid create on stack memory
 	public:
 		virtual ~ConnectFunctor(void) {}
 		virtual bool operator() (TcpNioObject*, bool) = 0;
+	protected:
+		ConnectFunctor(void) {} // forbid create on stack memory
 	};
 	bool reactorConnect(int family, const char* ip, unsigned short port, ConnectFunctor* cb = NULL);
 	bool reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor* cb = NULL);

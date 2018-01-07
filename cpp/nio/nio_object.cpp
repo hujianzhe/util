@@ -5,6 +5,7 @@
 #include "../../c/syslib/error.h"
 #include "../../c/syslib/time.h"
 #include "nio_object.h"
+#include "nio_packet_worker.h"
 
 namespace Util {
 NioObject::NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_socktype(-1) {}
@@ -17,18 +18,27 @@ NioObject::NioObject(FD_t fd, int socktype) :
 	m_reactor(NULL),
 	m_valid(false),
 	m_isListen(false),
+	m_userdata(NULL),
+	m_packetWorker(NioPacketWorker::defaultWorker()),
 	m_readCommit(FALSE),
 	m_shutdown(1),
 	m_createTime(gmt_Second()),
 	m_lastActiveTime(0),
 	m_timeoutSecond(INFTIM)
 {
+	m_packetWorker->m_object = this;
 }
 
 NioObject::~NioObject(void) {
 	sock_Close(m_fd);
 	free(m_readOl);
 	free(m_writeOl);
+	m_packetWorker->release();
+}
+
+void NioObject::packetWorker(NioPacketWorker* worker) {
+	worker->m_object = this;
+	m_packetWorker = worker;
 }
 
 time_t NioObject::updateLastActiveTime(void) {

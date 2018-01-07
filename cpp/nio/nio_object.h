@@ -16,11 +16,17 @@
 
 namespace Util {
 class NioObjectManager;
+class NioPacketWorker;
 class NioObject : public std::enable_shared_from_this<NioObject> {
 friend class NioObjectManager;
 public:
 	NioObject(FD_t fd, int socktype = -1);
 	virtual ~NioObject(void);
+
+	void userdata(void* userdata) { m_userdata = userdata; }
+	void* userdata(void) { return m_userdata; }
+
+	void packetWorker(NioPacketWorker* worker);
 
 	FD_t fd(void) const { return m_fd; }
 	int socktype(void) const { return m_socktype; }
@@ -70,6 +76,8 @@ protected:
 	Reactor_t* m_reactor;
 	volatile bool m_valid;
 	bool m_isListen;
+	void* m_userdata;
+	NioPacketWorker* m_packetWorker;
 
 private:
 	Atom8_t m_readCommit;
