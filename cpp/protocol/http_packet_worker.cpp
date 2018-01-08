@@ -30,9 +30,7 @@ int HttpPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct so
 				return -1;
 			}
 			m_readbody = false;
-			if (onMessageEnd()) {
-				return -1;
-			}
+			onMessageEnd();
 			return (int)m_protocol.frameLength();
 		}
 		// Transfer-Encoding: chunked
@@ -46,9 +44,7 @@ int HttpPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct so
 		if (HttpFrame::PARSE_BODY_NOT_EXIST != ret) {
 			if (0 == m_protocol.dataLength()) {
 				m_readbody = false;
-				if (onMessageEnd()) {
-					return -1;
-				}
+				onMessageEnd();
 				return (int)m_protocol.frameLength();
 			}
 			return handle(from) ? (int)m_protocol.frameLength() : -1;
@@ -82,9 +78,7 @@ int HttpPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct so
 				return (int)m_protocol.frameLength();
 			}
 			if (handle(from)) {
-				if (onMessageEnd()) {
-					return -1;
-				}
+				onMessageEnd();
 				return (int)m_protocol.frameLength();
 			}
 			else {
