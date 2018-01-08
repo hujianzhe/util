@@ -2,16 +2,16 @@
 // Created by hujianzhe on 17-5-29.
 //
 
-#ifndef UTIL_CPP_NIO_HTTP_NIO_OBJECT_H
-#define	UTIL_CPP_NIO_HTTP_NIO_OBJECT_H
+#ifndef UTIL_CPP_PROTOCOL_HTTP_PACKET_WORKER_H
+#define	UTIL_CPP_PROTOCOL_HTTP_PACKET_WORKER_H
 
-#include "tcp_nio_object.h"
-#include "../protocol/http_frame.h"
+#include "../nio/nio_packet_worker.h"
+#include "http_frame.h"
 
 namespace Util {
-class HttpNioObject : public TcpNioObject {
+class HttpPacketWorker : public NioPacketWorker {
 public:
-	HttpNioObject(FD_t fd, size_t frame_length_limit);
+	HttpPacketWorker(size_t frame_length_limit);
 
 private:
 	int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
@@ -34,4 +34,4 @@ private:
 };
 }
 
-#endif // !UTIL_HTTP_NIO_OBJECT_H
+#endif // !UTIL_CPP_PROTOCOL_HTTP_PACKET_WORKER_H

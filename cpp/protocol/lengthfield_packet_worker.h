@@ -2,15 +2,16 @@
 // Created by hujianzhe on 16-9-7.
 //
 
-#ifndef	UTIL_CPP_NIO_LENGTHFIELD_NIO_OBJECT_H
-#define UTIL_CPP_NIO_LENGTHFIELD_NIO_OBJECT_H
+#ifndef	UTIL_CPP_PROTOCOL_LENGTHFIELD_PACKET_WORKER_H
+#define UTIL_CPP_PROTOCOL_LENGTHFIELD_PACKET_WORKER_H
 
-#include "tcp_nio_object.h"
+#include "../nio/nio_packet_worker.h"
+#include "lengthfield_frame.h"
 
 namespace Util {
-class LengthFieldNioObject : public TcpNioObject {
+class LengthFieldPacketWorker : public NioPacketWorker {
 public:
-	LengthFieldNioObject(FD_t fd, short length_field_size, unsigned int frame_length_limit);
+	LengthFieldPacketWorker(short length_field_size, unsigned int frame_length_limit);
 
 	short lengthFieldSize(void) const { return m_lengthFieldSize; }
 
@@ -20,6 +21,7 @@ private:
 
 private:
 	const short m_lengthFieldSize;
+	const unsigned int m_frameLengthLimit;
 };
 }
 

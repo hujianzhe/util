@@ -2,18 +2,17 @@
 // Created by hujianzhe on 17-5-29.
 //
 
-#include "http_nio_object.h"
+#include "http_packet_worker.h"
 #include <string.h>
 
 namespace Util {
-HttpNioObject::HttpNioObject(FD_t fd, size_t frame_length_limit) :
-	TcpNioObject(fd, frame_length_limit),
+HttpPacketWorker::HttpPacketWorker(size_t frame_length_limit) :
 	m_readbody(false),
 	m_protocol(frame_length_limit)
 {
 }
 
-int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
+int HttpPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
 	if (m_readbody) {
 		if (strncmp(m_protocol.method(), "POST", 4)) {
 			return -1;
@@ -34,7 +33,7 @@ int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct socka
 			if (onMessageEnd()) {
 				return -1;
 			}
-			return m_protocol.frameLength();
+			return (int)m_protocol.frameLength();
 		}
 		// Transfer-Encoding: chunked
 		ret = m_protocol.parseNextChunkedBody((char*)buf, buflen);
@@ -50,9 +49,9 @@ int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct socka
 				if (onMessageEnd()) {
 					return -1;
 				}
-				return m_protocol.frameLength();
+				return (int)m_protocol.frameLength();
 			}
-			return handle(from) ? m_protocol.frameLength() : -1;
+			return handle(from) ? (int)m_protocol.frameLength() : -1;
 		}
 		//
 		return -1;
@@ -71,7 +70,7 @@ int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct socka
 				return -1;
 			}
 			m_readbody = true;
-			return m_protocol.frameLength();
+			return (int)m_protocol.frameLength();
 		}
 		else {
 			ret = handleRequestHeader(m_protocol, from);
@@ -80,13 +79,13 @@ int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct socka
 			}
 			if (strncmp(m_protocol.method(), "GET", 3)) {
 				m_readbody = true;
-				return m_protocol.frameLength();
+				return (int)m_protocol.frameLength();
 			}
 			if (handle(from)) {
 				if (onMessageEnd()) {
 					return -1;
 				}
-				return m_protocol.frameLength();
+				return (int)m_protocol.frameLength();
 			}
 			else {
 				return -1;
@@ -95,7 +94,7 @@ int HttpNioObject::onParsePacket(unsigned char* buf, size_t buflen, struct socka
 	}
 }
 
-bool HttpNioObject::handle(struct sockaddr_storage* from) {
+bool HttpPacketWorker::handle(struct sockaddr_storage* from) {
 	if (m_protocol.statusCode()) {
 		return handleResponseBody(m_protocol, from);
 	}

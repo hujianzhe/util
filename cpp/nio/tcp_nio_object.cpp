@@ -126,7 +126,7 @@ int TcpNioObject::recv(void) {
 		}
 		size_t offset = 0;
 		while (offset < m_inbuf.size()) {
-			int len = m_packetWorker->onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
+			ssize_t len = m_packetWorker->onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
 			if (0 == len) {
 				break;
 			}
@@ -180,7 +180,8 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 			wsd->len = nbytes - res;
 			wsd->offset = 0;
 
-			unsigned int i, off;
+			unsigned int i;
+			size_t off;
 			for (off = 0, i = 0; i < iovcnt; ++i) {
 				if (res >= iobuffer_len(iov + i)) {
 					res -= iobuffer_len(iov + i);

@@ -5,12 +5,15 @@
 #ifndef UTIL_CPP_NIO_NIO_PACKET_WORKER_H
 #define	UTIL_CPP_NIO_NIO_PACKET_WORKER_H
 
+#include "../../c/syslib/socket.h"
+
 namespace Util {
 class NioObject;
 class NioPacketWorker {
 friend class NioObject;
 public:
 	static NioPacketWorker* defaultWorker(void);
+	NioPacketWorker(void) { m_object = NULL; }
 	virtual ~NioPacketWorker(void) {}
 	virtual void release(void) {}
 

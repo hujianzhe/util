@@ -144,22 +144,22 @@ void HttpFrame::parseQuery(const std::string& qs, std::unordered_map<std::string
 	}
 }
 
-HttpFrame::HttpFrame(size_t frame_length_limit)
-	:m_frameLengthLimit(frame_length_limit)
-	,m_frameLength(0)
-	,m_data(NULL)
-	,m_dataLength(0)
-	,m_statusCode(0)
+HttpFrame::HttpFrame(size_t frame_length_limit) :
+	m_frameLengthLimit(frame_length_limit),
+	m_frameLength(0),
+	m_data(NULL),
+	m_dataLength(0),
+	m_statusCode(0)
 {
 	memset(m_method, 0, sizeof(m_method));
 }
-HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri)
-	:m_frameLengthLimit(frame_length_limit)
-	,m_frameLength(0)
-	,m_data(NULL)
-	,m_dataLength(0)
-	,m_uri(uri)
-	,m_statusCode(0)
+HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri) :
+	m_frameLengthLimit(frame_length_limit),
+	m_frameLength(0),
+	m_data(NULL),
+	m_dataLength(0),
+	m_uri(uri),
+	m_statusCode(0)
 {
 	if (method) {
 		strncpy(m_method, method, sizeof(m_method));
@@ -169,13 +169,13 @@ HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* 
 		memset(m_method, 0, sizeof(m_method));
 	}
 }
-HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri, size_t urilen)
-	:m_frameLengthLimit(frame_length_limit)
-	,m_frameLength(0)
-	,m_data(NULL)
-	,m_dataLength(0)
-	,m_uri(uri, urilen)
-	,m_statusCode(0)
+HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* uri, size_t urilen) :
+	m_frameLengthLimit(frame_length_limit),
+	m_frameLength(0),
+	m_data(NULL),
+	m_dataLength(0),
+	m_uri(uri, urilen),
+	m_statusCode(0)
 {
 	if (method) {
 		strncpy(m_method, method, sizeof(m_method));
@@ -185,12 +185,12 @@ HttpFrame::HttpFrame(size_t frame_length_limit, const char* method, const char* 
 		memset(m_method, 0, sizeof(m_method));
 	}
 }
-HttpFrame::HttpFrame(size_t frame_length_limit, int status_code)
-	:m_frameLengthLimit(frame_length_limit)
-	,m_frameLength(0)
-	,m_data(NULL)
-	,m_dataLength(0)
-	,m_statusCode(status_code)
+HttpFrame::HttpFrame(size_t frame_length_limit, int status_code) :
+	m_frameLengthLimit(frame_length_limit),
+	m_frameLength(0),
+	m_data(NULL),
+	m_dataLength(0),
+	m_statusCode(status_code)
 {
 	memset(m_method, 0, sizeof(m_method));
 }
