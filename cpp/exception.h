@@ -20,7 +20,7 @@ throw std::logic_error(_str);\
 #define	logic_throw(expression, fmt, ...) {\
 if (!(expression)) {\
 char _str[512];\
-snprintf(_str, sizeof(_str), "%s(%d): " #expression "\n" fmt "\n", __FILE__, __LINE__, __VA_ARGS__);\
+snprintf(_str, sizeof(_str), "%s(%d): " #expression "\n" fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__);\
 throw std::logic_error(_str);\
 }\
 }
