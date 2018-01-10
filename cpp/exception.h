@@ -5,28 +5,24 @@
 #ifndef UTIL_CPP_EXCEPTION_H
 #define UTIL_CPP_EXCEPTION_H
 
+#include <stdio.h>
 #include <exception>
 #include <stdexcept>
-#include <string>
 
-#define	assert_throw(expression) { if (!(expression)) { throw Util::exception(__FILE__, __LINE__, #expression, true); } }
-#define	logic_throw(expression, text) { if (!(expression)) { throw Util::exception(__FILE__, __LINE__, text, true); } }
+#define	assert_throw(expression) {\
+if (!(expression)) {\
+char _str[512];\
+snprintf(_str, sizeof(_str), "%s(%d): " #expression "\n", __FILE__, __LINE__); \
+throw std::logic_error(_str);\
+}\
+}
 
-namespace Util {
-class exception : public std::logic_error {
-public:
-	static void no_memory(void);
-
-public:
-	exception(const std::string& text);
-	exception(const char* text, size_t len = 0);
-	exception(const char* fname, unsigned int line, const char* text, bool cr = false);
-	exception(const char* fname, unsigned int line, const std::string& text, bool cr = false);
-
-private:
-	std::string getText(const char* fname, unsigned int line, const char* text, bool cr);
-	std::string getText(const char* fname, unsigned int line, const std::string& text, bool cr);
-};
+#define	logic_throw(expression, fmt, ...) {\
+if (!(expression)) {\
+char _str[512];\
+snprintf(_str, sizeof(_str), "%s(%d): " #expression "\n" fmt "\n", __FILE__, __LINE__, __VA_ARGS__);\
+throw std::logic_error(_str);\
+}\
 }
 
 #endif
