@@ -62,6 +62,9 @@ struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, st
 struct hashtable_node_t* hashtable_replace_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, var_t key) {
 	struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(hashtable, key);
 	struct hashtable_node_t* exist_node = __get_node(bucket_list_head, key);
+	if (exist_node == node) {
+		return (struct hashtable_node_t*)0;
+	}
 	if (exist_node) {
 		if (exist_node->prev) {
 			exist_node->prev->next = node;
