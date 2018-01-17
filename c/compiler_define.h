@@ -39,8 +39,13 @@ typedef	char	bool;
 	#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
 		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
 	#endif
-	#define	__declspec_align(alignment)			__declspec(align(alignment))
 	#define	embed_asm(exp)						__asm {exp}
+	#define	__declspec_align(alignment)			__declspec(align(alignment))
+
+	#define	__declspec_code_seg(name)			__declspec(code_seg(name))
+	#define	__declspec_data_seg(name)			__pragma(data_seg(name))
+	#define	__declspec_bss_seg(name)			__pragma(bss_seg(name))
+	#define	__declspec_const_seg(name)			__pragma(const_seg(name))
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
@@ -58,8 +63,13 @@ typedef	char	bool;
 			#define _GNU_SOURCE
 		#endif
 	#endif
-	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
 	#define	embed_asm(exp)						asm __volatile__(exp)
+	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
+
+	#define	__declspec_code_seg(name)			__attribute__((section(name)))
+	#define	__declspec_data_seg(name)			__attribute__((section(name)))
+	#define	__declspec_bss_seg(name)			__attribute__((section(name)))
+	#define	__declspec_const_seg(name)			__attribute__((section(name)))
 
 #else
 	#error "Unknown Compiler"
