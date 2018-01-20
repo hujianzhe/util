@@ -141,19 +141,19 @@ extern void cJSON_Minify(char *json);
 #define	cJSON_AddObjectToObject(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateObject())
 #define	cJSON_AddDuplicateToObject(object,name,node)	cJSON_AddItemToObject(object, name, node)
 
-#define cJSON_AddNullToArray(array)				cJSON_AddItemToArray(array, cJSON_CreateNull())
-#define cJSON_AddTrueToArray(array)				cJSON_AddItemToArray(array, cJSON_CreateTrue())
-#define cJSON_AddFalseToArray(array)			cJSON_AddItemToArray(array, cJSON_CreateFalse())
-#define cJSON_AddBoolToArray(array,b)			cJSON_AddItemToArray(array, cJSON_CreateBool(b))
-#define cJSON_AddNumberToArray(array,n)			cJSON_AddItemToArray(array, cJSON_CreateNumber(n))
-#define cJSON_AddStringToArray(array,s)			cJSON_AddItemToArray(array, cJSON_CreateString(s))
-#define	cJSON_AddArrayToArray(array)			cJSON_AddItemToArray(array, cJSON_CreateArray())
-#define	cJSON_AddObjectToArrary(array)			cJSON_AddItemToArray(array, cJSON_CreateObject())
-#define	CJSON_AddDuplicateToArray(array, node)	cJSON_AddItemToArray(array, node)
+#define cJSON_AddNullToArray(array)						cJSON_AddItemToArray(array, cJSON_CreateNull())
+#define cJSON_AddTrueToArray(array)						cJSON_AddItemToArray(array, cJSON_CreateTrue())
+#define cJSON_AddFalseToArray(array)					cJSON_AddItemToArray(array, cJSON_CreateFalse())
+#define cJSON_AddBoolToArray(array,b)					cJSON_AddItemToArray(array, cJSON_CreateBool(b))
+#define cJSON_AddNumberToArray(array,n)					cJSON_AddItemToArray(array, cJSON_CreateNumber(n))
+#define cJSON_AddStringToArray(array,s)					cJSON_AddItemToArray(array, cJSON_CreateString(s))
+#define	cJSON_AddArrayToArray(array)					cJSON_AddItemToArray(array, cJSON_CreateArray())
+#define	cJSON_AddObjectToArrary(array)					cJSON_AddItemToArray(array, cJSON_CreateObject())
+#define	CJSON_AddDuplicateToArray(array, node)			cJSON_AddItemToArray(array, node)
 
 /* When assigning an integer value, it needs to be propagated to valuedouble too. */
-#define cJSON_SetIntValue(object,val)			((object)?(object)->valueint=(object)->valuedouble=(val):(val))
-#define cJSON_SetNumberValue(object,val)		((object)?(object)->valueint=(object)->valuedouble=(val):(val))
+#define cJSON_SetIntValue(object,val)					((object)?(object)->valueint=(object)->valuedouble=(val):(val))
+#define cJSON_SetNumberValue(object,val)				((object)?(object)->valueint=(object)->valuedouble=(val):(val))
 
 #ifdef __cplusplus
 }
