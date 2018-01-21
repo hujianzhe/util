@@ -16,9 +16,7 @@ typedef struct class_field_reflect_desc_t {
 	unsigned int offset;
 	unsigned int len;
 } class_field_reflect_desc_t;
-#define	field_reflect_init(type, field)			{ #field, field_offset(type, field), field_sizeof(type, field) }
-
-#define	__ADD_LABEL_PREFIX__(_prefix, _label)	_prefix##_##_label
+#define	field_reflect_desc_init(type, field)	{ #field, field_offset(type, field), field_sizeof(type, field) }
 
 #ifndef __cplusplus
 typedef	char	bool;
