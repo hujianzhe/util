@@ -5,18 +5,22 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
-#define	compiler_check(exp)						typedef char __compile_check__[(exp) ? 1 : -1]
+#define	compiler_check(exp)							typedef char __compile_check__[(exp) ? 1 : -1]
 
-#define	field_sizeof(type, field)				sizeof(((type*)0)->field)
-#define	field_offset(type, field)				((char*)(&((type *)0)->field) - (char*)(0))
-#define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
+#define	field_sizeof(type, field)					sizeof(((type*)0)->field)
+#define	field_offset(type, field)					((char*)(&((type *)0)->field) - (char*)(0))
+#define field_container(address, type, field)		((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
 typedef struct field_reflect_desc_t {
 	const char* name;
 	unsigned int offset;
 	unsigned int len;
+	struct field_reflect_desc_t* sub;
+	unsigned int sublen;
 } field_reflect_desc_t;
-#define	field_reflect_desc_init(type, field)	{ #field, field_offset(type, field), field_sizeof(type, field) }
+#define	field_reflect_desc_init(type, field, sub_field_desc)\
+{ #field, field_offset(type, field), field_sizeof(type, field), sub_field_desc,\
+sub_field_desc ? sizeof(sub_field_desc) / sizeof(sub_field_desc[0]) : 0 }
 
 #ifndef __cplusplus
 typedef	char	bool;
