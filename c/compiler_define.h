@@ -13,13 +13,14 @@
 
 typedef struct field_reflect_desc_t {
 	const char* name;
+	const char* type;
 	unsigned int offset;
 	unsigned int len;
 	struct field_reflect_desc_t* sub;
 	unsigned int sublen;
 } field_reflect_desc_t;
-#define	field_reflect_desc_init(type, field, sub_field_desc)\
-{ #field, field_offset(type, field), field_sizeof(type, field), sub_field_desc,\
+#define	field_reflect_desc_init(struct_type, field_type, field, sub_field_desc)\
+{ #field, #field_type, field_offset(struct_type, field), field_sizeof(struct_type, field), sub_field_desc,\
 sub_field_desc ? sizeof(sub_field_desc) / sizeof(field_reflect_desc_t) : 0 }
 
 #ifndef __cplusplus
