@@ -20,7 +20,7 @@ typedef struct field_reflect_desc_t {
 } field_reflect_desc_t;
 #define	field_reflect_desc_init(type, field, sub_field_desc)\
 { #field, field_offset(type, field), field_sizeof(type, field), sub_field_desc,\
-sub_field_desc ? sizeof(sub_field_desc) / sizeof(sub_field_desc[0]) : 0 }
+sub_field_desc ? sizeof(sub_field_desc) / sizeof(field_reflect_desc_t) : 0 }
 
 #ifndef __cplusplus
 typedef	char	bool;
