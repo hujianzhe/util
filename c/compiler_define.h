@@ -11,11 +11,11 @@
 #define	field_offset(type, field)				((char*)(&((type *)0)->field) - (char*)(0))
 #define field_container(address, type, field)	((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
-typedef struct class_field_reflect_desc_t {
+typedef struct field_reflect_desc_t {
 	const char* name;
 	unsigned int offset;
 	unsigned int len;
-} class_field_reflect_desc_t;
+} field_reflect_desc_t;
 #define	field_reflect_desc_init(type, field)	{ #field, field_offset(type, field), field_sizeof(type, field) }
 
 #ifndef __cplusplus
