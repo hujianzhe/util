@@ -8,8 +8,6 @@
 #include "nio_packet_worker.h"
 
 namespace Util {
-NioObject::NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_socktype(-1) {}
-NioObject& NioObject::operator=(const NioObject& o) { return *this; }
 NioObject::NioObject(FD_t fd, int socktype) :
 	m_fd(fd),
 	m_socktype(-1 == socktype ? sock_Type(fd) : socktype),

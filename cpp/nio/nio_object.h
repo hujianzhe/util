@@ -48,14 +48,16 @@ public:
 	bool checkValid(void);
 
 	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
-	virtual bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
+	bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
 	bool send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
 	bool send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
 	bool send(const std::string& str, struct sockaddr_storage* saddr = NULL) { return send(str.empty() ? NULL : str.data(), str.size(), saddr); }
 
+	virtual bool sendmsg(const void* msg, struct sockaddr_storage* saddr = NULL) { return true; }
+
 private:
-	NioObject(const NioObject& o);
-	NioObject& operator=(const NioObject& o);
+	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_socktype(-1) {}
+	NioObject& operator=(const NioObject& o) { return *this; }
 
 	virtual int recv(void) { return 0; }
 
