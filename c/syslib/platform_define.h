@@ -22,6 +22,7 @@
 	#include <winsock2.h>
 	#include <windows.h>
 	typedef	WSABUF					IoBuf_t;
+	#define	iobuffer_init(p, n)		{ (ULONG)(n), (char*)(p) }
 	#define	iobuffer_buf(iobuf)		((iobuf)->buf)
 	#define	iobuffer_len(iobuf)		((iobuf)->len)
 	typedef SOCKET					FD_t;
@@ -48,6 +49,7 @@
 	#define	TRUE					1
 	#define	FALSE					0
 	typedef	struct iovec			IoBuf_t;
+	#define	iobuffer_init(p, n)		{ (void*)(p), n }
 	#define	iobuffer_buf(iobuf)		((iobuf)->iov_base)
 	#define iobuffer_len(iobuf)		((iobuf)->iov_len)
 	typedef	int						FD_t;
