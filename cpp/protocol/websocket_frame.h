@@ -26,7 +26,7 @@ public:
 	};
 	int parseHandshake(char* data, size_t len, std::string& response);
 
-	WebSocketFrame(unsigned long long frame_length_limit, short frame_type = FRAME_TYPE_TEXT, bool is_fin = true);
+	WebSocketFrame(unsigned long long frame_length_limit, short frame_type, bool is_fin = true);
 
 	static size_t responseHeaderLength(size_t datalen);
 	bool buildHeader(unsigned char* headbuf, size_t datalen);
