@@ -13,7 +13,7 @@ WebsocketPacketWorker::WebsocketPacketWorker(unsigned int frame_length_limit) :
 }
 
 int WebsocketPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
-	WebSocketFrame protocol(m_frameLengthLimit);
+	WebSocketFrame protocol(m_frameLengthLimit, Util::WebSocketFrame::FRAME_TYPE_BINARY);
 	if (m_hasHandshake) {
 		int retcode = protocol.parseDataFrame(buf, buflen);
 		if (WebSocketFrame::PARSE_OVERRANGE == retcode) {
