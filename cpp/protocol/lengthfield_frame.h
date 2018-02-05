@@ -21,19 +21,19 @@ public:
 		PARSE_OK
 	};
 
-	LengthFieldFrame(short length_field_size, size_t frame_length_limit);
+	LengthFieldFrame(unsigned short length_field_size, size_t frame_length_limit);
 
 	bool buildHeader(void* headbuf, unsigned int datalen);
 	int parseDataFrame(unsigned char* data, size_t len);
 
-	short lengthFieldSize(void) const { return m_lengthFieldSize; }
+	unsigned short lengthFieldSize(void) const { return m_lengthFieldSize; }
 	size_t framelengthLimit(void) const { return m_frameLengthLimit; }
 	unsigned char* data(void) const { return m_data; }
 	size_t dataLength(void) const { return m_dataLength; }
 	size_t frameLength(void) const { return m_frameLength; }
 
 private:
-	const short m_lengthFieldSize;
+	const unsigned short m_lengthFieldSize;
 	size_t m_frameLengthLimit;
 
 	unsigned char* m_data;

@@ -29,7 +29,7 @@ bool LengthFieldFrame::buildHeader(void* headbuf, unsigned int datalen) {
 	return true;
 }
 
-LengthFieldFrame::LengthFieldFrame(short length_field_size, size_t frame_length_limit) :
+LengthFieldFrame::LengthFieldFrame(unsigned short length_field_size, size_t frame_length_limit) :
 	m_lengthFieldSize(length_field_size),
 	m_frameLengthLimit(frame_length_limit),
 	m_data(NULL),

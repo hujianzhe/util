@@ -6,7 +6,7 @@
 #include "lengthfield_frame.h"
 
 namespace Util {
-LengthFieldPacketWorker::LengthFieldPacketWorker(short length_field_size, unsigned int frame_length_limit) :
+LengthFieldPacketWorker::LengthFieldPacketWorker(unsigned short length_field_size, unsigned int frame_length_limit) :
 	m_lengthFieldSize(length_field_size),
 	m_frameLengthLimit(frame_length_limit)
 {
