@@ -241,7 +241,7 @@ EXEC_RETURN mutex_TryLock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(*mutex, 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-	int res = res = pthread_mutex_trylock(mutex);
+	int res = pthread_mutex_trylock(mutex);
 	if (res) {
 		errno = res;
 		return EXEC_ERROR;
