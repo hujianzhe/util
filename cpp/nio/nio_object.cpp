@@ -129,6 +129,9 @@ bool NioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage
 }
 
 bool NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
+	if (!data || 0 == nbytes) {
+		return true;
+	}
 	IoBuf_t iov;
 	iobuffer_buf(&iov) = (char*)data;
 	iobuffer_len(&iov) = nbytes;
