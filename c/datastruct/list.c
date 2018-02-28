@@ -102,6 +102,20 @@ void list_merge(struct list_t* to, struct list_t* from) {
 	from->head = from->tail = (struct list_node_t*)0;
 }
 
+void list_reverse(struct list_t* list) {
+	struct list_node_t* cur = list->head;
+	if (cur && cur->next) {
+		list->tail = cur;
+		do {
+			struct list_node_t* next = cur->next;
+			struct list_node_t* temp = next;
+			cur->prev = next;
+			next->next = cur;
+			list->head = cur = temp;
+		} while (cur);
+	}
+}
+
 struct list_t list_split(struct list_t* old_list, struct list_node_t* new_head) {
 	struct list_t new_list;
 	new_list.head = new_head;

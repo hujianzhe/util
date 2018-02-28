@@ -34,6 +34,7 @@ void list_insert_node_back(struct list_t* list, struct list_node_t* node, struct
 void list_remove_node(struct list_t* list, struct list_node_t* node);
 void list_replace_node(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node);
 void list_merge(struct list_t* to, struct list_t* from);
+void list_reverse(struct list_t* list);
 struct list_t list_split(struct list_t* old_list, struct list_node_t* new_head);
 
 #ifdef	__cplusplus
