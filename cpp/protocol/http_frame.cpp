@@ -134,9 +134,9 @@ void HttpFrame::parseQuery(const std::string& qs, std::unordered_map<std::string
 	if (qs.empty()) {
 		return;
 	}
-	std::vector<std::string> parts = Util::String::split(qs, '&');
+	std::vector<std::string> parts = Util::string::split(qs, '&');
 	for (size_t i = 0; i < parts.size(); ++i) {
-		std::vector<std::string> datas = Util::String::split(parts[i], '=');
+		std::vector<std::string> datas = Util::string::split(parts[i], '=');
 		if (datas.size() < 2) {
 			continue;
 		}

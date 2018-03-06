@@ -10,7 +10,7 @@
 #include <vector>
 
 namespace Util {
-namespace String {
+namespace string {
 	std::string join(const char c, const std::vector<std::string>& str);
 	std::string join(const char c, const std::list<std::string>& str);
 	std::string join(const char c, const std::string str[], size_t cnt);

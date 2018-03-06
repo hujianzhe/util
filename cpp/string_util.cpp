@@ -6,7 +6,7 @@
 #include <string.h>
 
 namespace Util {
-namespace String {
+namespace string {
 std::string join(const char c, const std::vector<std::string>& str) {
 	return str.empty() ? "" : join(c, &str[0], str.size());
 }
