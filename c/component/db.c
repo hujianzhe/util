@@ -157,8 +157,8 @@ DB_HANDLE* db_SetupConnect(DB_HANDLE* handle, const char* ip, unsigned short por
 			break;
 		}
 		#endif
-    }
-    return DB_SUCCESS == res ? handle : NULL;
+	}
+	return DB_SUCCESS == res ? handle : NULL;
 }
 
 DB_RETURN db_PingConnectAlive(DB_HANDLE* handle) {
