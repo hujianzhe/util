@@ -241,6 +241,7 @@ DB_RETURN db_Commit(DB_HANDLE* handle, int bool_val) {
 /* SQL execute */
 DB_STMT* db_AllocStmt(DB_HANDLE* handle, DB_STMT* stmt) {
 	DB_RETURN res = DB_ERROR;
+	stmt->handle = NULL;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -352,6 +353,10 @@ DB_RETURN db_SQLBindExecuteParam(DB_STMT* stmt, unsigned short index, int field_
 		{
 			if (index > stmt->mysql.exec_param_count || 0 == index) {
 				stmt->mysql.error_msg = "set bind param index invalid";
+				break;
+			}
+			if (field_type < 0 || field_type >= sizeof(type_map_to_mysql) / sizeof(type_map_to_mysql[0])) {
+				stmt->mysql.error_msg = "set bind param field type invalid";
 				break;
 			}
 			MYSQL_BIND* bind = stmt->mysql.exec_param + index - 1;
