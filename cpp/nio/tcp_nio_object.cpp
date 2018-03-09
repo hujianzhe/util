@@ -142,30 +142,31 @@ int TcpNioObject::recv(void) {
 	return res;
 }
 
-bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
+int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
 	if (!m_valid) {
-		return false;
+		return -1;
 	}
 	if (!iov || !iovcnt) {
-		return true;
+		return 0;
 	}
 	size_t nbytes = 0;
 	for (unsigned int i = 0; i < iovcnt; ++i) {
 		nbytes += iobuffer_len(iov + i);
 	}
 	if (0 == nbytes) {
-		return true;
+		return 0;
 	}
 
+	int res = 0;
 	mutex_Lock(&m_outbufMutex);
 
 	do {
-		int res = 0;
 		if (!m_outbuflist.head) {
 			res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
 			if (res < 0) {
 				if (error_code() != EWOULDBLOCK) {
 					m_valid = false;
+					res = -1;
 					break;
 				}
 				res = 0;
@@ -175,6 +176,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 			WaitSendData* wsd = (WaitSendData*)malloc(sizeof(WaitSendData) + (nbytes - res));
 			if (!wsd) {
 				m_valid = false;
+				res = -1;
 				break;
 			}
 			wsd->len = nbytes - res;
@@ -204,7 +206,7 @@ bool TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stor
 
 	mutex_Unlock(&m_outbufMutex);
 
-	return m_valid;
+	return res;
 }
 int TcpNioObject::onWrite(void) {
 	int count = 0;

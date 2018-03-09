@@ -105,36 +105,37 @@ bool NioObject::checkValid(void) {
 	return m_valid;
 }
 
-bool NioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
+int NioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
 	if (!m_valid) {
-		return false;
+		return -1;
 	}
 	if (!iov || !iovcnt) {
-		return true;
+		return 0;
 	}
 	size_t nbytes = 0;
 	for (unsigned int i = 0; i < iovcnt; ++i) {
 		nbytes += iobuffer_len(iov + i);
 	}
 	if (0 == nbytes) {
-		return true;
+		return 0;
 	}
 
-	if (sock_SendVec(m_fd, iov, iovcnt, 0, saddr) < 0) {
+	int res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
+	if (res < 0) {
 		if (error_code() != EWOULDBLOCK) {
 			m_valid = false;
+			return -1;
 		}
+		return 0;
 	}
-	return m_valid;
+	return res;
 }
 
-bool NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
+int NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
 	if (!data || 0 == nbytes) {
-		return true;
+		return 0;
 	}
-	IoBuf_t iov;
-	iobuffer_buf(&iov) = (char*)data;
-	iobuffer_len(&iov) = nbytes;
+	IoBuf_t iov = iobuffer_init(data, nbytes);
 	return sendv(&iov, 1, saddr);
 }
 

@@ -47,11 +47,11 @@ public:
 	bool checkTimeout(void);
 	bool checkValid(void);
 
-	virtual bool sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
-	bool send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
-	bool send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
-	bool send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
-	bool send(const std::string& str, struct sockaddr_storage* saddr = NULL) { return send(str.empty() ? NULL : str.data(), str.size(), saddr); }
+	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
+	int send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
+	int send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
+	int send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
+	int send(const std::string& str, struct sockaddr_storage* saddr = NULL) { return send(str.empty() ? NULL : str.data(), str.size(), saddr); }
 
 	virtual bool sendmsg(const void* msg, struct sockaddr_storage* saddr = NULL) { return true; }
 
