@@ -13,6 +13,8 @@ class HttpPacketWorker : public PacketWorker {
 public:
 	HttpPacketWorker(size_t frame_length_limit);
 
+	size_t frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
+
 private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
