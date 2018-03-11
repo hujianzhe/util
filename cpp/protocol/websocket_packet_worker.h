@@ -5,17 +5,19 @@
 #ifndef	UTIL_CPP_PROTOCOL_WEBSOCKET_PACKET_WORKER_H
 #define	UTIL_CPP_PROTOCOL_WEBSOCKET_PACKET_WORKER_H
 
-#include "../nio/nio_packet_worker.h"
+#include "packet_worker.h"
 #include "websocket_frame.h"
 
 namespace Util {
-class WebsocketPacketWorker : public NioPacketWorker {
+class WebsocketPacketWorker : public PacketWorker {
 public:
 	WebsocketPacketWorker(unsigned int frame_length_limit);
 
+	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
+
 private:
-	int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
-	virtual bool onRecvPacket(unsigned char* data, size_t len, struct sockaddr_storage* from) { return true; }
+	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
+	virtual bool sendHandshakePacket(const std::string& data, struct sockaddr_storage* from) = 0;
 
 private:
 	const unsigned int m_frameLengthLimit;

@@ -43,7 +43,7 @@ int WebsocketPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, stru
 			return 0;
 		}
 		if (WebSocketFrame::PARSE_OK == retcode) {
-			if (object()->send(response.data(), response.size(), from)) {
+			if (sendHandshakePacket(response, from)) {
 				m_hasHandshake = true;
 				return protocol.frameLength();
 			}

@@ -5,16 +5,16 @@
 #ifndef UTIL_CPP_PROTOCOL_HTTP_PACKET_WORKER_H
 #define	UTIL_CPP_PROTOCOL_HTTP_PACKET_WORKER_H
 
-#include "../nio/nio_packet_worker.h"
+#include "packet_worker.h"
 #include "http_frame.h"
 
 namespace Util {
-class HttpPacketWorker : public NioPacketWorker {
+class HttpPacketWorker : public PacketWorker {
 public:
 	HttpPacketWorker(size_t frame_length_limit);
 
 private:
-	int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
+	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
 	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }

@@ -12,7 +12,7 @@ class TcplistenNioObject : public NioObject {
 public:
 	TcplistenNioObject(FD_t sockfd, int sa_family);
 
-	bool bindlisten(unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
+	bool bindlisten(unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0) { return bindlisten(NULL, port, cbfunc, arg); }
 	bool bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
 	bool bindlisten(const struct sockaddr_storage* saddr, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
 
@@ -21,6 +21,7 @@ public:
 
 private:
 	virtual int recv(void);
+	int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) { return 0; }
 
 private:
 	int m_saFamily;

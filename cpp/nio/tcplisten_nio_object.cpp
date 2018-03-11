@@ -16,9 +16,6 @@ TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int sa_family) :
 	m_isListen = true;
 }
 
-bool TcplistenNioObject::bindlisten(unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
-	return bindlisten(NULL, port, cbfunc, arg);
-}
 bool TcplistenNioObject::bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	struct sockaddr_storage saddr;
 	if (sock_Text2Addr(&saddr, m_saFamily, ip, port) != EXEC_SUCCESS) {

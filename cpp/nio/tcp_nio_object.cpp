@@ -4,15 +4,13 @@
 
 #include "../../c/syslib/error.h"
 #include "tcp_nio_object.h"
-#include "nio_packet_worker.h"
 #include <string.h>
 #include <exception>
 #include <stdexcept>
 
 namespace Util {
-TcpNioObject::TcpNioObject(FD_t fd, unsigned int frame_length_limit) :
+TcpNioObject::TcpNioObject(FD_t fd) :
 	NioObject(fd, SOCK_STREAM),
-	m_frameLengthLimit(frame_length_limit),
 	m_connectCallbackFunctor(NULL),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),
@@ -126,7 +124,7 @@ int TcpNioObject::recv(void) {
 		}
 		size_t offset = 0;
 		while (offset < m_inbuf.size()) {
-			ssize_t len = m_packetWorker->onParsePacket(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
+			int len = onRead(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
 			if (0 == len) {
 				break;
 			}

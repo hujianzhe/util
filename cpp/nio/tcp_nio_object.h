@@ -15,10 +15,8 @@
 namespace Util {
 class TcpNioObject : public NioObject {
 public:
-	TcpNioObject(FD_t fd, unsigned int frame_length_limit);
+	TcpNioObject(FD_t fd);
 	~TcpNioObject(void);
-
-	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 #if __CPP_VERSION >= 2011
 	bool reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb = nullptr);
@@ -45,8 +43,6 @@ private:
 	void inbufRemove(unsigned int nbytes);
 	virtual int recv(void);
 
-protected:
-	const unsigned short m_frameLengthLimit;
 private:
 #if __CPP_VERSION >= 2011
 	std::function<bool(TcpNioObject*, bool)> m_connectCallback;
