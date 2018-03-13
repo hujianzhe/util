@@ -216,7 +216,7 @@ int TcpNioObject::onWrite(void) {
 		return 0;
 	}
 	if (!m_valid) {
-		return 0;
+		return -1;
 	}
 
 	mutex_Lock(&m_outbufMutex);
@@ -227,6 +227,7 @@ int TcpNioObject::onWrite(void) {
 		if (res < 0) {
 			if (error_code() != EWOULDBLOCK) {
 				m_valid = false;
+				count = -1;
 				break;
 			}
 			res = 0;

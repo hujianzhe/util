@@ -553,7 +553,7 @@ EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfu
 #if defined(_WIN32) || defined(_WIN64)
 	int slen = sizeof(saddr);
 	if (!__win32AcceptPretreatment(listenfd, ol, cbfunc, arg)) {
-		return FALSE;
+		return EXEC_ERROR;
 	}
 #else
 	socklen_t slen = sizeof(saddr);
