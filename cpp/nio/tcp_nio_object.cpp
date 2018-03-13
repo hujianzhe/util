@@ -66,7 +66,6 @@ bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor
 }
 
 bool TcpNioObject::onConnect(void) {
-	m_connecting = false;
 	bool ok = false;
 	bool connect_ok = reactor_ConnectCheckSuccess(m_fd);
 	try {
@@ -84,7 +83,7 @@ bool TcpNioObject::onConnect(void) {
 			m_connectCallbackFunctor = NULL;
 		}
 		else {
-			ok = onConnect(connect_ok);
+			ok = connect_ok;
 		}
 	}
 	catch (...) {}
@@ -209,10 +208,12 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 int TcpNioObject::onWrite(void) {
 	int count = 0;
 	if (m_connecting) {
+		m_connecting = false;
 		if (!onConnect()) {
 			m_valid = false;
-			return 0;
+			return -1;
 		}
+		return 0;
 	}
 	if (!m_valid) {
 		return 0;
