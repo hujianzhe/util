@@ -126,7 +126,7 @@ DB_RETURN db_SetConnectTimeout(DB_HANDLE* handle, int sec) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
-			if (mysql_options(&handle->mysql.mysql, MYSQL_OPT_CONNECT_TIMEOUT, (const char*)&sec)) {
+			if (mysql_options(&handle->mysql.mysql, MYSQL_OPT_CONNECT_TIMEOUT, (const void*)&sec)) {
 				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
 				break;
 			}

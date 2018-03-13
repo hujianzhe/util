@@ -8,7 +8,7 @@
 #include "platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-	typedef char volatile					Atom8_t;
+	typedef CHAR volatile					Atom8_t;
 	typedef SHORT volatile					Atom16_t;
 	typedef	LONG volatile					Atom32_t;
 	typedef LONGLONG volatile				Atom64_t;
@@ -31,11 +31,11 @@
 		#define	_xaddsize					_xadd32
 	#endif
 #else
-	typedef char volatile					Atom8_t;
+	typedef signed char volatile			Atom8_t;
 	typedef	short volatile					Atom16_t;
 	typedef	int volatile					Atom32_t;
 	typedef long long volatile				Atom64_t;
-	#define	_xchg8(addr, val8)				__sync_lock_test_and_set((char volatile*)(addr), (char)(val8))
+	#define	_xchg8(addr, val8)				__sync_lock_test_and_set((signed char volatile*)(addr), (signed char)(val8))
 	#define	_xchg16(addr, val16)			__sync_lock_test_and_set((short volatile*)(addr), (short)(val16))
 	#define	_xchg32(addr, val32)			__sync_lock_test_and_set((int volatile*)(addr), (int)(val32))
 	#define	_xchg64(addr, val64)			__sync_lock_test_and_set((long long volatile*)(addr), (long long)(val64))

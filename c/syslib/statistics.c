@@ -26,15 +26,15 @@ EXEC_RETURN uuid_GetString(uuid_t* uuid, uuid_string_t* uuid_string) {
 	strcpy(*uuid_string, (char*)buffer);
 	return RpcStringFreeA(&buffer) == RPC_S_OK ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-    uuid_unparse_lower(*uuid, *uuid_string);
+	uuid_unparse_lower(*uuid, *uuid_string);
 	return EXEC_SUCCESS;
 #endif
 }
 
 /* processor */
 int processor_IsLittleEndian(void) {
-    unsigned short v = 0x0001;
-    return *((unsigned char*)&v);
+	unsigned short v = 0x0001;
+	return *((unsigned char*)&v);
 }
 
 size_t processor_Count(void) {

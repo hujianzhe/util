@@ -24,9 +24,9 @@ typedef struct field_reflect_desc_t {
 sub_field_desc ? sizeof(sub_field_desc) / sizeof(field_reflect_desc_t) : 0 }
 
 #ifndef __cplusplus
-typedef	char	bool;
-#define	true	1
-#define	false	0
+typedef	unsigned char	bool;
+#define	true			1
+#define	false			0
 #endif
 
 #ifdef _MSC_VER

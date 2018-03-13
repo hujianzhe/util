@@ -6,7 +6,7 @@
 #define	UTIL_C_DATASTRUCT_VAR_TYPE_H
 
 typedef	union var_t {
-	char c, i8;
+	signed char c, i8;
 	unsigned char byte, u8;
 	short i16;
 	unsigned short u16;
@@ -19,7 +19,8 @@ typedef	union var_t {
 
 	void* p_void;
 	char* str;
-	char* p_char, *p_i8;
+	char* p_char;
+	signed char* p_i8;
 	unsigned char* p_byte, *p_u8;
 	short* p_i16;
 	unsigned short* p_u16;
