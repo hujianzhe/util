@@ -14,7 +14,6 @@ public:
 
 	size_t fixedFieldSize(void) const { return m_fixedFieldSize; }
 
-private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
 private:

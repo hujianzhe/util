@@ -16,7 +16,6 @@ public:
 	unsigned short lengthFieldSize(void) const { return m_lengthFieldSize; }
 	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
 
-private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
 private:

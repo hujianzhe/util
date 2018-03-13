@@ -15,8 +15,9 @@ public:
 
 	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
 
-private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
+
+private:
 	virtual bool sendHandshakePacket(const std::string& data, struct sockaddr_storage* from) = 0;
 
 private:

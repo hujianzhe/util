@@ -15,9 +15,9 @@ public:
 
 	size_t frameLengthLimit(void) const { return m_protocol.frameLengthLimit(); }
 
-private:
 	virtual int onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from);
 
+private:
 	virtual bool handleRequestHeader(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 	virtual bool handleGetRequest(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
 	virtual bool handlePostRequestBody(const HttpFrame& protocol, struct sockaddr_storage* from) { return true; }
