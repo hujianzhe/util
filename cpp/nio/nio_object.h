@@ -7,7 +7,6 @@
 
 #include "../../c/syslib/atomic.h"
 #include "../../c/syslib/io.h"
-#include "../../c/syslib/ipc.h"
 #include "../../c/syslib/socket.h"
 
 #include <memory>
