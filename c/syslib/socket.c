@@ -431,6 +431,9 @@ BOOL IPstringIsInner(const char* ip) {
 	* C 192.168.0.0	--	192.168.255.255
 	*/
 	unsigned int addr = inet_addr(ip);
+	if (INADDR_NONE == addr) {
+		return 0;
+	}
 	return ((unsigned char)addr == 0xa) ||
 			((unsigned short)addr == 0xa8c0) ||
 			((unsigned char)addr == 0xac && (unsigned char)(addr >> 8) >= 0x10 && (unsigned char)(addr >> 8) <= 0x1f);
