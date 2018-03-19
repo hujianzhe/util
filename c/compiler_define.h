@@ -11,23 +11,12 @@
 #define	field_offset(type, field)					((char*)(&((type *)0)->field) - (char*)(0))
 #define field_container(address, type, field)		((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
-typedef struct field_reflect_desc_t {
-	const char* name;
-	const char* type;
-	const unsigned int offset;
-	const unsigned int len;
-	const struct field_reflect_desc_t* sub;
-	const unsigned int sublen;
-} field_reflect_desc_t;
-#define	field_reflect_desc_init(struct_type, field_type, field, sub_field_desc)\
-{ #field, #field_type, field_offset(struct_type, field), field_sizeof(struct_type, field), sub_field_desc,\
-sub_field_desc ? sizeof(sub_field_desc) / sizeof(field_reflect_desc_t) : 0 }
-
 #ifndef __cplusplus
 typedef	unsigned char	bool;
 #define	true			1
 #define	false			0
 #endif
+#define	undefined		-1
 
 #ifdef _MSC_VER
 	#pragma warning(disable:4200)

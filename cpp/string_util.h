@@ -5,6 +5,7 @@
 #ifndef UTIL_CPP_STRING_H
 #define UTIL_CPP_STRING_H
 
+#include "../c/syslib/string.h"
 #include <list>
 #include <string>
 #include <vector>
