@@ -109,7 +109,7 @@ void Logger::flush(void) {
 	size_t txtlen = 0;
 	for (list_node_t* node = cachehead; node; ) {
 		list_node_t* next_node = node->next;
-		CacheBlock* cache = field_container(node, CacheBlock, m_listnode);
+		CacheBlock* cache = pod_container_of(node, CacheBlock, m_listnode);
 		// day rotate
 		if (m_days != cache->dt.tm_yday) {
 			m_days = cache->dt.tm_yday;

@@ -222,7 +222,7 @@ int TcpNioObject::onWrite(void) {
 	mutex_Lock(&m_outbufMutex);
 
 	for (list_node_t* iter = m_outbuflist.head; iter; ) {
-		WaitSendData* wsd = field_container(iter, WaitSendData, m_listnode);
+		WaitSendData* wsd = pod_container_of(iter, WaitSendData, m_listnode);
 		int res = sock_Send(m_fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
 		if (res < 0) {
 			if (error_code() != EWOULDBLOCK) {

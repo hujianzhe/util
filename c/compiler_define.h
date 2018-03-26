@@ -8,8 +8,8 @@
 #define	compiler_check(exp)							typedef char __compile_check__[(exp) ? 1 : -1]
 
 #define	field_sizeof(type, field)					sizeof(((type*)0)->field)
-#define	field_offset(type, field)					((char*)(&((type *)0)->field) - (char*)(0))
-#define field_container(address, type, field)		((type *)((char*)(address) - (char*)(&((type *)0)->field)))
+#define	pod_offsetof(type, field)					((char*)(&((type *)0)->field) - (char*)(0))
+#define pod_container_of(address, type, field)		((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
 #ifndef __cplusplus
 typedef	unsigned char	bool;
