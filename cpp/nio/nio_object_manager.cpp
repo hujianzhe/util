@@ -118,7 +118,7 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 
 		NioEvent* ptr = new (std::nothrow) NioEvent(iter->second, event, ol);
 		if (ptr) {
-			list_insert_node_back(&list, list.tail, &ptr->m_listnode);
+			list_insert_node_back(&list, list.tail, ptr);
 		}
 		else {
 			iter->second->invalid();

@@ -31,8 +31,7 @@ public:
 	size_t checkObjectValid(void);
 
 public:
-	struct NioEvent {
-		list_node_t m_listnode;
+	struct NioEvent : public list_node_t {
 		std::shared_ptr<NioObject> obj;
 		int event;
 		void* ol;
