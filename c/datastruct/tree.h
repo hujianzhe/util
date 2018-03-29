@@ -14,6 +14,7 @@ extern "C" {
 #endif
 
 void tree_node_init(struct tree_node_t* node);
+struct tree_node_t* tree_root(const struct tree_node_t* node);
 void tree_node_insert_child(struct tree_node_t* parent_node, struct tree_node_t* new_node);
 void tree_node_insert_brother(struct tree_node_t* node, struct tree_node_t* new_node);
 void tree_node_remove(struct tree_node_t* node);

@@ -12,6 +12,11 @@ void tree_node_init(struct tree_node_t* node) {
 	node->parent = node->child = node->left = node->right = (struct tree_node_t*)0;
 }
 
+struct tree_node_t* tree_root(const struct tree_node_t* node) {
+	for (; node && node->parent; node = node->parent);
+	return (struct tree_node_t*)node;
+}
+
 void tree_node_insert_child(struct tree_node_t* parent_node, struct tree_node_t* new_node) {
 	if (new_node->parent) {
 		return;
@@ -27,6 +32,7 @@ void tree_node_insert_child(struct tree_node_t* parent_node, struct tree_node_t*
 void tree_node_insert_brother(struct tree_node_t* node, struct tree_node_t* new_node) {
 	new_node->left = node;
 	new_node->right = node->right;
+	new_node->parent = node->parent;
 	if (node->right) {
 		node->right->left = new_node;
 	}
