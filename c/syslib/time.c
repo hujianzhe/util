@@ -138,6 +138,34 @@ struct tm* unnormal_tm(struct tm* datetime) {
 	return datetime;
 }
 
+int tm_cmp(const struct tm* t1, const struct tm* t2) {
+	if (t1->tm_yday > t2->tm_yday) {
+		return 1;
+	}
+	if (t1->tm_yday < t2->tm_yday) {
+		return -1;
+	}
+	if (t1->tm_hour > t2->tm_hour) {
+		return 1;
+	}
+	if (t1->tm_hour < t2->tm_hour) {
+		return -1;
+	}
+	if (t1->tm_min > t2->tm_min) {
+		return 1;
+	}
+	if (t1->tm_min < t2->tm_min) {
+		return -1;
+	}
+	if (t1->tm_sec > t2->tm_sec) {
+		return 1;
+	}
+	if (t1->tm_sec < t2->tm_sec) {
+		return -1;
+	}
+	return 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif

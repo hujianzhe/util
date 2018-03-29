@@ -29,6 +29,7 @@ char* localtm2localstr(struct tm* datetime, char* buf, size_t len);
 struct tm* mktm(time_t value, struct tm* datetime);
 struct tm* normal_tm(struct tm* datetime);
 struct tm* unnormal_tm(struct tm* datetime);
+int tm_cmp(const struct tm* t1, const struct tm* t2);
 
 #ifdef	__cplusplus
 }
