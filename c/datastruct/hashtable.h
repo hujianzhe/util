@@ -32,7 +32,7 @@ struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 
 struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, var_t key);
 struct hashtable_node_t* hashtable_replace_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, var_t key);
-void hashtable_remove_node(struct hashtable_node_t* node);
+void hashtable_remove_node(struct hashtable_t* hashtable, struct hashtable_node_t* node);
 
 struct hashtable_node_t* hashtable_search_key(struct hashtable_t* hashtable, var_t key);
 struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, var_t key);

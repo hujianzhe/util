@@ -92,17 +92,19 @@ struct hashtable_node_t* hashtable_replace_node(struct hashtable_t* hashtable, s
 	return (struct hashtable_node_t*)0;
 }
 
-void hashtable_remove_node(struct hashtable_node_t* node) {
-	struct hashtable_node_t** bucket_list_head = node->table->buckets + node->bucket_index;
+void hashtable_remove_node(struct hashtable_t* hashtable, struct hashtable_node_t* node) {
+	if (hashtable == node->table) {
+		struct hashtable_node_t** bucket_list_head = hashtable->buckets + node->bucket_index;
 
-	if (*bucket_list_head == node) {
-		*bucket_list_head = node->next;
-	}
-	if (node->prev) {
-		node->prev->next = node->next;
-	}
-	if (node->next) {
-		node->next->prev = node->prev;
+		if (*bucket_list_head == node) {
+			*bucket_list_head = node->next;
+		}
+		if (node->prev) {
+			node->prev->next = node->next;
+		}
+		if (node->next) {
+			node->next->prev = node->prev;
+		}
 	}
 }
 
@@ -113,7 +115,7 @@ struct hashtable_node_t* hashtable_search_key(struct hashtable_t* hashtable, var
 struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, var_t key) {
 	struct hashtable_node_t* exist_node = hashtable_search_key(hashtable, key);
 	if (exist_node) {
-		hashtable_remove_node(exist_node);
+		hashtable_remove_node(hashtable, exist_node);
 	}
 	return exist_node;
 }
