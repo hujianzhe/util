@@ -8,16 +8,16 @@
 extern "C" {
 #endif
 
-void tree_node_init(struct tree_node_t* node) {
-	node->parent = node->child = node->left = node->right = (struct tree_node_t*)0;
+void tree_init(struct tree_t* node) {
+	node->parent = node->child = node->left = node->right = (struct tree_t*)0;
 }
 
-struct tree_node_t* tree_root(const struct tree_node_t* node) {
+struct tree_t* tree_root(const struct tree_t* node) {
 	for (; node && node->parent; node = node->parent);
-	return (struct tree_node_t*)node;
+	return (struct tree_t*)node;
 }
 
-void tree_node_insert_child(struct tree_node_t* parent_node, struct tree_node_t* new_node) {
+void tree_insert_child(struct tree_t* parent_node, struct tree_t* new_node) {
 	if (new_node->parent) {
 		return;
 	}
@@ -29,7 +29,7 @@ void tree_node_insert_child(struct tree_node_t* parent_node, struct tree_node_t*
 	new_node->parent = parent_node;
 }
 
-void tree_node_insert_brother(struct tree_node_t* node, struct tree_node_t* new_node) {
+void tree_insert_brother(struct tree_t* node, struct tree_t* new_node) {
 	new_node->left = node;
 	new_node->right = node->right;
 	new_node->parent = node->parent;
@@ -39,7 +39,7 @@ void tree_node_insert_brother(struct tree_node_t* node, struct tree_node_t* new_
 	node->right = new_node;
 }
 
-void tree_node_remove(struct tree_node_t* node) {
+void tree_remove(struct tree_t* node) {
 	if (node->left) {
 		node->left->right = node->right;
 	}
@@ -49,7 +49,7 @@ void tree_node_remove(struct tree_node_t* node) {
 	if (node->parent && node->parent->child == node) {
 		node->parent->child = node->right;
 	}
-	node->left = node->right = node->parent = (struct tree_node_t*)0;
+	node->left = node->right = node->parent = (struct tree_t*)0;
 }
 
 #ifdef	__cplusplus
