@@ -19,6 +19,9 @@ void tree_insert_child(struct tree_t* parent_node, struct tree_t* new_node);
 void tree_insert_brother(struct tree_t* node, struct tree_t* new_node);
 void tree_remove(struct tree_t* node);
 
+struct tree_t* tree_begin(struct tree_t* node);
+struct tree_t* tree_next(struct tree_t* node);
+
 #ifdef	__cplusplus
 }
 #endif

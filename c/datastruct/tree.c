@@ -52,6 +52,19 @@ void tree_remove(struct tree_t* node) {
 	node->left = node->right = node->parent = (struct tree_t*)0;
 }
 
+struct tree_t* tree_begin(struct tree_t* node) {
+	for (; node && node->child; node = node->child);
+	return node;
+}
+struct tree_t* tree_next(struct tree_t* node) {
+	if (node->right) {
+		node = node->right;
+		for (; node && node->child; node = node->child);
+		return node;
+	}
+	return node->parent;
+}
+
 #ifdef	__cplusplus
 }
 #endif
