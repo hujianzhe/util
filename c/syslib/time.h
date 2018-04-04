@@ -37,8 +37,8 @@ int rand48_int(Rand48_t* ctx);
 int rand48_int_range(Rand48_t* ctx, int start, int end);
 typedef struct RandMT19937_t { unsigned long long x[312]; int k; } RandMT19937_t;
 void mt19937_seed(RandMT19937_t* ctx, int seedval);
-unsigned long long mt19937_ul(RandMT19937_t* ctx);
-#define	mt19937_l(ctx)	((long long)mt19937_ul(ctx))
+unsigned long long mt19937_ull(RandMT19937_t* ctx);
+#define	mt19937_ll(ctx)	((long long)mt19937_ull(ctx))
 
 #ifdef	__cplusplus
 }
