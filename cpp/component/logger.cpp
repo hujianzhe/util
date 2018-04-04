@@ -19,7 +19,7 @@ Logger::Logger(void) :
 	m_filesize(0),
 	m_maxfilesize(~0)
 {
-	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
+	assert_true(cslock_Create(&m_lock));
 	list_init(&m_cachelist);
 	m_ident[0] = 0;
 	m_path[0] = 0;

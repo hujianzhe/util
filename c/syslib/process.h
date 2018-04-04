@@ -57,17 +57,17 @@ extern "C" {
 #endif
 
 /* process operator */
-EXEC_RETURN process_Create(Process_t* p_process, const char* path, const char* cmdarg);
-EXEC_RETURN process_Cancel(Process_t* process);
+BOOL process_Create(Process_t* p_process, const char* path, const char* cmdarg);
+BOOL process_Cancel(Process_t* process);
 size_t process_Id(void);
-EXEC_RETURN process_TryFreeZombie(Process_t* process, unsigned char* retcode);
+BOOL process_TryFreeZombie(Process_t* process, unsigned char* retcode);
 void* process_LoadModule(const char* path);
 void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name);
-EXEC_RETURN process_UnloadModule(void* handle);
+BOOL process_UnloadModule(void* handle);
 /* thread operator */
-EXEC_RETURN thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
-EXEC_RETURN thread_Detach(Thread_t thread);
-EXEC_RETURN thread_Join(Thread_t thread, unsigned int* retcode);
+BOOL thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+BOOL thread_Detach(Thread_t thread);
+BOOL thread_Join(Thread_t thread, unsigned int* retcode);
 void thread_Exit(unsigned int retcode);
 #if defined(_WIN32) || defined(_WIN64)
 #define	thread_Self()		GetCurrentThread()
@@ -78,12 +78,12 @@ void thread_Exit(unsigned int retcode);
 #endif
 void thread_Sleep(unsigned int msec);
 void thread_Yield(void);
-EXEC_RETURN thread_SetAffinity(Thread_t thread, unsigned int processor_index);
+BOOL thread_SetAffinity(Thread_t thread, unsigned int processor_index);
 /* thread local operator */
-EXEC_RETURN thread_AllocLocalKey(Tls_t* key);
-EXEC_RETURN thread_SetLocalValue(Tls_t key, void* value);
+BOOL thread_AllocLocalKey(Tls_t* key);
+BOOL thread_SetLocalValue(Tls_t key, void* value);
 void* thread_GetLocalValue(Tls_t key);
-EXEC_RETURN thread_FreeLocalKey(Tls_t key);
+BOOL thread_FreeLocalKey(Tls_t key);
 
 #ifdef	__cplusplus
 }

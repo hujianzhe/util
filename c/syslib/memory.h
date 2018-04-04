@@ -34,12 +34,12 @@ extern "C" {
 void* crt_AlignMalloc(size_t nbytes, int alignment);
 void crt_AlignFree(void* p);
 /* mmap */
-EXEC_RETURN mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
-EXEC_RETURN mmap_Open(MemoryMapping_t* mm, const char* name);
-EXEC_RETURN mmap_Close(MemoryMapping_t* mm);
+BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
+BOOL mmap_Open(MemoryMapping_t* mm, const char* name);
+BOOL mmap_Close(MemoryMapping_t* mm);
 void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
-EXEC_RETURN mmap_Sync(void* addr, size_t nbytes);
-EXEC_RETURN mmap_Unmap(void* addr, size_t nbytes);
+BOOL mmap_Sync(void* addr, size_t nbytes);
+BOOL mmap_Unmap(void* addr, size_t nbytes);
 
 #ifdef	__cplusplus
 }

@@ -18,16 +18,16 @@ TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int sa_family) :
 
 bool TcplistenNioObject::bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	struct sockaddr_storage saddr;
-	if (sock_Text2Addr(&saddr, m_saFamily, ip, port) != EXEC_SUCCESS) {
+	if (!sock_Text2Addr(&saddr, m_saFamily, ip, port)) {
 		return false;
 	}
 	return bindlisten(&saddr, cbfunc, arg);
 }
 bool TcplistenNioObject::bindlisten(const struct sockaddr_storage* saddr, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
-	if (sock_BindSockaddr(m_fd, saddr) != EXEC_SUCCESS) {
+	if (!sock_BindSockaddr(m_fd, saddr)) {
 		return false;
 	}
-	if (sock_TcpListen(m_fd) != EXEC_SUCCESS) {
+	if (!sock_TcpListen(m_fd)) {
 		return false;
 	}
 	m_cbfunc = cbfunc;
@@ -54,7 +54,7 @@ bool TcplistenNioObject::accept(int msec) {
 bool TcplistenNioObject::reactorAccept(void) {
 	struct sockaddr_storage saddr;
 	saddr.ss_family = m_saFamily;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_ACCEPT, &m_readOl, &saddr) == EXEC_SUCCESS) {
+	if (reactor_Commit(m_reactor, m_fd, REACTOR_ACCEPT, &m_readOl, &saddr)) {
 		return true;
 	}
 	m_valid = false;
@@ -62,7 +62,7 @@ bool TcplistenNioObject::reactorAccept(void) {
 }
 
 int TcplistenNioObject::recv(void) {
-	if (reactor_Accept(m_fd, m_readOl, m_cbfunc, m_arg) == EXEC_SUCCESS) {
+	if (reactor_Accept(m_fd, m_readOl, m_cbfunc, m_arg)) {
 		reactorAccept();
 	}
 	else {

@@ -61,14 +61,4 @@
 
 #define	assert_true(exp)			if (!(exp)) abort()
 
-typedef enum {
-#if defined(_WIN32) || defined(_WIN64)
-	EXEC_ERROR = 0,
-	EXEC_SUCCESS = 1,
-#else
-	EXEC_ERROR = -1,
-	EXEC_SUCCESS = 0,
-#endif
-} EXEC_RETURN;
-
 #endif

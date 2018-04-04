@@ -9,8 +9,8 @@ DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
 	m_forcewakeup(false),
 	m_deleter(deleter)
 {
-	assert_true(cslock_Create(&m_cslock) == EXEC_SUCCESS);
-	assert_true(condition_Create(&m_condition) == EXEC_SUCCESS);
+	assert_true(cslock_Create(&m_cslock));
+	assert_true(condition_Create(&m_condition));
 	list_init(&m_datalist);
 }
 DataQueue::~DataQueue(void) {
@@ -44,7 +44,7 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	cslock_Enter(&m_cslock);
 
 	while (!m_datalist.head && !m_forcewakeup) {
-		if (condition_Wait(&m_condition, &m_cslock, msec) == EXEC_SUCCESS) {
+		if (condition_Wait(&m_condition, &m_cslock, msec)) {
 			continue;
 		}
 		assert_true(error_code() == ETIMEDOUT);

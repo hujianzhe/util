@@ -22,7 +22,7 @@ static const char* __win32_path(char* path) {
 #endif
 
 /* FD_t generate operator */
-EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
+BOOL fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = GetFileType((HANDLE)fd);
 	switch (mode) {
@@ -30,7 +30,7 @@ EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 		case FILE_TYPE_UNKNOWN:
 			*type = FD_HADNLE_UNKNOWN;
 			if (GetLastError() != NO_ERROR) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
 			break;
 
@@ -41,7 +41,7 @@ EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 				int val;
 				int len = sizeof(val);
 				if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char*)&val, &len)) {
-					return EXEC_ERROR;
+					return FALSE;
 				}
 				*type = FD_HANDLE_SOCKET;
 			}
@@ -54,7 +54,7 @@ EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 		case FILE_TYPE_DISK: {
 			BY_HANDLE_FILE_INFORMATION info;
 			if (!GetFileInformationByHandle((HANDLE)fd, &info))
-				return EXEC_ERROR;
+				return FALSE;
 			else if (info.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
 				*type = FD_HANDLE_REGULAR;
 			else if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
@@ -64,7 +64,7 @@ EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 			break;
 		}
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
 	struct stat f_stat;
 	if (fstat(fd, &f_stat) == 0) {
@@ -83,35 +83,35 @@ EXEC_RETURN fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 			*type = FD_HANDLE_PIPE;
 		else
 			*type = FD_HADNLE_UNKNOWN;
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #endif
 }
 
-EXEC_RETURN fd_GetInheritFlag(FD_t fd, BOOL* bool_val) {
+BOOL fd_GetInheritFlag(FD_t fd, BOOL* bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD flag;
 	if (!GetHandleInformation((HANDLE)fd, &flag)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 	*bool_val = ((flag & HANDLE_FLAG_INHERIT) != 0);
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
 	int res = fcntl(fd,F_GETFD);
 	if (res < 0) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 	*bool_val = (0 == res);
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
-EXEC_RETURN fd_SetInheritFlag(FD_t fd, BOOL bool_val) {
+BOOL fd_SetInheritFlag(FD_t fd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
-	return SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, bool_val ? HANDLE_FLAG_INHERIT : 0) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, bool_val ? HANDLE_FLAG_INHERIT : 0);
 #else
-	return fcntl(fd, F_SETFD, bool_val == 0) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return fcntl(fd, F_SETFD, bool_val == 0) == 0;
 #endif
 }
 
@@ -261,22 +261,22 @@ long long file_Tell(FD_t fd) {
 #endif
 }
 
-EXEC_RETURN file_Flush(FD_t fd) {
+BOOL file_Flush(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return FlushFileBuffers((HANDLE)fd) ? EXEC_SUCCESS : EXEC_ERROR;
+	return FlushFileBuffers((HANDLE)fd);
 #else
-	return fsync(fd) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return fsync(fd) == 0;
 #endif
 }
 
-EXEC_RETURN file_Close(FD_t fd) {
+BOOL file_Close(FD_t fd) {
 	if (INVALID_FD_HANDLE == fd) {
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle((HANDLE)fd) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CloseHandle((HANDLE)fd);
 #else
-	return close(fd) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return close(fd) == 0;
 #endif
 }
 
@@ -290,26 +290,26 @@ long long file_Size(FD_t fd) {
 #endif
 }
 
-EXEC_RETURN file_ChangeLength(FD_t fd, long long length) {
+BOOL file_ChangeLength(FD_t fd, long long length) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL res;
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
 	if (!SetFilePointerEx((HANDLE)fd, off, &pos, FILE_CURRENT))
-		return EXEC_ERROR;
+		return FALSE;
 	off.QuadPart = length;
 	if (!SetFilePointerEx((HANDLE)fd, off, NULL, FILE_BEGIN))
-		return EXEC_ERROR;
+		return FALSE;
 	res = SetEndOfFile((HANDLE)fd);
 	SetFilePointerEx((HANDLE)fd, pos, NULL, FILE_BEGIN);
-	return res ? EXEC_SUCCESS : EXEC_ERROR;
+	return res;
 #else
-	return ftruncate(fd, length) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return ftruncate(fd, length) == 0;
 #endif
 }
 
 /* file lock */
-EXEC_RETURN file_LockExclusive(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
+BOOL file_LockExclusive(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dwFlags;
 	OVERLAPPED overlapvar = {0};
@@ -319,18 +319,18 @@ EXEC_RETURN file_LockExclusive(FD_t fd, long long offset, long long nbytes, BOOL
 	if (!block_bool) {
 		dwFlags |= LOCKFILE_FAIL_IMMEDIATELY;
 	}
-	return LockFileEx((HANDLE)fd, dwFlags, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar) ? EXEC_SUCCESS : EXEC_ERROR;
+	return LockFileEx((HANDLE)fd, dwFlags, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar);
 #else
 	struct flock fl = {0};
 	fl.l_type = F_WRLCK;
 	fl.l_start = offset;
 	fl.l_whence = SEEK_SET;
 	fl.l_len = nbytes;
-	return fcntl(fd, block_bool ? F_SETLKW : F_SETLK, &fl) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return fcntl(fd, block_bool ? F_SETLKW : F_SETLK, &fl) == 0;
 #endif
 }
 
-EXEC_RETURN file_LockShared(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
+BOOL file_LockShared(FD_t fd, long long offset, long long nbytes, BOOL block_bool) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dwFlags = 0;
 	OVERLAPPED overlapvar = {0};
@@ -339,30 +339,30 @@ EXEC_RETURN file_LockShared(FD_t fd, long long offset, long long nbytes, BOOL bl
 	if (!block_bool) {
 		dwFlags |= LOCKFILE_FAIL_IMMEDIATELY;
 	}
-	return LockFileEx((HANDLE)fd, dwFlags, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar) ? EXEC_SUCCESS : EXEC_ERROR;
+	return LockFileEx((HANDLE)fd, dwFlags, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar);
 #else
 	struct flock fl = {0};
 	fl.l_type = F_RDLCK;
 	fl.l_start = offset;
 	fl.l_whence = SEEK_SET;
 	fl.l_len = nbytes;
-	return fcntl(fd, block_bool ? F_SETLKW : F_SETLK, &fl) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return fcntl(fd, block_bool ? F_SETLKW : F_SETLK, &fl) == 0;
 #endif
 }
 
-EXEC_RETURN file_Unlock(FD_t fd, long long offset, long long nbytes) {
+BOOL file_Unlock(FD_t fd, long long offset, long long nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED overlapvar = {0};
 	overlapvar.Offset = (DWORD)offset;
 	overlapvar.OffsetHigh = offset >> 32;
-	return UnlockFileEx((HANDLE)fd, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar) ? EXEC_SUCCESS : EXEC_ERROR;
+	return UnlockFileEx((HANDLE)fd, 0, (DWORD)nbytes, nbytes >> 32, &overlapvar);
 #else
 	struct flock fl = {0};
 	fl.l_type = F_UNLCK;
 	fl.l_start = offset;
 	fl.l_whence = SEEK_SET;
 	fl.l_len = nbytes;
-	return fcntl(fd, F_SETLK, &fl) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return fcntl(fd, F_SETLK, &fl) == 0;
 #endif
 }
 
@@ -396,79 +396,79 @@ const char* file_FileName(const char* path) {
 }
 
 /* file link */
-EXEC_RETURN file_CreateSymlink(const char* actualpath, const char* sympath) {
+BOOL file_CreateSymlink(const char* actualpath, const char* sympath) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szActualPath[MAX_PATH], szSymPath[MAX_PATH];
 	DWORD dwAttr, dwFlag;
 	dwAttr = GetFileAttributesA(__win32_path(strcpy(szActualPath, actualpath)));
 	if (dwAttr == INVALID_FILE_ATTRIBUTES)
-		return EXEC_ERROR;
+		return FALSE;
 	dwFlag = (dwAttr & FILE_ATTRIBUTE_DIRECTORY) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-	return CreateSymbolicLinkA(__win32_path(strcpy(szSymPath, sympath)), szActualPath, dwFlag) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CreateSymbolicLinkA(__win32_path(strcpy(szSymPath, sympath)), szActualPath, dwFlag);
 #else
-	return symlink(actualpath, sympath) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return symlink(actualpath, sympath) == 0;
 #endif
 }
 
-EXEC_RETURN file_CreateHardLink(const char* existpath, const char* newpath) {
+BOOL file_CreateHardLink(const char* existpath, const char* newpath) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szExistPath[MAX_PATH], szNewPath[MAX_PATH];
-	return CreateHardLinkA(__win32_path(strcpy(szNewPath, newpath)), __win32_path(strcpy(szExistPath, existpath)), NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CreateHardLinkA(__win32_path(strcpy(szNewPath, newpath)), __win32_path(strcpy(szExistPath, existpath)), NULL);
 #else
-	return link(existpath, newpath) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return link(existpath, newpath) == 0;
 #endif
 }
 
-EXEC_RETURN file_DeleteHardLink(const char* existpath) {
+BOOL file_DeleteHardLink(const char* existpath) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szExistPath[MAX_PATH];
-	return DeleteFileA(__win32_path(strcpy(szExistPath, existpath))) ? EXEC_SUCCESS : EXEC_ERROR;
+	return DeleteFileA(__win32_path(strcpy(szExistPath, existpath)));
 #else
-	return unlink(existpath) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return unlink(existpath) == 0;
 #endif
 }
 
-EXEC_RETURN file_HardLinkCount(FD_t fd, unsigned int* count) {
+BOOL file_HardLinkCount(FD_t fd, unsigned int* count) {
 #if defined(_WIN32) || defined(_WIN64)
 	BY_HANDLE_FILE_INFORMATION info;
 	if (!GetFileInformationByHandle((HANDLE)fd, &info))
-		return EXEC_ERROR;
+		return FALSE;
 	*count = info.nNumberOfLinks;
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
 	struct stat f_stat;
 	if (fstat(fd, &f_stat) == 0) {
 		*count = f_stat.st_nlink;
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #endif
 }
 
 /* directory operator */
-EXEC_RETURN dir_Create(const char* path) {
+BOOL dir_Create(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
-	return CreateDirectoryA(__win32_path(strcpy(szFullPath, path)), NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CreateDirectoryA(__win32_path(strcpy(szFullPath, path)), NULL);
 #else
-	return mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0;
 #endif
 }
 
-EXEC_RETURN dir_CurrentPath(char* buf, size_t n) {
+BOOL dir_CurrentPath(char* buf, size_t n) {
 #if defined(_WIN32) || defined(_WIN64)
-	return GetCurrentDirectoryA(n, buf) ? EXEC_SUCCESS : EXEC_ERROR;
+	return GetCurrentDirectoryA(n, buf) != 0;
 #else
-	return getcwd(buf, n) ? EXEC_SUCCESS : EXEC_ERROR;
+	return getcwd(buf, n) != NULL;
 #endif
 }
 
-EXEC_RETURN dir_Sheft(const char* path) {
+BOOL dir_Sheft(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
-	return SetCurrentDirectoryA(__win32_path(strcpy(szFullPath, path))) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SetCurrentDirectoryA(__win32_path(strcpy(szFullPath, path)));
 #else
-	return chdir(path) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return chdir(path) == 0;
 #endif
 }
 
@@ -489,31 +489,31 @@ Dir_t dir_Open(const char* path) {
 #endif
 }
 
-EXEC_RETURN dir_Close(Dir_t dir) {
+BOOL dir_Close(Dir_t dir) {
 #if defined(_WIN32) || defined(_WIN64)
-	return FindClose(dir) ? EXEC_SUCCESS : EXEC_ERROR;
+	return FindClose(dir);
 #else
-	return closedir(dir) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return closedir(dir) == 0;
 #endif
 }
 
-EXEC_RETURN dir_Read(Dir_t dir, DirItem_t* item) {
+BOOL dir_Read(Dir_t dir, DirItem_t* item) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (FindNextFileA(dir, item)) {
 		if (!strcmp(".", item->cFileName) || !strcmp("..", item->cFileName))
 			continue;
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #else
 	struct dirent* i;
 	while ((i = readdir(dir))) {
 		if (!strcmp(".", i->d_name) || !strcmp("..", i->d_name))
 			continue;
 		*item = i;
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #endif
 }
 

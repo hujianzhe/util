@@ -41,30 +41,28 @@ void aio_SetOffset(struct aiocb* cb, long long offset) {
 #endif
 }
 
-EXEC_RETURN aio_Commit(struct aiocb* cb) {
+BOOL aio_Commit(struct aiocb* cb) {
 	if (LIO_READ == cb->aio_lio_opcode) {
 #if defined(_WIN32) || defined(_WIN64)
-		BOOL res = ReadFileEx((HANDLE)(cb->aio_fildes),
+		return ReadFileEx((HANDLE)(cb->aio_fildes),
 								cb->aio_buf, cb->aio_nbytes,
 								&cb->in.__ol, NULL) ||
 								GetLastError() == ERROR_IO_PENDING;
-		return res ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-		return aio_read(cb) ? EXEC_ERROR : EXEC_SUCCESS;
+		return aio_read(cb) == 0;
 #endif
 	}
 	else if (LIO_WRITE == cb->aio_lio_opcode) {
 #if defined(_WIN32) || defined(_WIN64)
-		BOOL res = WriteFileEx((HANDLE)(cb->aio_fildes),
+		return WriteFileEx((HANDLE)(cb->aio_fildes),
 								cb->aio_buf, cb->aio_nbytes,
 								&cb->out.__ol, NULL) ||
 								GetLastError() == ERROR_IO_PENDING;
-		return res ? EXEC_SUCCESS : EXEC_ERROR;
 #else
-		return aio_write(cb) ? EXEC_ERROR : EXEC_SUCCESS;
+		return aio_write(cb) == 0;
 #endif
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 }
 
 BOOL aio_HasCompleted(const struct aiocb* cb) {
@@ -81,7 +79,7 @@ BOOL aio_HasCompleted(const struct aiocb* cb) {
 #endif
 }
 
-EXEC_RETURN aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec) {
+BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD i;
 	DWORD dwCount = nent > MAXIMUM_WAIT_OBJECTS ? MAXIMUM_WAIT_OBJECTS : nent;
@@ -90,7 +88,7 @@ EXEC_RETURN aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec)
 		hObjects[i] = (HANDLE)(cb_list[i]->aio_fildes);
 	}
 	i = WaitForMultipleObjects(dwCount, hObjects, FALSE, msec);
-	return i >= WAIT_OBJECT_0 && i < WAIT_OBJECT_0 + MAXIMUM_WAIT_OBJECTS ? EXEC_SUCCESS : EXEC_ERROR;
+	return i >= WAIT_OBJECT_0 && i < WAIT_OBJECT_0 + MAXIMUM_WAIT_OBJECTS;
 #else
 	struct timespec tval, *t = NULL;
 	if (msec >= 0) {
@@ -98,11 +96,11 @@ EXEC_RETURN aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec)
 		tval.tv_nsec = msec % 1000;
 		t = &tval;
 	}
-	return 0 == aio_suspend(cb_list, nent, t) ? EXEC_SUCCESS : EXEC_ERROR;
+	return 0 == aio_suspend(cb_list, nent, t);
 #endif
 }
 
-EXEC_RETURN aio_Cancel(FD_t fd, struct aiocb* cb) {
+BOOL aio_Cancel(FD_t fd, struct aiocb* cb) {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED* p_ol = NULL;
 	if (LIO_READ == cb->aio_lio_opcode) {
@@ -112,18 +110,18 @@ EXEC_RETURN aio_Cancel(FD_t fd, struct aiocb* cb) {
 		p_ol = &cb->out.__ol;
 	}
 	else {
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return CancelIoEx((HANDLE)fd, p_ol) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CancelIoEx((HANDLE)fd, p_ol);
 #else
 	int res = aio_cancel(fd, cb);
 	if (AIO_CANCELED == res || AIO_ALLDONE == res) {
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 	else if (AIO_NOTCANCELED == res) {
 		errno = EINPROGRESS;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #endif
 }
 
@@ -151,12 +149,12 @@ int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes) {
 }
 
 /* NIO */
-EXEC_RETURN reactor_Create(Reactor_t* reactor) {
+BOOL reactor_Create(Reactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
 	reactor->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
-	return reactor->__hNio ? EXEC_SUCCESS : EXEC_ERROR;
+	return reactor->__hNio != 0;
 #elif __linux__
 	int nio_ok = 0, epfd_ok = 0;
 	do {
@@ -176,7 +174,7 @@ EXEC_RETURN reactor_Create(Reactor_t* reactor) {
 		if (epoll_ctl(reactor->__hNio, EPOLL_CTL_ADD, reactor->__epfd, &e)) {
 			break;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	} while (0);
 	if (nio_ok) {
 		assert_true(0 == close(reactor->__hNio));
@@ -184,48 +182,48 @@ EXEC_RETURN reactor_Create(Reactor_t* reactor) {
 	if (epfd_ok) {
 		assert_true(0 == close(reactor->__epfd));
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	return (reactor->__hNio = kqueue()) < 0 ? EXEC_ERROR : EXEC_SUCCESS;
+	return !((reactor->__hNio = kqueue()) < 0);
 #endif
 }
 
-EXEC_RETURN reactor_Reg(Reactor_t* reactor, FD_t fd) {
+BOOL reactor_Reg(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio);
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	struct kevent e[2];
 	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_DISABLE, 0, 0, (void*)(size_t)fd);
 	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0, 0, (void*)(size_t)fd);
-	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0;
 #endif
-	return EXEC_SUCCESS;
+	return TRUE;
 }
 
-EXEC_RETURN reactor_Cancel(Reactor_t* reactor, FD_t fd) {
+BOOL reactor_Cancel(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CancelIoEx((HANDLE)fd, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CancelIoEx((HANDLE)fd, NULL);
 	/*
 	 * iocp will catch this return and set overlapped.internal a magic number, but header not include that macro
 	 */
 #elif __linux__
 	struct epoll_event e = { 0 };
 	if (epoll_ctl(reactor->__hNio, EPOLL_CTL_DEL, fd, &e)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 	if (epoll_ctl(reactor->__epfd, EPOLL_CTL_DEL, fd, &e)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	struct kevent e[2];
 	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_DISABLE, 0, 0, NULL);
 	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_DISABLE, 0, 0, NULL);
-	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0;
 #endif
 }
 
-EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr) {
+BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
 		BOOL res;
@@ -234,7 +232,7 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		WSABUF wsabuf = {0};
 		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
 		if (NULL == *p_ol) {
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		res = !WSARecvFrom((SOCKET)fd,
 							&wsabuf, 1, NULL, &Flags,
@@ -244,16 +242,16 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		if (!res) {
 			free(*p_ol);
 			*p_ol = NULL;
-			return EXEC_ERROR;
+			return FALSE;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 	else if (REACTOR_WRITE == opcode) {
 		BOOL res;
 		WSABUF wsabuf = {0};
 		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
 		if (NULL == *p_ol) {
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		res = !WSASendTo((SOCKET)fd,
 							&wsabuf, 1, NULL, 0,
@@ -263,9 +261,9 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		if (!res) {
 			free(*p_ol);
 			*p_ol = NULL;
-			return EXEC_ERROR;
+			return FALSE;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 	else if (REACTOR_ACCEPT == opcode) {
 		BOOL res;
@@ -278,20 +276,20 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 				&GuidAcceptEx, sizeof(GuidAcceptEx),
 				&lpfnAcceptEx, sizeof(lpfnAcceptEx),
 				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnAcceptEx) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
 		}
 		if (NULL == *p_ol) {
 			*p_ol = calloc(1, sizeof(OVERLAPPED) + sizeof(SOCKET) + (sizeof(struct sockaddr_storage) + 16) * 2);
 			if (NULL == *p_ol) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
 			pConnfd = (SOCKET*)(((char*)*p_ol) + sizeof(OVERLAPPED));
 			*pConnfd = socket(saddr->ss_family, SOCK_STREAM, 0);
 			if (INVALID_SOCKET == *pConnfd) {
 				free(*p_ol);
 				*p_ol = NULL;
-				return EXEC_ERROR;
+				return FALSE;
 			}
 		}
 		else {
@@ -307,9 +305,9 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 			closesocket(*pConnfd);
 			free(*p_ol);
 			*p_ol = NULL;
-			return EXEC_ERROR;
+			return FALSE;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 	else if (REACTOR_CONNECT == opcode) {
 		BOOL res;
@@ -326,7 +324,7 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 				break;
 			default:
 				SetLastError(WSAEAFNOSUPPORT);
-				return EXEC_ERROR;
+				return FALSE;
 		}
 		if (!lpfnConnectEx){
 			DWORD dwBytes;
@@ -335,16 +333,16 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 				&GuidConnectEx, sizeof(GuidConnectEx),
 				&lpfnConnectEx, sizeof(lpfnConnectEx),
 				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnConnectEx) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
 		}
 		_sa.ss_family = saddr->ss_family;
 		if (bind((SOCKET)fd, (struct sockaddr*)&_sa, sizeof(_sa))) {
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
 		if (NULL == *p_ol) {
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		res = lpfnConnectEx((SOCKET)fd,
 							(struct sockaddr*)saddr, slen,
@@ -354,13 +352,13 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		if (!res) {
 			free(*p_ol);
 			*p_ol = NULL;
-			return EXEC_ERROR;
+			return FALSE;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
 	else {
 		SetLastError(ERROR_INVALID_PARAMETER);
-		return EXEC_ERROR;
+		return FALSE;
 	}
 #else
 	if (REACTOR_READ == opcode || REACTOR_ACCEPT == opcode) {
@@ -370,21 +368,21 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLIN;
 		if (epoll_ctl(reactor->__hNio, EPOLL_CTL_MOD, fd, &e)) {
 			if (ENOENT != errno) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
-			return epoll_ctl(reactor->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno ? EXEC_SUCCESS : EXEC_ERROR;
+			return epoll_ctl(reactor->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	#elif defined(__FreeBSD__) || defined(__APPLE__)
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ENABLE | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
-		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) ? EXEC_ERROR : EXEC_SUCCESS;
+		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	#endif
 	}
 	else if (REACTOR_WRITE == opcode || REACTOR_CONNECT == opcode) {
 		if (REACTOR_CONNECT == opcode) {/* try connect... */
 			if (connect(fd, (struct sockaddr*)saddr, sizeof(*saddr)) && EINPROGRESS != errno) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
 			/* 
 			 * fd always add __epfd when connect immediately finish or not...
@@ -397,23 +395,23 @@ EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol,
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLOUT;
 		if (epoll_ctl(reactor->__epfd, EPOLL_CTL_MOD, fd, &e)) {
 			if (ENOENT != errno) {
-				return EXEC_ERROR;
+				return FALSE;
 			}
-			return epoll_ctl(reactor->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno ? EXEC_SUCCESS : EXEC_ERROR;
+			return epoll_ctl(reactor->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
-		return EXEC_SUCCESS;
+		return TRUE;
 	#elif defined(__FreeBSD__) || defined(__APPLE__)
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ENABLE | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
-		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) ? EXEC_ERROR : EXEC_SUCCESS;
+		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	#endif
 	}
 	else {
 		errno = EINVAL;
-		return EXEC_ERROR;
+		return FALSE;
 	}
 #endif
-	return EXEC_ERROR;
+	return FALSE;
 }
 
 int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
@@ -547,13 +545,13 @@ static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CA
 }
 #endif
 
-EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
+BOOL reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	FD_t connfd;
 	struct sockaddr_storage saddr;
 #if defined(_WIN32) || defined(_WIN64)
 	int slen = sizeof(saddr);
 	if (!__win32AcceptPretreatment(listenfd, ol, cbfunc, arg)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 #else
 	socklen_t slen = sizeof(saddr);
@@ -569,10 +567,10 @@ EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfu
 		case WSAEMFILE:
 		case WSAENOBUFS:
 		case WSAEWOULDBLOCK:
-			return EXEC_SUCCESS;
+			return TRUE;
 		case WSAECONNRESET:
 		case WSAEINTR:
-			return EXEC_SUCCESS;
+			return TRUE;
 	}
 #else
 	switch (errno) {
@@ -584,27 +582,27 @@ EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfu
 		case EMFILE:
 		case ENOBUFS:
 		case ENOMEM:
-			return EXEC_SUCCESS;
+			return TRUE;
 		case ECONNABORTED:
 		case EPERM:/* maybe linux firewall */
 		case EINTR:
-			return EXEC_SUCCESS;
+			return TRUE;
 	}
 #endif
-	return EXEC_ERROR;
+	return FALSE;
 }
 
-EXEC_RETURN reactor_Close(Reactor_t* reactor) {
+BOOL reactor_Close(Reactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle((HANDLE)(reactor->__hNio)) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CloseHandle((HANDLE)(reactor->__hNio));
 #else
 	#ifdef	__linux__
 	if (reactor->__epfd >= 0 && close(reactor->__epfd)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 	reactor->__epfd = -1;
 	#endif
-	return close(reactor->__hNio) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return close(reactor->__hNio) == 0;
 #endif
 }
 

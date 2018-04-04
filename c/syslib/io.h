@@ -60,10 +60,10 @@ extern "C" {
 /* aiocb */
 void aio_Init(struct aiocb* cb, size_t udata);
 void aio_SetOffset(struct aiocb* cb, long long offset);
-EXEC_RETURN aio_Commit(struct aiocb* cb);
+BOOL aio_Commit(struct aiocb* cb);
 BOOL aio_HasCompleted(const struct aiocb* cb);
-EXEC_RETURN aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec);
-EXEC_RETURN aio_Cancel(FD_t fd, struct aiocb* cb);
+BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec);
+BOOL aio_Cancel(FD_t fd, struct aiocb* cb);
 int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
 /* NIO */
 #define	REACTOR_NOP		0
@@ -78,15 +78,15 @@ typedef struct Reactor_t {
 #endif
 } Reactor_t;
 typedef void (*REACTOR_ACCEPT_CALLBACK) (FD_t, struct sockaddr_storage*, size_t);
-EXEC_RETURN reactor_Create(Reactor_t* reactor);
-EXEC_RETURN reactor_Reg(Reactor_t* reactor, FD_t fd);
-EXEC_RETURN reactor_Cancel(Reactor_t* reactor, FD_t fd);
-EXEC_RETURN reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
+BOOL reactor_Create(Reactor_t* reactor);
+BOOL reactor_Reg(Reactor_t* reactor, FD_t fd);
+BOOL reactor_Cancel(Reactor_t* reactor, FD_t fd);
+BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
 int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
 void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
 BOOL reactor_ConnectCheckSuccess(FD_t sockfd);
-EXEC_RETURN reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
-EXEC_RETURN reactor_Close(Reactor_t* reactor);
+BOOL reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
+BOOL reactor_Close(Reactor_t* reactor);
 
 #ifdef	__cplusplus
 }

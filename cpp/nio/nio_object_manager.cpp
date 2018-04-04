@@ -11,8 +11,8 @@ namespace Util {
 NioObjectManager::NioObjectManager(const NioObjectManager& o) {}
 NioObjectManager& NioObjectManager::operator=(const NioObjectManager& o) { return *this; }
 NioObjectManager::NioObjectManager(void) {
-	assert_true(rwlock_Create(&m_validLock) == EXEC_SUCCESS);
-	assert_true(reactor_Create(&m_reactor) == EXEC_SUCCESS);
+	assert_true(rwlock_Create(&m_validLock));
+	assert_true(reactor_Create(&m_reactor));
 }
 
 NioObjectManager::~NioObjectManager(void) {

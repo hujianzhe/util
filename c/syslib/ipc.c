@@ -29,31 +29,31 @@ sighandler_t signal_Handle(int signo, sighandler_t func) {
 }
 
 /* pipe */
-EXEC_RETURN pipe_Create(FD_t* r, FD_t* w) {
+BOOL pipe_Create(FD_t* r, FD_t* w) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* note: IOCP can't use anonymous pipes(without an overlapped flag) */
 	SECURITY_ATTRIBUTES sa = {0};
 	sa.nLength = sizeof(sa);
 	sa.lpSecurityDescriptor = NULL;
 	sa.bInheritHandle = TRUE;
-	return CreatePipe((PHANDLE)r, (PHANDLE)w, &sa, 0) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CreatePipe((PHANDLE)r, (PHANDLE)w, &sa, 0);
 #else
 	int fd[2];
 	if (pipe(fd)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
 	*r = fd[0];
 	*w = fd[1];
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
-EXEC_RETURN pipe_NonBlock(FD_t pipefd, BOOL bool_val) {
+BOOL pipe_NonBlock(FD_t pipefd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = bool_val ? PIPE_NOWAIT : PIPE_WAIT;
-	return SetNamedPipeHandleState((HANDLE)pipefd, &mode, NULL, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SetNamedPipeHandleState((HANDLE)pipefd, &mode, NULL, NULL);
 #else
-	return ioctl(pipefd, FIONBIO, &bool_val) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return ioctl(pipefd, FIONBIO, &bool_val) == 0;
 #endif
 }
 
@@ -68,15 +68,15 @@ int pipe_ReadableBytes(FD_t r) {
 }
 
 /* critical section */
-EXEC_RETURN cslock_Create(CSLock_t* cs) {
+BOOL cslock_Create(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	__try {
 		InitializeCriticalSection(cs);
 	}
 	__except (STATUS_NO_MEMORY) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
 	int res;
 	int attr_ok = 0;
@@ -98,22 +98,22 @@ EXEC_RETURN cslock_Create(CSLock_t* cs) {
 	}
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
-EXEC_RETURN cslock_TryEnter(CSLock_t* cs) {
+BOOL cslock_TryEnter(CSLock_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
-	return TryEnterCriticalSection(cs) ? EXEC_SUCCESS : EXEC_ERROR;
+	return TryEnterCriticalSection(cs);
 #else
 	int res = pthread_mutex_trylock(cs);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
@@ -142,23 +142,23 @@ void cslock_Close(CSLock_t* cs) {
 }
 
 /* condition */
-EXEC_RETURN condition_Create(ConditionVariable_t* condition) {
+BOOL condition_Create(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	InitializeConditionVariable(condition);
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
 	int res = pthread_cond_init(condition, NULL);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
-EXEC_RETURN condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec) {
+BOOL condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
-	return SleepConditionVariableCS(condition, cs, msec) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SleepConditionVariableCS(condition, cs, msec);
 #else
 	int res;
 	do {
@@ -187,9 +187,9 @@ EXEC_RETURN condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec
 	} while (0);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
@@ -217,36 +217,36 @@ void condition_Close(ConditionVariable_t* condition) {
 }
 
 /* mutex */
-EXEC_RETURN mutex_Create(Mutex_t* mutex) {
+BOOL mutex_Create(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* windows mutex will auto release after it's owner thread exit. */
 	/* then...if another thread call WaitForSingleObject for that mutex,it will return WAIT_ABANDONED */
 	HANDLE res = CreateEvent(NULL, FALSE, TRUE, NULL);/* so,I use event. */
 	if (res) {
 		*mutex = res;
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #else
 	int res = pthread_mutex_init(mutex, NULL);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
-EXEC_RETURN mutex_TryLock(Mutex_t* mutex) {
+BOOL mutex_TryLock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	return WaitForSingleObject(*mutex, 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return WaitForSingleObject(*mutex, 0) == WAIT_OBJECT_0;
 #else
 	int res = pthread_mutex_trylock(mutex);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
@@ -275,7 +275,7 @@ void mutex_Close(Mutex_t* mutex) {
 }
 
 /* read/write lock */
-EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
+BOOL rwlock_Create(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* I don't use SRW Locks because SRW Locks are neither fair nor FIFO. */
 	/*InitializeSRWLock(rwlock);*/
@@ -297,7 +297,7 @@ EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 		}
 		rwlock->__exclusive_lock = FALSE;
 		rwlock->__read_cnt = 0;
-		return EXEC_SUCCESS;
+		return TRUE;
 	} while (0);
 	if (read_ev_ok) {
 		assert_true(CloseHandle(rwlock->__read_ev));
@@ -305,7 +305,7 @@ EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 	if (write_ev_ok) {
 		assert_true(CloseHandle(rwlock->__write_ev));
 	}
-	return EXEC_ERROR;
+	return FALSE;
 #else
 	int res;
 	#ifdef  __linux__
@@ -335,9 +335,9 @@ EXEC_RETURN rwlock_Create(RWLock_t* rwlock) {
 	#endif
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 
@@ -346,9 +346,9 @@ void rwlock_LockRead(RWLock_t* rwlock) {
 	/*
 	if (wait_bool) {
 		AcquireSRWLockShared(rwlock);
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return TryAcquireSRWLockShared(rwlock) ? EXEC_SUCCESS : EXEC_ERROR;
+	return TryAcquireSRWLockShared(rwlock);
 	*/
 	assert_true(WaitForSingleObject(rwlock->__read_ev, INFINITE) == WAIT_OBJECT_0);
 	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
@@ -362,9 +362,9 @@ void rwlock_LockRead(RWLock_t* rwlock) {
 	int res = pthread_rwlock_tryrdlock(rwlock);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 	*/
 #endif
 }
@@ -374,9 +374,9 @@ void rwlock_LockWrite(RWLock_t* rwlock) {
 	/*
 	if (wait_bool) {
 		AcquireSRWLockExclusive(rwlock);
-		return EXEC_SUCCESS;
+		return TRUE;
 	}
-	return TryAcquireSRWLockExclusive(rwlock) ? EXEC_SUCCESS : EXEC_ERROR;
+	return TryAcquireSRWLockExclusive(rwlock);
 	*/
 	assert_true(ResetEvent(rwlock->__read_ev));
 	assert_true(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
@@ -387,9 +387,9 @@ void rwlock_LockWrite(RWLock_t* rwlock) {
 	int res = pthread_rwlock_trywrlock(rwlock);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 	*/
 #endif
 }
@@ -449,11 +449,11 @@ SemId_t semaphore_Open(const char* name) {
 #endif
 }
 
-EXEC_RETURN semaphore_TryWait(SemId_t id) {
+BOOL semaphore_TryWait(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	return WaitForSingleObject(id, 0) == WAIT_OBJECT_0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return WaitForSingleObject(id, 0) == WAIT_OBJECT_0;
 #else
-	return sem_trywait(id) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return sem_trywait(id) == 0;
 #endif
 }
 
@@ -481,11 +481,11 @@ void semaphore_Close(SemId_t id) {
 #endif
 }
 
-EXEC_RETURN semaphore_Unlink(const char* name) {
+BOOL semaphore_Unlink(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
-	return EXEC_SUCCESS;
+	return TRUE;
 #else
-	return sem_unlink(name) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return sem_unlink(name) == 0;
 #endif
 }
 
@@ -498,16 +498,16 @@ BOOL CALLBACK __win32InitOnceCallback(PINIT_ONCE InitOnce, PVOID Parameter, PVOI
 }
 #endif
 
-EXEC_RETURN initonce_Call(InitOnce_t* once, void(*callback)(void)) {
+BOOL initonce_Call(InitOnce_t* once, void(*callback)(void)) {
 #if defined(_WIN32) || defined(_WIN64)
-	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL) ? EXEC_SUCCESS : EXEC_ERROR;
+	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL);
 #else
 	int res = pthread_once(once, callback);
 	if (res) {
 		errno = res;
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 

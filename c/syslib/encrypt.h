@@ -41,15 +41,15 @@ size_t url_Decode(const char* src, size_t srclen, char* dst);
 size_t base64_Encode(const unsigned char* src, size_t srclen, char* dst);
 size_t base64_Decode(const char* src, size_t srclen, unsigned char* dst);
 /* md5 */
-EXEC_RETURN md5_Init(CC_MD5_CTX* ctx);
-EXEC_RETURN md5_Update(CC_MD5_CTX* ctx, const void* data, size_t len);
-EXEC_RETURN md5_Final(unsigned char* md5, CC_MD5_CTX* ctx);
-EXEC_RETURN md5_Clean(CC_MD5_CTX* ctx);
+BOOL md5_Init(CC_MD5_CTX* ctx);
+BOOL md5_Update(CC_MD5_CTX* ctx, const void* data, size_t len);
+BOOL md5_Final(unsigned char* md5, CC_MD5_CTX* ctx);
+BOOL md5_Clean(CC_MD5_CTX* ctx);
 /* sha1 */
-EXEC_RETURN sha1_Init(CC_SHA1_CTX* ctx);
-EXEC_RETURN sha1_Update(CC_SHA1_CTX* ctx, const void* data, size_t len);
-EXEC_RETURN sha1_Final(unsigned char* sha1, CC_SHA1_CTX* ctx);
-EXEC_RETURN sha1_Clean(CC_SHA1_CTX* ctx);
+BOOL sha1_Init(CC_SHA1_CTX* ctx);
+BOOL sha1_Update(CC_SHA1_CTX* ctx, const void* data, size_t len);
+BOOL sha1_Final(unsigned char* sha1, CC_SHA1_CTX* ctx);
+BOOL sha1_Clean(CC_SHA1_CTX* ctx);
 
 #ifdef	__cplusplus
 }

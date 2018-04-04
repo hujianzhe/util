@@ -39,8 +39,8 @@ extern "C" {
 #endif
 
 /* uuid */
-EXEC_RETURN uuid_Create(uuid_t* uuid);
-EXEC_RETURN uuid_GetString(uuid_t* uuid, uuid_string_t* uuid_string);
+BOOL uuid_Create(uuid_t* uuid);
+BOOL uuid_GetString(uuid_t* uuid, uuid_string_t* uuid_string);
 /* processor */
 int processor_IsLittleEndian(void);
 size_t processor_Count(void);
@@ -48,10 +48,10 @@ size_t processor_Count(void);
 char* current_Username(char* buffer, size_t nbytes);
 char* host_Name(char* buf, size_t len);
 /* memory */
-EXEC_RETURN page_Size(unsigned long* page_size, unsigned long* granularity);
-EXEC_RETURN memory_Size(unsigned long long* total);
+BOOL page_Size(unsigned long* page_size, unsigned long* granularity);
+BOOL memory_Size(unsigned long long* total);
 /* disk */
-EXEC_RETURN partition_Size(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
+BOOL partition_Size(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
 
 #ifdef	__cplusplus
 }

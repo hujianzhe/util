@@ -16,7 +16,7 @@ DatabaseConnectPool::DatabaseConnectPool(int db_type, const char* ip, unsigned s
 	m_pwd(pwd),
 	m_database(database)
 {
-	assert_true(cslock_Create(&m_lock) == EXEC_SUCCESS);
+	assert_true(cslock_Create(&m_lock));
 }
 
 DatabaseConnectPool::~DatabaseConnectPool(void) {

@@ -191,79 +191,79 @@ static BOOL __win32_crypt_clean(struct __WIN32_CRYPT_CTX* ctx) {
 }
 #endif
 /* md5 */
-EXEC_RETURN md5_Init(CC_MD5_CTX* ctx) {
+BOOL md5_Init(CC_MD5_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_init(ctx);
 #elif	__APPLE__
-	return CC_MD5_Init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_MD5_Init(ctx);
 #else
-	return MD5_Init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return MD5_Init(ctx);
 #endif
 }
-EXEC_RETURN md5_Update(CC_MD5_CTX* ctx, const void* data, size_t len) {
+BOOL md5_Update(CC_MD5_CTX* ctx, const void* data, size_t len) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (ctx->hHash == 0 && !__win32_crypt_hash_create(ctx, CALG_MD5)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return __win32_crypt_update(ctx, (const BYTE*)data, len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_update(ctx, (const BYTE*)data, len);
 #elif	__APPLE__
-	return CC_MD5_Update(ctx, data, (CC_LONG)len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_MD5_Update(ctx, data, (CC_LONG)len);
 #else
-	return MD5_Update(ctx, data, len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return MD5_Update(ctx, data, len);
 #endif
 }
-EXEC_RETURN md5_Final(unsigned char* md5, CC_MD5_CTX* ctx) {
+BOOL md5_Final(unsigned char* md5, CC_MD5_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_final(md5, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_final(md5, ctx);
 #elif	__APPLE__
-	return CC_MD5_Final(md5, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_MD5_Final(md5, ctx);
 #else
-	return MD5_Final(md5, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return MD5_Final(md5, ctx);
 #endif
 }
-EXEC_RETURN md5_Clean(CC_MD5_CTX* ctx) {
+BOOL md5_Clean(CC_MD5_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_clean(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_clean(ctx);
 #else
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 /* sha1 */
-EXEC_RETURN sha1_Init(CC_SHA1_CTX* ctx) {
+BOOL sha1_Init(CC_SHA1_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_init(ctx);
 #elif	__APPLE__
-	return CC_SHA1_Init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_SHA1_Init(ctx);
 #else
-	return SHA1_Init(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SHA1_Init(ctx);
 #endif
 }
-EXEC_RETURN sha1_Update(CC_SHA1_CTX* ctx, const void* data, size_t len) {
+BOOL sha1_Update(CC_SHA1_CTX* ctx, const void* data, size_t len) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (ctx->hHash == 0 && !__win32_crypt_hash_create(ctx, CALG_SHA1)) {
-		return EXEC_ERROR;
+		return FALSE;
 	}
-	return __win32_crypt_update(ctx, (const BYTE*)data, len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_update(ctx, (const BYTE*)data, len);
 #elif	__APPLE__
-	return CC_SHA1_Update(ctx, data, len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_SHA1_Update(ctx, data, len);
 #else
-	return SHA1_Update(ctx, data, len) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SHA1_Update(ctx, data, len);
 #endif
 }
-EXEC_RETURN sha1_Final(unsigned char* sha1, CC_SHA1_CTX* ctx) {
+BOOL sha1_Final(unsigned char* sha1, CC_SHA1_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_final(sha1, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_final(sha1, ctx);
 #elif	__APPLE__
-	return CC_SHA1_Final(sha1, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CC_SHA1_Final(sha1, ctx);
 #else
-	return SHA1_Final(sha1, ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return SHA1_Final(sha1, ctx);
 #endif
 }
-EXEC_RETURN sha1_Clean(CC_SHA1_CTX* ctx) {
+BOOL sha1_Clean(CC_SHA1_CTX* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_clean(ctx) ? EXEC_SUCCESS : EXEC_ERROR;
+	return __win32_crypt_clean(ctx);
 #else
-	return EXEC_SUCCESS;
+	return TRUE;
 #endif
 }
 

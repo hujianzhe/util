@@ -36,10 +36,10 @@ time_t NioObject::updateLastActiveTime(void) {
 }
 
 bool NioObject::reactorInit(Reactor_t* reactor) {
-	if (sock_NonBlock(m_fd, TRUE) != EXEC_SUCCESS) {
+	if (!sock_NonBlock(m_fd, TRUE)) {
 		return false;
 	}
-	if (reactor_Reg(reactor, m_fd) != EXEC_SUCCESS) {
+	if (!reactor_Reg(reactor, m_fd)) {
 		return false;
 	}
 	m_reactor = reactor;
@@ -53,7 +53,7 @@ bool NioObject::reactorRead(void) {
 		return m_valid;
 	}
 	struct sockaddr_storage saddr;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_READ, &m_readOl, &saddr) == EXEC_SUCCESS) {
+	if (reactor_Commit(m_reactor, m_fd, REACTOR_READ, &m_readOl, &saddr)) {
 		return true;
 	}
 	m_valid = false;
@@ -61,7 +61,7 @@ bool NioObject::reactorRead(void) {
 }
 bool NioObject::reactorWrite(void) {
 	struct sockaddr_storage saddr;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_WRITE, &m_writeOl, &saddr) == EXEC_SUCCESS) {
+	if (reactor_Commit(m_reactor, m_fd, REACTOR_WRITE, &m_writeOl, &saddr)) {
 		return true;
 	}
 	m_valid = false;

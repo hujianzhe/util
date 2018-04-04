@@ -16,7 +16,7 @@ TcpNioObject::TcpNioObject(FD_t fd) :
 	m_outbufMutexInitOk(false),
 	m_writeCommit(false)
 {
-	if (mutex_Create(&m_outbufMutex) != EXEC_SUCCESS) {
+	if (!mutex_Create(&m_outbufMutex)) {
 		throw std::logic_error("Util::TcpNioObject mutex_Create failure");
 	}
 	m_outbufMutexInitOk = true;
@@ -31,7 +31,7 @@ TcpNioObject::~TcpNioObject(void) {
 #if __CPP_VERSION >= 2011
 bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb) {
 	struct sockaddr_storage saddr;
-	if (sock_Text2Addr(&saddr, family, ip, port) != EXEC_SUCCESS) {
+	if (!sock_Text2Addr(&saddr, family, ip, port)) {
 		return false;
 	}
 	return reactorConnect(&saddr, cb);
@@ -39,7 +39,7 @@ bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short por
 bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(TcpNioObject*, bool)>& cb) {
 	m_connecting = true;
 	m_connectCallback = cb;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr) == EXEC_SUCCESS) {
+	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
 	}
 	m_connecting = false;
@@ -49,7 +49,7 @@ bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, const std::fun
 #endif
 bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, ConnectFunctor* cb) {
 	struct sockaddr_storage saddr;
-	if (sock_Text2Addr(&saddr, family, ip, port) != EXEC_SUCCESS) {
+	if (!sock_Text2Addr(&saddr, family, ip, port)) {
 		return false;
 	}
 	return reactorConnect(&saddr, cb);
@@ -57,7 +57,7 @@ bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short por
 bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor* cb) {
 	m_connecting = true;
 	m_connectCallbackFunctor = cb;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr) == EXEC_SUCCESS) {
+	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
 	}
 	m_connecting = false;

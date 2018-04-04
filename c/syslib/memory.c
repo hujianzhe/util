@@ -48,12 +48,12 @@ static long __granularity(void) {
 #endif
 }
 
-EXEC_RETURN mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
+BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
 	mm->granularity = __granularity();
 	if (fd != INVALID_FD_HANDLE) {
 #if defined(_WIN32) || defined(_WIN64)
 		mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
-		return mm->__handle ? EXEC_SUCCESS : EXEC_ERROR;
+		return mm->__handle != NULL;
 #else
 		mm->__fd = fd;
 #endif
@@ -63,39 +63,39 @@ EXEC_RETURN mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t n
 		HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
 		if (GetLastError() == ERROR_ALREADY_EXISTS) {
 			assert_true(CloseHandle(handle));
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		mm->__handle = handle;
 #else
 		int fd = open(name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 		if (-1 == fd) {
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		if (ftruncate(fd, nbytes)) {
 			assert_true(close(fd) == 0);
-			return EXEC_ERROR;
+			return FALSE;
 		}
 		mm->__fd = fd;
 #endif
 	}
-	return EXEC_SUCCESS;
+	return TRUE;
 }
 
-EXEC_RETURN mmap_Open(MemoryMapping_t* mm, const char* name) {
+BOOL mmap_Open(MemoryMapping_t* mm, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
-	return mm->__handle ? EXEC_SUCCESS : EXEC_ERROR;
+	return mm->__handle != NULL;
 #else
 	mm->__fd = open(name, O_RDWR);
-	return mm->__fd != -1 ? EXEC_SUCCESS : EXEC_ERROR;
+	return mm->__fd != -1;
 #endif
 }
 
-EXEC_RETURN mmap_Close(MemoryMapping_t* mm) {
+BOOL mmap_Close(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle((HANDLE)(mm->__handle)) ? EXEC_SUCCESS : EXEC_ERROR;
+	return CloseHandle((HANDLE)(mm->__handle));
 #else
-	return close(mm->__fd) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return close(mm->__fd) == 0;
 #endif
 }
 
@@ -107,19 +107,19 @@ void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbyt
 #endif
 }
 
-EXEC_RETURN mmap_Sync(void* addr, size_t nbytes) {
+BOOL mmap_Sync(void* addr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
-	return FlushViewOfFile(addr, nbytes) ? EXEC_SUCCESS : EXEC_ERROR;
+	return FlushViewOfFile(addr, nbytes);
 #else
-	return msync(addr, nbytes, MS_SYNC) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return msync(addr, nbytes, MS_SYNC) == 0;
 #endif
 }
 
-EXEC_RETURN mmap_Unmap(void* addr, size_t nbytes) {
+BOOL mmap_Unmap(void* addr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
-	return UnmapViewOfFile(addr) ? EXEC_SUCCESS : EXEC_ERROR;
+	return UnmapViewOfFile(addr);
 #else
-	return munmap(addr, nbytes) == 0 ? EXEC_SUCCESS : EXEC_ERROR;
+	return munmap(addr, nbytes) == 0;
 #endif
 }
 

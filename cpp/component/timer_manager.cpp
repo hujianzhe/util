@@ -9,7 +9,7 @@ namespace Util {
 TimerManager::TimerManager(void(*deleter)(list_node_t*)) :
 	m_deleter(deleter)
 {
-	assert_true(mutex_Create(&m_mutex) == EXEC_SUCCESS);
+	assert_true(mutex_Create(&m_mutex));
 }
 TimerManager::~TimerManager(void) {
 	if (m_deleter) {
