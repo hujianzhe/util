@@ -158,7 +158,7 @@ void Logger::build(const char* priority, const char* format, va_list varg) {
 	if (!format || 0 == *format) {
 		return;
 	}
-	if (!mktm(gmt_Second(), &dt)) {
+	if (!mktm(gmt_second(), &dt)) {
 		return;
 	}
 	normal_tm(&dt);

@@ -14,26 +14,27 @@ extern "C" {
 int TIMESTAMP_OFFSET_SECOND = 0;
 
 /* time trasform */
-int gmt_TimeZoneOffsetSecond(void) {
+int gmt_timezone_offset_second(void) {
+	/* time_t local_time = gmt_second() - gmt_timezone_offset_second() */
 	static int tm_gmtoff;
 	if (0 == tm_gmtoff) {
 #if defined(WIN32) || defined(_WIN64)
 		TIME_ZONE_INFORMATION tz;
 		if (GetTimeZoneInformation(&tz) == TIME_ZONE_ID_INVALID)
 			return -1;
-		tm_gmtoff = -(tz.Bias * 60);
+		tm_gmtoff = tz.Bias * 60;
 #else
 		struct timeval tv;
 		struct timezone tz;
 		if (gettimeofday(&tv, &tz))
 			return -1;
-		tm_gmtoff = -tz.tz_minuteswest * 60;
+		tm_gmtoff = tz.tz_minuteswest * 60;
 #endif
 	}
 	return tm_gmtoff;
 }
 
-long long gmt_Millisecond(void) {
+long long gmt_millisecond(void) {
 #if defined(WIN32) || defined(_WIN64)
 	/*
 	struct __timeb64 tval;
@@ -212,6 +213,11 @@ void rand48_seed(Rand48Ctx_t* ctx, int seedval) {
 int rand48_int(Rand48Ctx_t* ctx) {
 	__rand_next(ctx);
 	return (((int)(ctx->x[2]) << (N - 1)) + (ctx->x[1] >> 1));
+}
+
+int rand48_int_range(Rand48Ctx_t* ctx, int start, int end) {
+	/* [start, end) */
+	return rand48_int(ctx) % (end - start) + start;
 }
 
 #ifdef	__cplusplus

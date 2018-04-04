@@ -18,7 +18,7 @@ NioObject::NioObject(FD_t fd, int socktype) :
 	m_userdata(NULL),
 	m_readCommit(FALSE),
 	m_shutdown(1),
-	m_createTime(gmt_Second()),
+	m_createTime(gmt_second()),
 	m_lastActiveTime(0),
 	m_timeoutSecond(INFTIM)
 {
@@ -31,7 +31,7 @@ NioObject::~NioObject(void) {
 }
 
 time_t NioObject::updateLastActiveTime(void) {
-	m_lastActiveTime = gmt_Second();
+	m_lastActiveTime = gmt_second();
 	return m_lastActiveTime;
 }
 
@@ -44,7 +44,7 @@ bool NioObject::reactorInit(Reactor_t* reactor) {
 	}
 	m_reactor = reactor;
 	m_valid = true;
-	m_lastActiveTime = gmt_Second();
+	m_lastActiveTime = gmt_second();
 	return true;
 }
 
@@ -86,7 +86,7 @@ void NioObject::shutdownWaitAck(void) {
 }
 
 bool NioObject::checkTimeout(void) {
-	return m_timeoutSecond >= 0 && gmt_Second() - m_timeoutSecond > m_lastActiveTime;
+	return m_timeoutSecond >= 0 && gmt_second() - m_timeoutSecond > m_lastActiveTime;
 }
 bool NioObject::checkValid(void) {
 	if (m_valid && checkTimeout()) {

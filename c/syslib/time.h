@@ -21,9 +21,9 @@ extern "C" {
 extern int TIMESTAMP_OFFSET_SECOND;
 
 /* time trasform */
-int gmt_TimeZoneOffsetSecond(void);
-#define	gmt_Second()			time(NULL)
-long long gmt_Millisecond(void);
+int gmt_timezone_offset_second(void);
+#define	gmt_second()	time(NULL)
+long long gmt_millisecond(void);
 char* gmtsecond2localstr(time_t value, char* buf, size_t len);
 char* localtm2localstr(struct tm* datetime, char* buf, size_t len);
 struct tm* mktm(time_t value, struct tm* datetime);
@@ -34,6 +34,7 @@ int tm_cmp(const struct tm* t1, const struct tm* t2);
 typedef struct Rand48Ctx_t { unsigned int x[3], a[3], c; } Rand48Ctx_t;
 void rand48_seed(Rand48Ctx_t* ctx, int seedval);
 int rand48_int(Rand48Ctx_t* ctx);
+int rand48_int_range(Rand48Ctx_t* ctx, int start, int end);
 
 #ifdef	__cplusplus
 }
