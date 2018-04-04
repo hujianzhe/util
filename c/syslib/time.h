@@ -30,6 +30,10 @@ struct tm* mktm(time_t value, struct tm* datetime);
 struct tm* normal_tm(struct tm* datetime);
 struct tm* unnormal_tm(struct tm* datetime);
 int tm_cmp(const struct tm* t1, const struct tm* t2);
+/* random */
+typedef struct Rand48Ctx_t { unsigned int x[3], a[3], c; } Rand48Ctx_t;
+void rand48_seed(Rand48Ctx_t* ctx, int seedval);
+int rand48_int(Rand48Ctx_t* ctx);
 
 #ifdef	__cplusplus
 }

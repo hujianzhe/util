@@ -166,6 +166,54 @@ int tm_cmp(const struct tm* t1, const struct tm* t2) {
 	return 0;
 }
 
+/* random */
+#define	N					16
+#define MASK				((1 << (N - 1)) + (1 << (N - 1)) - 1)
+#define LOW(x)				((unsigned)(x) & MASK)
+#define HIGH(x)				LOW((x) >> N)
+#define MUL(x, y, z)		{ int l = (long)(x) * (long)(y); (z)[0] = LOW(l); (z)[1] = HIGH(l); }
+#define CARRY(x, y)			((int)(x) + (long)(y) > MASK)
+#define ADDEQU(x, y, z)		(z = CARRY(x, (y)), x = LOW(x + (y)))
+#define X0					0x330E
+#define X1					0xABCD
+#define X2					0x1234
+#define A0					0xE66D
+#define A1					0xDEEC
+#define A2					0x5
+#define C					0xB
+#define SET3(x, x0, x1, x2)	((x)[0] = (x0), (x)[1] = (x1), (x)[2] = (x2))
+static void __rand_next(Rand48Ctx_t* ctx) {
+	unsigned int p[2], q[2], r[2], carry0, carry1;
+
+	MUL(ctx->a[0], ctx->x[0], p);
+	ADDEQU(p[0], ctx->c, carry0);
+	ADDEQU(p[1], carry0, carry1);
+	MUL(ctx->a[0], ctx->x[1], q);
+	ADDEQU(p[1], q[0], carry0);
+	MUL(ctx->a[1], ctx->x[0], r);
+	ctx->x[2] = LOW(carry0 + carry1 + CARRY(p[1], r[0]) + q[1] + r[1] +
+				ctx->a[0] * ctx->x[2] + ctx->a[1] * ctx->x[1] + ctx->a[2] * ctx->x[0]);
+	ctx->x[1] = LOW(p[1] + r[0]);
+	ctx->x[0] = LOW(p[0]);
+}
+
+void rand48_seed(Rand48Ctx_t* ctx, int seedval) {
+	ctx->x[0] = X0;
+	ctx->x[1] = LOW(seedval);
+	ctx->x[2] = HIGH(seedval);
+
+	ctx->a[0] = A0;
+	ctx->a[1] = A1;
+	ctx->a[2] = A2;
+
+	ctx->c = C;
+}
+
+int rand48_int(Rand48Ctx_t* ctx) {
+	__rand_next(ctx);
+	return (((int)(ctx->x[2]) << (N - 1)) + (ctx->x[1] >> 1));
+}
+
 #ifdef	__cplusplus
 }
 #endif
