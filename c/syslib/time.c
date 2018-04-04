@@ -183,7 +183,7 @@ int tm_cmp(const struct tm* t1, const struct tm* t2) {
 #define A2					0x5
 #define C					0xB
 #define SET3(x, x0, x1, x2)	((x)[0] = (x0), (x)[1] = (x1), (x)[2] = (x2))
-static void __rand_next(Rand48Ctx_t* ctx) {
+static void __rand_next(Rand48_t* ctx) {
 	unsigned int p[2], q[2], r[2], carry0, carry1;
 
 	MUL(ctx->a[0], ctx->x[0], p);
@@ -198,7 +198,7 @@ static void __rand_next(Rand48Ctx_t* ctx) {
 	ctx->x[0] = LOW(p[0]);
 }
 
-void rand48_seed(Rand48Ctx_t* ctx, int seedval) {
+void rand48_seed(Rand48_t* ctx, int seedval) {
 	ctx->x[0] = X0;
 	ctx->x[1] = LOW(seedval);
 	ctx->x[2] = HIGH(seedval);
@@ -210,14 +210,43 @@ void rand48_seed(Rand48Ctx_t* ctx, int seedval) {
 	ctx->c = C;
 }
 
-int rand48_int(Rand48Ctx_t* ctx) {
+int rand48_int(Rand48_t* ctx) {
 	__rand_next(ctx);
 	return (((int)(ctx->x[2]) << (N - 1)) + (ctx->x[1] >> 1));
 }
 
-int rand48_int_range(Rand48Ctx_t* ctx, int start, int end) {
+int rand48_int_range(Rand48_t* ctx, int start, int end) {
 	/* [start, end) */
 	return rand48_int(ctx) % (end - start) + start;
+}
+
+void mt19937_seed(RandMT19937_t* ctx, int seedval) {
+	int i;
+	unsigned long long* x = ctx->x;
+	x[0] = seedval;
+	for (i = 1; i < sizeof(ctx->x) / sizeof(ctx->x[0]); i++)
+		x[i] = 6364136223846793005ULL * (x[i - 1] ^ (x[i - 1] >> (64 - 2))) + i;
+	ctx->k = 0;
+}
+
+unsigned long long mt19937_int(RandMT19937_t* ctx) {
+	int k = ctx->k;
+	unsigned long long* x = ctx->x;
+	unsigned long long y, z;
+
+	/* z = (x^u_k | x^l_(k+1))*/
+	z = (x[k] & 0xffffffff80000000ULL) | (x[(k + 1) % 312] & 0x7fffffffULL);
+	/* x_(k+n) = x_(k+m) |+| z*A */
+	x[k] = x[(k + 156) % 312] ^ (z >> 1) ^ (!(z & 1ULL) ? 0ULL : 0xb5026f5aa96619e9ULL);
+	/* Tempering */
+	y = x[k];
+	y ^= (y >> 29) & 0x5555555555555555ULL;
+	y ^= (y << 17) & 0x71d67fffeda60000ULL;
+	y ^= (y << 37) & 0xfff7eee000000000ULL;
+	y ^= y >> 43;
+
+	ctx->k = (k + 1) % 312;
+	return y;
 }
 
 #ifdef	__cplusplus
