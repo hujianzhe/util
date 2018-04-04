@@ -229,7 +229,7 @@ void mt19937_seed(RandMT19937_t* ctx, int seedval) {
 	ctx->k = 0;
 }
 
-unsigned long long mt19937_int(RandMT19937_t* ctx) {
+unsigned long long mt19937_uint64(RandMT19937_t* ctx) {
 	int k = ctx->k;
 	unsigned long long* x = ctx->x;
 	unsigned long long y, z;
