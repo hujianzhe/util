@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #endif
-#include <stdlib.h>
 
 #ifdef	__cplusplus
 extern "C" {

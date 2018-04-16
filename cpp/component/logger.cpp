@@ -7,6 +7,7 @@
 #include "../../c/syslib/time.h"
 #include "logger.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 namespace Util {

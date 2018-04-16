@@ -58,6 +58,6 @@
 	#endif
 #endif
 
-#define	assert_true(exp)			if (!(exp)) abort()
+#define	assert_true(exp)			if (!(exp)) *(int*)0 = 0
 
 #endif

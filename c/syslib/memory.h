@@ -19,6 +19,7 @@
 	#endif
 	#include <sys/mman.h>
 #endif
+#include <stdlib.h>
 
 typedef struct {
 	long granularity;
