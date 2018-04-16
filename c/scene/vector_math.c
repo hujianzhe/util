@@ -6,6 +6,10 @@
 #include <float.h>
 #include <math.h>
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 double vector_dot(const double* v1, const double* v2, int dimension) {
 	double res = 0.0;
 	int i;
@@ -83,3 +87,7 @@ struct vector3_t* vector3_normalized(const struct vector3_t* v, struct vector3_t
 	}
 	return n;
 }
+
+#ifdef	__cplusplus
+}
+#endif

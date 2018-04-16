@@ -6,6 +6,10 @@
 #include "scene2d_tree.h"
 #include <stdlib.h>
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 static int __subarea_index(struct scene2d_obb_t* ap, struct scene2d_obb_t* op) {
 	if (op->y - op->h >= ap->y - ap->h && op->y + op->h <= ap->y) {
 		if (op->x - op->w >= ap->x - ap->w && op->x + op->w <= ap->x) {
@@ -203,3 +207,7 @@ void scene2d_overlap(const struct scene2d_area_t* area, const struct scene2d_obb
 		scene2d_overlap(area->m_subarea[i], p, list);
 	}
 }
+
+#ifdef	__cplusplus
+}
+#endif

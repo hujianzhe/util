@@ -12,6 +12,10 @@ typedef struct vector3_t {
 	double x, y, z;
 } vector3_t;
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 double vector_dot(const double* v1, const double* v2, int dimension);
 double vector2_dot(const struct vector2_t* v1, const struct vector2_t* v2);
 double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2);
@@ -26,5 +30,9 @@ double vector3_len(const struct vector3_t* v);
 double* vector_normalized(const double* v, double* n, int dimension);
 struct vector2_t* vector2_normalized(const struct vector2_t* v, struct vector2_t* n);
 struct vector3_t* vector3_normalized(const struct vector3_t* v, struct vector3_t* n);
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif

@@ -17,6 +17,10 @@
 	#endif
 #endif
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 int scene2d_circle_is_overlap(const struct scene2d_circle_t* c1, const struct scene2d_circle_t* c2) {
 	double rd = c1->radius + c2->radius;
 	double xd = c1->x - c2->x;
@@ -116,3 +120,7 @@ int scene2d_convex_is_overlap(const struct scene2d_convex_t* c1, const struct sc
 	}
 	return 1;
 }
+
+#ifdef	__cplusplus
+}
+#endif

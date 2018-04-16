@@ -24,9 +24,17 @@ typedef struct scene2d_convex_t {
 	struct vector2_t* vertices;
 } scene2d_convex_t;
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 int scene2d_circle_is_overlap(const struct scene2d_circle_t* c1, const struct scene2d_circle_t* c2);
 int scene2d_obb_is_overlap(const struct scene2d_obb_t* o1, const struct scene2d_obb_t* o2);
 void scene2d_convex_rotate(struct scene2d_convex_t* c, double radian);
 int scene2d_convex_is_overlap(const struct scene2d_convex_t* c1, const struct scene2d_convex_t* c2);
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif
