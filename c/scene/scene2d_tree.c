@@ -65,7 +65,7 @@ static void __area_split(struct scene2d_area_t* area) {
 	int i;
 	struct list_node_t *cur, *next;
 	struct scene2d_area_t** sub_area = area->m_subarea;
-	for (cur = area->object_list.head; cur; cur = next) {
+	for (cur = area->shape_list.head; cur; cur = next) {
 		struct scene2d_shape_t* shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
 		next = cur->next;
 		i = __subarea_index(&area->p, &shape->p);
@@ -80,10 +80,10 @@ static void __area_split(struct scene2d_area_t* area) {
 			__subarea_setup(area, i);
 		}
 
-		list_remove_node(&area->object_list, cur);
-		--area->object_num;
-		list_insert_node_back(&sub_area[i]->object_list, sub_area[i]->object_list.tail, cur);
-		++sub_area[i]->object_num;
+		list_remove_node(&area->shape_list, cur);
+		--area->shape_num;
+		list_insert_node_back(&sub_area[i]->shape_list, sub_area[i]->shape_list.tail, cur);
+		++sub_area[i]->shape_num;
 		shape->area = sub_area[i];
 	}
 }
@@ -95,8 +95,8 @@ void scene2d_area_init(struct scene2d_area_t* node, const struct scene2d_obb_t* 
 
 	node->deep = 0;
 
-	node->object_num = 0;
-	list_init(&node->object_list);
+	node->shape_num = 0;
+	list_init(&node->shape_list);
 
 	tree_init(&node->m_tree);
 	for (i = 0; i < sizeof(node->m_subarea) / sizeof(node->m_subarea[0]); ++i) {
@@ -120,10 +120,10 @@ void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_are
 			return;
 		}
 	}
-	list_insert_node_back(&area->object_list, area->object_list.tail, &shape->m_listnode);
-	++area->object_num;
+	list_insert_node_back(&area->shape_list, area->shape_list.tail, &shape->m_listnode);
+	++area->shape_num;
 	shape->area = area;
-	if (!area->m_tree.child && area->object_num >= scinfo->every_area_max_num && area->deep < scinfo->area_max_deep) {
+	if (!area->m_tree.child && area->shape_num >= scinfo->every_area_max_num && area->deep < scinfo->area_max_deep) {
 		__area_split(area);
 	}
 }
@@ -131,8 +131,8 @@ void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_are
 void scene2d_shape_leave(struct scene2d_shape_t* shape) {
 	struct scene2d_area_t* area = shape->area;
 	struct tree_t* tree = &area->m_tree;
-	--area->object_num;
-	list_remove_node(&area->object_list, &shape->m_listnode);
+	--area->shape_num;
+	list_remove_node(&area->shape_list, &shape->m_listnode);
 	shape->area = (struct scene2d_area_t*)0;
 
 	while (tree->parent && !tree->child) {
@@ -144,7 +144,7 @@ void scene2d_shape_leave(struct scene2d_shape_t* shape) {
 			if (!sub_area[i]) {
 				continue;
 			}
-			if (sub_area[i]->object_list.head) {
+			if (sub_area[i]->shape_list.head) {
 				continue;
 			}
 			tree_remove(&sub_area[i]->m_tree);
@@ -176,8 +176,8 @@ void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shap
 	if (top_area == shape->area) {
 		return;
 	}
-	list_remove_node(&shape->area->object_list, &shape->m_listnode);
-	--shape->area->object_num;
+	list_remove_node(&shape->area->shape_list, &shape->m_listnode);
+	--shape->area->shape_num;
 	scene2d_shape_entry(scinfo, top_area, shape);
 }
 
@@ -192,7 +192,7 @@ void scene2d_overlap(const struct scene2d_area_t* area, const struct scene2d_obb
 	if (!scene2d_obb_is_overlap(&area->p, p)) {
 		return;
 	}
-	for (cur = area->object_list.head; cur; cur = cur->next) {
+	for (cur = area->shape_list.head; cur; cur = cur->next) {
 		struct scene2d_shape_t* shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
 		if (!scene2d_obb_is_overlap(&shape->p, p)) {
 			continue;

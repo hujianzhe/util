@@ -14,8 +14,8 @@ typedef struct scene2d_area_t {
 
 	unsigned int deep;
 
-	unsigned int object_num;
-	struct list_t object_list;
+	unsigned int shape_num;
+	struct list_t shape_list;
 
 	struct tree_t m_tree;
 	struct scene2d_area_t* m_subarea[4];
