@@ -6,6 +6,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#include <mswsock.h>
 	#include <ws2ipdef.h>
+	#include <stdlib.h>
 #else
 	#include <sys/socket.h>
 #endif
