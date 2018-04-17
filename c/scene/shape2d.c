@@ -2,8 +2,14 @@
 // Created by hujianzhe on 18-4-13.
 //
 
-#include "scene2d_shape.h"
+#include "shape2d.h"
+#include <errno.h>
 #include <float.h>
+#if defined(_WIN32) || defined(_WIN64)
+	#ifndef	_USE_MATH_DEFINES
+		#define	_USE_MATH_DEFINES
+	#endif
+#endif
 #include <math.h>
 #include <stdlib.h>
 #if defined(_WIN32) || defined(_WIN64)
@@ -21,17 +27,17 @@
 extern "C" {
 #endif
 
-int scene2d_circle_is_overlap(const struct scene2d_circle_t* c1, const struct scene2d_circle_t* c2) {
+int shape2d_circle_is_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
 	double rd = c1->radius + c2->radius;
 	double xd = c1->pivot.x - c2->pivot.x;
 	double yd = c1->pivot.y - c2->pivot.y;
 	return xd * xd + yd * yd < rd * rd;
 }
 
-static double __projection(const struct scene2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
+static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
 	return p->w * fabs(vector2_dot(v, &pv[0])) + p->h * fabs(vector2_dot(v, &pv[1]));
 }
-int scene2d_obb_is_overlap(const struct scene2d_obb_t* o1, const struct scene2d_obb_t* o2) {
+int shape2d_obb_is_overlap(const struct shape2d_obb_t* o1, const struct shape2d_obb_t* o2) {
 	int i;
 	struct vector2_t v = { o1->x - o2->x, o1->y - o2->y };
 	struct vector2_t pv[4];
@@ -55,7 +61,7 @@ int scene2d_obb_is_overlap(const struct scene2d_obb_t* o1, const struct scene2d_
 	return 1;
 }
 
-void scene2d_convex_rotate(struct scene2d_convex_t* c, double radian) {
+void shape2d_convex_rotate(struct shape2d_convex_t* c, double radian) {
 	unsigned int i;
 	for (i = 0; i < c->vertice_num; ++i) {
 		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
@@ -65,7 +71,21 @@ void scene2d_convex_rotate(struct scene2d_convex_t* c, double radian) {
 	}
 	c->radian = radian;
 }
-int scene2d_convex_is_overlap(const struct scene2d_convex_t* c1, const struct scene2d_convex_t* c2) {
+int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vector2_t* point) {
+	unsigned int i;
+	double radian_total = 0.0;
+	for (i = 1; i < c->vertice_num; ++i) {
+		struct vector2_t v1 = { c->vertices[i - 1].x - point->x, c->vertices[i - 1].y - point->y };
+		struct vector2_t v2 = { c->vertices[i].x - point->x, c->vertices[i].y - point->y };
+		double radian = vector2_radian(&v1, &v2);
+		if (EDOM == errno || fabs(radian - M_PI) < DBL_EPSILON) {
+			return 0;
+		}
+		radian_total += radian;
+	}
+	return fabs(radian_total - 2*M_PI) < DBL_EPSILON;
+}
+int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct shape2d_convex_t* c2) {
 	int use_malloc = 0;
 	unsigned int i, j = 0;
 	unsigned int axes_num = c1->vertice_num + c2->vertice_num;

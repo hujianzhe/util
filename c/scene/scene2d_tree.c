@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static int __subarea_index(struct scene2d_obb_t* ap, struct scene2d_obb_t* op) {
+static int __subarea_index(struct shape2d_obb_t* ap, struct shape2d_obb_t* op) {
 	if (op->y - op->h >= ap->y - ap->h && op->y + op->h <= ap->y) {
 		if (op->x - op->w >= ap->x - ap->w && op->x + op->w <= ap->x) {
 			return 0;
@@ -31,7 +31,7 @@ static int __subarea_index(struct scene2d_obb_t* ap, struct scene2d_obb_t* op) {
 }
 static void __subarea_setup(struct scene2d_area_t* top, int index) {
 	struct scene2d_area_t* sub = top->m_subarea[index];
-	struct scene2d_obb_t p;
+	struct shape2d_obb_t p;
 	switch (index) {
 		case 0:
 			p.x = top->p.x - top->p.w / 2;
@@ -60,7 +60,7 @@ static void __subarea_setup(struct scene2d_area_t* top, int index) {
 	sub->deep = top->deep + 1;
 }
 
-static int __area_contain(struct scene2d_obb_t* ap, struct scene2d_obb_t* op) {
+static int __area_contain(struct shape2d_obb_t* ap, struct shape2d_obb_t* op) {
 	return ap->x - ap->w <= op->x - op->w && ap->x + ap->w >= op->x + op->w
 		&& ap->y - ap->h <= op->y - op->h && ap->y + ap->h >= op->y + op->h;
 }
@@ -92,7 +92,7 @@ static void __area_split(struct scene2d_area_t* area) {
 	}
 }
 
-void scene2d_area_init(struct scene2d_area_t* node, const struct scene2d_obb_t* p) {
+void scene2d_area_init(struct scene2d_area_t* node, const struct shape2d_obb_t* p) {
 	int i;
 
 	node->p = *p;
@@ -185,7 +185,7 @@ void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shap
 	scene2d_shape_entry(scinfo, top_area, shape);
 }
 
-void scene2d_overlap(const struct scene2d_area_t* area, const struct scene2d_obb_t* p, struct list_t* list) {
+void scene2d_overlap(const struct scene2d_area_t* area, const struct shape2d_obb_t* p, struct list_t* list) {
 	int i;
 	struct list_node_t* cur;
 
@@ -193,12 +193,12 @@ void scene2d_overlap(const struct scene2d_area_t* area, const struct scene2d_obb
 		return;
 	}
 
-	if (!scene2d_obb_is_overlap(&area->p, p)) {
+	if (!shape2d_obb_is_overlap(&area->p, p)) {
 		return;
 	}
 	for (cur = area->shape_list.head; cur; cur = cur->next) {
 		struct scene2d_shape_t* shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
-		if (!scene2d_obb_is_overlap(&shape->p, p)) {
+		if (!shape2d_obb_is_overlap(&shape->p, p)) {
 			continue;
 		}
 		list_insert_node_back(list, list->tail, &shape->m_foreachnode);

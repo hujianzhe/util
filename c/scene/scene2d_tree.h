@@ -7,10 +7,10 @@
 
 #include "../datastruct/list.h"
 #include "../datastruct/tree.h"
-#include "scene2d_shape.h"
+#include "shape2d.h"
 
 typedef struct scene2d_area_t {
-	struct scene2d_obb_t p;
+	struct shape2d_obb_t p;
 
 	unsigned int deep;
 
@@ -28,7 +28,7 @@ typedef struct scene2d_info_t {
 } scene2d_info_t;
 
 typedef struct scene2d_shape_t {
-	struct scene2d_obb_t p;
+	struct shape2d_obb_t p;
 	void* userdata;
 	struct scene2d_area_t* area;
 	struct list_node_t m_listnode;
@@ -39,11 +39,11 @@ typedef struct scene2d_shape_t {
 extern "C" {
 #endif
 
-void scene2d_area_init(struct scene2d_area_t* node, const struct scene2d_obb_t* p);
+void scene2d_area_init(struct scene2d_area_t* node, const struct shape2d_obb_t* p);
 void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_area_t* area, struct scene2d_shape_t* shape);
 void scene2d_shape_leave(struct scene2d_shape_t* shape);
 void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* shape, double x, double y);
-void scene2d_overlap(const struct scene2d_area_t* area, const struct scene2d_obb_t* p, struct list_t* list);
+void scene2d_overlap(const struct scene2d_area_t* area, const struct shape2d_obb_t* p, struct list_t* list);
 
 #ifdef	__cplusplus
 }

@@ -49,6 +49,13 @@ double vector3_len(const struct vector3_t* v) {
 	return sqrt(vector3_lensq(v));
 }
 
+double vector2_radian(const struct vector2_t* v1, const struct vector2_t* v2) {
+	return acos(vector2_dot(v1, v2) / vector2_len(v1) * vector2_len(v2));
+}
+double vector3_radian(const struct vector3_t* v1, const struct vector3_t* v2) {
+	return acos(vector3_dot(v1, v2) / vector3_len(v1) * vector3_len(v2));
+}
+
 double* vector_normalized(const double* v, double* n, int dimension) {
 	int i;
 	double len = vector_len(v, dimension);
