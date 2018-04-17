@@ -7,7 +7,7 @@
 
 #include "../datastruct/list.h"
 #include "../datastruct/tree.h"
-#include "scene2d_collision.h"
+#include "scene2d_shape.h"
 
 typedef struct scene2d_area_t {
 	struct scene2d_obb_t p;

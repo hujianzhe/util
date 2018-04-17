@@ -2,13 +2,13 @@
 // Created by hujianzhe on 18-4-13.
 //
 
-#ifndef	UTIL_C_SCENE_SCENE2D_COLLISION_H
-#define	UTIL_C_SCENE_SCENE2D_COLLISION_H
+#ifndef	UTIL_C_SCENE_SCENE2D_SHAPE_H
+#define	UTIL_C_SCENE_SCENE2D_SHAPE_H
 
 #include "vector_math.h"
 
 typedef struct scene2d_circle_t {
-	double x, y;
+	struct vector2_t pivot;
 	double radius;
 } scene2d_circle_t;
 
@@ -18,7 +18,7 @@ typedef struct scene2d_obb_t {
 } scene2d_obb_t;
 
 typedef struct scene2d_convex_t {
-	double x, y;
+	struct vector2_t pivot;
 	double radian;
 	unsigned int vertice_num;
 	struct vector2_t* vertices;

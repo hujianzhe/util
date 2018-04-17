@@ -2,7 +2,7 @@
 // Created by hujianzhe on 18-4-13.
 //
 
-#include "scene2d_collision.h"
+#include "scene2d_shape.h"
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
@@ -23,8 +23,8 @@ extern "C" {
 
 int scene2d_circle_is_overlap(const struct scene2d_circle_t* c1, const struct scene2d_circle_t* c2) {
 	double rd = c1->radius + c2->radius;
-	double xd = c1->x - c2->x;
-	double yd = c1->y - c2->y;
+	double xd = c1->pivot.x - c2->pivot.x;
+	double yd = c1->pivot.y - c2->pivot.y;
 	return xd * xd + yd * yd < rd * rd;
 }
 
@@ -58,8 +58,8 @@ int scene2d_obb_is_overlap(const struct scene2d_obb_t* o1, const struct scene2d_
 void scene2d_convex_rotate(struct scene2d_convex_t* c, double radian) {
 	unsigned int i;
 	for (i = 0; i < c->vertice_num; ++i) {
-		double x = (c->vertices[i].x - c->x) * cos(radian) - (c->vertices[i].y - c->y) * sin(radian) + c->x;
-		double y = (c->vertices[i].x - c->x) * sin(radian) + (c->vertices[i].y - c->y) * cos(radian) + c->y;
+		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
+		double y = (c->vertices[i].x - c->pivot.x) * sin(radian) + (c->vertices[i].y - c->pivot.y) * cos(radian) + c->pivot.y;
 		c->vertices[i].x = x;
 		c->vertices[i].y = y;
 	}
