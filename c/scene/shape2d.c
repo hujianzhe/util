@@ -72,18 +72,17 @@ void shape2d_convex_rotate(struct shape2d_convex_t* c, double radian) {
 	c->radian = radian;
 }
 int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vector2_t* point) {
-	unsigned int i;
-	double radian_total = 0.0;
-	for (i = 1; i < c->vertice_num; ++i) {
-		struct vector2_t v1 = { c->vertices[i - 1].x - point->x, c->vertices[i - 1].y - point->y };
-		struct vector2_t v2 = { c->vertices[i].x - point->x, c->vertices[i].y - point->y };
-		double radian = vector2_radian(&v1, &v2);
-		if (EDOM == errno || fabs(radian - M_PI) < DBL_EPSILON) {
-			return 0;
+	unsigned int i, j, b = 0;
+	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
+		const struct vector2_t* vi = c->vertices + i;
+		const struct vector2_t* vj = c->vertices + j;
+		if (((vi->y > point->y) != (vj->y > point->y)) &&
+			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x))
+		{
+			b = !b;
 		}
-		radian_total += radian;
 	}
-	return fabs(radian_total - 2*M_PI) < DBL_EPSILON;
+	return b;
 }
 int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct shape2d_convex_t* c2) {
 	int use_malloc = 0;
