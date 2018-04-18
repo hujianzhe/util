@@ -95,7 +95,7 @@ int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vec
 }
 int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct shape2d_convex_t* c2) {
 	int use_malloc = 0;
-	unsigned int i, j = 0;
+	unsigned int i, k, j = 0;
 	unsigned int axes_num = c1->vertice_num + c2->vertice_num;
 	struct vector2_t* axes;
 	if (axes_num > 1400) {
@@ -107,16 +107,14 @@ int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct sh
 		return 0;
 	}
 	
-	for (i = 0; i < c1->vertice_num; ++i, ++j) {
-		struct vector2_t* pv = c1->vertices + (i + 1) % c1->vertice_num;
-		struct vector2_t v = { c1->vertices[i].x - pv->x, c1->vertices[i].y - pv->y };
+	for (i = 0, k = c1->vertice_num - 1; i < c1->vertice_num; k = i++, ++j) {
+		struct vector2_t v = { c1->vertices[k].x - c1->vertices[i].x, c1->vertices[k].y - c1->vertices[i].y};
 		vector2_normalized(&v, &v);
 		axes[j].x = -v.y;
 		axes[j].y = v.x;
 	}
-	for (i = 0; i < c2->vertice_num; ++i, ++j) {
-		struct vector2_t* pv = c2->vertices + (i + 1) % c2->vertice_num;
-		struct vector2_t v = { c2->vertices[i].x - pv->x, c2->vertices[i].y - pv->y };
+	for (i = 0, k = c2->vertice_num - 1; i < c2->vertice_num; k = i++, ++j) {
+		struct vector2_t v = { c2->vertices[k].x - c2->vertices[i].x, c2->vertices[k].y - c2->vertices[i].y };
 		vector2_normalized(&v, &v);
 		axes[j].x = -v.y;
 		axes[j].y = v.x;
