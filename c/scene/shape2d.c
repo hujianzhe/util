@@ -82,7 +82,10 @@ int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vec
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (!__same_line(vi, vj, point) && ((vi->y > point->y) != (vj->y > point->y)) &&
+		if (__same_line(vi, vj, point)) {
+			return 0;
+		}
+		if (((vi->y > point->y) != (vj->y > point->y)) &&
 			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x))
 		{
 			b = !b;
