@@ -71,12 +71,18 @@ void shape2d_convex_rotate(struct shape2d_convex_t* c, double radian) {
 	}
 	c->radian = radian;
 }
+static int __same_line(const struct vector2_t* p1, const struct vector2_t* p2, const struct vector2_t* p3) {
+	struct vector2_t p12 = { p1->x - p2->x, p1->y - p2->y };
+	struct vector2_t p13 = { p1->x - p3->x, p1->y - p3->y };
+	double res = vector2_cross(&p12, &p13);
+	return res > -DBL_EPSILON && res < DBL_EPSILON;
+}
 int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vector2_t* point) {
 	unsigned int i, j, b = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (((vi->y > point->y) != (vj->y > point->y)) &&
+		if (!__same_line(vi, vj, point) && ((vi->y > point->y) != (vj->y > point->y)) &&
 			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x))
 		{
 			b = !b;

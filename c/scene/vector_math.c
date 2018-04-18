@@ -25,6 +25,10 @@ double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2) {
 	return v1->x * v2->x + v1->y * v2->y + v1->z * v2->z;
 }
 
+double vector2_cross(const vector2_t* v1, const vector2_t* v2) {
+	return v1->x * v2->y - v2->x * v1->y;
+}
+
 double vector_lensq(const double* v, int dimension) {
 	double res = 0.0;
 	int i;

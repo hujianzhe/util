@@ -20,6 +20,8 @@ double vector_dot(const double* v1, const double* v2, int dimension);
 double vector2_dot(const struct vector2_t* v1, const struct vector2_t* v2);
 double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2);
 
+double vector2_cross(const vector2_t* v1, const vector2_t* v2);
+
 double vector_lensq(const double* v, int dimension);
 double vector2_lensq(const struct vector2_t* v);
 double vector3_lensq(const struct vector3_t* v);
