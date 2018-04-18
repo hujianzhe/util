@@ -25,8 +25,17 @@ double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2) {
 	return v1->x * v2->x + v1->y * v2->y + v1->z * v2->z;
 }
 
-double vector2_cross(const vector2_t* v1, const vector2_t* v2) {
+double vector2_cross(const struct vector2_t* v1, const struct vector2_t* v2) {
 	return v1->x * v2->y - v2->x * v1->y;
+}
+struct vector3_t* vector3_cross(struct vector3_t* res, const struct vector3_t* v1, const struct vector3_t* v2) {
+	double x = v1->y * v2->z - v2->y * v1->z;
+	double y = v2->x * v1->z - v1->x * v2->z;
+	double z = v1->x * v2->y - v2->x * v1->y;
+	res->x = x;
+	res->y = y;
+	res->z = z;
+	return res;
 }
 
 double vector_lensq(const double* v, int dimension) {
