@@ -28,16 +28,26 @@ extern "C" {
 #endif
 
 int shape2d_line_is_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2) {
-	return 1;
+	struct vector2_t s1e1 = { e1->x - s1->x, e1->y - s1->y };
+	struct vector2_t s1s2 = { s2->x - s1->x, s2->y - s1->y };
+	struct vector2_t s1e2 = { e2->x - s1->x, e2->y - s1->y };
+	struct vector2_t s2e2 = { e2->x - s2->x, e2->y - s2->y };
+	struct vector2_t s2s1 = { s1->x - s2->x, s1->y - s2->y };
+	struct vector2_t s2e1 = { e1->x - s2->x, e1->y - s2->y };
+	double d1 = vector2_cross(&s1s2, &s1e1);
+	double d2 = vector2_cross(&s1e2, &s1e1);
+	double d3 = vector2_cross(&s2s1, &s2e2);
+	double d4 = vector2_cross(&s2e1, &s2e2);
+	return d1 * d2 < 0 && d3 * d4 < 0;
 }
 
-int shape2d_circle_is_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
+int shape2d_circle_has_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
 	double rd = c1->radius + c2->radius;
 	double xd = c1->pivot.x - c2->pivot.x;
 	double yd = c1->pivot.y - c2->pivot.y;
 	return xd * xd + yd * yd < rd * rd;
 }
-int shape2d_circle_line_is_overlap(const struct shape2d_circle_t* c, const struct vector2_t* p1, const struct vector2_t* p2) {
+int shape2d_circle_line_has_overlap(const struct shape2d_circle_t* c, const struct vector2_t* p1, const struct vector2_t* p2) {
 	double d = c->radius * c->radius;
 	struct vector2_t v, p;
 	v.x = c->pivot.x - p1->x;
@@ -97,7 +107,7 @@ int shape2d_obb_is_overlap(const struct shape2d_obb_t* o1, const struct shape2d_
 	return 1;
 }
 
-void shape2d_convex_rotate(struct shape2d_convex_t* c, double radian) {
+void shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian) {
 	unsigned int i;
 	for (i = 0; i < c->vertice_num; ++i) {
 		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
@@ -113,23 +123,23 @@ static int __same_line(const struct vector2_t* p1, const struct vector2_t* p2, c
 	double res = vector2_cross(&p12, &p13);
 	return res > -DBL_EPSILON && res < DBL_EPSILON;
 }
-int shape2d_convex_is_contain_point(const struct shape2d_convex_t* c, struct vector2_t* point) {
+static int __cross(const struct vector2_t* vi, const struct vector2_t* vj, const struct vector2_t* point) {
+	return	((vi->y > point->y) != (vj->y > point->y)) &&
+			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x);
+}
+int shape2d_polygon_contain_point(const struct shape2d_polygon_t* c, struct vector2_t* point) {
 	unsigned int i, j, b = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__same_line(vi, vj, point)) {
+		if (__same_line(vi, vj, point))
 			return 0;
-		}
-		if (((vi->y > point->y) != (vj->y > point->y)) &&
-			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x))
-		{
+		if (__cross(vi, vj, point))
 			b = !b;
-		}
 	}
 	return b;
 }
-int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct shape2d_convex_t* c2) {
+int shape2d_polygon_has_overlap(const struct shape2d_polygon_t* c1, const struct shape2d_polygon_t* c2) {
 	int use_malloc = 0;
 	unsigned int i, k, j = 0;
 	unsigned int axes_num = c1->vertice_num + c2->vertice_num;
@@ -182,25 +192,42 @@ int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct sh
 	}
 	return 1;
 }
-
-int shape2d_convex_circle_is_overlap(const struct shape2d_convex_t* c, const struct shape2d_circle_t* circle) {
+int shape2d_polygon_circle_has_overlap(const struct shape2d_polygon_t* c, const struct shape2d_circle_t* circle) {
 	unsigned int i, j, b = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__same_line(vi, vj, &circle->pivot)) {
+		if (__same_line(vi, vj, &circle->pivot))
 			return 1;
-		}
-		if (((vi->y > circle->pivot.y) != (vj->y > circle->pivot.y)) &&
-			(circle->pivot.x < (vj->x - vi->x) * (circle->pivot.y - vi->y) / (vj->y - vi->y) + vi->x))
-		{
+		if (__cross(vi, vj, &circle->pivot))
 			b = !b;
-		}
-		if (shape2d_circle_line_is_overlap(circle, vi, vj)) {
+		if (shape2d_circle_line_has_overlap(circle, vi, vj))
 			return 1;
-		}
 	}
 	return b;
+}
+int shape2d_polygon_line_has_overlap(const struct shape2d_polygon_t* c, const struct vector2_t* s, const struct vector2_t* e) {
+	unsigned int i, j, b1 = 0, b2 = 0, l1 = 0, l2 = 0;
+	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
+		const struct vector2_t* vi = c->vertices + i;
+		const struct vector2_t* vj = c->vertices + j;
+		if (shape2d_line_is_intersect(s, e, vi, vj))
+			return 1;
+
+		if (!l1) {
+			if (__same_line(vi, vj, s))
+				l1 = 1;
+			else if (__cross(vi, vj, s))
+				b1 = !b1;
+		}
+		if (!l2) {
+			if (__same_line(vi, vj, e))
+				l2 = 1;
+			else if (__cross(vi, vj, e))
+				b2 = !b2;
+		}
+	}
+	return !l1 && !l2 && (b1 || b2);
 }
 
 #ifdef	__cplusplus
