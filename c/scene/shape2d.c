@@ -38,12 +38,12 @@ int shape2d_circle_line_is_overlap(const struct shape2d_circle_t* c, const struc
 	struct vector2_t v, p;
 	v.x = c->pivot.x - p1->x;
 	v.y = c->pivot.y - p1->y;
-	if (vector2_lensq(&v) < d * d) {
+	if (vector2_lensq(&v) < d) {
 		return 1;
 	}
 	v.x = c->pivot.x - p2->x;
 	v.y = c->pivot.y - p2->y;
-	if (vector2_lensq(&v) < d * d) {
+	if (vector2_lensq(&v) < d) {
 		return 1;
 	}
 	//
@@ -61,7 +61,7 @@ int shape2d_circle_line_is_overlap(const struct shape2d_circle_t* c, const struc
 	if (p.x >= p1->x && p.x >= p2->x) {
 		p = (p1->x >= p2->x) ? *p1 : *p2;
 	}
-	return vector2_len(&p) < c->radius*c->radius;
+	return vector2_lensq(&p) < c->radius*c->radius;
 }
 
 static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
