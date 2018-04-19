@@ -61,6 +61,8 @@ int shape2d_circle_line_is_overlap(const struct shape2d_circle_t* c, const struc
 	if (p.x >= p1->x && p.x >= p2->x) {
 		p = (p1->x >= p2->x) ? *p1 : *p2;
 	}
+	p.x -= c->pivot.x;
+	p.y -= c->pivot.y;
 	return vector2_lensq(&p) < c->radius*c->radius;
 }
 
