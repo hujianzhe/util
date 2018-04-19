@@ -10,6 +10,39 @@
 extern "C" {
 #endif
 
+int vector_equal(const double* v1, const double* v2, int dimension) {
+	int i;
+	for (i = 0; i < dimension; ++i) {
+		double res = v1[i] - v2[i];
+		if (res < -DBL_EPSILON || DBL_EPSILON < res)
+			return 0;
+	}
+	return 1;
+}
+int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2) {
+	double res;
+	res = v1->x - v2->x;
+	if (res < -DBL_EPSILON || DBL_EPSILON < res)
+		return 0;
+	res = v1->y - v2->y;
+	if (res < -DBL_EPSILON || DBL_EPSILON < res)
+		return 0;
+	return 1;
+}
+int vector3_equal(const struct vector3_t* v1, const struct vector3_t* v2) {
+	double res;
+	res = v1->x - v2->x;
+	if (res < -DBL_EPSILON || DBL_EPSILON < res)
+		return 0;
+	res = v1->y - v2->y;
+	if (res < -DBL_EPSILON || DBL_EPSILON < res)
+		return 0;
+	res = v1->z - v2->z;
+	if (res < -DBL_EPSILON || DBL_EPSILON < res)
+		return 0;
+	return 1;
+}
+
 double vector_dot(const double* v1, const double* v2, int dimension) {
 	double res = 0.0;
 	int i;

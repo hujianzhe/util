@@ -27,6 +27,10 @@
 extern "C" {
 #endif
 
+int shape2d_line_is_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2) {
+	return 1;
+}
+
 int shape2d_circle_is_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
 	double rd = c1->radius + c2->radius;
 	double xd = c1->pivot.x - c2->pivot.x;
@@ -177,6 +181,26 @@ int shape2d_convex_is_overlap(const struct shape2d_convex_t* c1, const struct sh
 		free(axes);
 	}
 	return 1;
+}
+
+int shape2d_convex_circle_is_overlap(const struct shape2d_convex_t* c, const struct shape2d_circle_t* circle) {
+	unsigned int i, j, b = 0;
+	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
+		const struct vector2_t* vi = c->vertices + i;
+		const struct vector2_t* vj = c->vertices + j;
+		if (__same_line(vi, vj, &circle->pivot)) {
+			return 1;
+		}
+		if (((vi->y > circle->pivot.y) != (vj->y > circle->pivot.y)) &&
+			(circle->pivot.x < (vj->x - vi->x) * (circle->pivot.y - vi->y) / (vj->y - vi->y) + vi->x))
+		{
+			b = !b;
+		}
+		if (shape2d_circle_line_is_overlap(circle, vi, vj)) {
+			return 1;
+		}
+	}
+	return b;
 }
 
 #ifdef	__cplusplus

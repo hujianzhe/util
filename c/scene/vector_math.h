@@ -16,6 +16,10 @@ typedef struct vector3_t {
 extern "C" {
 #endif
 
+int vector_equal(const double* v1, const double* v2, int dimension);
+int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2);
+int vector3_equal(const struct vector3_t* v1, const struct vector3_t* v2);
+
 double vector_dot(const double* v1, const double* v2, int dimension);
 double vector2_dot(const struct vector2_t* v1, const struct vector2_t* v2);
 double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2);
