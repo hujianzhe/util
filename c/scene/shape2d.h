@@ -9,9 +9,15 @@
 
 typedef enum shape2d_enum_t {
 	SHAPE2D_LINESEGMENT,
+	SHAPE2D_AABB,
 	SHAPE2D_CIRCLE,
 	SHAPE2D_POLYGON
 } shape2d_enum_t;
+
+typedef struct shape2d_aabb_t {
+	struct vector2_t pivot;
+	struct vector2_t half;
+} shape2d_aabb_t;
 
 typedef struct shape2d_circle_t {
 	struct vector2_t pivot;
@@ -36,6 +42,9 @@ extern "C" {
 
 int shape2d_linesegment_has_point(const struct vector2_t* s, const struct vector2_t* e, const struct vector2_t* p);
 int shape2d_linesegment_has_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2);
+int shape2d_aabb_has_overlap(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2);
+struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aabb_t* aabb, struct shape2d_polygon_t* c);
+struct shape2d_aabb_t* shape2d_polygon_to_aabb(const struct shape2d_polygon_t* c, struct shape2d_aabb_t* aabb);
 int shape2d_circle_has_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2);
 int shape2d_circle_linesegment_has_overlap(const struct shape2d_circle_t* c, const struct vector2_t* p1, const struct vector2_t* p2);
 int shape2d_obb_is_overlap(const struct shape2d_obb_t* o1, const struct shape2d_obb_t* o2);
