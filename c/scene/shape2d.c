@@ -33,7 +33,7 @@ int shape2d_linesegment_has_point(const struct vector2_t* s, const struct vector
 	double res = vector2_cross(&se, &sp);
 	if (res < -DBL_EPSILON || res > DBL_EPSILON)
 		return 0;
-	return p->x >= fmin(s->x, e->x) && p->x <= fmax(s->x, e->x);
+	return p->x >= fmin(s->x, e->x) && p->x <= fmax(s->x, e->x) && p->y >= fmin(s->y, e->y) && p->y <= fmax(s->y, e->y);
 }
 int shape2d_linesegment_has_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2) {
 	struct vector2_t s1e1 = { e1->x - s1->x, e1->y - s1->y };
