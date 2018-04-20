@@ -55,7 +55,7 @@ int shape2d_linesegment_has_intersect(const struct vector2_t* s1, const struct v
 }
 
 int shape2d_aabb_has_overlap(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
-	return	ab1->pivot.x - ab2->pivot.x < ab1->half.x + ab2->half.x && ab1->pivot.y - ab2->pivot.y < ab1->half.y + ab2->half.y;
+	return ab1->pivot.x - ab2->pivot.x < ab1->half.x + ab2->half.x && ab1->pivot.y - ab2->pivot.y < ab1->half.y + ab2->half.y;
 }
 struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aabb_t* aabb, struct shape2d_polygon_t* c) {
 	c->radian = 0.0;
@@ -91,6 +91,11 @@ struct shape2d_aabb_t* shape2d_polygon_to_aabb(const struct shape2d_polygon_t* c
 	aabb->pivot.y = (min_y + max_y) * 0.5;
 	aabb->half.x = fabs(max_x - min_x) * 0.5;
 	aabb->half.y = fabs(max_y - min_y) * 0.5;
+	return aabb;
+}
+struct shape2d_aabb_t* shape2d_circle_to_aabb(const struct shape2d_circle_t* c, struct shape2d_aabb_t* aabb) {
+	aabb->pivot = c->pivot;
+	aabb->half.x = aabb->half.y = c->radius;
 	return aabb;
 }
 
