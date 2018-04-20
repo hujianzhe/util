@@ -81,15 +81,23 @@ int shape2d_circle_linesegment_has_overlap(const struct shape2d_circle_t* c, con
 	d = vector2_dot(&v, &p);
 	p.x = p.x * d + p1->x;
 	p.y = p.y * d + p1->y;
-	if (p.x <= p1->x && p.x <= p2->x) {
-		p = (p1->x <= p2->x) ? *p1 : *p2;
+	
+	if (p.x >= fmin(p1->x, p2->x) && p.x <= fmax(p1->x, p2->x) && p.y >= fmin(p1->y, p2->y) && p.y <= fmax(p1->y, p2->y)) {
+		v.x = c->pivot.x - p.x;
+		v.y = c->pivot.y - p.y;
+		d = vector2_lensq(&v);
 	}
-	if (p.x >= p1->x && p.x >= p2->x) {
-		p = (p1->x >= p2->x) ? *p1 : *p2;
+	else {
+		double d1, d2;
+		v.x = c->pivot.x - p1->x;
+		v.y = c->pivot.y - p1->y;
+		d1 = vector2_lensq(&v);
+		v.x = c->pivot.x - p2->x;
+		v.y = c->pivot.y - p2->y;
+		d2 = vector2_lensq(&v);
+		d = fmin(d1, d2);
 	}
-	p.x -= c->pivot.x;
-	p.y -= c->pivot.y;
-	return vector2_lensq(&p) < c->radius*c->radius;
+	return d < c->radius*c->radius;
 }
 
 static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
