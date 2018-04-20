@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-static int shape2d_line_has_point(const struct vector2_t* s, const struct vector2_t* e, const struct vector2_t* p) {
+int shape2d_line_has_point(const struct vector2_t* s, const struct vector2_t* e, const struct vector2_t* p) {
 	struct vector2_t se = { e->x - s->x, e->y - s->y };
 	struct vector2_t sp = { p->x - s->x, p->y - s->y };
 	double res = vector2_cross(&se, &sp);
