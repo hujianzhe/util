@@ -8,7 +8,7 @@
 #include "vector_math.h"
 
 typedef enum shape2d_enum_t {
-	SHAPE2D_LINE,
+	SHAPE2D_LINESEGMENT,
 	SHAPE2D_CIRCLE,
 	SHAPE2D_POLYGON
 } shape2d_enum_t;

@@ -48,7 +48,8 @@ int shape2d_linesegment_has_intersect(const struct vector2_t* s1, const struct v
 		return 1;
 	if (d12 > DBL_EPSILON || d34 > DBL_EPSILON)
 		return 0;
-	if (shape2d_linesegment_has_point(s1, e1, s2) || shape2d_linesegment_has_point(s1, e1, e2))
+	if (shape2d_linesegment_has_point(s1, e1, s2) || shape2d_linesegment_has_point(s1, e1, e2) ||
+		shape2d_linesegment_has_point(s2, e2, s1) || shape2d_linesegment_has_point(s2, e2, e1))
 		return 2;
 	return 0;
 }
