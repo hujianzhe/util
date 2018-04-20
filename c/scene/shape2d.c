@@ -211,16 +211,14 @@ int shape2d_polygon_circle_has_overlap(const struct shape2d_polygon_t* c, const 
 	return b;
 }
 int shape2d_polygon_line_has_overlap(const struct shape2d_polygon_t* c, const struct vector2_t* s, const struct vector2_t* e) {
-	unsigned int i, j, b1 = 0, b2 = 0;
+	unsigned int i, j;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__cross(vi, vj, s))
-			b1 = !b1;
-		if (__cross(vi, vj, e))
-			b2 = !b2;
+		if (shape2d_line_has_intersect(vi, vj, s, e))
+			return 1;
 	}
-	return b1 || b2;
+	return 0;
 }
 
 #ifdef	__cplusplus
