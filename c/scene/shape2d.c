@@ -27,18 +27,28 @@
 extern "C" {
 #endif
 
-int shape2d_line_is_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2) {
+static int shape2d_line_has_point(const struct vector2_t* s, const struct vector2_t* e, const struct vector2_t* p) {
+	struct vector2_t se = { e->x - s->x, e->y - s->y };
+	struct vector2_t sp = { p->x - s->x, p->y - s->y };
+	double res = vector2_cross(&se, &sp);
+	return res > -DBL_EPSILON && res < DBL_EPSILON;
+}
+int shape2d_line_has_intersect(const struct vector2_t* s1, const struct vector2_t* e1, const struct vector2_t* s2, const struct vector2_t* e2) {
 	struct vector2_t s1e1 = { e1->x - s1->x, e1->y - s1->y };
 	struct vector2_t s1s2 = { s2->x - s1->x, s2->y - s1->y };
 	struct vector2_t s1e2 = { e2->x - s1->x, e2->y - s1->y };
 	struct vector2_t s2e2 = { e2->x - s2->x, e2->y - s2->y };
 	struct vector2_t s2s1 = { s1->x - s2->x, s1->y - s2->y };
 	struct vector2_t s2e1 = { e1->x - s2->x, e1->y - s2->y };
-	double d1 = vector2_cross(&s1s2, &s1e1);
-	double d2 = vector2_cross(&s1e2, &s1e1);
-	double d3 = vector2_cross(&s2s1, &s2e2);
-	double d4 = vector2_cross(&s2e1, &s2e2);
-	return d1 * d2 < 0 && d3 * d4 < 0;
+	double d12 = vector2_cross(&s1s2, &s1e1) * vector2_cross(&s1e2, &s1e1);
+	double d34 = vector2_cross(&s2s1, &s2e2) * vector2_cross(&s2e1, &s2e2);
+	if (d12 < -DBL_EPSILON && d34 < -DBL_EPSILON)
+		return 1;
+	if (d12 > DBL_EPSILON || d34 > DBL_EPSILON)
+		return 0;
+	if (shape2d_line_has_point(s1, e1, s2) || shape2d_line_has_point(s1, e1, e2))
+		return 2;
+	return 0;
 }
 
 int shape2d_circle_has_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
@@ -117,22 +127,16 @@ void shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian) {
 	}
 	c->radian = radian;
 }
-static int __same_line(const struct vector2_t* p1, const struct vector2_t* p2, const struct vector2_t* p3) {
-	struct vector2_t p12 = { p2->x - p1->x, p2->y - p1->y };
-	struct vector2_t p13 = { p3->x - p1->x, p3->y - p1->y };
-	double res = vector2_cross(&p12, &p13);
-	return res > -DBL_EPSILON && res < DBL_EPSILON;
-}
 static int __cross(const struct vector2_t* vi, const struct vector2_t* vj, const struct vector2_t* point) {
 	return	((vi->y > point->y) != (vj->y > point->y)) &&
 			(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x);
 }
-int shape2d_polygon_contain_point(const struct shape2d_polygon_t* c, struct vector2_t* point) {
+int shape2d_polygon_has_point(const struct shape2d_polygon_t* c, struct vector2_t* point) {
 	unsigned int i, j, b = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__same_line(vi, vj, point))
+		if (shape2d_line_has_point(vi, vj, point))
 			return 0;
 		if (__cross(vi, vj, point))
 			b = !b;
@@ -197,37 +201,26 @@ int shape2d_polygon_circle_has_overlap(const struct shape2d_polygon_t* c, const 
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__same_line(vi, vj, &circle->pivot))
+		if (shape2d_line_has_point(vi, vj, &circle->pivot))
+			return 1;
+		if (shape2d_circle_line_has_overlap(circle, vi, vj))
 			return 1;
 		if (__cross(vi, vj, &circle->pivot))
 			b = !b;
-		if (shape2d_circle_line_has_overlap(circle, vi, vj))
-			return 1;
 	}
 	return b;
 }
 int shape2d_polygon_line_has_overlap(const struct shape2d_polygon_t* c, const struct vector2_t* s, const struct vector2_t* e) {
-	unsigned int i, j, b1 = 0, b2 = 0, l1 = 0, l2 = 0;
+	unsigned int i, j, b1 = 0, b2 = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (shape2d_line_is_intersect(s, e, vi, vj))
-			return 1;
-
-		if (!l1) {
-			if (__same_line(vi, vj, s))
-				l1 = 1;
-			else if (__cross(vi, vj, s))
-				b1 = !b1;
-		}
-		if (!l2) {
-			if (__same_line(vi, vj, e))
-				l2 = 1;
-			else if (__cross(vi, vj, e))
-				b2 = !b2;
-		}
+		if (__cross(vi, vj, s))
+			b1 = !b1;
+		if (__cross(vi, vj, e))
+			b2 = !b2;
 	}
-	return !l1 && !l2 && (b1 || b2);
+	return b1 || b2;
 }
 
 #ifdef	__cplusplus
