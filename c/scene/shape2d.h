@@ -15,7 +15,7 @@ typedef enum shape2d_enum_t {
 } shape2d_enum_t;
 
 typedef struct shape2d_linesegment_t {
-	struct vector2_t p1, p2;
+	struct vector2_t vertices[2];
 } shape2d_linesegment_t;
 
 typedef struct shape2d_aabb_t {
