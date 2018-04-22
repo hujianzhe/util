@@ -151,7 +151,7 @@ int shape2d_circle_has_contain_aabb(const struct shape2d_circle_t* c, const stru
 int shape2d_circle_has_contain_polygon(const struct shape2d_circle_t* c, const struct shape2d_polygon_t* p) {
 	return shape2d_circle_has_point_n(c, p->vertices, p->vertice_num) == p->vertice_num;
 }
-
+/*
 static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
 	return p->w * fabs(vector2_dot(v, &pv[0])) + p->h * fabs(vector2_dot(v, &pv[1]));
 }
@@ -177,7 +177,7 @@ int shape2d_obb_is_overlap(const struct shape2d_obb_t* o1, const struct shape2d_
 			return 0;
 	}
 	return 1;
-}
+}*/
 
 /* polygon */
 static int __cross(const struct vector2_t* vi, const struct vector2_t* vj, const struct vector2_t* point) {
