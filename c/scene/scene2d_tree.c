@@ -163,7 +163,10 @@ void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shap
 	shape->p.pivot.y = y;
 	while (tree) {
 		top_area = pod_container_of(tree, struct scene2d_area_t, m_tree);
-		if (shape2d_aabb_has_contain_aabb(&top_area->p, &shape->p)) {
+		if (shape2d_shape_has_contain_shape(
+			SHAPE2D_AABB, (const shape2d_t*)&top_area->p,
+			SHAPE2D_AABB, (const shape2d_t*)&shape->p))
+		{
 			break;
 		}
 		if (!tree->parent) {
@@ -178,8 +181,8 @@ void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shap
 	--shape->area->shape_num;
 	scene2d_shape_entry(scinfo, top_area, shape);
 }
-/*
-void scene2d_overlap(const struct scene2d_area_t* area, const struct shape2d_polygon_t* p, struct list_t* list) {
+
+void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const union shape2d_t* shape, struct list_t* list) {
 	int i;
 	struct list_node_t* cur;
 
@@ -187,21 +190,20 @@ void scene2d_overlap(const struct scene2d_area_t* area, const struct shape2d_pol
 		return;
 	}
 
-	if (!shape2d_obb_is_overlap(&area->p, p)) {
+	if (!shape2d_has_overlap(SHAPE2D_AABB, (union shape2d_t*)&area->p, shape_type, shape))
 		return;
-	}
+
 	for (cur = area->shape_list.head; cur; cur = cur->next) {
-		struct scene2d_shape_t* shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
-		if (!shape2d_obb_is_overlap(&shape->p, p)) {
+		struct scene2d_shape_t* sc_shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
+		if (!shape2d_has_overlap(sc_shape->type, &sc_shape->s, shape_type, shape)) {
 			continue;
 		}
-		list_insert_node_back(list, list->tail, &shape->m_foreachnode);
+		list_insert_node_back(list, list->tail, &sc_shape->m_foreachnode);
 	}
 	for (i = 0; i < sizeof(area->m_subarea) / sizeof(area->m_subarea[0]); ++i) {
-		scene2d_overlap(area->m_subarea[i], p, list);
+		scene2d_overlap(area->m_subarea[i], shape_type, shape, list);
 	}
 }
-*/
 
 #ifdef	__cplusplus
 }

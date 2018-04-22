@@ -29,6 +29,8 @@ typedef struct scene2d_info_t {
 
 typedef struct scene2d_shape_t {
 	struct shape2d_aabb_t p;
+	union shape2d_t s;
+	int type;
 	void* userdata;
 	struct scene2d_area_t* area;
 	struct list_node_t m_listnode;
@@ -43,7 +45,7 @@ void scene2d_area_init(struct scene2d_area_t* node, const struct shape2d_aabb_t*
 void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_area_t* area, struct scene2d_shape_t* shape);
 void scene2d_shape_leave(struct scene2d_shape_t* shape);
 void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* shape, double x, double y);
-//void scene2d_overlap(const struct scene2d_area_t* area, const struct shape2d_polygon_t* p, struct list_t* list);
+void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const union shape2d_t* shape, struct list_t* list);
 
 #ifdef	__cplusplus
 }
