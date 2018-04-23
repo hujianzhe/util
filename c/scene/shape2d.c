@@ -545,7 +545,7 @@ struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* sh
 	
 	pf = (struct shape2d_aabb_t*(*)(const union shape2d_t*, struct shape2d_aabb_t*))(__pf_to_aabb[type]);
 	if (!pf)
-		return 0;
+		return (struct shape2d_aabb_t*)0;
 	return pf(shape, aabb);
 }
 
