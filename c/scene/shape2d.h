@@ -45,65 +45,10 @@ typedef union shape2d_t {
 	shape2d_polygon_t polygon;
 } shape2d_t;
 
-/*
-typedef struct shape2d_obb_t {
-double x, y, w, h;
-double radian;
-} shape2d_obb_t;
-*/
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-/* linesegment */
-//int shape2d_linesegment_has_point(const shape2d_linesegment_t* ls, const struct vector2_t* p);
-//unsigned int shape2d_linesegment_has_point_n(const shape2d_linesegment_t* ls, const struct vector2_t p[], unsigned int n);
-/* aabb */
-//struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aabb_t* aabb, struct shape2d_polygon_t* c);
-//struct shape2d_aabb_t* shape2d_linesegment_to_aabb(const struct shape2d_linesegment_t* ls, struct shape2d_aabb_t* aabb);
-//struct shape2d_aabb_t* shape2d_aabb_to_aabb(const struct shape2d_aabb_t* ab1, struct shape2d_aabb_t* ab2);
-//struct shape2d_aabb_t* shape2d_polygon_to_aabb(const struct shape2d_polygon_t* c, struct shape2d_aabb_t* aabb);
-//struct shape2d_aabb_t* shape2d_circle_to_aabb(const struct shape2d_circle_t* c, struct shape2d_aabb_t* aabb);
-//int shape2d_aabb_has_point(const struct shape2d_aabb_t* ab, const struct vector2_t* p);
-//unsigned int shape2d_aabb_has_point_n(const struct shape2d_aabb_t* ab, const struct vector2_t p[], unsigned int n);
-/* circle */
-//int shape2d_circle_has_point(const struct shape2d_circle_t* c, const struct vector2_t* p);
-//unsigned int shape2d_circle_has_point_n(const struct shape2d_circle_t* c, const struct vector2_t p[], unsigned int n);
-
-//int shape2d_obb_is_overlap(const struct shape2d_obb_t* o1, const struct shape2d_obb_t* o2);
-/* polygon */
-//int shape2d_polygon_has_point(const struct shape2d_polygon_t* c, const struct vector2_t* point);
-//unsigned int shape2d_polygon_has_point_n(const struct shape2d_polygon_t* c, const struct vector2_t p[], unsigned int n);
-
-/*
-int shape2d_linesegment_has_intersect(const shape2d_linesegment_t* ls1, const shape2d_linesegment_t* ls2);
-int shape2d_aabb_aabb_has_overlap(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2);
-int shap2d_aabb_linesegment_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_linesegment_t* ls);
-int shape2d_aabb_circle_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_circle_t* c);
-int shape2d_aabb_polygon_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_polygon_t* p);
-int shape2d_circle_circle_has_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2);
-int shape2d_circle_linesegment_has_overlap(const struct shape2d_circle_t* c, const struct vector2_t* p1, const struct vector2_t* p2);
-int shape2d_polygon_polygon_has_overlap(const struct shape2d_polygon_t* c1, const struct shape2d_polygon_t* c2);
-int shape2d_polygon_circle_has_overlap(const struct shape2d_polygon_t* c, const struct shape2d_circle_t* circle);
-int shape2d_polygon_linesegment_has_overlap(const struct shape2d_polygon_t* c, const shape2d_linesegment_t* ls);
-*/
-/*
-int shape2d_aabb_has_contain_linesegment(const struct shape2d_aabb_t* ab, const struct shape2d_linesegment_t* ls);
-int shape2d_aabb_has_contain_aabb(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2);
-int shape2d_aabb_has_contain_circle(const struct shape2d_aabb_t* ab, const struct shape2d_circle_t* c);
-int shape2d_aabb_has_contain_polygon(const struct shape2d_aabb_t* ab, const struct shape2d_polygon_t* p);
-int shape2d_circle_has_contain_linesegment(const struct shape2d_circle_t* c, const struct shape2d_linesegment_t* ls);
-int shape2d_circle_has_contain_circle(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2);
-int shape2d_circle_has_contain_aabb(const struct shape2d_circle_t* c, const struct shape2d_aabb_t* ab);
-int shape2d_circle_has_contain_polygon(const struct shape2d_circle_t* c, const struct shape2d_polygon_t* p);
-int shape2d_polygon_has_contain_linesegment(const struct shape2d_polygon_t* p, const struct shape2d_linesegment_t* ls);
-int shape2d_polygon_has_contain_aabb(const struct shape2d_polygon_t* p, const struct shape2d_aabb_t* ab);
-int shape2d_polygon_has_contain_circle(const struct shape2d_polygon_t* p, const struct shape2d_circle_t* c);
-int shape2d_polygon_has_contain_polygon(const struct shape2d_polygon_t* p1, const struct shape2d_polygon_t* p2);
-*/
-
-/* interface */
 struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian);
 struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* shape, struct shape2d_aabb_t* aabb);
 unsigned int shape2d_has_point_n(int type, const union shape2d_t* shape, const struct vector2_t p[], unsigned int n);

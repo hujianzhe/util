@@ -140,6 +140,11 @@ static unsigned int shape2d_circle_has_point_n(const struct shape2d_circle_t* c,
 }
 
 /*
+typedef struct shape2d_obb_t {
+	double x, y, w, h;
+	double radian;
+} shape2d_obb_t;
+
 static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
 	return p->w * fabs(vector2_dot(v, &pv[0])) + p->h * fabs(vector2_dot(v, &pv[1]));
 }
