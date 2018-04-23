@@ -62,7 +62,7 @@ static struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aa
 	c->vertices[2].x = aabb->pivot.x + aabb->half.x;
 	c->vertices[2].y = aabb->pivot.y + aabb->half.y;
 	c->vertices[3].x = aabb->pivot.x - aabb->half.x;
-	c->vertices[4].y = aabb->pivot.y + aabb->half.y;
+	c->vertices[3].y = aabb->pivot.y + aabb->half.y;
 	return c;
 }
 
