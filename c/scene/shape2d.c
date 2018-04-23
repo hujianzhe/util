@@ -49,7 +49,7 @@ static unsigned int shape2d_linesegment_has_point_n(const shape2d_linesegment_t*
 }
 
 /* aabb */
-struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aabb_t* aabb, struct shape2d_polygon_t* c) {
+static struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aabb_t* aabb, struct shape2d_polygon_t* c) {
 	c->radian = 0.0;
 	c->pivot = aabb->pivot;
 	c->vertice_num = 4;
@@ -123,23 +123,6 @@ static unsigned int shape2d_aabb_has_point_n(const struct shape2d_aabb_t* ab, co
 	return n;
 }
 
-static int shape2d_aabb_has_contain_aabb(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
-	return ab1->pivot.x - ab1->half.x <= ab2->pivot.x - ab2->half.x
-		&& ab1->pivot.x + ab1->half.x >= ab2->pivot.x + ab2->half.x
-		&& ab1->pivot.y - ab1->half.y <= ab2->pivot.y - ab2->half.y
-		&& ab1->pivot.y + ab1->half.y >= ab2->pivot.y + ab2->half.y;
-}
-
-static int shape2d_aabb_has_contain_circle(const struct shape2d_aabb_t* ab, const struct shape2d_circle_t* c) {
-	return c->pivot.x - c->radius >= ab->pivot.x - ab->half.x
-		&& c->pivot.x + c->radius <= ab->pivot.x + ab->half.x
-		&& c->pivot.y - c->radius >= ab->pivot.y - ab->half.y
-		&& c->pivot.y + c->radius <= ab->pivot.y + ab->half.y;
-}
-static int shape2d_aabb_has_contain_polygon(const struct shape2d_aabb_t* ab, const struct shape2d_polygon_t* p) {
-	return shape2d_aabb_has_point_n(ab, p->vertices, p->vertice_num) == p->vertice_num;
-}
-
 /* circle */
 static int shape2d_circle_has_point(const struct shape2d_circle_t* c, const struct vector2_t* p) {
 	struct vector2_t v = { p->x - c->pivot.x, p->y - c->pivot.y };
@@ -154,29 +137,6 @@ static unsigned int shape2d_circle_has_point_n(const struct shape2d_circle_t* c,
 	return n;
 }
 
-static int shape2d_circle_has_contain_circle(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
-	struct vector2_t v;
-	double d = c1->radius - c2->radius;
-	if (d < DBL_EPSILON)
-		return 0;
-	v.x = c2->pivot.x - c1->pivot.x;
-	v.y = c2->pivot.y - c1->pivot.y;
-	return vector2_lensq(&v) <= d * d;
-}
-
-static int shape2d_circle_has_contain_aabb(const struct shape2d_circle_t* c, const struct shape2d_aabb_t* ab) {
-	struct vector2_t vertices[] = {
-		{ ab->pivot.x - ab->half.x, ab->pivot.y - ab->half.y },
-		{ ab->pivot.x + ab->half.x, ab->pivot.y - ab->half.y },
-		{ ab->pivot.x + ab->half.x, ab->pivot.y + ab->half.y },
-		{ ab->pivot.x - ab->half.x, ab->pivot.y + ab->half.y }
-	};
-	return shape2d_circle_has_point_n(c, vertices, sizeof(vertices) / sizeof(vertices[0])) == sizeof(vertices) / sizeof(vertices[0]);
-}
-
-static int shape2d_circle_has_contain_polygon(const struct shape2d_circle_t* c, const struct shape2d_polygon_t* p) {
-	return shape2d_circle_has_point_n(c, p->vertices, p->vertice_num) == p->vertice_num;
-}
 /*
 static double __projection(const struct shape2d_obb_t* p, const struct vector2_t pv[], const struct vector2_t* v) {
 	return p->w * fabs(vector2_dot(v, &pv[0])) + p->h * fabs(vector2_dot(v, &pv[1]));
@@ -210,16 +170,7 @@ static int __cross(const struct vector2_t* vi, const struct vector2_t* vj, const
 	return	((vi->y > point->y) != (vj->y > point->y)) &&
 		(point->x < (vj->x - vi->x) * (point->y - vi->y) / (vj->y - vi->y) + vi->x);
 }
-void shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian) {
-	unsigned int i;
-	for (i = 0; i < c->vertice_num; ++i) {
-		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
-		double y = (c->vertices[i].x - c->pivot.x) * sin(radian) + (c->vertices[i].y - c->pivot.y) * cos(radian) + c->pivot.y;
-		c->vertices[i].x = x;
-		c->vertices[i].y = y;
-	}
-	c->radian = radian;
-}
+
 static int shape2d_polygon_has_point(const struct shape2d_polygon_t* c, const struct vector2_t* point) {
 	unsigned int i, j, b = 0;
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
@@ -230,6 +181,7 @@ static int shape2d_polygon_has_point(const struct shape2d_polygon_t* c, const st
 	}
 	return b;
 }
+
 static unsigned int shape2d_polygon_has_point_n(const struct shape2d_polygon_t* c, const struct vector2_t p[], unsigned int n) {
 	unsigned int i;
 	for (i = 0; i < n; ++i) {
@@ -265,12 +217,6 @@ static int shape2d_linesegment_has_intersect(const shape2d_linesegment_t* ls1, c
 static int shape2d_aabb_aabb_has_overlap(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
 	return fabs(ab1->pivot.x - ab2->pivot.x) < ab1->half.x + ab2->half.x
 		&& fabs(ab1->pivot.y - ab2->pivot.y) < ab1->half.y + ab2->half.y;
-}
-
-static int shap2d_aabb_linesegment_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_linesegment_t* ls) {
-	struct shape2d_aabb_t lsaabb;
-	shape2d_linesegment_to_aabb(ls, &lsaabb);
-	return shape2d_aabb_aabb_has_overlap(ab, &lsaabb);
 }
 
 static int shape2d_circle_circle_has_overlap(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
@@ -406,7 +352,15 @@ static int shape2d_polygon_linesegment_has_overlap(const struct shape2d_polygon_
 	return b1 && b2;
 }
 
-static int shape2d_aabb_circle_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_circle_t* c) {
+static int shap2d_aabb_linesegment_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_linesegment_t* ls) {
+	unsigned char _buf[sizeof(struct shape2d_polygon_t) + 4 * sizeof(struct vector2_t)];
+	struct shape2d_polygon_t* polygon = (struct shape2d_polygon_t*)_buf;
+	polygon->vertices = (struct vector2_t*)(polygon + 1);
+	shape2d_aabb_to_polygon(ab, polygon);
+	return shape2d_polygon_linesegment_has_overlap(polygon, ls);
+}
+
+static int shape2d_circle_aabb_has_overlap(const shape2d_circle_t* c, const struct shape2d_aabb_t* ab) {
 	unsigned char _buf[sizeof(struct shape2d_polygon_t) + 4 * sizeof(struct vector2_t)];
 	struct shape2d_polygon_t* polygon = (struct shape2d_polygon_t*)_buf;
 	polygon->vertices = (struct vector2_t*)(polygon + 1);
@@ -414,7 +368,7 @@ static int shape2d_aabb_circle_has_overlap(const struct shape2d_aabb_t* ab, cons
 	return shape2d_polygon_circle_has_overlap(polygon, c);
 }
 
-static int shape2d_aabb_polygon_has_overlap(const struct shape2d_aabb_t* ab, const shape2d_polygon_t* p) {
+static int shape2d_polygon_aabb_has_overlap(const shape2d_polygon_t* p, const struct shape2d_aabb_t* ab) {
 	unsigned char _buf[sizeof(struct shape2d_polygon_t) + 4 * sizeof(struct vector2_t)];
 	struct shape2d_polygon_t* polygon = (struct shape2d_polygon_t*)_buf;
 	polygon->vertices = (struct vector2_t*)(polygon + 1);
@@ -422,7 +376,98 @@ static int shape2d_aabb_polygon_has_overlap(const struct shape2d_aabb_t* ab, con
 	return shape2d_polygon_polygon_has_overlap(polygon, p);
 }
 
-/* overlap interface */
+/* shape contain */
+static int shape2d_aabb_has_contain_linesegment(const struct shape2d_aabb_t* ab, const struct shape2d_linesegment_t* ls) {
+	return shape2d_aabb_has_point_n(ab, ls->vertices, sizeof(ls->vertices) / sizeof(ls->vertices[0]));
+}
+
+static int shape2d_aabb_has_contain_aabb(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
+	return ab1->pivot.x - ab1->half.x <= ab2->pivot.x - ab2->half.x
+		&& ab1->pivot.x + ab1->half.x >= ab2->pivot.x + ab2->half.x
+		&& ab1->pivot.y - ab1->half.y <= ab2->pivot.y - ab2->half.y
+		&& ab1->pivot.y + ab1->half.y >= ab2->pivot.y + ab2->half.y;
+}
+
+static int shape2d_aabb_has_contain_circle(const struct shape2d_aabb_t* ab, const struct shape2d_circle_t* c) {
+	return c->pivot.x - c->radius >= ab->pivot.x - ab->half.x
+		&& c->pivot.x + c->radius <= ab->pivot.x + ab->half.x
+		&& c->pivot.y - c->radius >= ab->pivot.y - ab->half.y
+		&& c->pivot.y + c->radius <= ab->pivot.y + ab->half.y;
+}
+static int shape2d_aabb_has_contain_polygon(const struct shape2d_aabb_t* ab, const struct shape2d_polygon_t* p) {
+	return shape2d_aabb_has_point_n(ab, p->vertices, p->vertice_num) == p->vertice_num;
+}
+
+static int shape2d_circle_has_contain_circle(const struct shape2d_circle_t* c1, const struct shape2d_circle_t* c2) {
+	struct vector2_t v;
+	double d = c1->radius - c2->radius;
+	if (d < DBL_EPSILON)
+		return 0;
+	v.x = c2->pivot.x - c1->pivot.x;
+	v.y = c2->pivot.y - c1->pivot.y;
+	return vector2_lensq(&v) <= d * d;
+}
+
+static int shape2d_circle_has_contain_linesegment(const struct shape2d_circle_t* c, const struct shape2d_linesegment_t* ls) {
+	return shape2d_circle_has_point_n(c, ls->vertices, sizeof(ls->vertices) / sizeof(ls->vertices[0]));
+}
+
+static int shape2d_circle_has_contain_aabb(const struct shape2d_circle_t* c, const struct shape2d_aabb_t* ab) {
+	struct vector2_t vertices[] = {
+		{ ab->pivot.x - ab->half.x, ab->pivot.y - ab->half.y },
+		{ ab->pivot.x + ab->half.x, ab->pivot.y - ab->half.y },
+		{ ab->pivot.x + ab->half.x, ab->pivot.y + ab->half.y },
+		{ ab->pivot.x - ab->half.x, ab->pivot.y + ab->half.y }
+	};
+	return shape2d_circle_has_point_n(c, vertices, sizeof(vertices) / sizeof(vertices[0])) == sizeof(vertices) / sizeof(vertices[0]);
+}
+
+static int shape2d_circle_has_contain_polygon(const struct shape2d_circle_t* c, const struct shape2d_polygon_t* p) {
+	return shape2d_circle_has_point_n(c, p->vertices, p->vertice_num) == p->vertice_num;
+}
+
+static int shape2d_polygon_has_contain_linesegment(const struct shape2d_polygon_t* p, const struct shape2d_linesegment_t* ls) {
+	return shape2d_polygon_has_point_n(p, ls->vertices, sizeof(ls->vertices[0]));
+}
+
+static int shape2d_polygon_has_contain_aabb(const struct shape2d_polygon_t* p, const struct shape2d_aabb_t* ab) {
+	unsigned char _buf[sizeof(struct shape2d_polygon_t) + 4 * sizeof(struct vector2_t)];
+	struct shape2d_polygon_t* polygon = (struct shape2d_polygon_t*)_buf;
+	polygon->vertices = (struct vector2_t*)(polygon + 1);
+	shape2d_aabb_to_polygon(ab, polygon);
+	return shape2d_polygon_has_point_n(p, polygon->vertices, polygon->vertice_num);
+}
+
+static int shape2d_polygon_has_contain_circle(const struct shape2d_polygon_t* p, const struct shape2d_circle_t* c) {
+	unsigned int i, j, b = 0;
+	for (i = 0, j = p->vertice_num - 1; i < p->vertice_num; j = i++) {
+		const struct vector2_t* vi = p->vertices + i;
+		const struct vector2_t* vj = p->vertices + j;
+		if (__shape2d_circle_linesegment_has_overlap(c, vi, vj))
+			return 0;
+		if (__cross(vi, vj, &c->pivot))
+			b = !b;
+	}
+	return b;
+}
+
+static int shape2d_polygon_has_contain_polygon(const struct shape2d_polygon_t* p1, const struct shape2d_polygon_t* p2) {
+	return shape2d_polygon_has_point_n(p1, p2->vertices, p2->vertice_num);
+}
+
+/* uniform interface */
+struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian) {
+	unsigned int i;
+	for (i = 0; i < c->vertice_num; ++i) {
+		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
+		double y = (c->vertices[i].x - c->pivot.x) * sin(radian) + (c->vertices[i].y - c->pivot.y) * cos(radian) + c->pivot.y;
+		c->vertices[i].x = x;
+		c->vertices[i].y = y;
+	}
+	c->radian = radian;
+	return c;
+}
+
 static void* __pf_to_aabb[SHAPE2D_MAX_ENUM_NUM] = {
 	(void*)shape2d_linesegment_to_aabb,
 	(void*)shape2d_aabb_to_aabb,
@@ -445,18 +490,18 @@ static void* __pf_overlap[SHAPE2D_MAX_ENUM_NUM][SHAPE2D_MAX_ENUM_NUM] = {
 	{
 		(void*)shap2d_aabb_linesegment_has_overlap,
 		(void*)shape2d_aabb_aabb_has_overlap,
-		(void*)shape2d_aabb_circle_has_overlap,
-		(void*)shape2d_aabb_polygon_has_overlap
+		(void*)shape2d_circle_aabb_has_overlap,
+		(void*)shape2d_polygon_aabb_has_overlap
 	},
 	{
 		(void*)shape2d_circle_linesegment_has_overlap,
-		(void*)shape2d_aabb_circle_has_overlap,
+		(void*)shape2d_circle_aabb_has_overlap,
 		(void*)shape2d_circle_circle_has_overlap,
 		(void*)shape2d_polygon_circle_has_overlap
 	},
 	{
 		(void*)shape2d_polygon_linesegment_has_overlap,
-		(void*)shape2d_aabb_polygon_has_overlap,
+		(void*)shape2d_polygon_aabb_has_overlap,
 		(void*)shape2d_polygon_circle_has_overlap,
 		(void*)shape2d_polygon_polygon_has_overlap
 	}
@@ -466,19 +511,22 @@ static void* __pf_contain[SHAPE2D_MAX_ENUM_NUM][SHAPE2D_MAX_ENUM_NUM] = {
 		(void*)0
 	},
 	{
-		(void*)0,
+		(void*)shape2d_aabb_has_contain_linesegment,
 		(void*)shape2d_aabb_has_contain_aabb,
 		(void*)shape2d_aabb_has_contain_circle,
 		(void*)shape2d_aabb_has_contain_polygon
 	},
 	{
-		(void*)0,
+		(void*)shape2d_circle_has_contain_linesegment,
 		(void*)shape2d_circle_has_contain_aabb,
 		(void*)shape2d_circle_has_contain_circle,
 		(void*)shape2d_circle_has_contain_polygon
 	},
 	{
-		(void*)0
+		(void*)shape2d_polygon_has_contain_linesegment,
+		(void*)shape2d_polygon_has_contain_aabb,
+		(void*)shape2d_polygon_has_contain_circle,
+		(void*)shape2d_polygon_has_contain_polygon
 	}
 };
 
@@ -512,7 +560,10 @@ int shape2d_has_overlap(int type1, const union shape2d_t* shape1, int type2, con
 		= (int(*)(const union shape2d_t*, const union shape2d_t*))(__pf_overlap[type1][type2]);
 	if (!pf)
 		return 0;
-	return pf(shape1, shape2);
+	if (type1 >= type2)
+		return pf(shape1, shape2);
+	else
+		return pf(shape2, shape1);
 }
 
 int shape2d_shape_has_contain_shape(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2) {
