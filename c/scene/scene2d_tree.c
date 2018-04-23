@@ -31,30 +31,29 @@ static int __subarea_index(struct shape2d_aabb_t* ap, struct shape2d_aabb_t* op)
 }
 static void __subarea_setup(struct scene2d_area_t* top, int index) {
 	struct scene2d_area_t* sub = top->m_subarea[index];
-	struct shape2d_aabb_t p;
 	switch (index) {
 		case 0:
-			p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
-			p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
+			sub->p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
+			sub->p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
 			break;
 		case 1:
-			p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
-			p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
+			sub->p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
+			sub->p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
 			break;
 		case 2:
-			p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
-			p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
+			sub->p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
+			sub->p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
 			break;
 		case 3:
-			p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
-			p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
+			sub->p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
+			sub->p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
 			break;
 		default:
 			return;
 	}
-	p.half.x = top->p.half.x / 2;
-	p.half.y = top->p.half.y / 2;
-	scene2d_area_init(sub, &p);
+	sub->p.half.x = top->p.half.x / 2;
+	sub->p.half.y = top->p.half.y / 2;
+	scene2d_area_init(sub);
 	tree_insert_child(&top->m_tree, &sub->m_tree);
 	sub->deep = top->deep + 1;
 }
@@ -86,10 +85,8 @@ static void __area_split(struct scene2d_area_t* area) {
 	}
 }
 
-void scene2d_area_init(struct scene2d_area_t* node, const struct shape2d_aabb_t* p) {
+void scene2d_area_init(struct scene2d_area_t* node) {
 	int i;
-
-	node->p = *p;
 
 	node->deep = 0;
 

@@ -41,7 +41,7 @@ typedef struct scene2d_shape_t {
 extern "C" {
 #endif
 
-void scene2d_area_init(struct scene2d_area_t* node, const struct shape2d_aabb_t* p);
+void scene2d_area_init(struct scene2d_area_t* node);
 void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_area_t* area, struct scene2d_shape_t* shape);
 void scene2d_shape_leave(struct scene2d_shape_t* shape);
 void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* shape, double x, double y);
