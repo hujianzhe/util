@@ -33,26 +33,26 @@ static void __subarea_setup(struct scene2d_area_t* top, int index) {
 	struct scene2d_area_t* sub = top->m_subarea[index];
 	switch (index) {
 		case 0:
-			sub->p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
-			sub->p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
+			sub->aabb.pivot.x = top->aabb.pivot.x - top->aabb.half.x / 2;
+			sub->aabb.pivot.y = top->aabb.pivot.y - top->aabb.half.y / 2;
 			break;
 		case 1:
-			sub->p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
-			sub->p.pivot.y = top->p.pivot.y - top->p.half.y / 2;
+			sub->aabb.pivot.x = top->aabb.pivot.x + top->aabb.half.x / 2;
+			sub->aabb.pivot.y = top->aabb.pivot.y - top->aabb.half.y / 2;
 			break;
 		case 2:
-			sub->p.pivot.x = top->p.pivot.x - top->p.half.x / 2;
-			sub->p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
+			sub->aabb.pivot.x = top->aabb.pivot.x - top->aabb.half.x / 2;
+			sub->aabb.pivot.y = top->aabb.pivot.y + top->aabb.half.y / 2;
 			break;
 		case 3:
-			sub->p.pivot.x = top->p.pivot.x + top->p.half.x / 2;
-			sub->p.pivot.y = top->p.pivot.y + top->p.half.y / 2;
+			sub->aabb.pivot.x = top->aabb.pivot.x + top->aabb.half.x / 2;
+			sub->aabb.pivot.y = top->aabb.pivot.y + top->aabb.half.y / 2;
 			break;
 		default:
 			return;
 	}
-	sub->p.half.x = top->p.half.x / 2;
-	sub->p.half.y = top->p.half.y / 2;
+	sub->aabb.half.x = top->aabb.half.x / 2;
+	sub->aabb.half.y = top->aabb.half.y / 2;
 	scene2d_area_init(sub);
 	tree_insert_child(&top->m_tree, &sub->m_tree);
 	sub->deep = top->deep + 1;
@@ -65,7 +65,7 @@ static void __area_split(struct scene2d_area_t* area) {
 	for (cur = area->shape_list.head; cur; cur = next) {
 		struct scene2d_shape_t* shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
 		next = cur->next;
-		i = __subarea_index(&area->p, &shape->p);
+		i = __subarea_index(&area->aabb, &shape->aabb);
 		if (i < 0 || i > 3) {
 			continue;
 		}
@@ -101,7 +101,7 @@ void scene2d_area_init(struct scene2d_area_t* node) {
 
 void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_area_t* area, struct scene2d_shape_t* shape) {
 	if (area->m_tree.child) {
-		int i = __subarea_index(&area->p, &shape->p);
+		int i = __subarea_index(&area->aabb, &shape->aabb);
 		if (i >= 0) {
 			struct scene2d_area_t** sub_area = area->m_subarea;
 			if (!sub_area[i]) {
@@ -153,16 +153,16 @@ void scene2d_shape_leave(struct scene2d_shape_t* shape) {
 void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* shape, double x, double y) {
 	struct scene2d_area_t* top_area = (struct scene2d_area_t*)0;
 	struct tree_t* tree = &shape->area->m_tree;
-	if (shape->p.pivot.x == x && shape->p.pivot.y == y) {
+	if (shape->aabb.pivot.x == x && shape->aabb.pivot.y == y) {
 		return;
 	}
-	shape->p.pivot.x = x;
-	shape->p.pivot.y = y;
+	shape->aabb.pivot.x = x;
+	shape->aabb.pivot.y = y;
 	while (tree) {
 		top_area = pod_container_of(tree, struct scene2d_area_t, m_tree);
 		if (shape2d_shape_has_contain_shape(
-			SHAPE2D_AABB, (const shape2d_t*)&top_area->p,
-			SHAPE2D_AABB, (const shape2d_t*)&shape->p))
+			SHAPE2D_AABB, (const shape2d_t*)&top_area->aabb,
+			SHAPE2D_AABB, (const shape2d_t*)&shape->aabb))
 		{
 			break;
 		}
@@ -187,12 +187,12 @@ void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const un
 		return;
 	}
 
-	if (!shape2d_has_overlap(SHAPE2D_AABB, (union shape2d_t*)&area->p, shape_type, shape))
+	if (!shape2d_has_overlap(SHAPE2D_AABB, (union shape2d_t*)&area->aabb, shape_type, shape))
 		return;
 
 	for (cur = area->shape_list.head; cur; cur = cur->next) {
 		struct scene2d_shape_t* sc_shape = pod_container_of(cur, struct scene2d_shape_t, m_listnode);
-		if (!shape2d_has_overlap(sc_shape->type, &sc_shape->s, shape_type, shape)) {
+		if (!shape2d_has_overlap(sc_shape->shape_type, &sc_shape->shape, shape_type, shape)) {
 			continue;
 		}
 		list_insert_node_back(list, list->tail, &sc_shape->m_foreachnode);

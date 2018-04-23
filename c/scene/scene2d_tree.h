@@ -10,7 +10,7 @@
 #include "shape2d.h"
 
 typedef struct scene2d_area_t {
-	struct shape2d_aabb_t p;
+	struct shape2d_aabb_t aabb;
 
 	unsigned int deep;
 
@@ -28,9 +28,9 @@ typedef struct scene2d_info_t {
 } scene2d_info_t;
 
 typedef struct scene2d_shape_t {
-	struct shape2d_aabb_t p;
-	union shape2d_t s;
-	int type;
+	struct shape2d_aabb_t aabb;
+	union shape2d_t shape;
+	int shape_type;
 	void* userdata;
 	struct scene2d_area_t* area;
 	struct list_node_t m_listnode;
