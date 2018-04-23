@@ -463,16 +463,16 @@ static int shape2d_polygon_has_contain_polygon(const struct shape2d_polygon_t* p
 }
 
 /* uniform interface */
-struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian) {
+struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* p, double radian) {
 	unsigned int i;
-	for (i = 0; i < c->vertice_num; ++i) {
-		double x = (c->vertices[i].x - c->pivot.x) * cos(radian) - (c->vertices[i].y - c->pivot.y) * sin(radian) + c->pivot.x;
-		double y = (c->vertices[i].x - c->pivot.x) * sin(radian) + (c->vertices[i].y - c->pivot.y) * cos(radian) + c->pivot.y;
-		c->vertices[i].x = x;
-		c->vertices[i].y = y;
+	for (i = 0; i < p->vertice_num; ++i) {
+		double x = (p->vertices[i].x - p->pivot.x) * cos(radian) - (p->vertices[i].y - p->pivot.y) * sin(radian) + p->pivot.x;
+		double y = (p->vertices[i].x - p->pivot.x) * sin(radian) + (p->vertices[i].y - p->pivot.y) * cos(radian) + p->pivot.y;
+		p->vertices[i].x = x;
+		p->vertices[i].y = y;
 	}
-	c->radian = radian;
-	return c;
+	p->radian = radian;
+	return p;
 }
 
 static void* __pf_to_aabb[SHAPE2D_MAX_ENUM_NUM] = {
@@ -538,33 +538,39 @@ static void* __pf_contain[SHAPE2D_MAX_ENUM_NUM][SHAPE2D_MAX_ENUM_NUM] = {
 };
 
 struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* shape, struct shape2d_aabb_t* aabb) {
+	struct shape2d_aabb_t*(*pf)(const union shape2d_t*, struct shape2d_aabb_t*);
+
 	if (type <= SHAPE2D_MIN_ENUM_NUM || type >= SHAPE2D_MAX_ENUM_NUM)
 		return 0;
-	struct shape2d_aabb_t*(*pf)(const union shape2d_t*, struct shape2d_aabb_t*)
-		= (struct shape2d_aabb_t*(*)(const union shape2d_t*, struct shape2d_aabb_t*))(__pf_to_aabb[type]);
+	
+	pf = (struct shape2d_aabb_t*(*)(const union shape2d_t*, struct shape2d_aabb_t*))(__pf_to_aabb[type]);
 	if (!pf)
 		return 0;
 	return pf(shape, aabb);
 }
 
 unsigned int shape2d_has_point_n(int type, const union shape2d_t* shape, const struct vector2_t p[], unsigned int n) {
+	unsigned int(*pf)(const union shape2d_t*, const vector2_t[], unsigned int);
+
 	if (type <= SHAPE2D_MIN_ENUM_NUM || type >= SHAPE2D_MAX_ENUM_NUM)
 		return 0;
-	unsigned int(*pf)(const union shape2d_t*, const vector2_t[], unsigned int)
-		= (unsigned int(*)(const union shape2d_t*, const vector2_t[], unsigned int))(__pf_has_point_n[type]);
+
+	pf = (unsigned int(*)(const union shape2d_t*, const vector2_t[], unsigned int))(__pf_has_point_n[type]);
 	if (!pf)
 		return 0;
 	return pf(shape, p, n);
 }
 
 int shape2d_has_overlap(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2) {
+	int(*pf)(const union shape2d_t*, const union shape2d_t*);
+
 	if (type1 <= SHAPE2D_MIN_ENUM_NUM || type1 >= SHAPE2D_MAX_ENUM_NUM ||
 		type2 <= SHAPE2D_MIN_ENUM_NUM || type2 >= SHAPE2D_MAX_ENUM_NUM)
 	{
 		return 0;
 	}
-	int(*pf)(const union shape2d_t*, const union shape2d_t*)
-		= (int(*)(const union shape2d_t*, const union shape2d_t*))(__pf_overlap[type1][type2]);
+	
+	pf = (int(*)(const union shape2d_t*, const union shape2d_t*))(__pf_overlap[type1][type2]);
 	if (!pf)
 		return 0;
 	if (type1 >= type2)
@@ -574,16 +580,44 @@ int shape2d_has_overlap(int type1, const union shape2d_t* shape1, int type2, con
 }
 
 int shape2d_shape_has_contain_shape(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2) {
+	int(*pf)(const union shape2d_t*, const union shape2d_t*);
+
 	if (type1 <= SHAPE2D_MIN_ENUM_NUM || type1 >= SHAPE2D_MAX_ENUM_NUM ||
 		type2 <= SHAPE2D_MIN_ENUM_NUM || type2 >= SHAPE2D_MAX_ENUM_NUM)
 	{
 		return 0;
 	}
-	int(*pf)(const union shape2d_t*, const union shape2d_t*)
-		= (int(*)(const union shape2d_t*, const union shape2d_t*))(__pf_contain[type1][type2]);
+	
+	pf = (int(*)(const union shape2d_t*, const union shape2d_t*))(__pf_contain[type1][type2]);
 	if (!pf)
 		return 0;
 	return pf(shape1, shape2);
+}
+
+void shape2d_move_pivot(int type, union shape2d_t* shape, const struct vector2_t* pivot) {
+	switch (type) {
+		case SHAPE2D_AABB:
+		{
+			shape->aabb.pivot = *pivot;
+			break;
+		}
+		case SHAPE2D_CIRCLE:
+		{
+			shape->circle.pivot = *pivot;
+			break;
+		}
+		case SHAPE2D_POLYGON:
+		{
+			double delta_x = pivot->x - shape->polygon.pivot.x;
+			double delta_y = pivot->y - shape->polygon.pivot.y;
+			unsigned int i;
+			for (i = 0; i < shape->polygon.vertice_num; ++i) {
+				shape->polygon.vertices[i].x += delta_x;
+				shape->polygon.vertices[i].y += delta_y;
+			}
+			break;
+		}
+	}
 }
 
 #ifdef	__cplusplus

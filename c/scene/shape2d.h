@@ -49,11 +49,12 @@ typedef union shape2d_t {
 extern "C" {
 #endif
 
-struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* c, double radian);
+struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* p, double radian);
 struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* shape, struct shape2d_aabb_t* aabb);
 unsigned int shape2d_has_point_n(int type, const union shape2d_t* shape, const struct vector2_t p[], unsigned int n);
 int shape2d_has_overlap(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2);
 int shape2d_shape_has_contain_shape(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2);
+void shape2d_move_pivot(int type, union shape2d_t* shape, const struct vector2_t* pivot);
 
 #ifdef	__cplusplus
 }

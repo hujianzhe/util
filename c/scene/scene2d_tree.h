@@ -44,7 +44,7 @@ extern "C" {
 void scene2d_area_init(struct scene2d_area_t* node);
 void scene2d_shape_entry(const struct scene2d_info_t* scinfo, struct scene2d_area_t* area, struct scene2d_shape_t* shape);
 void scene2d_shape_leave(struct scene2d_shape_t* shape);
-void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* shape, double x, double y);
+void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* scshape, const struct vector2_t* pivot);
 void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const union shape2d_t* shape, struct list_t* list);
 
 #ifdef	__cplusplus
