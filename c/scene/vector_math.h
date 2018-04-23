@@ -16,8 +16,8 @@ typedef struct vector3_t {
 extern "C" {
 #endif
 
-struct vector2_t vector2_make(double x, double y);
-struct vector3_t vector3_make(double x, double y, double z);
+struct vector2_t* vector2_assign(struct vector2_t* v, double x, double y);
+struct vector3_t* vector3_assign(struct vector3_t* v, double x, double y, double z);
 
 int vector_equal(const double* v1, const double* v2, int dimension);
 int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2);

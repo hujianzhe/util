@@ -10,12 +10,16 @@
 extern "C" {
 #endif
 
-struct vector2_t vector2_make(double x, double y) {
-	struct vector2_t v = { x, y };
+struct vector2_t* vector2_assign(struct vector2_t* v, double x, double y) {
+	v->x = x;
+	v->y = y;
 	return v;
 }
-struct vector3_t vector3_make(double x, double y, double z) {
-	struct vector3_t v = { x, y, z };
+
+struct vector3_t* vector3_assign(struct vector3_t* v, double x, double y, double z) {
+	v->x = x;
+	v->y = y;
+	v->z = z;
 	return v;
 }
 
