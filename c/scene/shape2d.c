@@ -36,9 +36,11 @@ static int __shape2d_linesegment_has_point(const struct vector2_t* s, const stru
 		return 0;
 	return p->x >= fmin(s->x, e->x) && p->x <= fmax(s->x, e->x) && p->y >= fmin(s->y, e->y) && p->y <= fmax(s->y, e->y);
 }
+
 static int shape2d_linesegment_has_point(const shape2d_linesegment_t* ls, const struct vector2_t* p) {
 	return __shape2d_linesegment_has_point(&ls->vertices0, &ls->vertices1, p);
 }
+
 static unsigned int shape2d_linesegment_has_point_n(const shape2d_linesegment_t* ls, const struct vector2_t p[], unsigned int n) {
 	unsigned int i;
 	for (i = 0; i < n; ++i) {

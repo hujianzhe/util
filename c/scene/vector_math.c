@@ -10,6 +10,15 @@
 extern "C" {
 #endif
 
+struct vector2_t vector2_make(double x, double y) {
+	struct vector2_t v = { x, y };
+	return v;
+}
+struct vector3_t vector3_make(double x, double y, double z) {
+	struct vector3_t v = { x, y, z };
+	return v;
+}
+
 int vector_equal(const double* v1, const double* v2, int dimension) {
 	int i;
 	for (i = 0; i < dimension; ++i) {

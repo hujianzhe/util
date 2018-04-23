@@ -16,6 +16,9 @@ typedef struct vector3_t {
 extern "C" {
 #endif
 
+struct vector2_t vector2_make(double x, double y);
+struct vector3_t vector3_make(double x, double y, double z);
+
 int vector_equal(const double* v1, const double* v2, int dimension);
 int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2);
 int vector3_equal(const struct vector3_t* v1, const struct vector3_t* v2);
