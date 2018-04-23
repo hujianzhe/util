@@ -37,12 +37,12 @@ static int __shape2d_linesegment_has_point(const struct vector2_t* s, const stru
 	return p->x >= fmin(s->x, e->x) && p->x <= fmax(s->x, e->x) && p->y >= fmin(s->y, e->y) && p->y <= fmax(s->y, e->y);
 }
 static int shape2d_linesegment_has_point(const shape2d_linesegment_t* ls, const struct vector2_t* p) {
-	return __shape2d_linesegment_has_point(&ls->vertices[0], &ls->vertices[1], p);
+	return __shape2d_linesegment_has_point(&ls->vertices0, &ls->vertices1, p);
 }
 static unsigned int shape2d_linesegment_has_point_n(const shape2d_linesegment_t* ls, const struct vector2_t p[], unsigned int n) {
 	unsigned int i;
 	for (i = 0; i < n; ++i) {
-		if (!__shape2d_linesegment_has_point(&ls->vertices[0], &ls->vertices[1], p + i))
+		if (!__shape2d_linesegment_has_point(&ls->vertices0, &ls->vertices1, p + i))
 			return i;
 	}
 	return n;
@@ -65,10 +65,10 @@ static struct shape2d_polygon_t* shape2d_aabb_to_polygon(const struct shape2d_aa
 }
 
 static struct shape2d_aabb_t* shape2d_linesegment_to_aabb(const struct shape2d_linesegment_t* ls, struct shape2d_aabb_t* aabb) {
-	aabb->pivot.x = (ls->vertices[0].x + ls->vertices[1].x) * 0.5;
-	aabb->pivot.y = (ls->vertices[0].y + ls->vertices[1].y) * 0.5;
-	aabb->half.x = fabs(ls->vertices[0].x - ls->vertices[1].x) * 0.5;
-	aabb->half.y = fabs(ls->vertices[0].y - ls->vertices[1].y) * 0.5;
+	aabb->pivot.x = (ls->vertices0.x + ls->vertices1.x) * 0.5;
+	aabb->pivot.y = (ls->vertices0.y + ls->vertices1.y) * 0.5;
+	aabb->half.x = fabs(ls->vertices0.x - ls->vertices1.x) * 0.5;
+	aabb->half.y = fabs(ls->vertices0.y - ls->vertices1.y) * 0.5;
 	return aabb;
 }
 
@@ -211,7 +211,7 @@ static int __shape2d_linesegment_has_intersect(const struct vector2_t* s1, const
 	return 0;
 }
 static int shape2d_linesegment_has_intersect(const shape2d_linesegment_t* ls1, const shape2d_linesegment_t* ls2) {
-	return __shape2d_linesegment_has_intersect(ls1->vertices, ls1->vertices + 1, ls2->vertices, ls2->vertices + 1);
+	return __shape2d_linesegment_has_intersect(&ls1->vertices0, &ls1->vertices1, &ls2->vertices0, &ls2->vertices1);
 }
 
 static int shape2d_aabb_aabb_has_overlap(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
@@ -267,7 +267,7 @@ static int __shape2d_circle_linesegment_has_overlap(const struct shape2d_circle_
 	return d < c->radius*c->radius;
 }
 static int shape2d_circle_linesegment_has_overlap(const struct shape2d_circle_t* c, const struct shape2d_linesegment_t* ls) {
-	return __shape2d_circle_linesegment_has_overlap(c, ls->vertices, ls->vertices + 1);
+	return __shape2d_circle_linesegment_has_overlap(c, &ls->vertices0, &ls->vertices1);
 }
 
 static int shape2d_polygon_polygon_has_overlap(const struct shape2d_polygon_t* c1, const struct shape2d_polygon_t* c2) {
@@ -342,11 +342,11 @@ static int shape2d_polygon_linesegment_has_overlap(const struct shape2d_polygon_
 	for (i = 0, j = c->vertice_num - 1; i < c->vertice_num; j = i++) {
 		const struct vector2_t* vi = c->vertices + i;
 		const struct vector2_t* vj = c->vertices + j;
-		if (__shape2d_linesegment_has_intersect(vi, vj, &ls->vertices[0], &ls->vertices[1]))
+		if (__shape2d_linesegment_has_intersect(vi, vj, &ls->vertices0, &ls->vertices1))
 			return 1;
-		if (__cross(vi, vj, &ls->vertices[0]))
+		if (__cross(vi, vj, &ls->vertices0))
 			b1 = !b1;
-		if (__cross(vi, vj, &ls->vertices[1]))
+		if (__cross(vi, vj, &ls->vertices1))
 			b2 = !b2;
 	}
 	return b1 && b2;
@@ -378,7 +378,7 @@ static int shape2d_polygon_aabb_has_overlap(const shape2d_polygon_t* p, const st
 
 /* shape contain */
 static int shape2d_aabb_has_contain_linesegment(const struct shape2d_aabb_t* ab, const struct shape2d_linesegment_t* ls) {
-	return shape2d_aabb_has_point_n(ab, ls->vertices, sizeof(ls->vertices) / sizeof(ls->vertices[0]));
+	return shape2d_aabb_has_point_n(ab, &ls->vertices0, 2);
 }
 
 static int shape2d_aabb_has_contain_aabb(const struct shape2d_aabb_t* ab1, const struct shape2d_aabb_t* ab2) {
@@ -409,7 +409,7 @@ static int shape2d_circle_has_contain_circle(const struct shape2d_circle_t* c1, 
 }
 
 static int shape2d_circle_has_contain_linesegment(const struct shape2d_circle_t* c, const struct shape2d_linesegment_t* ls) {
-	return shape2d_circle_has_point_n(c, ls->vertices, sizeof(ls->vertices) / sizeof(ls->vertices[0]));
+	return shape2d_circle_has_point_n(c, &ls->vertices0, 2);
 }
 
 static int shape2d_circle_has_contain_aabb(const struct shape2d_circle_t* c, const struct shape2d_aabb_t* ab) {
@@ -427,7 +427,7 @@ static int shape2d_circle_has_contain_polygon(const struct shape2d_circle_t* c, 
 }
 
 static int shape2d_polygon_has_contain_linesegment(const struct shape2d_polygon_t* p, const struct shape2d_linesegment_t* ls) {
-	return shape2d_polygon_has_point_n(p, ls->vertices, sizeof(ls->vertices[0]));
+	return shape2d_polygon_has_point_n(p, &ls->vertices0, 2);
 }
 
 static int shape2d_polygon_has_contain_aabb(const struct shape2d_polygon_t* p, const struct shape2d_aabb_t* ab) {
