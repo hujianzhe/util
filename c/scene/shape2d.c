@@ -541,11 +541,11 @@ struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* sh
 	struct shape2d_aabb_t*(*pf)(const union shape2d_t*, struct shape2d_aabb_t*);
 
 	if (type <= SHAPE2D_MIN_ENUM_NUM || type >= SHAPE2D_MAX_ENUM_NUM)
-		return 0;
+		return NULL;
 	
 	pf = (struct shape2d_aabb_t*(*)(const union shape2d_t*, struct shape2d_aabb_t*))(__pf_to_aabb[type]);
 	if (!pf)
-		return (struct shape2d_aabb_t*)0;
+		return NULL;
 	return pf(shape, aabb);
 }
 
