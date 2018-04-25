@@ -75,13 +75,24 @@ void matrix_remove_col(struct matrix_t* m, unsigned int col) {
 	m->col -= 1;
 }
 
-static void __matrix_det(const struct matrix_t* src, struct matrix_t* m, unsigned int sel_row, unsigned int sel_col) {
+/*
+static double __matrix_det(const struct matrix_t* src, struct matrix_t* m) {
+	double res = 0.0;
 	unsigned int c;
 	for (c = 0; c < m->col; ++c) {
-		matrix_remove_col(m, sel_col);
-		matrix_remove_row(m, sel_row);
+		double det;
+		double base = matrix_val(m, 0, c);
+		matrix_remove_col(m, c);
+		matrix_remove_row(m, 0);
+		det = __matrix_det(src, m);
+		if (c & 1)
+			res -= base * det;
+		else
+			res += base * det;
 	}
+	return res;
 }
+*/
 
 double matrix_det(const struct matrix_t* m) {
 	if (m->row != m->col || !m->row)
@@ -101,7 +112,7 @@ double matrix_det(const struct matrix_t* m) {
 					matrix_val(m,0,2)*matrix_val(m,1,1)*matrix_val(m,2,0);
 		default:
 		{
-
+			// not implement
 			return 0.0;
 		}
 	}
