@@ -16,6 +16,34 @@
 extern "C" {
 #endif
 
+struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
+	unsigned int min_row = min(dst->row, src->row);
+	unsigned int min_col = min(dst->col, src->col);
+	unsigned int r, c;
+	for (r = 0; r < min_row; ++r) {
+		for (c = 0; c < min_col; ++r) {
+			matrix_val(dst, r, c) = matrix_val(src, r, c);
+		}
+	}
+	return dst;
+}
+
+struct matrix_t* matrix_dup(const struct matrix_t* m) {
+	struct matrix_t* newm = (struct matrix_t*)malloc(sizeof(struct matrix_t) + sizeof(double) * m->row * m->col);
+	if (newm) {
+		unsigned int r, c;
+		newm->val = (double*)(newm + 1);
+		newm->row = m->row;
+		newm->col = m->col;
+		for (r = 0; r < m->row; ++r) {
+			for (c = 0; c < m->col; ++c) {
+				matrix_val(newm, r, c) = matrix_val(m, r, c);
+			}
+		}
+	}
+	return newm;
+}
+
 void matrix_remove_row(struct matrix_t* m, unsigned int row) {
 	unsigned int i, j;
 
@@ -47,9 +75,18 @@ void matrix_remove_col(struct matrix_t* m, unsigned int col) {
 	m->col -= 1;
 }
 
+static void __matrix_det(const struct matrix_t* src, struct matrix_t* m, unsigned int sel_row, unsigned int sel_col) {
+	unsigned int c;
+	for (c = 0; c < m->col; ++c) {
+		matrix_remove_col(m, sel_col);
+		matrix_remove_row(m, sel_row);
+	}
+}
+
 double matrix_det(const struct matrix_t* m) {
 	if (m->row != m->col || !m->row)
 		return NAN;
+
 	switch (m->row) {
 		case 1:
 			return	matrix_val(m,0,0);
@@ -64,6 +101,7 @@ double matrix_det(const struct matrix_t* m) {
 					matrix_val(m,0,2)*matrix_val(m,1,1)*matrix_val(m,2,0);
 		default:
 		{
+
 			return 0.0;
 		}
 	}
