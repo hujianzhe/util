@@ -21,6 +21,7 @@ struct matrix_t* matrix_dup(const struct matrix_t* m);
 void matrix_remove_row(struct matrix_t* m, unsigned int row);
 void matrix_remove_col(struct matrix_t* m, unsigned int col);
 double matrix_det(const struct matrix_t* m);
+struct matrix_t* matrix_mulnum(struct matrix_t* m, double number);
 
 #ifdef	__cplusplus
 }

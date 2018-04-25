@@ -118,6 +118,16 @@ double matrix_det(const struct matrix_t* m) {
 	}
 }
 
+struct matrix_t* matrix_mulnum(struct matrix_t* m, double number) {
+	unsigned int r, c;
+	for (r = 0; r < m->row; ++r) {
+		for (c = 0; c < m->col; ++c) {
+			matrix_val(m, r, c) *= number;
+		}
+	}
+	return m;
+}
+
 #ifdef	__cplusplus
 }
 #endif
