@@ -31,14 +31,19 @@ void matrix_remove_row(struct matrix_t* m, unsigned int row) {
 }
 
 void matrix_remove_col(struct matrix_t* m, unsigned int col) {
-	unsigned int i;
+	unsigned int i, j;
 
 	if (m->col <= col)
 		return;
 
-	for (i = col; i < m->col && i + 1 < m->col; ++i) {
-		m->val[i] = m->val[i + 1];
+	for (i = 0, j = 0; i < m->row * m->col; ++i) {
+		if (i % m->col == col) {
+			++j;
+			continue;
+		}
+		m->val[i - j] = m->val[i];
 	}
+
 	m->col -= 1;
 }
 
