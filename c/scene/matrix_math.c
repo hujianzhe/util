@@ -17,8 +17,8 @@ extern "C" {
 #endif
 
 struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
-	unsigned int min_row = min(dst->row, src->row);
-	unsigned int min_col = min(dst->col, src->col);
+	unsigned int min_row = dst->row < src->row ? dst->row : src->row;
+	unsigned int min_col = dst->col < src->col ? dst->col : src->col;
 	unsigned int r, c;
 	for (r = 0; r < min_row; ++r) {
 		for (c = 0; c < min_col; ++r) {
