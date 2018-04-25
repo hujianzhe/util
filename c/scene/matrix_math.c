@@ -47,7 +47,7 @@ struct matrix_t* matrix_dup(const struct matrix_t* m) {
 void matrix_remove_row(struct matrix_t* m, unsigned int row) {
 	unsigned int i, j;
 
-	if (m->row <= row)
+	if (m->row <= row || 1 == m->row)
 		return;
 
 	for (i = row; i < m->row && i + 1 < m->row; ++i) {
@@ -61,7 +61,7 @@ void matrix_remove_row(struct matrix_t* m, unsigned int row) {
 void matrix_remove_col(struct matrix_t* m, unsigned int col) {
 	unsigned int i, j;
 
-	if (m->col <= col)
+	if (m->col <= col || 1 == m->col)
 		return;
 
 	for (i = 0, j = 0; i < m->row * m->col; ++i) {
