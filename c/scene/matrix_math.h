@@ -28,15 +28,16 @@ m->row = r;\
 m->col = c;\
 m->val = (double*)(m + 1)
 
-#define	matrix_assign(m, array_init_expression)\
+#define	matrix_assign(m, ...)\
 {\
-double m##_[] = array_init_expression;\
+double m##_[] = {0,##__VA_ARGS__};\
+double *pm##_ = m##_ + 1;\
 size_t m##iter;\
 size_t m##cnt = m->row * m->col;\
-if (m##cnt > sizeof(m##_) / sizeof(m##_[0]))\
-m##cnt = sizeof(m##_) / sizeof(m##_[0]);\
+if (m##cnt > sizeof(m##_) / sizeof(m##_[0]) - 1)\
+m##cnt = sizeof(m##_) / sizeof(m##_[0]) - 1;\
 for (m##iter = 0; m##iter < m##cnt; ++m##iter)\
-m->val[m##iter] = m##_[m##iter];\
+m->val[m##iter] = pm##_[m##iter];\
 }
 
 #define	matrix_val(m, r, c)		((m)->val[(r) * (m)->col + (c)])
