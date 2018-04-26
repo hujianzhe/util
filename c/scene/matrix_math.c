@@ -139,6 +139,21 @@ double matrix_det(const struct matrix_t* m) {
 	}
 }
 
+struct matrix_t* matrix_identity(const struct matrix_t* m, struct matrix_t* mi) {
+	unsigned int r, c;
+
+	if (m->row != m->col || mi->row != mi->col)
+		return NULL;
+
+	for (r = 0; r < m->row; ++r) {
+		for (c = 0; c < m->col; ++c) {
+			matrix_val(mi, r, c) = (c == r);
+		}
+	}
+
+	return mi;
+}
+
 struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2) {
 	unsigned int r, c;
 	
@@ -184,7 +199,7 @@ struct matrix_t* matrix_divnum(struct matrix_t* m, double number) {
 struct matrix_t* matrix_mul(struct matrix_t* res, const struct matrix_t* left, const struct matrix_t* right) {
 	unsigned int r, c;
 
-	if (left->col != right->row || res->row != left->row || res->col != right->col)
+	if (left->col != right->row || res->row != left->row || res->col != right->col || res == left || res == right)
 		return NULL;
 
 	for (r = 0; r < res->row; ++r) {

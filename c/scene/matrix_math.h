@@ -53,6 +53,7 @@ struct matrix_t* matrix_dup(const struct matrix_t* m);
 void matrix_remove_row(struct matrix_t* m, unsigned int row);
 void matrix_remove_col(struct matrix_t* m, unsigned int col);
 double matrix_det(const struct matrix_t* m);
+struct matrix_t* matrix_identity(const struct matrix_t* m, struct matrix_t* mi);
 struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2);
 struct matrix_t* matrix_sub(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2);
 struct matrix_t* matrix_mulnum(struct matrix_t* m, double number);
