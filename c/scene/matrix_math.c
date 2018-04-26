@@ -16,12 +16,33 @@
 extern "C" {
 #endif
 
-struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
-	unsigned int min_row = dst->row < src->row ? dst->row : src->row;
-	unsigned int min_col = dst->col < src->col ? dst->col : src->col;
+int matrix_size_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
+	return m1->row == m2->row && m1->col == m2->col;
+}
+
+int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
 	unsigned int r, c;
-	for (r = 0; r < min_row; ++r) {
-		for (c = 0; c < min_col; ++r) {
+
+	if (!matrix_size_equal(m1, m2))
+		return 0;
+
+	for (r = 0; r < m1->row; ++r) {
+		for (c = 0; c < m1->col; ++c) {
+			if (matrix_val(m1, r, c) != matrix_val(m2, r, c))
+				return 0;
+		}
+	}
+	return 1;
+}
+
+struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
+	unsigned int r, c;
+
+	if (!matrix_size_equal(dst, src))
+		return NULL;
+
+	for (r = 0; r < src->row; ++r) {
+		for (c = 0; c < src->col; ++r) {
 			matrix_val(dst, r, c) = matrix_val(src, r, c);
 		}
 	}
@@ -118,6 +139,34 @@ double matrix_det(const struct matrix_t* m) {
 	}
 }
 
+struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2) {
+	unsigned int r, c;
+	
+	if (!matrix_size_equal(m1, m2) || !matrix_size_equal(res, m1))
+		return NULL;
+
+	for (r = 0; r < m1->row; ++r) {
+		for (c = 0; c < m1->col; ++c) {
+			matrix_val(res, r, c) = matrix_val(m1, r, c) + matrix_val(m2, r, c);
+		}
+	}
+	return res;
+}
+
+struct matrix_t* matrix_sub(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2) {
+	unsigned int r, c;
+
+	if (!matrix_size_equal(m1, m2) || !matrix_size_equal(res, m1))
+		return NULL;
+
+	for (r = 0; r < m1->row; ++r) {
+		for (c = 0; c < m1->col; ++c) {
+			matrix_val(res, r, c) = matrix_val(m1, r, c) - matrix_val(m2, r, c);
+		}
+	}
+	return res;
+}
+
 struct matrix_t* matrix_mulnum(struct matrix_t* m, double number) {
 	unsigned int r, c;
 	for (r = 0; r < m->row; ++r) {
@@ -126,6 +175,30 @@ struct matrix_t* matrix_mulnum(struct matrix_t* m, double number) {
 		}
 	}
 	return m;
+}
+
+struct matrix_t* matrix_divnum(struct matrix_t* m, double number) {
+	return matrix_mulnum(m, 1.0 / number);
+}
+
+struct matrix_t* matrix_mul(struct matrix_t* res, const struct matrix_t* left, const struct matrix_t* right) {
+	unsigned int r, c;
+
+	if (left->col != right->row || res->row != left->row || res->col != right->col)
+		return NULL;
+
+	for (r = 0; r < res->row; ++r) {
+		for (c = 0; c < res->col; ++c) {
+			double v = 0.0;
+			unsigned int i;
+			for (i = 0; i < left->col; ++i) {
+				v += matrix_val(left, r, i) * matrix_val(right, i, c);
+			}
+			matrix_val(res, r, c) = v;
+		}
+	}
+
+	return res;
 }
 
 #ifdef	__cplusplus
