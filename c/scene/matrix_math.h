@@ -5,12 +5,30 @@
 #ifndef UTIL_C_SCENE_MATRIX_MATH_H
 #define	UTIL_C_SCENE_MATRIX_MATH_H
 
+#include <stdlib.h>
+#if defined(_WIN32) || defined(_WIN64)
+	#include <malloc.h>
+	#ifndef alloca
+		#define alloca		_alloca
+	#endif
+#else
+	#if	__linux__
+		#include <alloca.h>
+	#endif
+#endif
+
 typedef struct matrix_t {
 	unsigned int row, col;
 	double* val;
 } matrix_t;
 
-#define	matrix_val(m, r, c)	((m)->val[(r) * (m)->col + (c)])
+#define	matrix_make(m, r, c, allocator)\
+m = (struct matrix_t*)(allocator)(sizeof(struct matrix_t) + sizeof(double)*r*c);\
+m->row = r;\
+m->col = c;\
+m->val = (double*)(m + 1)
+
+#define	matrix_val(m, r, c)		((m)->val[(r) * (m)->col + (c)])
 
 #ifdef	__cplusplus
 extern "C" {
