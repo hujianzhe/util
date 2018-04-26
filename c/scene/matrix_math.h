@@ -30,14 +30,14 @@ m->val = (double*)(m + 1)
 
 #define	matrix_assign(m, ...)\
 {\
-double m##_[] = {0,##__VA_ARGS__};\
-double *pm##_ = m##_ + 1;\
-size_t m##iter;\
-size_t m##cnt = m->row * m->col;\
-if (m##cnt > sizeof(m##_) / sizeof(m##_[0]) - 1)\
-m##cnt = sizeof(m##_) / sizeof(m##_[0]) - 1;\
-for (m##iter = 0; m##iter < m##cnt; ++m##iter)\
-m->val[m##iter] = pm##_[m##iter];\
+double _##m[] = {0,##__VA_ARGS__};\
+double *_##p##m = _##m + 1;\
+size_t _i##m;\
+size_t _cnt##m = m->row * m->col;\
+if (_cnt##m > sizeof(_##m) / sizeof(_##m[0]) - 1)\
+_cnt##m = sizeof(_##m) / sizeof(_##m[0]) - 1;\
+for (_i##m = 0; _i##m < _cnt##m; ++_i##m)\
+m->val[_i##m] = _##p##m[_i##m];\
 }
 
 #define	matrix_val(m, r, c)		((m)->val[(r) * (m)->col + (c)])
