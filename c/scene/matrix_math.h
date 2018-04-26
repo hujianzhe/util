@@ -5,18 +5,6 @@
 #ifndef UTIL_C_SCENE_MATRIX_MATH_H
 #define	UTIL_C_SCENE_MATRIX_MATH_H
 
-#include <stdlib.h>
-#if defined(_WIN32) || defined(_WIN64)
-	#include <malloc.h>
-	#ifndef alloca
-		#define alloca		_alloca
-	#endif
-#else
-	#if	__linux__
-		#include <alloca.h>
-	#endif
-#endif
-
 typedef struct matrix_t {
 	unsigned int row, col;
 	double* val;
