@@ -23,7 +23,7 @@ typedef struct matrix_t {
 } matrix_t;
 
 #define	matrix_make(m, r, c, allocator)\
-m = (struct matrix_t*)(allocator)(sizeof(struct matrix_t) + sizeof(double)*r*c);\
+m = (struct matrix_t*)allocator(sizeof(struct matrix_t) + sizeof(double)*r*c);\
 m->row = r;\
 m->col = c;\
 m->val = (double*)(m + 1)
