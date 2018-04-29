@@ -23,6 +23,9 @@ int matrix_size_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
 int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
 	unsigned int r, c;
 
+	if (m1 == m2)
+		return 1;
+
 	if (!matrix_size_equal(m1, m2))
 		return 0;
 
@@ -37,6 +40,9 @@ int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
 
 struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
 	unsigned int r, c;
+
+	if (dst == src)
+		return dst;
 
 	if (!matrix_size_equal(dst, src))
 		return NULL;
