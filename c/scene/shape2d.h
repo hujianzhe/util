@@ -17,25 +17,25 @@ typedef enum shape2d_enum_t {
 } shape2d_enum_t;
 
 typedef struct shape2d_linesegment_t {
-	struct vector2_t vertices0;
-	struct vector2_t vertices1;
+	vector2_t vertices0;
+	vector2_t vertices1;
 } shape2d_linesegment_t;
 
 typedef struct shape2d_aabb_t {
-	struct vector2_t pivot;
-	struct vector2_t half;
+	vector2_t pivot;
+	vector2_t half;
 } shape2d_aabb_t;
 
 typedef struct shape2d_circle_t {
-	struct vector2_t pivot;
+	vector2_t pivot;
 	double radius;
 } shape2d_circle_t;
 
 typedef struct shape2d_polygon_t {
-	struct vector2_t pivot;
+	vector2_t pivot;
 	double radian;
 	unsigned int vertice_num;
-	struct vector2_t* vertices;
+	vector2_t* vertices;
 } shape2d_polygon_t;
 
 typedef union shape2d_t {
@@ -49,12 +49,12 @@ typedef union shape2d_t {
 extern "C" {
 #endif
 
-struct shape2d_polygon_t* shape2d_polygon_rotate(struct shape2d_polygon_t* p, double radian);
-struct shape2d_aabb_t* shape2d_shape_to_aabb(int type, const union shape2d_t* shape, struct shape2d_aabb_t* aabb);
-unsigned int shape2d_has_point_n(int type, const union shape2d_t* shape, const struct vector2_t p[], unsigned int n);
-int shape2d_has_overlap(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2);
-int shape2d_shape_has_contain_shape(int type1, const union shape2d_t* shape1, int type2, const union shape2d_t* shape2);
-void shape2d_move_pivot(int type, union shape2d_t* shape, const struct vector2_t* pivot);
+shape2d_polygon_t* shape2d_polygon_rotate(shape2d_polygon_t* p, double radian);
+shape2d_aabb_t* shape2d_shape_to_aabb(int type, const shape2d_t* shape, shape2d_aabb_t* aabb);
+unsigned int shape2d_has_point_n(int type, const shape2d_t* shape, const vector2_t p[], unsigned int n);
+int shape2d_has_overlap(int type1, const shape2d_t* shape1, int type2, const shape2d_t* shape2);
+int shape2d_shape_has_contain_shape(int type1, const shape2d_t* shape1, int type2, const shape2d_t* shape2);
+void shape2d_move_pivot(int type, shape2d_t* shape, const vector2_t* pivot);
 
 #ifdef	__cplusplus
 }

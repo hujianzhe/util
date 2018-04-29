@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-static int __subarea_index(struct shape2d_aabb_t* ap, struct shape2d_aabb_t* op) {
+static int __subarea_index(shape2d_aabb_t* ap, shape2d_aabb_t* op) {
 	if (op->pivot.y - op->half.y >= ap->pivot.y - ap->half.y && op->pivot.y + op->half.y <= ap->pivot.y) {
 		if (op->pivot.x - op->half.x >= ap->pivot.x - ap->half.x && op->pivot.x + op->half.x <= ap->pivot.x) {
 			return 0;
@@ -154,7 +154,7 @@ void scene2d_shape_leave(struct scene2d_shape_t* shape) {
 	}
 }
 
-void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* scshape, const struct vector2_t* pivot) {
+void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shape_t* scshape, const vector2_t* pivot) {
 	struct scene2d_area_t* top_area = (struct scene2d_area_t*)0;
 	struct tree_t* tree = &scshape->area->m_tree;
 	if (vector2_equal(&scshape->m_aabb.pivot, pivot))
@@ -182,7 +182,7 @@ void scene2d_shape_move(const struct scene2d_info_t* scinfo, struct scene2d_shap
 	__scene2d_shape_entry(scinfo, top_area, scshape);
 }
 
-void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const union shape2d_t* shape, struct list_t* list) {
+void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const shape2d_t* shape, struct list_t* list) {
 	int i;
 	struct list_node_t* cur;
 
@@ -190,7 +190,7 @@ void scene2d_overlap(const struct scene2d_area_t* area, int shape_type, const un
 		return;
 	}
 
-	if (!shape2d_has_overlap(SHAPE2D_AABB, (union shape2d_t*)&area->aabb, shape_type, shape))
+	if (!shape2d_has_overlap(SHAPE2D_AABB, (shape2d_t*)&area->aabb, shape_type, shape))
 		return;
 
 	for (cur = area->shape_list.head; cur; cur = cur->next) {

@@ -12,7 +12,7 @@ typedef struct matrix_t {
 
 /*
 #define	matrix_make(m, r, c, allocator)\
-m = (struct matrix_t*)allocator(sizeof(struct matrix_t) + sizeof(double)*r*c);\
+m = (matrix_t*)allocator(sizeof(matrix_t) + sizeof(double)*r*c);\
 m->row = r;\
 m->col = c;\
 m->val = (double*)(m + 1)
@@ -36,19 +36,19 @@ m->val[_i##m] = _##p##m[_i##m];\
 extern "C" {
 #endif
 
-int matrix_size_equal(const struct matrix_t* m1, const struct matrix_t* m2);
-int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2);
-struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src);
-struct matrix_t* matrix_dup(const struct matrix_t* m);
-void matrix_remove_row(struct matrix_t* m, unsigned int row);
-void matrix_remove_col(struct matrix_t* m, unsigned int col);
-double matrix_det(const struct matrix_t* m);
-struct matrix_t* matrix_identity(const struct matrix_t* m, struct matrix_t* mi);
-struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2);
-struct matrix_t* matrix_sub(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2);
-struct matrix_t* matrix_mulnum(struct matrix_t* m, double number);
-struct matrix_t* matrix_divnum(struct matrix_t* m, double number);
-struct matrix_t* matrix_mul(struct matrix_t* res, const struct matrix_t* left, const struct matrix_t* right);
+int matrix_size_equal(const matrix_t* m1, const matrix_t* m2);
+int matrix_equal(const matrix_t* m1, const matrix_t* m2);
+matrix_t* matrix_copy(matrix_t* dst, const matrix_t* src);
+matrix_t* matrix_dup(const matrix_t* m);
+void matrix_remove_row(matrix_t* m, unsigned int row);
+void matrix_remove_col(matrix_t* m, unsigned int col);
+double matrix_det(const matrix_t* m);
+matrix_t* matrix_identity(const matrix_t* m, matrix_t* mi);
+matrix_t* matrix_add(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
+matrix_t* matrix_sub(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
+matrix_t* matrix_mulnum(matrix_t* m, double number);
+matrix_t* matrix_divnum(matrix_t* m, double number);
+matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right);
 
 #ifdef	__cplusplus
 }

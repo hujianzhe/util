@@ -16,11 +16,11 @@
 extern "C" {
 #endif
 
-int matrix_size_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
+int matrix_size_equal(const matrix_t* m1, const matrix_t* m2) {
 	return m1->row == m2->row && m1->col == m2->col;
 }
 
-int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
+int matrix_equal(const matrix_t* m1, const matrix_t* m2) {
 	unsigned int r, c;
 
 	if (m1 == m2)
@@ -38,7 +38,7 @@ int matrix_equal(const struct matrix_t* m1, const struct matrix_t* m2) {
 	return 1;
 }
 
-struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
+matrix_t* matrix_copy(matrix_t* dst, const matrix_t* src) {
 	unsigned int r, c;
 
 	if (dst == src)
@@ -55,8 +55,8 @@ struct matrix_t* matrix_copy(struct matrix_t* dst, const struct matrix_t* src) {
 	return dst;
 }
 
-struct matrix_t* matrix_dup(const struct matrix_t* m) {
-	struct matrix_t* newm = (struct matrix_t*)malloc(sizeof(struct matrix_t) + sizeof(double) * m->row * m->col);
+matrix_t* matrix_dup(const matrix_t* m) {
+	matrix_t* newm = (matrix_t*)malloc(sizeof(matrix_t) + sizeof(double) * m->row * m->col);
 	if (newm) {
 		unsigned int r, c;
 		newm->val = (double*)(newm + 1);
@@ -71,7 +71,7 @@ struct matrix_t* matrix_dup(const struct matrix_t* m) {
 	return newm;
 }
 
-void matrix_remove_row(struct matrix_t* m, unsigned int row) {
+void matrix_remove_row(matrix_t* m, unsigned int row) {
 	unsigned int i, j;
 
 	if (m->row <= row || 1 == m->row)
@@ -85,7 +85,7 @@ void matrix_remove_row(struct matrix_t* m, unsigned int row) {
 	m->row -= 1;
 }
 
-void matrix_remove_col(struct matrix_t* m, unsigned int col) {
+void matrix_remove_col(matrix_t* m, unsigned int col) {
 	unsigned int i, j;
 
 	if (m->col <= col || 1 == m->col)
@@ -103,7 +103,7 @@ void matrix_remove_col(struct matrix_t* m, unsigned int col) {
 }
 
 /*
-static double __matrix_det(const struct matrix_t* src, struct matrix_t* m) {
+static double __matrix_det(const matrix_t* src, matrix_t* m) {
 	double res = 0.0;
 	unsigned int c;
 	for (c = 0; c < m->col; ++c) {
@@ -121,7 +121,7 @@ static double __matrix_det(const struct matrix_t* src, struct matrix_t* m) {
 }
 */
 
-double matrix_det(const struct matrix_t* m) {
+double matrix_det(const matrix_t* m) {
 	if (m->row != m->col || !m->row)
 		return NAN;
 
@@ -145,7 +145,7 @@ double matrix_det(const struct matrix_t* m) {
 	}
 }
 
-struct matrix_t* matrix_identity(const struct matrix_t* m, struct matrix_t* mi) {
+matrix_t* matrix_identity(const matrix_t* m, matrix_t* mi) {
 	unsigned int r, c;
 
 	if (m->row != m->col || mi->row != mi->col)
@@ -160,7 +160,7 @@ struct matrix_t* matrix_identity(const struct matrix_t* m, struct matrix_t* mi) 
 	return mi;
 }
 
-struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2) {
+matrix_t* matrix_add(matrix_t* res, const matrix_t* m1, const matrix_t* m2) {
 	unsigned int r, c;
 	
 	if (!matrix_size_equal(m1, m2) || !matrix_size_equal(res, m1))
@@ -174,7 +174,7 @@ struct matrix_t* matrix_add(struct matrix_t* res, const struct matrix_t* m1, con
 	return res;
 }
 
-struct matrix_t* matrix_sub(struct matrix_t* res, const struct matrix_t* m1, const struct matrix_t* m2) {
+matrix_t* matrix_sub(matrix_t* res, const matrix_t* m1, const matrix_t* m2) {
 	unsigned int r, c;
 
 	if (!matrix_size_equal(m1, m2) || !matrix_size_equal(res, m1))
@@ -188,7 +188,7 @@ struct matrix_t* matrix_sub(struct matrix_t* res, const struct matrix_t* m1, con
 	return res;
 }
 
-struct matrix_t* matrix_mulnum(struct matrix_t* m, double number) {
+matrix_t* matrix_mulnum(matrix_t* m, double number) {
 	unsigned int r, c;
 	for (r = 0; r < m->row; ++r) {
 		for (c = 0; c < m->col; ++c) {
@@ -198,11 +198,11 @@ struct matrix_t* matrix_mulnum(struct matrix_t* m, double number) {
 	return m;
 }
 
-struct matrix_t* matrix_divnum(struct matrix_t* m, double number) {
+matrix_t* matrix_divnum(matrix_t* m, double number) {
 	return matrix_mulnum(m, 1.0 / number);
 }
 
-struct matrix_t* matrix_mul(struct matrix_t* res, const struct matrix_t* left, const struct matrix_t* right) {
+matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right) {
 	unsigned int r, c;
 
 	if (left->col != right->row || res->row != left->row || res->col != right->col || res == left || res == right)

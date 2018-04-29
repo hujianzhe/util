@@ -10,13 +10,21 @@
 extern "C" {
 #endif
 
-struct vector2_t* vector2_assign(struct vector2_t* v, double x, double y) {
+double* vector_assign(double* v, const double val[], int dimension) {
+	int i;
+	for (i = 0; i < dimension; ++i) {
+		v[i] = val[i];
+	}
+	return v;
+}
+
+vector2_t* vector2_assign(vector2_t* v, double x, double y) {
 	v->x = x;
 	v->y = y;
 	return v;
 }
 
-struct vector3_t* vector3_assign(struct vector3_t* v, double x, double y, double z) {
+vector3_t* vector3_assign(vector3_t* v, double x, double y, double z) {
 	v->x = x;
 	v->y = y;
 	v->z = z;
@@ -32,7 +40,7 @@ int vector_equal(const double* v1, const double* v2, int dimension) {
 	}
 	return 1;
 }
-int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2) {
+int vector2_equal(const vector2_t* v1, const vector2_t* v2) {
 	double res;
 	res = v1->x - v2->x;
 	if (res < -DBL_EPSILON || DBL_EPSILON < res)
@@ -42,7 +50,7 @@ int vector2_equal(const struct vector2_t* v1, const struct vector2_t* v2) {
 		return 0;
 	return 1;
 }
-int vector3_equal(const struct vector3_t* v1, const struct vector3_t* v2) {
+int vector3_equal(const vector3_t* v1, const vector3_t* v2) {
 	double res;
 	res = v1->x - v2->x;
 	if (res < -DBL_EPSILON || DBL_EPSILON < res)
@@ -64,17 +72,17 @@ double vector_dot(const double* v1, const double* v2, int dimension) {
 	}
 	return res;
 }
-double vector2_dot(const struct vector2_t* v1, const struct vector2_t* v2) {
+double vector2_dot(const vector2_t* v1, const vector2_t* v2) {
 	return v1->x * v2->x + v1->y * v2->y;
 }
-double vector3_dot(const struct vector3_t* v1, const struct vector3_t* v2) {
+double vector3_dot(const vector3_t* v1, const vector3_t* v2) {
 	return v1->x * v2->x + v1->y * v2->y + v1->z * v2->z;
 }
 
-double vector2_cross(const struct vector2_t* v1, const struct vector2_t* v2) {
+double vector2_cross(const vector2_t* v1, const vector2_t* v2) {
 	return v1->x * v2->y - v2->x * v1->y;
 }
-struct vector3_t* vector3_cross(struct vector3_t* res, const struct vector3_t* v1, const struct vector3_t* v2) {
+vector3_t* vector3_cross(vector3_t* res, const vector3_t* v1, const vector3_t* v2) {
 	double x = v1->y * v2->z - v2->y * v1->z;
 	double y = v2->x * v1->z - v1->x * v2->z;
 	double z = v1->x * v2->y - v2->x * v1->y;
@@ -92,26 +100,26 @@ double vector_lensq(const double* v, int dimension) {
 	}
 	return res;
 }
-double vector2_lensq(const struct vector2_t* v) {
+double vector2_lensq(const vector2_t* v) {
 	return v->x * v->x + v->y * v->y;
 }
-double vector3_lensq(const struct vector3_t* v) {
+double vector3_lensq(const vector3_t* v) {
 	return v->x * v->x + v->y * v->y + v->z * v->z;
 }
 double vector_len(const double* v, int dimension) {
 	return sqrt(vector_lensq(v, dimension));
 }
-double vector2_len(const struct vector2_t* v) {
+double vector2_len(const vector2_t* v) {
 	return sqrt(vector2_lensq(v));
 }
-double vector3_len(const struct vector3_t* v) {
+double vector3_len(const vector3_t* v) {
 	return sqrt(vector3_lensq(v));
 }
 
-double vector2_radian(const struct vector2_t* v1, const struct vector2_t* v2) {
+double vector2_radian(const vector2_t* v1, const vector2_t* v2) {
 	return acos(vector2_dot(v1, v2) / vector2_len(v1) * vector2_len(v2));
 }
-double vector3_radian(const struct vector3_t* v1, const struct vector3_t* v2) {
+double vector3_radian(const vector3_t* v1, const vector3_t* v2) {
 	return acos(vector3_dot(v1, v2) / vector3_len(v1) * vector3_len(v2));
 }
 
@@ -130,7 +138,7 @@ double* vector_normalized(const double* v, double* n, int dimension) {
 	}
 	return n;
 }
-struct vector2_t* vector2_normalized(const struct vector2_t* v, struct vector2_t* n) {
+vector2_t* vector2_normalized(const vector2_t* v, vector2_t* n) {
 	double len = vector2_len(v);
 	if (len < DBL_EPSILON) {
 		n->x = n->y = 0.0;
@@ -141,7 +149,7 @@ struct vector2_t* vector2_normalized(const struct vector2_t* v, struct vector2_t
 	}
 	return n;
 }
-struct vector3_t* vector3_normalized(const struct vector3_t* v, struct vector3_t* n) {
+vector3_t* vector3_normalized(const vector3_t* v, vector3_t* n) {
 	double len = vector3_len(v);
 	if (len < DBL_EPSILON) {
 		n->x = n->y = n->z = 0.0;
