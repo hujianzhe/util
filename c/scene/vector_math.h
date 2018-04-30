@@ -32,6 +32,9 @@ double* vector_assign(double* v, const double val[], int dimension);
 vector2_t* vector2_assign(vector2_t* v, double x, double y);
 vector3_t* vector3_assign(vector3_t* v, double x, double y, double z);
 
+int vector_is_zero(const double* v, int dimension);
+int vector3_is_zero(const vector3_t* v);
+
 int vector_equal(const double* v1, const double* v2, int dimension);
 int vector2_equal(const vector2_t* v1, const vector2_t* v2);
 int vector3_equal(const vector3_t* v1, const vector3_t* v2);

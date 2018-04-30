@@ -17,6 +17,11 @@ extern "C" {
 #endif
 
 static int shape3d_linesegment_has_point(const vector3_t* s, const vector3_t* e, const vector3_t* p) {
+	vector3_t res;
+	vector3_t se = { e->x - s->x, e->y - s->y, e->z - s->z };
+	vector3_t sp = { p->x - s->x, p->y - s->y, p->z - s->z };
+	if (!vector3_is_zero(vector3_cross(&res, &se, &sp)))
+		return 0;
 	return 0;
 }
 

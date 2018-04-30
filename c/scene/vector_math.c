@@ -31,6 +31,21 @@ vector3_t* vector3_assign(vector3_t* v, double x, double y, double z) {
 	return v;
 }
 
+int vector_is_zero(const double* v, int dimension) {
+	int i;
+	for (i = 0; i < dimension; ++i) {
+		if (v[i] <= -DBL_EPSILON && v[i] >= DBL_EPSILON)
+			return 0;
+	}
+	return 1;
+}
+
+int vector3_is_zero(const vector3_t* v) {
+	return v->x > -DBL_EPSILON && v->x < DBL_EPSILON
+		&& v->y > -DBL_EPSILON && v->y < DBL_EPSILON
+		&& v->z > -DBL_EPSILON && v->z < DBL_EPSILON;
+}
+
 int vector_equal(const double* v1, const double* v2, int dimension) {
 	int i;
 	for (i = 0; i < dimension; ++i) {
