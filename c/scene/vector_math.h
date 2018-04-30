@@ -17,6 +17,12 @@ typedef union vector3_t {
 	};
 	double val[3];
 } vector3_t;
+typedef union vector4_t {
+	struct {
+		double x, y, z, w;
+	};
+	double val[4];
+} vector4_t;
 
 #ifdef	__cplusplus
 extern "C" {
