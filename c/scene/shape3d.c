@@ -22,7 +22,9 @@ static int shape3d_linesegment_has_point(const vector3_t* s, const vector3_t* e,
 	vector3_t sp = { p->x - s->x, p->y - s->y, p->z - s->z };
 	if (!vector3_is_zero(vector3_cross(&res, &se, &sp)))
 		return 0;
-	return 0;
+	return p->x >= fmin(s->x, e->x) && p->x <= fmax(s->x, e->x)
+		&& p->y >= fmin(s->y, e->y) && p->y <= fmax(s->y, e->y)
+		&& p->z >= fmin(s->z, e->z) && p->z <= fmax(s->z, e->z);
 }
 
 static unsigned int shape3d_linesegment_has_point_n(const shape3d_linesegment_t* ls, const vector3_t point[], unsigned int n) {
