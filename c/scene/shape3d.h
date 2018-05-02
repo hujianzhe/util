@@ -21,6 +21,11 @@ typedef struct shape3d_linesegment_t {
 	vector3_t vertices1;
 } shape3d_linesegment_t;
 
+typedef struct shape3d_plane_t {
+	vector3_t pivot;
+	vector3_t normal;
+} shape3d_plane_t;
+
 typedef struct shape3d_aabb_t {
 	vector3_t pivot;
 	vector3_t half;
