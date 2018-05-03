@@ -36,6 +36,21 @@ static unsigned int shape3d_linesegment_has_point_n(const shape3d_linesegment_t*
 	return i;
 }
 
+static int shape3d_plane_has_point(const shape3d_plane_t* plane, const vector3_t* point) {
+	vector3_t v = { point->x - plane->pivot.x, point->y - plane->pivot.y, point->z - plane->pivot.z };
+	double d = vector3_dot(&plane->normal, point);
+	return d > -DBL_EPSILON && d < DBL_EPSILON;
+}
+
+static unsigned int shape3d_plane_has_point_n(const shape3d_plane_t* plane, const vector3_t point[], unsigned int n) {
+	unsigned int i;
+	for (i = 0; i < n; ++i) {
+		if (!shape3d_plane_has_point(plane, point + i))
+			break;
+	}
+	return i;
+}
+
 static int shape3d_aabb_has_point(const shape3d_aabb_t* aabb, const vector3_t* point) {
 	return aabb->pivot.x - aabb->half.x <= point->x
 		&& aabb->pivot.x + aabb->half.x >= point->x
