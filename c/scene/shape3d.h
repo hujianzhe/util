@@ -43,6 +43,14 @@ typedef struct shape3d_cylinder_t {
 	double radius;
 } shape3d_cylinder_t;
 
+typedef union shape3d_t {
+	shape3d_linesegment_t linesegment;
+	shape3d_plane_t plane;
+	shape3d_aabb_t aabb;
+	shape3d_sphere_t sphere;
+	shape3d_cylinder_t cylinder;
+} shape3d_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
