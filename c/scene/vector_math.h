@@ -56,9 +56,9 @@ double vector3_len(const vector3_t* v);
 double vector2_radian(const vector2_t* v1, const vector2_t* v2);
 double vector3_radian(const vector3_t* v1, const vector3_t* v2);
 
-double* vector_normalized(const double* v, double* n, int dimension);
-vector2_t* vector2_normalized(const vector2_t* v, vector2_t* n);
-vector3_t* vector3_normalized(const vector3_t* v, vector3_t* n);
+double* vector_normalized(double* n, const double* v, int dimension);
+vector2_t* vector2_normalized(vector2_t* n, const vector2_t* v);
+vector3_t* vector3_normalized(vector3_t* n, const vector3_t* v);
 
 #ifdef	__cplusplus
 }
