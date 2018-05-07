@@ -385,7 +385,7 @@ static int shape2d_polygon_aabb_has_overlap(const shape2d_polygon_t* p, const sh
 
 /* shape contain */
 static int shape2d_aabb_has_contain_linesegment(const shape2d_aabb_t* ab, const shape2d_linesegment_t* ls) {
-	return shape2d_aabb_has_point_n(ab, &ls->vertices0, 2);
+	return shape2d_aabb_has_point_n(ab, &ls->vertices0, 2) == 2;
 }
 
 static int shape2d_aabb_has_contain_aabb(const shape2d_aabb_t* ab1, const shape2d_aabb_t* ab2) {
@@ -416,7 +416,7 @@ static int shape2d_circle_has_contain_circle(const shape2d_circle_t* c1, const s
 }
 
 static int shape2d_circle_has_contain_linesegment(const shape2d_circle_t* c, const shape2d_linesegment_t* ls) {
-	return shape2d_circle_has_point_n(c, &ls->vertices0, 2);
+	return shape2d_circle_has_point_n(c, &ls->vertices0, 2) == 2;
 }
 
 static int shape2d_circle_has_contain_aabb(const shape2d_circle_t* c, const shape2d_aabb_t* ab) {
@@ -434,7 +434,7 @@ static int shape2d_circle_has_contain_polygon(const shape2d_circle_t* c, const s
 }
 
 static int shape2d_polygon_has_contain_linesegment(const shape2d_polygon_t* p, const shape2d_linesegment_t* ls) {
-	return shape2d_polygon_has_point_n(p, &ls->vertices0, 2);
+	return shape2d_polygon_has_point_n(p, &ls->vertices0, 2) == 2;
 }
 
 static int shape2d_polygon_has_contain_aabb(const shape2d_polygon_t* p, const shape2d_aabb_t* ab) {
@@ -442,7 +442,7 @@ static int shape2d_polygon_has_contain_aabb(const shape2d_polygon_t* p, const sh
 	shape2d_polygon_t* polygon = (shape2d_polygon_t*)_buf;
 	polygon->vertices = (vector2_t*)(polygon + 1);
 	shape2d_aabb_to_polygon(ab, polygon);
-	return shape2d_polygon_has_point_n(p, polygon->vertices, polygon->vertice_num);
+	return shape2d_polygon_has_point_n(p, polygon->vertices, polygon->vertice_num) == polygon->vertice_num;
 }
 
 static int shape2d_polygon_has_contain_circle(const shape2d_polygon_t* p, const shape2d_circle_t* c) {
@@ -459,7 +459,7 @@ static int shape2d_polygon_has_contain_circle(const shape2d_polygon_t* p, const 
 }
 
 static int shape2d_polygon_has_contain_polygon(const shape2d_polygon_t* p1, const shape2d_polygon_t* p2) {
-	return shape2d_polygon_has_point_n(p1, p2->vertices, p2->vertice_num);
+	return shape2d_polygon_has_point_n(p1, p2->vertices, p2->vertice_num) == p2->vertice_num;
 }
 
 /* uniform interface */

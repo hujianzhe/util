@@ -51,6 +51,10 @@ static unsigned int shape3d_plane_has_point_n(const shape3d_plane_t* plane, cons
 	return i;
 }
 
+static unsigned int shape3d_plane_has_contain_linesegment(const shape3d_plane_t* plane, const shape3d_linesegment_t* ls) {
+	return shape3d_plane_has_point_n(plane, &ls->vertices0, 2);
+}
+
 static int shape3d_aabb_has_point(const shape3d_aabb_t* aabb, const vector3_t* point) {
 	return aabb->pivot.x - aabb->half.x <= point->x
 		&& aabb->pivot.x + aabb->half.x >= point->x
