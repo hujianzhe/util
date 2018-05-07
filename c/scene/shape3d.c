@@ -52,7 +52,7 @@ static unsigned int shape3d_plane_has_point_n(const shape3d_plane_t* plane, cons
 }
 
 static unsigned int shape3d_plane_has_contain_linesegment(const shape3d_plane_t* plane, const shape3d_linesegment_t* ls) {
-	return shape3d_plane_has_point_n(plane, &ls->vertices0, 2);
+	return shape3d_plane_has_point_n(plane, &ls->vertices0, 2) == 2;
 }
 
 static int shape3d_aabb_has_point(const shape3d_aabb_t* aabb, const vector3_t* point) {
