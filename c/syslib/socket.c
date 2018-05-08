@@ -100,22 +100,51 @@ static void sig_free_zombie(int sig) {
 	int status;
 	while (waitpid(-1, &status, WNOHANG) > 0);
 }
+
+static unsigned char* __byteorder_swap(unsigned char* p, unsigned int n) {
 #ifdef __linux__
-static unsigned long long __swap64(unsigned long long val) {
 	if (__BYTE_ORDER == __LITTLE_ENDIAN) {
-		int i;
-		unsigned char* p = (unsigned char*)&val;
-		for (i = 0; i < sizeof(val) / 2; ++i) {
+#else
+	union {
+		unsigned short v;
+		unsigned char little_endian;
+	} byte_order = { 0x0001 };
+	if (byte_order.little_endian) {
+#endif
+		unsigned int i;
+		for (i = 0; i < (n >> 1); ++i) {
 			unsigned char temp = p[i];
-			p[i] = p[sizeof(unsigned long long) - i - 1];
-			p[sizeof(unsigned long long) - i - 1] = temp;
+			p[i] = p[n - i - 1];
+			p[n - i - 1] = temp;
 		}
 	}
-	return val;
+	return p;
 }
-unsigned long long htonll(unsigned long long val) { return __swap64(val); }
-unsigned long long ntohll(unsigned long long val) { return __swap64(val); }
+
+#ifdef __linux__
+unsigned long long htonll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap(&val, sizeof(val)); }
+unsigned long long ntohll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap(&val, sizeof(val)); }
 #endif
+
+unsigned int htonf(float val) {
+	return *(unsigned int*)__byteorder_swap(&val, sizeof(val));
+}
+
+float ntohf(unsigned int val) {
+	float retval;
+	*((unsigned int*)&retval) = *(unsigned int*)__byteorder_swap(&val, sizeof(val));
+	return retval;
+}
+
+unsigned long long htond(double val) {
+	return *(unsigned long long*)__byteorder_swap(&val, sizeof(val));
+}
+
+double ntohd(unsigned long long val) {
+	double retval;
+	*((unsigned long long*)&retval) = *(unsigned long long*)__byteorder_swap(&val, sizeof(val));
+	return retval;
+}
 #endif
 
 BOOL network_SetupEnv(void) {

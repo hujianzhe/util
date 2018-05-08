@@ -97,9 +97,15 @@ extern "C" {
 #if defined(_WIN32) || defined(_WIN64)
 if_nameindex_t* if_nameindex(void);
 void if_freenameindex(if_nameindex_t* ptr);
-#elif __linux__
+#else
+#if	__linux__
 unsigned long long ntohll(unsigned long long val);
 unsigned long long htonll(unsigned long long val);
+#endif
+unsigned int htonf(float val);
+float ntohf(unsigned int val);
+unsigned long long htond(double val);
+double ntohd(unsigned long long val);
 #endif
 BOOL network_SetupEnv(void);
 BOOL network_CleanEnv(void);
