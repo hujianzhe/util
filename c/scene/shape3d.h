@@ -55,7 +55,7 @@ typedef union shape3d_t {
 extern "C" {
 #endif
 
-
+shape3d_plane_t* shape3d_plane_build_by_point(shape3d_plane_t* plane, const vector3_t* p1, const vector3_t* p2, const vector3_t* p3);
 
 #ifdef	__cplusplus
 }

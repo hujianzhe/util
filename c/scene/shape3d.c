@@ -36,32 +36,6 @@ static unsigned int shape3d_linesegment_has_point_n(const shape3d_linesegment_t*
 	return i;
 }
 
-static shape3d_plane_t* shape3d_plane_build_by_point(shape3d_plane_t* plane, const vector3_t* p1, const vector3_t* p2, const vector3_t* p3) {
-	vector3_t p12 = { p2->x - p1->x, p2->y - p1->y, p2->z - p1->z };
-	vector3_t p13 = { p3->x - p1->x, p3->y - p1->y, p3->z - p1->z };
-	vector3_cross(&plane->normal, &p12, &p13);
-	if (vector3_is_zero(&plane->normal))
-		return NULL;
-	vector3_normalized(&plane->normal, &plane->normal);
-	plane->pivot = *p1;
-	return plane;
-}
-
-static int shape3d_plane_has_point(const shape3d_plane_t* plane, const vector3_t* point) {
-	vector3_t v = { point->x - plane->pivot.x, point->y - plane->pivot.y, point->z - plane->pivot.z };
-	double d = vector3_dot(&plane->normal, point);
-	return d > -DBL_EPSILON && d < DBL_EPSILON;
-}
-
-static unsigned int shape3d_plane_has_point_n(const shape3d_plane_t* plane, const vector3_t point[], unsigned int n) {
-	unsigned int i;
-	for (i = 0; i < n; ++i) {
-		if (!shape3d_plane_has_point(plane, point + i))
-			break;
-	}
-	return i;
-}
-
 static int shape3d_linesegment_has_intersect(const vector3_t* s1, const vector3_t* e1, const vector3_t* s2, const vector3_t* e2) {
 	int l1 = 0, l2 = 0;
 	double min_x, min_y, min_z, max_x, max_y, max_z, d;
@@ -137,6 +111,32 @@ static int shape3d_linesegment_has_intersect(const vector3_t* s1, const vector3_
 	}
 	return vector3_dot(vector3_cross(&res1, &s1s2, &s1e1), vector3_cross(&res2, &s1e2, &s1e1)) < 0
 		&& vector3_dot(vector3_cross(&res1, &s2s1, &s2e2), vector3_cross(&res2, &s2e1, &s2e2)) < 0;
+}
+
+shape3d_plane_t* shape3d_plane_build_by_point(shape3d_plane_t* plane, const vector3_t* p1, const vector3_t* p2, const vector3_t* p3) {
+	vector3_t p12 = { p2->x - p1->x, p2->y - p1->y, p2->z - p1->z };
+	vector3_t p13 = { p3->x - p1->x, p3->y - p1->y, p3->z - p1->z };
+	vector3_cross(&plane->normal, &p12, &p13);
+	if (vector3_is_zero(&plane->normal))
+		return NULL;
+	vector3_normalized(&plane->normal, &plane->normal);
+	plane->pivot = *p1;
+	return plane;
+}
+
+static int shape3d_plane_has_point(const shape3d_plane_t* plane, const vector3_t* point) {
+	vector3_t v = { point->x - plane->pivot.x, point->y - plane->pivot.y, point->z - plane->pivot.z };
+	double d = vector3_dot(&plane->normal, point);
+	return d > -DBL_EPSILON && d < DBL_EPSILON;
+}
+
+static unsigned int shape3d_plane_has_point_n(const shape3d_plane_t* plane, const vector3_t point[], unsigned int n) {
+	unsigned int i;
+	for (i = 0; i < n; ++i) {
+		if (!shape3d_plane_has_point(plane, point + i))
+			break;
+	}
+	return i;
 }
 
 static unsigned int shape3d_plane_has_contain_linesegment(const shape3d_plane_t* plane, const shape3d_linesegment_t* ls) {
