@@ -122,27 +122,27 @@ static unsigned char* __byteorder_swap(unsigned char* p, unsigned int n) {
 }
 
 #ifdef __linux__
-unsigned long long htonll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap(&val, sizeof(val)); }
-unsigned long long ntohll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap(&val, sizeof(val)); }
+unsigned long long htonll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val)); }
+unsigned long long ntohll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val)); }
 #endif
 
 unsigned int htonf(float val) {
-	return *(unsigned int*)__byteorder_swap(&val, sizeof(val));
+	return *(unsigned int*)__byteorder_swap((unsigned char*)&val, sizeof(val));
 }
 
 float ntohf(unsigned int val) {
 	float retval;
-	*((unsigned int*)&retval) = *(unsigned int*)__byteorder_swap(&val, sizeof(val));
+	*((unsigned int*)&retval) = *(unsigned int*)__byteorder_swap((unsigned char*)&val, sizeof(val));
 	return retval;
 }
 
 unsigned long long htond(double val) {
-	return *(unsigned long long*)__byteorder_swap(&val, sizeof(val));
+	return *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val));
 }
 
 double ntohd(unsigned long long val) {
 	double retval;
-	*((unsigned long long*)&retval) = *(unsigned long long*)__byteorder_swap(&val, sizeof(val));
+	*((unsigned long long*)&retval) = *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val));
 	return retval;
 }
 #endif
