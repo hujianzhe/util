@@ -19,14 +19,14 @@ typedef double		float64_t;
 	#define	REAL_EPSILON				DBL_EPSILON
 	#define	REAL_MIN					DBL_MIN
 	#define	REAL_MAX					DBL_MAX
-	#define	REAL_MATH_FUNC(_pf, ...)	_pf(##__VA_ARGS__)
+	#define	REAL_MATH_FUNC(fn)			fn
 #else
 	#define	REAL_FLOAT_BIT				32
 	typedef	float32_t					real_t;
 	#define	REAL_EPSILON				FLT_EPSILON
 	#define	REAL_MIN					FLT_MIN
 	#define	REAL_MAX					FLT_MAX
-	#define	REAL_MATH_FUNC(_pf, ...)	_pf##f(##__VA_ARGS__)
+	#define	REAL_MATH_FUNC(fn)			fn##f
 #endif
 
 #ifdef	__cplusplus

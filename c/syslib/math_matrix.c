@@ -49,10 +49,10 @@ matrix_t* matrix_copy(matrix_t* dst, const matrix_t* src) {
 }
 
 matrix_t* matrix_dup(const matrix_t* m) {
-	matrix_t* newm = (matrix_t*)malloc(sizeof(matrix_t) + sizeof(double) * m->row * m->col);
+	matrix_t* newm = (matrix_t*)malloc(sizeof(matrix_t) + sizeof(real_t) * m->row * m->col);
 	if (newm) {
 		unsigned int r, c;
-		newm->val = (double*)(newm + 1);
+		newm->val = (real_t*)(newm + 1);
 		newm->row = m->row;
 		newm->col = m->col;
 		for (r = 0; r < m->row; ++r) {
@@ -95,26 +95,7 @@ void matrix_delcol(matrix_t* m, unsigned int col) {
 	m->col -= 1;
 }
 
-/*
-static double __matrix_det(const matrix_t* src, matrix_t* m) {
-	double res = 0.0;
-	unsigned int c;
-	for (c = 0; c < m->col; ++c) {
-		double det;
-		double base = matrix_val(m, 0, c);
-		matrix_remove_col(m, c);
-		matrix_remove_row(m, 0);
-		det = __matrix_det(src, m);
-		if (c & 1)
-			res -= base * det;
-		else
-			res += base * det;
-	}
-	return res;
-}
-*/
-
-double matrix_det(const matrix_t* m) {
+real_t matrix_det(const matrix_t* m) {
 	if (m->row != m->col || !m->row)
 		return NAN;
 
@@ -133,7 +114,7 @@ double matrix_det(const matrix_t* m) {
 		default:
 		{
 			// not implement
-			return 0.0;
+			return 0.0f;
 		}
 	}
 }
@@ -181,7 +162,7 @@ matrix_t* matrix_sub(matrix_t* res, const matrix_t* m1, const matrix_t* m2) {
 	return res;
 }
 
-matrix_t* matrix_mulnum(matrix_t* m, double number) {
+matrix_t* matrix_mulnum(matrix_t* m, real_t number) {
 	unsigned int r, c;
 	for (r = 0; r < m->row; ++r) {
 		for (c = 0; c < m->col; ++c) {
@@ -191,8 +172,8 @@ matrix_t* matrix_mulnum(matrix_t* m, double number) {
 	return m;
 }
 
-matrix_t* matrix_divnum(matrix_t* m, double number) {
-	return matrix_mulnum(m, 1.0 / number);
+matrix_t* matrix_divnum(matrix_t* m, real_t number) {
+	return matrix_mulnum(m, 1.0f / number);
 }
 
 matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right) {
@@ -203,7 +184,7 @@ matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right)
 
 	for (r = 0; r < res->row; ++r) {
 		for (c = 0; c < res->col; ++c) {
-			double v = 0.0;
+			real_t v = 0.0f;
 			unsigned int i;
 			for (i = 0; i < left->col; ++i) {
 				v += matrix_val(left, r, i) * matrix_val(right, i, c);
