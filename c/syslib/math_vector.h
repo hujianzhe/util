@@ -1,9 +1,11 @@
 //
-// Created by hujianzhe on 18-4-13.
+// Created by hujianzhe
 //
 
-#ifndef	UTIL_C_SCENE_VECTOR_MATH_H
-#define	UTIL_C_SCENE_VECTOR_MATH_H
+#ifndef	UTIL_C_SYSLIB_MATH_VECTOR_H
+#define	UTIL_C_SYSLIB_MATH_VECTOR_H
+
+#include "math.h"
 
 typedef union vector2_t {
 	struct {

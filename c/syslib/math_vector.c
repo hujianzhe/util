@@ -1,10 +1,8 @@
 //
-// Created by hujianzhe on 18-4-13.
+// Created by hujianzhe
 //
 
-#include "vector_math.h"
-#include <float.h>
-#include <math.h>
+#include "math_vector.h"
 
 #ifdef	__cplusplus
 extern "C" {

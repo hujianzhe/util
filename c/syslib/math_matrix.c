@@ -1,15 +1,8 @@
 //
-// Created by hujianzhe on 18-4-24.
+// Created by hujianzhe
 //
 
-#include "matrix_math.h"
-
-#if defined(_WIN32) || defined(_WIN64)
-#ifndef	_USE_MATH_DEFINES
-	#define	_USE_MATH_DEFINES
-#endif
-#endif
-#include <math.h>
+#include "math_matrix.h"
 #include <stdlib.h>
 
 #ifdef	__cplusplus
@@ -71,7 +64,7 @@ matrix_t* matrix_dup(const matrix_t* m) {
 	return newm;
 }
 
-void matrix_remove_row(matrix_t* m, unsigned int row) {
+void matrix_delrow(matrix_t* m, unsigned int row) {
 	unsigned int i, j;
 
 	if (m->row <= row || 1 == m->row)
@@ -85,7 +78,7 @@ void matrix_remove_row(matrix_t* m, unsigned int row) {
 	m->row -= 1;
 }
 
-void matrix_remove_col(matrix_t* m, unsigned int col) {
+void matrix_delcol(matrix_t* m, unsigned int col) {
 	unsigned int i, j;
 
 	if (m->col <= col || 1 == m->col)
