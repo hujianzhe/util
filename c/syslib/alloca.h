@@ -1,0 +1,37 @@
+//
+// Created by hujianzhe
+//
+
+#ifndef	UTIL_C_SYSLIB_ALLOCA_H
+#define UTIL_C_SYSLIB_ALLOCA_H
+
+#include "platform_define.h"
+
+#if defined(_WIN32) || defined(_WIN64)
+	#include <malloc.h>
+	#ifndef alloca
+		#define alloca		_alloca
+	#endif
+#else
+	#if	__linux__
+		#include <alloca.h>
+		#include <malloc.h>
+	#endif
+#endif
+#include <stdlib.h>
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+#define	alloca_align(nbytes, alignment)\
+((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((int)alignment) - 1)))
+
+void* malloc_align(size_t nbytes, size_t alignment);
+void free_align(const void* p);
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif
