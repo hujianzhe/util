@@ -37,6 +37,8 @@ int fequf(float a, float b);
 int fequ(double a, double b);
 float fsqrtf(float x);
 double fsqrt(double x);
+#define	deg2rad(deg)	(M_PI / 180.0 * (deg))
+#define	rad2deg(rad)	((rad) / M_PI * 180.0)
 
 #ifdef	__cplusplus
 }
