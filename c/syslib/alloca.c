@@ -10,9 +10,9 @@ extern "C" {
 
 void* malloc_align(size_t nbytes, size_t alignment) { /* alignment must signed integer type ! */
 #if defined(_WIN32) || defined(_WIN64)
-	return _aligned_malloc(nbytes, alignment);
+	return alignment ? _aligned_malloc(nbytes, alignment) : NULL;
 #elif	defined(__linux__)
-	return memalign(alignment, nbytes);
+	return alignment ? memalign(alignment, nbytes) : NULL;
 #else
 	if (alignment <= 0) {
 		return NULL;
