@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void* malloc_align(size_t nbytes, size_t alignment) { /* alignment must signed integer type ! */
+void* malloc_align(size_t nbytes, size_t alignment) {
 #if defined(_WIN32) || defined(_WIN64)
 	return alignment ? _aligned_malloc(nbytes, alignment) : NULL;
 #elif	defined(__linux__)
