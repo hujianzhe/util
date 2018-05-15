@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 int fequf(float a, float b);
-int fequ(double a, double b);	
+int fequ(double a, double b);
 
 #ifdef	__cplusplus
 }
