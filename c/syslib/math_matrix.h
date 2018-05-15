@@ -12,26 +12,6 @@ typedef struct matrix_t {
 	double* val;
 } matrix_t;
 
-/*
-#define	matrix_make(m, r, c, allocator)\
-m = (matrix_t*)allocator(sizeof(matrix_t) + sizeof(double)*r*c);\
-m->row = r;\
-m->col = c;\
-m->val = (double*)(m + 1)
-
-#define	matrix_assign(m, ...)\
-{\
-double _##m[] = {0,##__VA_ARGS__};\
-double *_##p##m = _##m + 1;\
-size_t _i##m;\
-size_t _cnt##m = m->row * m->col;\
-if (_cnt##m > sizeof(_##m) / sizeof(_##m[0]) - 1)\
-_cnt##m = sizeof(_##m) / sizeof(_##m[0]) - 1;\
-for (_i##m = 0; _i##m < _cnt##m; ++_i##m)\
-m->val[_i##m] = _##p##m[_i##m];\
-}
-*/
-
 #define	matrix_val(m, r, c)		((m)->val[(r) * (m)->col + (c)])
 
 #ifdef	__cplusplus
