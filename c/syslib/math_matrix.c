@@ -138,7 +138,7 @@ double matrix_det(const matrix_t* m) {
 	}
 }
 
-matrix_t* matrix_identity(const matrix_t* m, matrix_t* mi) {
+matrix_t* matrix_identity(matrix_t* mi, const matrix_t* m) {
 	unsigned int r, c;
 
 	if (m->row != m->col || mi->row != mi->col)
