@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 int error_code(void);
-void clear_error_code(void);
+void error_code_clear(void);
 char* error_msg(int errnum, char* buf, size_t bufsize);
 
 #ifdef	__cplusplus

@@ -141,7 +141,7 @@ int error_code(void) {
 	return errno;
 }
 
-void clear_error_code(void) {
+void error_code_clear(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SetLastError(ERROR_SUCCESS);
 #endif
