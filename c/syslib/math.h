@@ -14,13 +14,14 @@
 #include <math.h>
 typedef	float		float32_t;
 typedef double		float64_t;
-#ifdef REAL_USE_FLOAT64
+#if REAL_FLOAT_BIT == 64
 	typedef	float64_t			real_t;
 	#define	REAL_EPSILON		DBL_EPSILON
 	#define	REAL_MIN			DBL_MIN
 	#define	REAL_MAX			DBL_MAX
 	#define	real_fn(_pf, ...)	_pf(##__VA_ARGS__)
 #else
+	#define	REAL_FLOAT_BIT		32
 	typedef	float32_t			real_t;
 	#define	REAL_EPSILON		FLT_EPSILON
 	#define	REAL_MIN			FLT_MIN
