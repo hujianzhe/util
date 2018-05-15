@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-BOOL uuid_Create(uuid_t* uuid) {
+uuid_t* uuid_Create(uuid_t* uuid) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CoCreateGuid(uuid) == S_OK;
+	return CoCreateGuid(uuid) == S_OK ? uuid : NULL;
 #else
 	uuid_generate(*uuid);
-	return TRUE;
+	return uuid;
 #endif
 }
 

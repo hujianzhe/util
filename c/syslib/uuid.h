@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-BOOL uuid_Create(uuid_t* uuid);
+uuid_t* uuid_Create(uuid_t* uuid);
 BOOL uuid_ToString(uuid_t* uuid, uuid_string_t uuid_string);
 BOOL uuid_FromString(uuid_t* uuid, uuid_string_t uuid_string);
 
