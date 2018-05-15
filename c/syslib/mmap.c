@@ -13,21 +13,18 @@
 extern "C" {
 #endif
 
-static long __granularity(void) {
+long mmap_Granularity(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO sinfo = {0};
 	GetSystemInfo(&sinfo);
 	return sinfo.dwAllocationGranularity;
 #else
-	long granularity = sysconf(_SC_PAGESIZE);
-	if (granularity == -1)
-		granularity = 0;
-	return granularity;
+	return sysconf(_SC_PAGESIZE);
 #endif
 }
 
 BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
-	mm->granularity = __granularity();
+	mm->granularity = mmap_Granularity();
 	if (fd != INVALID_FD_HANDLE) {
 #if defined(_WIN32) || defined(_WIN64)
 		mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);

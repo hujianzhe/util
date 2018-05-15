@@ -26,6 +26,7 @@ typedef struct {
 extern "C" {
 #endif
 
+long mmap_Granularity(void);
 BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
 BOOL mmap_Open(MemoryMapping_t* mm, const char* name);
 BOOL mmap_Close(MemoryMapping_t* mm);
