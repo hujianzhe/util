@@ -9,28 +9,6 @@
 extern "C" {
 #endif
 
-/* uuid */
-BOOL uuid_Create(uuid_t* uuid){
-#if defined(_WIN32) || defined(_WIN64)
-	return CoCreateGuid(uuid) == S_OK;
-#else
-	uuid_generate(*uuid);
-	return TRUE;
-#endif
-}
-BOOL uuid_GetString(uuid_t* uuid, uuid_string_t* uuid_string) {
-#if defined(_WIN32) || defined(_WIN64)
-    unsigned char* buffer;
-	if (UuidToStringA(uuid,&buffer) != RPC_S_OK)
-		return FALSE;
-	strcpy(*uuid_string, (char*)buffer);
-	return RpcStringFreeA(&buffer) == RPC_S_OK;
-#else
-	uuid_unparse_lower(*uuid, *uuid_string);
-	return TRUE;
-#endif
-}
-
 /* processor */
 int processor_IsLittleEndian(void) {
 	unsigned short v = 0x0001;
@@ -76,24 +54,13 @@ char* host_Name(char* buf, size_t len) {
 }
 
 /* memory */
-BOOL page_Size(unsigned long* page_size, unsigned long* granularity) {
+long memory_PageSize(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-	if (page_size)
-		*page_size = si.dwPageSize;
-	if (granularity)
-		*granularity = si.dwAllocationGranularity;
-	return TRUE;
+	return si.dwPageSize;
 #else
-	long value = sysconf(_SC_PAGESIZE);
-	if (value == -1)
-		return FALSE;
-	if (page_size)
-		*page_size = value;
-	if (granularity)
-		*granularity = value;
-	return TRUE;
+	return sysconf(_SC_PAGESIZE);
 #endif
 }
 BOOL memory_Size(unsigned long long* total) {

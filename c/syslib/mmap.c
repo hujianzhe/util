@@ -24,12 +24,12 @@ long mmap_Granularity(void) {
 }
 
 BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
-	mm->granularity = mmap_Granularity();
 	if (fd != INVALID_FD_HANDLE) {
 #if defined(_WIN32) || defined(_WIN64)
 		mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
 		return mm->__handle != NULL;
 #else
+		mm->__isref = 1;
 		mm->__fd = fd;
 #endif
 	}
@@ -50,6 +50,7 @@ BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) 
 			assert_true(close(fd) == 0);
 			return FALSE;
 		}
+		mm->__isref = 0;
 		mm->__fd = fd;
 #endif
 	}
@@ -61,6 +62,7 @@ BOOL mmap_Open(MemoryMapping_t* mm, const char* name) {
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return mm->__handle != NULL;
 #else
+	mm->__isref = 0;
 	mm->__fd = open(name, O_RDWR);
 	return mm->__fd != -1;
 #endif
@@ -68,15 +70,15 @@ BOOL mmap_Open(MemoryMapping_t* mm, const char* name) {
 
 BOOL mmap_Close(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle((HANDLE)(mm->__handle));
+	return CloseHandle(mm->__handle);
 #else
-	return close(mm->__fd) == 0;
+	return mm->__isref || close(mm->__fd) == 0;
 #endif
 }
 
 void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
-	return MapViewOfFileEx((HANDLE)(mm->__handle), FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
+	return MapViewOfFileEx(mm->__handle, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
 #else
 	return mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->__fd, offset);
 #endif

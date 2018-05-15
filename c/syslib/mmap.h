@@ -14,11 +14,11 @@
 #endif
 
 typedef struct {
-	long granularity;
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE __handle;
 #else
 	int __fd;
+	int __isref;
 #endif
 } MemoryMapping_t;
 
