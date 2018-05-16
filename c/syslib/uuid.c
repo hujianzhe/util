@@ -17,7 +17,7 @@ uuid_t* uuid_Create(uuid_t* uuid) {
 #endif
 }
 
-BOOL uuid_ToString(uuid_t* uuid, uuid_string_t uuid_string) {
+BOOL uuid_ToString(const uuid_t* uuid, uuid_string_t uuid_string) {
 #if defined(_WIN32) || defined(_WIN64)
 	int i;
 	unsigned char* buffer;
