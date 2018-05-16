@@ -27,7 +27,7 @@ extern "C" {
 
 uuid_t* uuid_Create(uuid_t* uuid);
 BOOL uuid_ToString(const uuid_t* uuid, uuid_string_t uuid_string);
-BOOL uuid_FromString(uuid_t* uuid, uuid_string_t uuid_string);
+BOOL uuid_FromString(uuid_t* uuid, const uuid_string_t uuid_string);
 
 #ifdef	__cplusplus
 }

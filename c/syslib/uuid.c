@@ -33,11 +33,11 @@ BOOL uuid_ToString(const uuid_t* uuid, uuid_string_t uuid_string) {
 #endif
 }
 
-BOOL uuid_FromString(uuid_t* uuid, uuid_string_t uuid_string) {
+BOOL uuid_FromString(uuid_t* uuid, const uuid_string_t uuid_string) {
 #if defined(_WIN32) || defined(_WIN64)
 	return UuidFromStringA((RPC_CSTR)uuid_string, uuid) == RPC_S_OK;
 #else
-	return uuid_parse(uuid_string, *uuid) == 0;
+	return uuid_parse((char*)uuid_string, *uuid) == 0;
 #endif
 }
 
