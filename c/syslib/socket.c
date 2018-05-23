@@ -721,7 +721,12 @@ end:
 
 BOOL sock_IsListened(FD_t sockfd, BOOL* bool_value) {
 	socklen_t len = sizeof(*bool_value);
-	return getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len) == 0;
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len)) {
+		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTSOCK))
+			return FALSE;
+		*bool_value = FALSE;
+	}
+	return TRUE;
 }
 
 FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
