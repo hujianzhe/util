@@ -51,9 +51,9 @@ private:
 	volatile bool m_connecting;
 
 	std::vector<unsigned char> m_inbuf;
-	Mutex_t m_outbufMutex;
-	bool m_outbufMutexInitOk;
+
 	bool m_writeCommit;
+	Mutex_t m_outbufMutex;
 	struct WaitSendData {
 		list_node_t m_listnode;
 		size_t offset;

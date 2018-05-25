@@ -13,19 +13,15 @@ TcpNioObject::TcpNioObject(FD_t fd, int domain, int protocol) :
 	NioObject(fd, domain, SOCK_STREAM, protocol),
 	m_connectCallbackFunctor(NULL),
 	m_connecting(false),
-	m_outbufMutexInitOk(false),
 	m_writeCommit(false)
 {
 	if (!mutex_Create(&m_outbufMutex)) {
 		throw std::logic_error("Util::TcpNioObject mutex_Create failure");
 	}
-	m_outbufMutexInitOk = true;
 	list_init(&m_outbuflist);
 }
 TcpNioObject::~TcpNioObject(void) {
-	if (m_outbufMutexInitOk) {
-		mutex_Close(&m_outbufMutex);
-	}
+	mutex_Close(&m_outbufMutex);
 }
 
 #if __CPP_VERSION >= 2011
