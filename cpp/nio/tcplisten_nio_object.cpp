@@ -7,9 +7,8 @@
 #include "tcplisten_nio_object.h"
 
 namespace Util {
-TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int sa_family) :
-	NioObject(sockfd, SOCK_STREAM),
-	m_saFamily(sa_family),
+TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int domain) :
+	NioObject(sockfd, domain, SOCK_STREAM, 0),
 	m_cbfunc(NULL),
 	m_arg(0)
 {
@@ -18,7 +17,7 @@ TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int sa_family) :
 
 bool TcplistenNioObject::bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	struct sockaddr_storage saddr;
-	if (!sock_Text2Addr(&saddr, m_saFamily, ip, port)) {
+	if (!sock_Text2Addr(&saddr, m_domain, ip, port)) {
 		return false;
 	}
 	return bindlisten(&saddr, cbfunc, arg);
@@ -53,7 +52,7 @@ bool TcplistenNioObject::accept(int msec) {
 
 bool TcplistenNioObject::reactorAccept(void) {
 	struct sockaddr_storage saddr;
-	saddr.ss_family = m_saFamily;
+	saddr.ss_family = m_domain;
 	if (reactor_Commit(m_reactor, m_fd, REACTOR_ACCEPT, &m_readOl, &saddr)) {
 		return true;
 	}

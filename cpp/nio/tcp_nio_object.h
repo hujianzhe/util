@@ -16,7 +16,7 @@
 namespace Util {
 class TcpNioObject : public NioObject {
 public:
-	TcpNioObject(FD_t fd);
+	TcpNioObject(FD_t fd, int domain, int protocol);
 	~TcpNioObject(void);
 
 #if __CPP_VERSION >= 2011

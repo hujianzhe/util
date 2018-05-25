@@ -9,8 +9,8 @@
 #include <stdexcept>
 
 namespace Util {
-TcpNioObject::TcpNioObject(FD_t fd) :
-	NioObject(fd, SOCK_STREAM),
+TcpNioObject::TcpNioObject(FD_t fd, int domain, int protocol) :
+	NioObject(fd, domain, SOCK_STREAM, protocol),
 	m_connectCallbackFunctor(NULL),
 	m_connecting(false),
 	m_outbufMutexInitOk(false),

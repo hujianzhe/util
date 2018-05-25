@@ -18,14 +18,16 @@ class NioObjectManager;
 class NioObject : public std::enable_shared_from_this<NioObject> {
 friend class NioObjectManager;
 public:
-	NioObject(FD_t fd, int socktype = -1);
+	NioObject(FD_t fd, int domain, int socktype, int protocol);
 	virtual ~NioObject(void);
 
 	void userdata(void* userdata) { m_userdata = userdata; }
 	void* userdata(void) const { return m_userdata; }
 
 	FD_t fd(void) const { return m_fd; }
+	int domain(void) const { return m_domain; }
 	int socktype(void) const { return m_socktype; }
+	int protocol(void) const { return m_protocol; }
 	bool isListen(void) const { return m_isListen; }
 
 	bool reactorInit(Reactor_t* reactor);
@@ -52,7 +54,7 @@ public:
 	virtual bool sendmsg(const void* msg, struct sockaddr_storage* saddr = NULL) { return true; }
 
 private:
-	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_socktype(-1) {}
+	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_domain(AF_UNSPEC), m_socktype(-1), m_protocol(0) {}
 	NioObject& operator=(const NioObject& o) { return *this; }
 
 	virtual int recv(void) { return 0; }
@@ -69,7 +71,9 @@ protected:
 
 protected:
 	const FD_t m_fd;
+	const int m_domain;
 	const int m_socktype;
+	const int m_protocol;
 	void* m_readOl;
 	void* m_writeOl;
 	Reactor_t* m_reactor;

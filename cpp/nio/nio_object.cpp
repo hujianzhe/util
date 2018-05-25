@@ -7,9 +7,11 @@
 #include "nio_object.h"
 
 namespace Util {
-NioObject::NioObject(FD_t fd, int socktype) :
+NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol) :
 	m_fd(fd),
+	m_domain(domain),
 	m_socktype(-1 == socktype ? sock_Type(fd) : socktype),
+	m_protocol(protocol),
 	m_readOl(NULL),
 	m_writeOl(NULL),
 	m_reactor(NULL),

@@ -10,7 +10,7 @@
 namespace Util {
 class TcplistenNioObject : public NioObject {
 public:
-	TcplistenNioObject(FD_t sockfd, int sa_family);
+	TcplistenNioObject(FD_t sockfd, int domain);
 
 	bool bindlisten(unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0) { return bindlisten(NULL, port, cbfunc, arg); }
 	bool bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
@@ -24,7 +24,6 @@ private:
 	int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) { return 0; }
 
 private:
-	int m_saFamily;
 	REACTOR_ACCEPT_CALLBACK m_cbfunc;
 	size_t m_arg;
 };
