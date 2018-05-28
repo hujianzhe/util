@@ -6,8 +6,8 @@
 #include "udp_nio_object.h"
 
 namespace Util {
-UdpNioObject::UdpNioObject(FD_t sockfd, int domain, int protocol, unsigned short frame_length_limit) :
-	NioObject(sockfd, domain, SOCK_DGRAM, protocol),
+UdpNioObject::UdpNioObject(FD_t sockfd, int domain, unsigned short frame_length_limit) :
+	NioObject(sockfd, domain, SOCK_DGRAM, 0),
 	m_frameLengthLimit(frame_length_limit)
 {
 }
