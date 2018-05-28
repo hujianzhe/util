@@ -6,8 +6,10 @@
 #define	UTIL_CPP_TYPE_CAST_H
 
 #include <exception>
+#include <list>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace Util {
 	template<typename T, typename F>
@@ -38,6 +40,21 @@ namespace Util {
 			return T();
 		}
 		return t;
+	}
+
+	template <typename F>
+	void type_cast(const std::vector<F>& f, std::list<F>& t) {
+		for (size_t i = 0; i < f.size(); ++i) {
+			t.push_back(f[i]);
+		}
+	}
+
+	template <typename F>
+	void type_cast(const std::list<F>& f, std::vector<F>& t) {
+		t.reserve(f.size());
+		for (std::list<F>::iterator it = f.begin(); it != f.end(); ++it) {
+			t.push_back(*it);
+		}
 	}
 }
 
