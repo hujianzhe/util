@@ -29,7 +29,7 @@ public:
 	WebSocketFrame(unsigned long long frame_length_limit, short frame_type, bool is_fin = true);
 
 	static size_t responseHeaderLength(size_t datalen);
-	bool buildHeader(unsigned char* headbuf, size_t datalen);
+	bool buildHeader(void* headbuf, size_t datalen);
 	int parseDataFrame(unsigned char* data, size_t len);	
 
 	bool isFin(void) const { return m_isFin; }

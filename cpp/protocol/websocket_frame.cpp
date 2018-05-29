@@ -67,24 +67,25 @@ size_t WebSocketFrame::responseHeaderLength(size_t datalen) {
 	return header_len;
 }
 
-bool WebSocketFrame::buildHeader(unsigned char* headbuf, size_t datalen) {
+bool WebSocketFrame::buildHeader(void* headbuf, size_t datalen) {
 	const size_t basic_header_len = 2;
 	size_t header_len = 0;
+	unsigned char* _headbuf = (unsigned char*)headbuf;
 
-	headbuf[0] = m_frameType | (m_isFin ? 0x80 : 0);
+	_headbuf[0] = m_frameType | (m_isFin ? 0x80 : 0);
 	if (datalen < 126) {
 		header_len = basic_header_len;
-		headbuf[1] = datalen;
+		_headbuf[1] = datalen;
 	}
 	else if (datalen <= 0xffff) {
 		header_len = basic_header_len + sizeof(unsigned short);
-		headbuf[1] = 126;
-		*(unsigned short*)&headbuf[basic_header_len] = htons(datalen);
+		_headbuf[1] = 126;
+		*(unsigned short*)&_headbuf[basic_header_len] = htons(datalen);
 	}
 	else {
 		header_len = basic_header_len + sizeof(unsigned long long);
-		headbuf[1] = 127;
-		*(unsigned long long*)&headbuf[basic_header_len] = htonll(datalen);
+		_headbuf[1] = 127;
+		*(unsigned long long*)&_headbuf[basic_header_len] = htonll(datalen);
 	}
 
 	return header_len + datalen <= m_frameLengthLimit;
