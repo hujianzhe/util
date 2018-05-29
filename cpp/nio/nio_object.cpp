@@ -129,7 +129,7 @@ int NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_stora
 		return 0;
 	}
 	IoBuf_t iov = iobuffer_init(data, nbytes);
-	return sendv(&iov, 1, saddr);
+	return send(&iov, 1, saddr);
 }
 
 int NioObject::onRead(void) {

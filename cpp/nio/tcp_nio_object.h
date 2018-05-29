@@ -33,6 +33,7 @@ public:
 	bool reactorConnect(int family, const char* ip, unsigned short port, ConnectFunctor* cb = NULL);
 	bool reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor* cb = NULL);
 
+protected:
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 
 private:
