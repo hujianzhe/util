@@ -44,6 +44,7 @@ namespace Util {
 
 	template <typename F>
 	void type_cast(const std::vector<F>& f, std::list<F>& t) {
+		t.clear();
 		for (size_t i = 0; i < f.size(); ++i) {
 			t.push_back(f[i]);
 		}
@@ -51,6 +52,7 @@ namespace Util {
 
 	template <typename F>
 	void type_cast(const std::list<F>& f, std::vector<F>& t) {
+		std::vector<F>().swap(t);
 		t.reserve(f.size());
 		for (std::list<F>::iterator it = f.begin(); it != f.end(); ++it) {
 			t.push_back(*it);
