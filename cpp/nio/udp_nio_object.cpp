@@ -35,4 +35,30 @@ int UdpNioObject::recv(void) {
 	}
 	return res;
 }
+
+int UdpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
+	if (!m_valid) {
+		return -1;
+	}
+	if (!iov || !iovcnt) {
+		return 0;
+	}
+	size_t nbytes = 0;
+	for (unsigned int i = 0; i < iovcnt; ++i) {
+		nbytes += iobuffer_len(iov + i);
+	}
+	if (0 == nbytes) {
+		return 0;
+	}
+
+	int res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
+	if (res < 0) {
+		if (error_code() != EWOULDBLOCK) {
+			m_valid = false;
+			return -1;
+		}
+		return 0;
+	}
+	return res;
+}
 }

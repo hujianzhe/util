@@ -98,40 +98,6 @@ bool NioObject::checkValid(void) {
 	return m_valid;
 }
 
-int NioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
-	if (!m_valid) {
-		return -1;
-	}
-	if (!iov || !iovcnt) {
-		return 0;
-	}
-	size_t nbytes = 0;
-	for (unsigned int i = 0; i < iovcnt; ++i) {
-		nbytes += iobuffer_len(iov + i);
-	}
-	if (0 == nbytes) {
-		return 0;
-	}
-
-	int res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
-	if (res < 0) {
-		if (error_code() != EWOULDBLOCK) {
-			m_valid = false;
-			return -1;
-		}
-		return 0;
-	}
-	return res;
-}
-
-int NioObject::send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr) {
-	if (!data || 0 == nbytes) {
-		return 0;
-	}
-	IoBuf_t iov = iobuffer_init(data, nbytes);
-	return send(&iov, 1, saddr);
-}
-
 int NioObject::onRead(void) {
 	int res = recv();
 	if (m_valid && !m_isListen) {

@@ -20,6 +20,7 @@ public:
 	bool reactorAccept(void);
 
 private:
+	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) { return -1; }
 	virtual int recv(void);
 	int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) { return 0; }
 

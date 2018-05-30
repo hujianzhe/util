@@ -45,12 +45,10 @@ public:
 	bool checkTimeout(void);
 	bool checkValid(void);
 
-	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
-	virtual int send(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) { return sendv(iov, iovcnt, saddr); }
-	int send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
-	int send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
-	int send(const std::vector<char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
-	int send(const std::string& str, struct sockaddr_storage* saddr = NULL) { return send(str.empty() ? NULL : str.data(), str.size(), saddr); }
+	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) = 0;
+	int sendv(IoBuf_t iov, struct sockaddr_storage* saddr = NULL) { return sendv(&iov, 1, saddr); }
+	virtual int sendpacket(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) { return sendv(iov, iovcnt, saddr); }
+	int sendpacket(IoBuf_t iov, struct sockaddr_storage* saddr = NULL) { return sendpacket(&iov, 1, saddr); }
 
 private:
 	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_domain(AF_UNSPEC), m_socktype(-1), m_protocol(0) {}
