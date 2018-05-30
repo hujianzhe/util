@@ -45,6 +45,7 @@ public:
 	bool checkTimeout(void);
 	bool checkValid(void);
 
+	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 	virtual int send(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) { return sendv(iov, iovcnt, saddr); }
 	int send(const void* data, unsigned int nbytes, struct sockaddr_storage* saddr = NULL);
 	int send(const std::vector<unsigned char>& data, struct sockaddr_storage* saddr = NULL) { return send(data.empty() ? NULL : &data[0], data.size(), saddr); }
@@ -65,7 +66,6 @@ private:
 	time_t updateLastActiveTime(void);
 
 protected:
-	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 	virtual int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) = 0; //{ return len > 0x7fffffff ? 0x7fffffff : (int)len; }
 	bool reactorWrite(void);
 
