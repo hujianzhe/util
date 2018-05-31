@@ -257,6 +257,7 @@ DB_STMT* db_AllocStmt(DB_HANDLE* handle, DB_STMT* stmt) {
 			stmt->mysql.result_field_count = 0;
 			stmt->mysql.result_field_meta = NULL;
 			stmt->mysql.result_field_param = NULL;
+			stmt->mysql.result_index = 0;
 			stmt->mysql.error_msg = "";
 			res = DB_SUCCESS;
 			break;
@@ -274,10 +275,24 @@ DB_RETURN db_CloseStmt(DB_STMT* stmt) {
 		{
 			free(stmt->mysql.exec_param);
 			stmt->mysql.exec_param = NULL;
-			if (mysql_stmt_close(stmt->mysql.stmt)) {
+			stmt->mysql.exec_param_count = 0;
+
+			free(stmt->mysql.result_field_param);
+			stmt->mysql.result_field_param = NULL;
+			stmt->mysql.result_field_count = 0;
+
+			if (stmt->mysql.result_field_meta) {
+				mysql_free_result(stmt->mysql.result_field_meta);
+				stmt->mysql.result_field_meta = NULL;
+			}
+
+			if (stmt->mysql.stmt && mysql_stmt_close(stmt->mysql.stmt)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 				break;
 			}
+			stmt->mysql.stmt = NULL;
+			stmt->mysql.result_index = 0;
+
 			res = DB_SUCCESS;
 			break;
 		}
@@ -300,89 +315,44 @@ const char* db_StmtErrorMessage(DB_STMT* stmt) {
 	}
 }
 
-DB_RETURN db_SQLPrepare(DB_STMT* stmt, const char* sql, size_t length) {
+DB_RETURN db_SQLPrepareExecute(DB_STMT* stmt, const char* sql, size_t sqllen, DB_EXECUTE_PARAM* param, unsigned short paramcnt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
-			if (mysql_stmt_prepare(stmt->mysql.stmt, sql, length)) {
+			/* prepare */
+			if (mysql_stmt_prepare(stmt->mysql.stmt, sql, sqllen)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 				break;
 			}
 			stmt->mysql.exec_param_count = mysql_stmt_param_count(stmt->mysql.stmt);
 			if (stmt->mysql.exec_param_count) {
+				unsigned short i;
 				stmt->mysql.exec_param = (MYSQL_BIND*)calloc(1, sizeof(MYSQL_BIND) * stmt->mysql.exec_param_count);
 				if (!stmt->mysql.exec_param) {
 					stmt->mysql.error_msg = "not enough memory to alloc MYSQL_BIND";
 					break;
 				}
-			}
-			res = DB_SUCCESS;
-			break;
-		}
-		#endif
-	}
-	return res;
-}
-
-DB_RETURN db_SQLParamCount(DB_STMT* stmt, unsigned short* count) {
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			*count = stmt->mysql.exec_param_count;
-			res = DB_SUCCESS;
-			break;
-		}
-		#endif
-	}
-	return res;
-}
-
-DB_RETURN db_SQLBindExecuteParam(DB_STMT* stmt, unsigned short index, int field_type, const void* buffer, size_t buffer_length) {
-	/*
-	 *	index start at 1
-	 *
-	 */
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			if (index > stmt->mysql.exec_param_count || 0 == index) {
-				stmt->mysql.error_msg = "set bind param index invalid";
-				break;
-			}
-			if (field_type < 0 || field_type >= sizeof(type_map_to_mysql) / sizeof(type_map_to_mysql[0])) {
-				stmt->mysql.error_msg = "set bind param field type invalid";
-				break;
-			}
-			MYSQL_BIND* bind = stmt->mysql.exec_param + index - 1;
-			bind->buffer_type = type_map_to_mysql[field_type];
-			bind->buffer = (void*)buffer;
-			bind->buffer_length = buffer_length;
-			res = DB_SUCCESS;
-			break;
-		}
-		#endif
-	}
-	return res;
-}
-
-DB_RETURN db_SQLExecute(DB_STMT* stmt) {
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			if (stmt->mysql.exec_param_count) {
+				/* bind execute param */
+				for (i = 0; i < paramcnt && i < stmt->mysql.exec_param_count; ++i) {
+					MYSQL_BIND* bind = stmt->mysql.exec_param + i;
+					if (param[i].field_type < 0 ||
+						param[i].field_type >= sizeof(type_map_to_mysql) / sizeof(type_map_to_mysql[0]))
+					{
+						stmt->mysql.error_msg = "set bind param field type invalid";
+						break;
+					}
+					bind->buffer_type = type_map_to_mysql[param[i].field_type];
+					bind->buffer = (void*)(param[i].buffer);
+					bind->buffer_length = param[i].buffer_length;
+				}
 				if (mysql_stmt_bind_param(stmt->mysql.stmt, stmt->mysql.exec_param)) {
 					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 					break;
 				}
 			}
+			/* execute */
 			if (mysql_stmt_execute(stmt->mysql.stmt)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 				break;
@@ -390,6 +360,8 @@ DB_RETURN db_SQLExecute(DB_STMT* stmt) {
 			free(stmt->mysql.exec_param);
 			stmt->mysql.exec_param = NULL;
 			stmt->mysql.exec_param_count = 0;
+			stmt->mysql.result_index = 0;
+
 			res = DB_SUCCESS;
 			break;
 		}
@@ -433,96 +405,66 @@ long long db_AffectedRows(DB_STMT* stmt) {
 	}
 }
 
-DB_RETURN db_ResultFieldCount(DB_STMT* stmt, unsigned short* count) {
-	DB_RETURN res = DB_ERROR;
+short db_GetResult(DB_STMT* stmt) {
+	short result_field_count = -1;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
-			*count = stmt->mysql.result_field_count;
-			res = DB_SUCCESS;
-            break;
-        }
-		#endif
-    }
-    return res;
-}
-
-DB_RETURN db_FirstResult(DB_STMT* stmt) {
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			if (mysql_stmt_store_result(stmt->mysql.stmt)) {
-				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
-				break;
-			}
-			stmt->mysql.result_field_count = mysql_stmt_field_count(stmt->mysql.stmt);
-			if (stmt->mysql.result_field_count) {
-				stmt->mysql.result_field_param = (MYSQL_BIND*)calloc(1, sizeof(MYSQL_BIND) * stmt->mysql.result_field_count);
-				if (NULL == stmt->mysql.result_field_param) {
-					stmt->mysql.error_msg = "not enough memory to alloc MYSQL_BIND";
-					mysql_stmt_free_result(stmt->mysql.stmt);
+			/* get result */
+			if (0 == stmt->mysql.result_index) {
+				if (mysql_stmt_store_result(stmt->mysql.stmt)) {
+					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 					break;
 				}
+			}
+			else {
+				#if MYSQL_VERSION_ID >= 50503
+				int ret = mysql_stmt_next_result(stmt->mysql.stmt);
+				if (-1 == ret) {
+					/* no more result */
+					break;
+				}
+				else if (ret) {
+					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
+					break;
+				}
+				#else
+				break;
+				#endif
+			}
+			/* result info */
+			result_field_count = mysql_stmt_field_count(stmt->mysql.stmt);
+			if (result_field_count > 0) {
+				/* result meta */
 				stmt->mysql.result_field_meta = mysql_stmt_result_metadata(stmt->mysql.stmt);
 				if (NULL == stmt->mysql.result_field_meta) {
 					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
-					free(stmt->mysql.result_field_param);
 					mysql_stmt_free_result(stmt->mysql.stmt);
+					result_field_count = -1;
 					break;
 				}
+				/* result field */
+				stmt->mysql.result_field_param = (MYSQL_BIND*)calloc(1, sizeof(MYSQL_BIND) * result_field_count);
+				if (NULL == stmt->mysql.result_field_param) {
+					stmt->mysql.error_msg = "not enough memory to alloc MYSQL_BIND";
+					mysql_stmt_free_result(stmt->mysql.stmt);
+					result_field_count = -1;
+					break;
+				}
+				stmt->mysql.result_field_count = result_field_count;
+				stmt->mysql.result_index = 1;
 			}
-			res = DB_SUCCESS;
+			else if (0 == result_field_count) {
+				mysql_stmt_free_result(stmt->mysql.stmt);
+				stmt->mysql.result_index = 1;
+			}
+			
 			break;
 		}
 		#endif
     }
-    return res;
-}
-
-DB_RETURN db_NextResult(DB_STMT* stmt) {
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			#if MYSQL_VERSION_ID >= 50503
-			int ret = mysql_stmt_next_result(stmt->mysql.stmt);
-			if (-1 == ret)
-				res = DB_NO_RESULT;
-			else if (ret) {
-				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
-				break;
-			}
-			else {
-				stmt->mysql.result_field_count = mysql_stmt_field_count(stmt->mysql.stmt);
-				if (stmt->mysql.result_field_count) {
-					stmt->mysql.result_field_param = (MYSQL_BIND*)calloc(1, sizeof(MYSQL_BIND) * stmt->mysql.result_field_count);
-					if (NULL == stmt->mysql.result_field_param) {
-						stmt->mysql.error_msg = "not enough memory to alloc MYSQL_BIND";
-						mysql_stmt_free_result(stmt->mysql.stmt);
-						break;
-					}
-					stmt->mysql.result_field_meta = mysql_stmt_result_metadata(stmt->mysql.stmt);
-					if (NULL == stmt->mysql.result_field_meta) {
-						stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
-						free(stmt->mysql.result_field_param);
-						mysql_stmt_free_result(stmt->mysql.stmt);
-						break;
-					}
-				}
-				res = DB_MORE_RESULT;
-			}
-			#else
-			res = DB_NO_RESULT;
-			#endif
-            break;
-		}
-		#endif
-	}
-	return res;
+    return result_field_count;
 }
 
 DB_RETURN db_FreeResult(DB_STMT* stmt) {
@@ -534,14 +476,17 @@ DB_RETURN db_FreeResult(DB_STMT* stmt) {
 			free(stmt->mysql.result_field_param);
 			stmt->mysql.result_field_param = NULL;
 			stmt->mysql.result_field_count = 0;
+
 			if (stmt->mysql.result_field_meta) {
 				mysql_free_result(stmt->mysql.result_field_meta);
 				stmt->mysql.result_field_meta = NULL;
 			}
+
 			if (mysql_stmt_free_result(stmt->mysql.stmt)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 				break;
 			}
+
 			res = DB_SUCCESS;
 			break;
 		}
@@ -584,17 +529,31 @@ DB_RETURN db_BindResultField(DB_STMT* stmt, unsigned short index, void* buffer, 
 	return res;
 }
 
-DB_RETURN db_FetchResult(DB_STMT* stmt) {
+DB_RETURN db_FetchResult(DB_STMT* stmt, DB_RESULT_PARAM* param, unsigned short paramcnt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
+			/* bind result param */
 			if (stmt->mysql.result_field_count) {
-				unsigned short index;
-				MYSQL_FIELD* field;
-				for (index = 0; field = mysql_fetch_field(stmt->mysql.result_field_meta); ++index) {
-					stmt->mysql.result_field_param[index].buffer_type = field->type;
+				unsigned short i;
+				for (i = 0; i < paramcnt && i < stmt->mysql.result_field_count; ++i) {
+					MYSQL_FIELD* field = mysql_fetch_field(stmt->mysql.result_field_meta);
+					if (field) {
+						MYSQL_BIND* bind = stmt->mysql.result_field_param + i;
+						bind->buffer_type = field->type;
+						bind->buffer = param[i].buffer;
+						bind->buffer_length = param[i].buffer_length;
+						if (param[i].value_length) {
+							*param[i].value_length = 0;
+							if (sizeof(*(bind->length)) == sizeof(*(param[i].value_length)))
+								bind->length = (unsigned long*)(param[i].value_length);
+							else
+								bind->length = &param[i].mysql_value_length;
+						}
+					}
+					else break;
 				}
 				if (mysql_stmt_bind_result(stmt->mysql.stmt, stmt->mysql.result_field_param)) {
 					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
@@ -604,8 +563,18 @@ DB_RETURN db_FetchResult(DB_STMT* stmt) {
 			switch (mysql_stmt_fetch(stmt->mysql.stmt)) {
 				case 0:
 				case MYSQL_DATA_TRUNCATED:
+				{
+					if (sizeof(*(param[0].value_length)) != sizeof(*(((MYSQL_BIND*)0)->length))) {
+						unsigned short i;
+						for (i = 0; i < paramcnt && i < stmt->mysql.result_field_count; ++i) {
+							if (param[i].value_length) {
+								*param[i].value_length = param[i].mysql_value_length;
+							}
+						}
+					}
 					res = DB_SUCCESS;
 					break;
+				}
 				case MYSQL_NO_DATA:
 					res = DB_NO_DATA;
 					break;
