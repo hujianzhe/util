@@ -54,7 +54,7 @@ namespace Util {
 	void type_cast(const std::list<F>& f, std::vector<F>& t) {
 		std::vector<F>().swap(t);
 		t.reserve(f.size());
-		for (std::list<F>::iterator it = f.begin(); it != f.end(); ++it) {
+		for (typename std::list<F>::iterator it = f.begin(); it != f.end(); ++it) {
 			t.push_back(*it);
 		}
 	}
