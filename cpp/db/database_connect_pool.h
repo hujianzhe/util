@@ -21,12 +21,12 @@ public:
 		m_connectMaxNum = max_connect_num;
 	}
 
-	DB_HANDLE* getConnection(void);
-	void pushConnection(DB_HANDLE* dbhandle);
+	DBHandle_t* getConnection(void);
+	void pushConnection(DBHandle_t* dbhandle);
 	void cleanConnection(void);
 
 private:
-	DB_HANDLE* connect(void);
+	DBHandle_t* connect(void);
 	void clean(void);
 
 private:
@@ -42,7 +42,7 @@ private:
 	const std::string m_database;
 
 	CSLock_t m_lock;
-	std::unordered_set<DB_HANDLE*> m_dbhandles;
+	std::unordered_set<DBHandle_t*> m_dbhandles;
 };
 }
 

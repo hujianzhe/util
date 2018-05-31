@@ -46,8 +46,8 @@
 	typedef struct if_nameindex		if_nameindex_t;
 #endif
 
-typedef char IP_STRING[INET6_ADDRSTRLEN];
-typedef enum {
+typedef char IPString_t[INET6_ADDRSTRLEN];
+enum {
 	IP_TYPE_UNKNOW,
 	IPv4_TYPE_A,
 	IPv4_TYPE_B,
@@ -58,9 +58,8 @@ typedef enum {
 	IPv6_TYPE_LINK,
 	IPv6_TYPE_SITE,
 	IPv6_TYPE_v4MAP
-} IP_TYPE;
-
-typedef enum NETWORK_INTERFACE_TYPE {
+};
+enum {
 	NETWORK_INTERFACE_UNKNOWN,
 	NETWORK_INTERFACE_LOOPBACK,
 	NETWORK_INTERFACE_PPP,
@@ -68,17 +67,17 @@ typedef enum NETWORK_INTERFACE_TYPE {
 	NETWORK_INTERFACE_ETHERNET,
 	NETWORK_INTERFACE_WIRELESS,
 	NETWORK_INTERFACE_FIREWIRE
-} NETWORK_INTERFACE_TYPE;
+};
 struct address_list {
 	struct address_list* next;
 	struct sockaddr_storage ip;
 	struct sockaddr_storage mask;
 };
-typedef struct NETWORK_INTERFACE_INFO {
-	struct NETWORK_INTERFACE_INFO* next;
+typedef struct NetworkInterfaceInfo_t {
+	struct NetworkInterfaceInfo_t* next;
 	unsigned int if_index;
 	char if_name[IF_NAMESIZE];
-	NETWORK_INTERFACE_TYPE if_type;
+	int if_type;
 	unsigned int mtu;
 	unsigned int phyaddrlen;
 #if defined(_WIN32) || defined(_WIN64)
@@ -87,7 +86,7 @@ typedef struct NETWORK_INTERFACE_INFO {
 	unsigned char phyaddr[8];
 #endif
 	struct address_list* address;
-} NETWORK_INTERFACE_INFO;
+} NetworkInterfaceInfo_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -109,10 +108,10 @@ double ntohd(unsigned long long val);
 #endif
 BOOL network_SetupEnv(void);
 BOOL network_CleanEnv(void);
-NETWORK_INTERFACE_INFO* network_InterfaceInfo(void);
-void network_FreeInterfaceInfo(NETWORK_INTERFACE_INFO* info);
+NetworkInterfaceInfo_t* network_InterfaceInfo(void);
+void network_FreeInterfaceInfo(NetworkInterfaceInfo_t* info);
 /* SOCKET ADDRESS */
-IP_TYPE IPtype(const struct sockaddr_storage* sa);
+int IPtype(const struct sockaddr_storage* sa);
 const char* loopbackIPstring(int family);
 BOOL IPstringIsLoopBack(const char* ip);
 BOOL IPstringIsInner(const char* ip);

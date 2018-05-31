@@ -24,9 +24,9 @@ DatabaseConnectPool::~DatabaseConnectPool(void) {
 	cslock_Close(&m_lock);
 }
 
-DB_HANDLE* DatabaseConnectPool::getConnection(void) {
+DBHandle_t* DatabaseConnectPool::getConnection(void) {
 	bool need_new = false;
-	DB_HANDLE* dbhandle = NULL;
+	DBHandle_t* dbhandle = NULL;
 	cslock_Enter(&m_lock);
 	do {
 		if (m_dbhandles.empty()) {
@@ -48,7 +48,7 @@ DB_HANDLE* DatabaseConnectPool::getConnection(void) {
 	return dbhandle;
 }
 
-void DatabaseConnectPool::pushConnection(DB_HANDLE* dbhandle) {
+void DatabaseConnectPool::pushConnection(DBHandle_t* dbhandle) {
 	/*
 	 * dbhandle will be free when database connect pool call clean()
 	 * if not call this funcion, you should free handle by yourself
@@ -73,8 +73,8 @@ void DatabaseConnectPool::cleanConnection(void) {
 	cslock_Leave(&m_lock);
 }
 
-DB_HANDLE* DatabaseConnectPool::connect(void) {
-	DB_HANDLE* dbhandle = new DB_HANDLE();
+DBHandle_t* DatabaseConnectPool::connect(void) {
+	DBHandle_t* dbhandle = new DBHandle_t();
 	do {
 		if (!db_CreateHandle(dbhandle, m_dbType)) {
 			break;

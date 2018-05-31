@@ -179,9 +179,9 @@ BOOL network_CleanEnv(void) {
 #endif
 }
 
-NETWORK_INTERFACE_INFO* network_InterfaceInfo(void) {
+NetworkInterfaceInfo_t* network_InterfaceInfo(void) {
 	int ok = 1;
-	NETWORK_INTERFACE_INFO* info_head = NULL, *info;
+	NetworkInterfaceInfo_t* info_head = NULL, *info;
 #if defined(_WIN32) || defined(_WIN64)
 	PIP_ADAPTER_ADDRESSES pAdapterEntry = __win32GetAdapterAddress(), p;
 	for (p = pAdapterEntry; p && ok; p = p->Next) {
@@ -189,7 +189,7 @@ NETWORK_INTERFACE_INFO* network_InterfaceInfo(void) {
 		PIP_ADAPTER_UNICAST_ADDRESS unicast;
 		if (IfOperStatusUp != p->OperStatus) { continue; }
 		if (IF_TYPE_TUNNEL == p->IfType) { continue; }
-		info = (NETWORK_INTERFACE_INFO*)calloc(1, sizeof(NETWORK_INTERFACE_INFO));
+		info = (NetworkInterfaceInfo_t*)calloc(1, sizeof(NetworkInterfaceInfo_t));
 		if (!info) { ok = 0; break; }
 		info->next = info_head;
 		info_head = info;
@@ -260,7 +260,7 @@ NETWORK_INTERFACE_INFO* network_InterfaceInfo(void) {
 		if (!i) { ok = 0; break; }
 		for (info = info_head; info && info->if_index != i; info = info->next);
 		if (!info) {
-			info = (NETWORK_INTERFACE_INFO*)calloc(1, sizeof(NETWORK_INTERFACE_INFO));
+			info = (NetworkInterfaceInfo_t*)calloc(1, sizeof(NetworkInterfaceInfo_t));
 			if (!info) { ok = 0; break; }
 			info->next = info_head;
 			info_head = info;
@@ -373,12 +373,12 @@ NETWORK_INTERFACE_INFO* network_InterfaceInfo(void) {
 	return info_head;
 }
 
-void network_FreeInterfaceInfo(NETWORK_INTERFACE_INFO* info) {
-	NETWORK_INTERFACE_INFO* i;
+void network_FreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
+	NetworkInterfaceInfo_t* i;
 	if (!info) { return; }
 	i = info;
 	while (i) {
-		NETWORK_INTERFACE_INFO* p = i;
+		NetworkInterfaceInfo_t* p = i;
 		struct address_list* a = i->address;
 		i = i->next;
 		while (a) {
@@ -391,7 +391,7 @@ void network_FreeInterfaceInfo(NETWORK_INTERFACE_INFO* info) {
 }
 
 /* SOCKET ADDRESS */
-IP_TYPE IPtype(const struct sockaddr_storage* sa) {
+int IPtype(const struct sockaddr_storage* sa) {
 	if (AF_INET == sa->ss_family) {
 		unsigned int saddr = ntohl(((const struct sockaddr_in*)sa)->sin_addr.s_addr);
 		if ((saddr >> 31) == 0)

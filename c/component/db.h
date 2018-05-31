@@ -15,22 +15,19 @@
 #endif
 #include <stddef.h>
 
-typedef enum DB_TYPE {
+typedef enum DB_RETURN {
+	DB_ERROR,
+	DB_SUCCESS,
+	DB_NO_DATA
+} DB_RETURN;
+
+enum {
 	DB_TYPE_RESERVED,
 #ifdef DB_ENABLE_MYSQL
 	DB_TYPE_MYSQL,
 #endif
-} DB_TYPE;
-
-typedef enum DB_RETURN {
-	DB_ERROR,
-	DB_SUCCESS,
-	DB_MORE_RESULT,
-	DB_NO_RESULT,
-	DB_NO_DATA,
-} DB_RETURN;
-
-typedef enum DB_FIELD_TYPE {
+};
+enum {
 	DB_FIELD_TYPE_TINY,
 	DB_FIELD_TYPE_SMALLINT,
 	DB_FIELD_TYPE_INT,
@@ -39,10 +36,10 @@ typedef enum DB_FIELD_TYPE {
 	DB_FIELD_TYPE_DOUBLE,
 	DB_FIELD_TYPE_VARCHAR,
 	DB_FIELD_TYPE_BLOB,
-} DB_FIELD_TYPE;
+};
 
 /* HANDLE */
-typedef struct DB_HANDLE {
+typedef struct DBHandle_t {
 	int type;
 	union {
 		char reserved[1];
@@ -53,11 +50,11 @@ typedef struct DB_HANDLE {
 		} mysql;
 #endif
 	};
-} DB_HANDLE;
+} DBHandle_t;
 
 /* STMT */
-typedef struct DB_STMT {
-	struct DB_HANDLE* handle;
+typedef struct DBStmt_t {
+	struct DBHandle_t* handle;
 	union {
 		char reserved[1];
 #ifdef DB_ENABLE_MYSQL
@@ -73,42 +70,42 @@ typedef struct DB_STMT {
 		} mysql;
 #endif
 	};
-} DB_STMT;
+} DBStmt_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* HANDLE */
-int db_HandleType(DB_HANDLE* handle);
+int db_HandleType(DBHandle_t* handle);
 DB_RETURN db_InitEnv(int type);
 void db_CleanEnv(int type);
 DB_RETURN db_AllocThreadLocalData(void);
 void db_FreeThreadLocalData(void);
-DB_HANDLE* db_CreateHandle(DB_HANDLE* handle, int type);
-void db_CloseHandle(DB_HANDLE* handle);
-DB_RETURN db_SetConnectTimeout(DB_HANDLE* handle, int sec);
-DB_HANDLE* db_SetupConnect(DB_HANDLE* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
-DB_RETURN db_PingConnectAlive(DB_HANDLE* handle);
-const char* db_HandleErrorMessage(DB_HANDLE* handle);
+DBHandle_t* db_CreateHandle(DBHandle_t* handle, int type);
+void db_CloseHandle(DBHandle_t* handle);
+DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec);
+DBHandle_t* db_SetupConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
+DB_RETURN db_PingConnectAlive(DBHandle_t* handle);
+const char* db_HandleErrorMessage(DBHandle_t* handle);
 /* transaction */
-DB_RETURN db_EnableAutoCommit(DB_HANDLE* handle, int bool_val);
-DB_RETURN db_Commit(DB_HANDLE* handle, int bool_val);
+DB_RETURN db_EnableAutoCommit(DBHandle_t* handle, int bool_val);
+DB_RETURN db_Commit(DBHandle_t* handle, int bool_val);
 /* SQL execute */
-DB_STMT* db_AllocStmt(DB_HANDLE* handle, DB_STMT* stmt);
-DB_RETURN db_CloseStmt(DB_STMT* stmt);
-const char* db_StmtErrorMessage(DB_STMT* stmt);
+DBStmt_t* db_AllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
+DB_RETURN db_CloseStmt(DBStmt_t* stmt);
+const char* db_StmtErrorMessage(DBStmt_t* stmt);
 typedef struct DB_EXECUTE_PARAM {
 	int field_type;
 	const void* buffer;
 	size_t buffer_length;
 } DB_EXECUTE_PARAM;
-DB_RETURN db_SQLPrepareExecute(DB_STMT* stmt, const char* sql, size_t sqllen, DB_EXECUTE_PARAM* param, unsigned short paramcnt);
+DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DB_EXECUTE_PARAM* param, unsigned short paramcnt);
 /* result set */
-long long db_AutoIncrementValue(DB_STMT* stmt);
-long long db_AffectedRows(DB_STMT* stmt);
-short db_GetResult(DB_STMT* stmt);
-DB_RETURN db_FreeResult(DB_STMT* stmt);
+long long db_AutoIncrementValue(DBStmt_t* stmt);
+long long db_AffectedRows(DBStmt_t* stmt);
+short db_GetResult(DBStmt_t* stmt);
+DB_RETURN db_FreeResult(DBStmt_t* stmt);
 typedef struct DB_RESULT_PARAM {
 	void* buffer;
 	size_t buffer_length;
@@ -117,7 +114,7 @@ typedef struct DB_RESULT_PARAM {
 		unsigned long mysql_value_length;
 	};
 } DB_RESULT_PARAM;
-DB_RETURN db_FetchResult(DB_STMT* stmt, DB_RESULT_PARAM* param, unsigned short paramcnt);
+DB_RETURN db_FetchResult(DBStmt_t* stmt, DB_RESULT_PARAM* param, unsigned short paramcnt);
 
 #ifdef __cplusplus
 }
