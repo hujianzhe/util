@@ -95,26 +95,26 @@ DB_RETURN db_Commit(DBHandle_t* handle, int bool_val);
 DBStmt_t* db_AllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
 DB_RETURN db_CloseStmt(DBStmt_t* stmt);
 const char* db_StmtErrorMessage(DBStmt_t* stmt);
-typedef struct DB_EXECUTE_PARAM {
+typedef struct DBExecuteParam_t {
 	int field_type;
 	const void* buffer;
 	size_t buffer_length;
-} DB_EXECUTE_PARAM;
-DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DB_EXECUTE_PARAM* param, unsigned short paramcnt);
+} DBExecuteParam_t;
+DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt);
 /* result set */
 long long db_AutoIncrementValue(DBStmt_t* stmt);
 long long db_AffectedRows(DBStmt_t* stmt);
 short db_GetResult(DBStmt_t* stmt);
 DB_RETURN db_FreeResult(DBStmt_t* stmt);
-typedef struct DB_RESULT_PARAM {
+typedef struct DBResultParam_t {
 	void* buffer;
 	size_t buffer_length;
 	size_t* value_length;
 	union {
 		unsigned long mysql_value_length;
 	};
-} DB_RESULT_PARAM;
-DB_RETURN db_FetchResult(DBStmt_t* stmt, DB_RESULT_PARAM* param, unsigned short paramcnt);
+} DBResultParam_t;
+DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
 
 #ifdef __cplusplus
 }

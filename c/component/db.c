@@ -315,7 +315,7 @@ const char* db_StmtErrorMessage(DBStmt_t* stmt) {
 	}
 }
 
-DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DB_EXECUTE_PARAM* param, unsigned short paramcnt) {
+DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -529,7 +529,7 @@ DB_RETURN db_BindResultField(DBStmt_t* stmt, unsigned short index, void* buffer,
 	return res;
 }
 
-DB_RETURN db_FetchResult(DBStmt_t* stmt, DB_RESULT_PARAM* param, unsigned short paramcnt) {
+DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
