@@ -184,7 +184,7 @@ int rudp_check_resend(struct rudp_ctx* ctx, long long now_timestamp_msec, int* n
 	*next_wait_msec = -1;
 	for (i = 0; i < RUDP_WND_SIZE; ++i) {
 		int delta_timelen, rto;
-		struct rudp_send_cache* cache = &ctx->send_wnd[(unsigned char)(ctx->ack_seq + i)];
+		struct rudp_send_cache* cache = &ctx->send_wnd[(ctx->ack_seq + i) % RUDP_WND_SIZE];
 		if (!cache->hdr) {
 			// this wnd hasn't packet
 			continue;
