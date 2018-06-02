@@ -18,6 +18,7 @@ struct rudp_recv_cache {
 	const struct rudp_hdr* hdr;
 };
 struct rudp_send_cache {
+	struct rudp_send_cache *prev, *next;
 	long long last_resend_msec;
 	int resend_times;
 	unsigned short len;
@@ -41,6 +42,7 @@ struct rudp_ctx {
 	unsigned long long recv_seq;
 	struct rudp_recv_cache recv_wnd[RUDP_WND_SIZE];
 	struct rudp_send_cache send_wnd[RUDP_WND_SIZE];
+	struct rudp_send_cache *send_head, *send_tail;
 };
 
 #ifdef	__cplusplus

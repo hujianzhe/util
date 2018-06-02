@@ -123,6 +123,15 @@ void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, 
 				}
 				ctx->free_callback(ctx, cache->hdr);
 				cache->hdr = (struct rudp_hdr*)0;
+
+				if (cache->prev)
+					cache->prev->next = cache->next;
+				if (cache->next)
+					cache->next->prev = cache->prev;
+				if (cache == ctx->send_head)
+					ctx->send_head = cache->next;
+				if (cache == ctx->send_tail)
+					ctx->send_tail = cache->prev;
 			}
 			else {
 				break;
@@ -159,6 +168,7 @@ void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, 
 }
 
 int rudp_send(struct rudp_ctx* ctx, long long now_timestamp_msec, struct rudp_hdr* hdr, unsigned short len) {
+	struct rudp_send_cache* cache;
 	int ack_seq = ctx->send_seq % RUDP_WND_SIZE;
 	if (ctx->send_wnd[ack_seq].hdr) {
 		// packet hasn't be ack
@@ -168,10 +178,22 @@ int rudp_send(struct rudp_ctx* ctx, long long now_timestamp_msec, struct rudp_hd
 	hdr->seq = htonll(ctx->send_seq++);
 
 	// wait ack
-	ctx->send_wnd[ack_seq].hdr = hdr;
-	ctx->send_wnd[ack_seq].len = len;
-	ctx->send_wnd[ack_seq].resend_times = 0;
-	ctx->send_wnd[ack_seq].last_resend_msec = now_timestamp_msec;
+	cache = ctx->send_wnd + ack_seq;
+	cache->hdr = hdr;
+	cache->len = len;
+	cache->resend_times = 0;
+	cache->last_resend_msec = now_timestamp_msec;
+
+	if (ctx->send_tail) {
+		ctx->send_tail->next = cache;
+		cache->prev = ctx->send_tail;
+	}
+	else {
+		ctx->send_head = cache;
+		cache->prev = (struct rudp_send_cache*)0;
+	}
+	ctx->send_tail = cache;
+	cache->next = (struct rudp_send_cache*)0;
 
 	// try send
 	ctx->send_callback(ctx, hdr, len);
