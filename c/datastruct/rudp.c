@@ -216,23 +216,22 @@ int rudp_check_resend(struct rudp_ctx* ctx, long long now_timestamp_msec, int* n
 		if (delta_timelen < 0) {
 			delta_timelen = -delta_timelen;
 		}
-		if (-1 == *next_wait_msec || delta_timelen < *next_wait_msec) {
-			// update next wait millionsecond
-			*next_wait_msec = delta_timelen;
-		}
 		// calculator rto
 		rto = ctx->first_resend_interval_msec;
 		if (cache->resend_times) {
 			rto += ctx->first_resend_interval_msec >> 1;
 		}
 		if (delta_timelen < rto) {
+			if (-1 == *next_wait_msec || delta_timelen < *next_wait_msec) {
+				// update next wait millionsecond
+				*next_wait_msec = delta_timelen;
+			}
 			continue;
 		}
 
 		// check resend times overflow
 		if (cache->resend_times + 1 > ctx->max_resend_times) {
 			// network maybe lost !
-			*next_wait_msec = -1;
 			return -1;
 		}
 
