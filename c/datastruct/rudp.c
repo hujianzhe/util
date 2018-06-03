@@ -222,9 +222,9 @@ int rudp_check_resend(struct rudp_ctx* ctx, long long now_timestamp_msec, int* n
 			rto += ctx->first_resend_interval_msec >> 1;
 		}
 		if (delta_timelen < rto) {
-			if (-1 == *next_wait_msec || delta_timelen < *next_wait_msec) {
+			if (-1 == *next_wait_msec || rto - delta_timelen < *next_wait_msec) {
 				// update next wait millionsecond
-				*next_wait_msec = delta_timelen;
+				*next_wait_msec = rto - delta_timelen;
 			}
 			continue;
 		}
