@@ -155,7 +155,7 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 
 	do {
 		if (!m_outbuflist.head) {
-			res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
+			res = sock_SendVec(m_fd, iov, iovcnt, 0, NULL);
 			if (res < 0) {
 				if (error_code() != EWOULDBLOCK) {
 					m_valid = false;

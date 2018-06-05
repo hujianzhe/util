@@ -53,11 +53,8 @@ int UdpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 
 	int res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
 	if (res < 0) {
-		if (error_code() != EWOULDBLOCK) {
-			m_valid = false;
-			return -1;
-		}
-		return 0;
+		m_valid = false;
+		return -1;
 	}
 	return res;
 }
