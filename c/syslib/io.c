@@ -194,8 +194,8 @@ BOOL reactor_Reg(Reactor_t* reactor, FD_t fd) {
 	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio);
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	struct kevent e[2];
-	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_DISABLE, 0, 0, (void*)(size_t)fd);
-	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0, 0, (void*)(size_t)fd);
+	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT | EV_DISABLE, 0, 0, (void*)(size_t)fd);
+	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT | EV_DISABLE, 0, 0, (void*)(size_t)fd);
 	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0;
 #endif
 	return TRUE;
