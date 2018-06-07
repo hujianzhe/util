@@ -889,7 +889,23 @@ int sock_Recv(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct soc
 }
 
 int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
-	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, to ? sizeof(*to) : 0);
+	int socklen;
+	if (to) {
+#if defined(__FreeBSD__) || defined(__APPLE__)
+		if (AF_INET == to->ss_family)
+			socklen = sizeof(struct sockaddr_in);
+		else if (AF_INET6 == to->ss_family)
+			socklen = sizeof(struct sockaddr_in6);
+		else
+			socklen = sizeof(*to);
+#else
+		socklen = sizeof(*to);
+#endif
+	}
+	else
+		socklen = 0;
+
+	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, socklen);
 }
 
 int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
@@ -913,8 +929,24 @@ int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, cons
 	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, (struct sockaddr*)saddr, saddr ? sizeof(*saddr) : 0, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = {0};
+	int socklen;
+	if (saddr) {
+#if defined(__FreeBSD__) || defined(__APPLE__)
+		if (AF_INET == saddr->ss_family)
+			socklen = sizeof(struct sockaddr_in);
+		else if (AF_INET6 == saddr->ss_family)
+			socklen = sizeof(struct sockaddr_in6);
+		else
+			socklen = sizeof(*saddr);
+#else
+		socklen = sizeof(*saddr);
+#endif
+	}
+	else
+		socklen = 0;
+
 	msghdr.msg_name = (struct sockaddr*)saddr;
-	msghdr.msg_namelen = saddr ? sizeof(*saddr) : 0;
+	msghdr.msg_namelen = socklen;
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
 	return sendmsg(sockfd, &msghdr, flags);
