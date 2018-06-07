@@ -589,6 +589,7 @@ BOOL sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
 
 BOOL sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	int on = 1;
+	int socklen;
 /*
 #ifdef  SO_REUSEPORT
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on)) < 0)
@@ -597,7 +598,15 @@ BOOL sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 */
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) < 0)
 		return FALSE;
-	return bind(sockfd, (struct sockaddr*)saddr, sizeof(*saddr)) == 0;
+	if (AF_INET == saddr->ss_family)
+		socklen = sizeof(struct sockaddr_in);
+	else if (AF_INET6 == saddr->ss_family)
+		socklen = sizeof(struct sockaddr_in6);
+	else {
+		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
+		return FALSE;
+	}
+	return bind(sockfd, (struct sockaddr*)saddr, socklen) == 0;
 }
 
 BOOL sock_GetSockAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
