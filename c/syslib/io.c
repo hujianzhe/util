@@ -377,7 +377,16 @@ BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct
 	}
 	else if (REACTOR_WRITE == opcode || REACTOR_CONNECT == opcode) {
 		if (REACTOR_CONNECT == opcode) {/* try connect... */
-			if (connect(fd, (struct sockaddr*)saddr, sizeof(*saddr)) && EINPROGRESS != errno) {
+			int socklen;
+			if (AF_INET == saddr->ss_family)
+				socklen = sizeof(struct sockaddr_in);
+			else if (AF_INET6 == saddr->ss_family)
+				socklen = sizeof(struct sockaddr_in6);
+			else {
+				errno = EAFNOSUPPORT;
+				return FALSE;
+			}
+			if (connect(fd, (struct sockaddr*)saddr, socklen) && EINPROGRESS != errno) {
 				return FALSE;
 			}
 			/* 
