@@ -645,7 +645,16 @@ int sock_Error(FD_t sockfd) {
 }
 
 BOOL sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
-	return connect(sockfd, (struct sockaddr*)saddr, sizeof(*saddr)) == 0;
+	int socklen;
+	if (AF_INET == saddr->ss_family)
+		socklen = sizeof(struct sockaddr_in);
+	else if (AF_INET6 == saddr->ss_family)
+		socklen = sizeof(struct sockaddr_in6);
+	else {
+		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
+		return FALSE;
+	}
+	return connect(sockfd, (struct sockaddr*)saddr, socklen) == 0;
 }
 
 BOOL sock_UdpDisconnect(FD_t sockfd) {
@@ -657,8 +666,17 @@ BOOL sock_UdpDisconnect(FD_t sockfd) {
 }
 
 FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
-	FD_t sockfd = INVALID_SOCKET;
-	int res, error;
+	FD_t sockfd;
+	int res, error, socklen;
+	/* socklen */
+	if (AF_INET == addr->ss_family)
+		socklen = sizeof(struct sockaddr_in);
+	else if (AF_INET6 == addr->ss_family)
+		socklen = sizeof(struct sockaddr_in6);
+	else {
+		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
+		return INVALID_SOCKET;
+	}
 	/* create a TCP socket */
 	sockfd = socket(addr->ss_family, SOCK_STREAM, 0);
 	if (sockfd == INVALID_SOCKET)
@@ -667,7 +685,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 	if (msec >= 0)
 		sock_NonBlock(sockfd, 1);
 	/* try connect */
-	res = connect(sockfd, (struct sockaddr*)addr, sizeof(*addr));
+	res = connect(sockfd, (struct sockaddr*)addr, socklen);
 	if (!res) {
 		/* connect success,destination maybe localhost */
 	}
