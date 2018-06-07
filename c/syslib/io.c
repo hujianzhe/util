@@ -8,7 +8,7 @@
 	#include <ws2ipdef.h>
 	#include <stdlib.h>
 #else
-	#include <sys/socket.h>
+	#include <arpa/inet.h>
 #endif
 #include <errno.h>
 #include <string.h>
