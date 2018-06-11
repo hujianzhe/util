@@ -84,7 +84,7 @@ DBHandle_t* DatabaseConnectPool::connect(void) {
 				break;
 			}
 		}
-		if (!db_SetupConnect(dbhandle, m_ip.c_str(), m_port, m_user.c_str(), m_pwd.c_str(), m_database.c_str())) {
+		if (!db_Connect(dbhandle, m_ip.c_str(), m_port, m_user.c_str(), m_pwd.c_str(), m_database.c_str())) {
 			break;
 		}
 		return dbhandle;

@@ -84,7 +84,7 @@ void db_FreeThreadLocalData(void);
 DBHandle_t* db_CreateHandle(DBHandle_t* handle, int type);
 void db_CloseHandle(DBHandle_t* handle);
 DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec);
-DBHandle_t* db_SetupConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
+DBHandle_t* db_Connect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
 DB_RETURN db_PingConnectAlive(DBHandle_t* handle);
 const char* db_HandleErrorMessage(DBHandle_t* handle);
 /* transaction */

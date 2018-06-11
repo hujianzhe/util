@@ -138,7 +138,7 @@ DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec) {
     return res;
 }
 
-DBHandle_t* db_SetupConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) {
+DBHandle_t* db_Connect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
