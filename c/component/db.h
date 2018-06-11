@@ -17,8 +17,7 @@
 
 typedef enum DB_RETURN {
 	DB_ERROR,
-	DB_SUCCESS,
-	DB_NO_DATA
+	DB_SUCCESS
 } DB_RETURN;
 
 enum {
