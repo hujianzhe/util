@@ -114,7 +114,7 @@ typedef struct DBResultParam_t {
 		unsigned long mysql_value_length;
 	};
 } DBResultParam_t;
-DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
+short db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
 
 #ifdef __cplusplus
 }

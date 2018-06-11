@@ -495,42 +495,8 @@ DB_RETURN db_FreeResult(DBStmt_t* stmt) {
 	return res;
 }
 
-DB_RETURN db_BindResultField(DBStmt_t* stmt, unsigned short index, void* buffer, size_t buffer_length, size_t *value_length) {
-	DB_RETURN res = DB_ERROR;
-	switch (stmt->handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			if (index > stmt->mysql.result_field_count || 0 == index) {
-				stmt->mysql.error_msg = "set bind param index invalid";
-				break;
-			}
-			MYSQL_BIND* bind = stmt->mysql.result_field_param + index - 1;
-			//bind->buffer_type = type_map_to_mysql[field_type];
-			bind->buffer = buffer;
-			bind->buffer_length = (unsigned long)buffer_length;
-			if (value_length) {
-				union ending {
-					unsigned short num;
-					unsigned char is_lettle;
-				} ending;
-				ending.num = 1;
-				if (sizeof(*bind->length) < sizeof(*value_length) && !ending.is_lettle)
-					bind->length = ((unsigned long*)value_length) + 1;
-				else
-					bind->length = (unsigned long*)value_length;
-				*value_length = 0;
-			}
-			res = DB_SUCCESS;
-			break;
-		}
-		#endif
-	}
-	return res;
-}
-
-DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt) {
-	DB_RETURN res = DB_ERROR;
+short db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt) {
+	short result_field_count = -1;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -560,6 +526,7 @@ DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short 
 					break;
 				}
 			}
+			/* fetch result */
 			switch (mysql_stmt_fetch(stmt->mysql.stmt)) {
 				case 0:
 				case MYSQL_DATA_TRUNCATED:
@@ -572,20 +539,21 @@ DB_RETURN db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short 
 							}
 						}
 					}
-					res = DB_SUCCESS;
+					result_field_count = stmt->mysql.result_field_count;
 					break;
 				}
 				case MYSQL_NO_DATA:
-					res = DB_NO_DATA;
+					result_field_count = 0;
 					break;
 				default:
 					stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 			}
+
 			break;
 		}
 		#endif
 	}
-	return res;
+	return result_field_count;
 }
 
 #ifdef __cplusplus
