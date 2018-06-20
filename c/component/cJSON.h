@@ -113,9 +113,9 @@ extern void	cJSON_AddItemReferenceToObject(cJSON *object,const char *string,cJSO
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON *cJSON_DetachItemFromArray(cJSON *array,int which);
-extern void   cJSON_DeleteItemFromArray(cJSON *array,int which);
+extern void   cJSON_ArrayDelete(cJSON *array,int which);
 extern cJSON *cJSON_DetachItemFromObject(cJSON *object,const char *string);
-extern void   cJSON_DeleteItemFromObject(cJSON *object,const char *string);
+extern void   cJSON_ObjectDelete(cJSON *object,const char *string);
 	
 /* Update array items. */
 extern void cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem);	/* Shifts pre-existing items to the right. */
@@ -132,28 +132,28 @@ extern void cJSON_Minify(char *json);
 
 /* Macros for creating things quickly. */
 /*
-#define	cJSON_AddDuplicateToObject(object,name,node)	cJSON_AddItemToObject(object, name, node)
-#define cJSON_AddTrueToObject(object,name)				cJSON_AddItemToObject(object, name, cJSON_CreateTrue())
-#define cJSON_AddFalseToObject(object,name)				cJSON_AddItemToObject(object, name, cJSON_CreateFalse())
+#define	cJSON_ObjectAddNode(object,name,node)		cJSON_AddItemToObject(object, name, node)
+#define cJSON_ObjectAddTrue(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateTrue())
+#define cJSON_ObjectAddFalse(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateFalse())
 */
-#define cJSON_AddNullToObject(object,name)				cJSON_AddItemToObject(object, name, cJSON_CreateNull())
-#define cJSON_AddBoolToObject(object,name,b)			cJSON_AddItemToObject(object, name, cJSON_CreateBool(b))
-#define cJSON_AddNumberToObject(object,name,n)			cJSON_AddItemToObject(object, name, cJSON_CreateNumber(n))
-#define cJSON_AddStringToObject(object,name,s)			cJSON_AddItemToObject(object, name, cJSON_CreateString(s))
-#define	cJSON_AddArrayToObject(object,name)				cJSON_AddItemToObject(object, name, cJSON_CreateArray())
-#define	cJSON_AddObjectToObject(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateObject())
+#define cJSON_ObjectAddNull(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateNull())
+#define cJSON_ObjectAddBool(object,name,b)			cJSON_AddItemToObject(object, name, cJSON_CreateBool(b))
+#define cJSON_ObjectAddNumber(object,name,n)		cJSON_AddItemToObject(object, name, cJSON_CreateNumber(n))
+#define cJSON_ObjectAddString(object,name,s)		cJSON_AddItemToObject(object, name, cJSON_CreateString(s))
+#define	cJSON_ObjectAddArray(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateArray())
+#define	cJSON_ObjectAddObject(object,name)			cJSON_AddItemToObject(object, name, cJSON_CreateObject())
 
 /*
-#define	CJSON_AddDuplicateToArray(array, node)			cJSON_AddItemToArray(array, node)
-#define cJSON_AddTrueToArray(array)						cJSON_AddItemToArray(array, cJSON_CreateTrue())
-#define cJSON_AddFalseToArray(array)					cJSON_AddItemToArray(array, cJSON_CreateFalse())
+#define	CJSON_ArrayAddNode(array, node)				cJSON_AddItemToArray(array, node)
+#define cJSON_ArrayAddTrue(array)					cJSON_AddItemToArray(array, cJSON_CreateTrue())
+#define cJSON_ArrayAddFalse(array)					cJSON_AddItemToArray(array, cJSON_CreateFalse())
 */
-#define cJSON_AddNullToArray(array)						cJSON_AddItemToArray(array, cJSON_CreateNull())
-#define cJSON_AddBoolToArray(array,b)					cJSON_AddItemToArray(array, cJSON_CreateBool(b))
-#define cJSON_AddNumberToArray(array,n)					cJSON_AddItemToArray(array, cJSON_CreateNumber(n))
-#define cJSON_AddStringToArray(array,s)					cJSON_AddItemToArray(array, cJSON_CreateString(s))
-#define	cJSON_AddArrayToArray(array)					cJSON_AddItemToArray(array, cJSON_CreateArray())
-#define	cJSON_AddObjectToArray(array)					cJSON_AddItemToArray(array, cJSON_CreateObject())
+#define cJSON_ArrayAddNull(array)					cJSON_AddItemToArray(array, cJSON_CreateNull())
+#define cJSON_ArrayAddBool(array,b)					cJSON_AddItemToArray(array, cJSON_CreateBool(b))
+#define cJSON_ArrayAddNumber(array,n)				cJSON_AddItemToArray(array, cJSON_CreateNumber(n))
+#define cJSON_ArrayAddString(array,s)				cJSON_AddItemToArray(array, cJSON_CreateString(s))
+#define	cJSON_ArrayAddArray(array)					cJSON_AddItemToArray(array, cJSON_CreateArray())
+#define	cJSON_ArrayAddObject(array)					cJSON_AddItemToArray(array, cJSON_CreateObject())
 
 /* When assigning an integer value, it needs to be propagated to valuedouble too.
 #define cJSON_SetIntValue(object,val)					((object)?(object)->valueint=(object)->valuedouble=(val):(val))
