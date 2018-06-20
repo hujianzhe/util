@@ -29,14 +29,14 @@ public:
 		return m_root;
 	}
 
-private:
-	Json(const Json& o) {}
-	Json& operator=(const Json& o) { return *this; }
-
 	void reset(void) {
 		cJSON_Delete(m_root);
 		m_root = NULL;
 	}
+
+private:
+	Json(const Json& o) {}
+	Json& operator=(const Json& o) { return *this; }
 
 private:
 	cJSON* m_root;
