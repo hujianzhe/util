@@ -711,9 +711,7 @@ void	cJSON_AddItemReferenceToObject(cJSON *object,const char *string,cJSON *item
 
 cJSON *cJSON_DetachItemFromArray(cJSON *array,int which)					{cJSON *c=array->child;while (c && which>0) c=c->next,which--;if (!c) return 0;
 	if (c->prev) c->prev->next=c->next;if (c->next) c->next->prev=c->prev;if (c==array->child) array->child=c->next;c->prev=c->next=0;return c;}
-void   cJSON_ArrayDelete(cJSON *array,int which)			{cJSON_Delete(cJSON_DetachItemFromArray(array,which));}
 cJSON *cJSON_DetachItemFromObject(cJSON *object,const char *string) {int i=0;cJSON *c=object->child;while (c && cJSON_strcasecmp(c->string,string)) i++,c=c->next;if (c) return cJSON_DetachItemFromArray(object,i);return 0;}
-void   cJSON_ObjectDelete(cJSON *object,const char *string) {cJSON_Delete(cJSON_DetachItemFromObject(object,string));}
 
 /* Replace array/object items with new ones. */
 void   cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem)		{cJSON *c=array->child;while (c && which>0) c=c->next,which--;if (!c) {cJSON_AddItemToArray(array,newitem);return;}

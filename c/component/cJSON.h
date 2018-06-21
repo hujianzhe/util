@@ -113,9 +113,9 @@ extern void	cJSON_AddItemReferenceToObject(cJSON *object,const char *string,cJSO
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON *cJSON_DetachItemFromArray(cJSON *array,int which);
-extern void   cJSON_ArrayDelete(cJSON *array,int which);
 extern cJSON *cJSON_DetachItemFromObject(cJSON *object,const char *string);
-extern void   cJSON_ObjectDelete(cJSON *object,const char *string);
+#define	cJSON_ObjectDelete(object,name)				cJSON_Delete(cJSON_DetachItemFromObject(object,name))
+#define	cJSON_ArrayDelete(array,i)					cJSON_Delete(cJSON_DetachItemFromArray(array,i))
 	
 /* Update array items. */
 extern void cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem);	/* Shifts pre-existing items to the right. */
