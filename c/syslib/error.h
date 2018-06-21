@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_ERROR_H
 #define	UTIL_C_SYSLIB_ERROR_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 #include <errno.h>
 
 #ifdef	__cplusplus

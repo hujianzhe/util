@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_ENCRYPT_H
 #define	UTIL_C_SYSLIB_ENCRYPT_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 #include <ctype.h>
 #if defined(_WIN32) || defined(_WIN64)
 	#pragma comment(lib, "Advapi32.lib")

@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_STATISTICS_H
 #define	UTIL_C_SYSLIB_STATISTICS_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	//typedef char HOST_NAME[MAX_COMPUTERNAME_LENGTH + 1];

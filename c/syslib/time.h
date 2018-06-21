@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_TIME_H
 #define	UTIL_C_SYSLIB_TIME_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <sys/timeb.h>

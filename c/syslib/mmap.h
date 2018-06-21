@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_MMAP_H
 #define UTIL_C_SYSLIB_MMAP_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#define	MAP_FAILED		NULL

@@ -2,10 +2,10 @@
 // Created by hujianzhe
 //
 
-#ifndef	UTIL_C_SYSLIB_PLATFORM_DEFINE_H
-#define	UTIL_C_SYSLIB_PLATFORM_DEFINE_H
+#ifndef	UTIL_C_PLATFORM_DEFINE_H
+#define	UTIL_C_PLATFORM_DEFINE_H
 
-#include "../compiler_define.h"
+#include "compiler_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#ifndef	_WIN32_WINNT

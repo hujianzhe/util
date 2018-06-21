@@ -5,7 +5,7 @@
 #ifndef UTIL_C_SYSLIB_STRING_H
 #define UTIL_C_SYSLIB_STRING_H
 
-#include "platform_define.h"
+#include "../platform_define.h"
 #include <string.h>
 
 #ifdef	__cplusplus
