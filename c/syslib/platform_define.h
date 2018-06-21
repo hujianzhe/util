@@ -18,6 +18,12 @@
 	#ifndef	_WIN32_IE
 		#define	_WIN32_IE			0x0700
 	#endif
+	#ifndef _CRT_SECURE_NO_WARNINGS
+		#define	_CRT_SECURE_NO_WARNINGS
+	#endif
+	#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
+		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
+	#endif
 	#define	_CRT_RAND_S
 	#include <winsock2.h>
 	#include <windows.h>
@@ -38,6 +44,14 @@
 #else
 	#ifndef _REENTRANT
 		#define	_REENTRANT
+	#endif
+	#ifndef	_XOPEN_SOURCE
+		#define	_XOPEN_SOURCE
+	#endif
+	#ifdef	__linux__
+		#ifndef	_GNU_SOURCE
+			#define _GNU_SOURCE
+		#endif
 	#endif
 	#undef _FILE_OFFSET_BITS
 	#define	_FILE_OFFSET_BITS		64

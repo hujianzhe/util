@@ -18,7 +18,7 @@ clean:
 	-rm $(OBJECT_O) $(OBJECT_GCH)
 
 compile:
-	g++ -c $(COMPILE_OPTION) $(SOURCE_FILE)
+	g++ -c -D_REENTRANT $(COMPILE_OPTION) $(SOURCE_FILE)
 
 static:
 	-rm $(TARGET).a

@@ -25,12 +25,7 @@ typedef	unsigned char	bool;
 	#pragma warning(disable:4267)
 	#pragma warning(disable:4800)
 	#pragma warning(disable:4819)
-	#ifndef _CRT_SECURE_NO_WARNINGS
-		#define	_CRT_SECURE_NO_WARNINGS
-	#endif
-	#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
-		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
-	#endif
+
 	#define	embed_asm(exp)						__asm {exp}
 	#define	__declspec_align(alignment)			__declspec(align(alignment))
 
@@ -47,14 +42,7 @@ typedef	unsigned char	bool;
 	#else
 		#undef	_DEBUG	/* same as VC */
 	#endif
-	#ifndef	_XOPEN_SOURCE
-		#define	_XOPEN_SOURCE
-	#endif
-	#ifdef	__linux__
-		#ifndef	_GNU_SOURCE
-			#define _GNU_SOURCE
-		#endif
-	#endif
+
 	#define	embed_asm(exp)						asm __volatile__(exp)
 	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
 

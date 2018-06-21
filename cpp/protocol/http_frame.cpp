@@ -2,7 +2,6 @@
 // Created by hujianzhe on 17-2-25.
 //
 
-#include "../../c/syslib/string.h"
 #include "../string_util.h"
 #include "http_frame.h"
 #include <sstream>
