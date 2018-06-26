@@ -123,8 +123,12 @@ size_t strlen_utf8(const char* s) {
 size_t strcopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 	size_t i;
 	size_t len = dst_len > src_len ? src_len : dst_len;
-	for (i = 0; i < len; ++i)
+	for (i = 0; i < len; ++i) {
 		dst[i] = src[i];
+		if (0 == dst[i]) {
+			return i;
+		}
+	}
 	if (len) {
 		if (len < dst_len) {
 			dst[len] = 0;
