@@ -32,16 +32,16 @@ extern "C"
 
 /* cJSON Types: */
 typedef enum cJSON_Type {
-  cJSON_False,
-  cJSON_True,
-  cJSON_NULL,
-  cJSON_Number,
-  cJSON_String,
-  cJSON_Array,
-  cJSON_Object,
-	
-  cJSON_IsReference = 256,
-  cJSON_StringIsConst = 512
+	cJSON_False,
+	cJSON_True,
+	cJSON_NULL,
+	cJSON_Number,
+	cJSON_String,
+	cJSON_Array,
+	cJSON_Object,
+
+	cJSON_IsReference = 256,
+	cJSON_StringIsConst = 512
 } cJSON_Type;
 
 /* The cJSON structure: */
