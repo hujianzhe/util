@@ -38,14 +38,12 @@ typedef enum cJSON_Type {
 	cJSON_Number,
 	cJSON_String,
 	cJSON_Array,
-	cJSON_Object,
-
-	cJSON_IsReference = 256,
-	cJSON_StringIsConst = 512
+	cJSON_Object
 } cJSON_Type;
 
 /* The cJSON structure: */
 typedef struct cJSON {
+	struct cJSON *parent;		/* An array or object item parent item */
 	struct cJSON *next,*prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
 	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
 
@@ -55,6 +53,7 @@ typedef struct cJSON {
 	long long valueint;			/* The item's number, if type==cJSON_Number */
 	double valuedouble;			/* The item's number, if type==cJSON_Number */
 
+	int conststring;			/* The item's name is const string */
 	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
 } cJSON;
 
@@ -89,8 +88,6 @@ extern cJSON *cJSON_GetObjectItem(cJSON *object,const char *string);
 
 /* These calls create a cJSON item of the appropriate type. */
 extern cJSON *cJSON_CreateNull(void);
-extern cJSON *cJSON_CreateTrue(void);
-extern cJSON *cJSON_CreateFalse(void);
 extern cJSON *cJSON_CreateBool(int b);
 extern cJSON *cJSON_CreateNumber(double num);
 extern cJSON *cJSON_CreateString(const char *string);
@@ -106,21 +103,21 @@ extern cJSON *cJSON_CreateStringArray(const char **strings,int count);
 /* Append item to the specified array/object. */
 extern cJSON* cJSON_AddItemToArray(cJSON *array, cJSON *item);
 extern cJSON* cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item);
-extern void	cJSON_AddItemToObjectCS(cJSON *object,const char *string,cJSON *item);	/* Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object */
-/* Append reference to item to the specified array/object. Use this when you want to add an existing cJSON to a new cJSON, but don't want to corrupt your existing cJSON. */
-extern void cJSON_AddItemReferenceToArray(cJSON *array, cJSON *item);
-extern void	cJSON_AddItemReferenceToObject(cJSON *object,const char *string,cJSON *item);
+extern cJSON* cJSON_AddItemToObjectCS(cJSON *object,const char *string,cJSON *item);	/* Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object */
 
 /* Remove/Detatch items from Arrays/Objects. */
-extern cJSON *cJSON_DetachItemFromArray(cJSON *array,int which);
-extern cJSON *cJSON_DetachItemFromObject(cJSON *object,const char *string);
+extern cJSON* cJSON_DetachItem(cJSON* item);
+extern cJSON* cJSON_DetachItemFromArray(cJSON *array,int which);
+extern cJSON* cJSON_DetachItemFromObject(cJSON *object,const char *string);
 #define	cJSON_ObjectDelete(object,name)				cJSON_Delete(cJSON_DetachItemFromObject(object,name))
 #define	cJSON_ArrayDelete(array,i)					cJSON_Delete(cJSON_DetachItemFromArray(array,i))
-	
+
 /* Update array items. */
-extern void cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem);	/* Shifts pre-existing items to the right. */
+/*
+extern void cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem);
 extern void cJSON_ReplaceItemInArray(cJSON *array,int which,cJSON *newitem);
 extern void cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *newitem);
+*/
 
 /* Duplicate a cJSON item */
 extern cJSON *cJSON_Duplicate(cJSON *item,int recurse);
