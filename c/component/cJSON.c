@@ -105,6 +105,14 @@ void cJSON_Delete(cJSON *c)
 	}
 }
 
+/* Delete all subentities */
+void cJSON_DeleteSub(cJSON *c) {
+	if (c->child) {
+		cJSON_Delete(c->child);
+		c->child = NULL;
+	}
+}
+
 /* Parse the input text to generate a number, and populate the result into item. */
 static const char *parse_number(cJSON *item,const char *num)
 {

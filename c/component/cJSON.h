@@ -78,6 +78,8 @@ extern char  *cJSON_PrintUnformatted(cJSON *item);
 extern char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
 /* Delete a cJSON entity and all subentities. */
 extern void   cJSON_Delete(cJSON *c);
+/* Delete all subentities */
+extern void cJSON_DeleteSub(cJSON *c);
 
 /* Returns the number of items in an array (or object). */
 extern int	  cJSON_GetItemSize(cJSON *array);
