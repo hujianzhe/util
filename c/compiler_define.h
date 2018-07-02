@@ -5,7 +5,17 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
-#define	compiler_check(exp)							typedef char __compile_check__[(exp) ? 1 : -1]
+#define	COMPILER_TIME_CHECK(exp)					typedef char __COMPILER_TIME_CHECK__[(exp) ? 1 : -1]
+
+COMPILER_TIME_CHECK(sizeof(char) == 1);
+COMPILER_TIME_CHECK(sizeof(signed char) == 1);
+COMPILER_TIME_CHECK(sizeof(unsigned char) == 1);
+COMPILER_TIME_CHECK(sizeof(short) == 2);
+COMPILER_TIME_CHECK(sizeof(unsigned short) == 2);
+COMPILER_TIME_CHECK(sizeof(int) == 4);
+COMPILER_TIME_CHECK(sizeof(unsigned int) == 4);
+COMPILER_TIME_CHECK(sizeof(long long) == 8);
+COMPILER_TIME_CHECK(sizeof(unsigned long long) == 8);
 
 #define	field_sizeof(type, field)					sizeof(((type*)0)->field)
 #define	pod_offsetof(type, field)					((char*)(&((type *)0)->field) - (char*)(0))

@@ -43,8 +43,8 @@
 	typedef struct {
 		pid_t id;
 	} Process_t;
-	#define	__dllexport
-	#define	__dllimport
+	#define	__declspec_dllexport
+	#define	__declspec_dllimport
 	#define	DLL_CALL
 	typedef pthread_t				Thread_t;
 	#define	THREAD_CALL
