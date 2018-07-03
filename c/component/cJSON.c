@@ -75,18 +75,24 @@ void cJSON_InitHooks(cJSON_Hooks* hooks)
 	cJSON_free	 = (hooks->free_fn)?hooks->free_fn:free;
 }
 
-void cJSON_GetHooks(cJSON_Hooks* hooks) {
+cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks) {
 	if (hooks) {
 		hooks->malloc_fn = cJSON_malloc;
 		hooks->free_fn = cJSON_free;
 	}
+	return hooks;
 }
 
 /* Internal constructor. */
 static cJSON *cJSON_New_Item(void)
 {
 	cJSON* node = (cJSON*)cJSON_malloc(sizeof(cJSON));
-	if (node) memset(node,0,sizeof(cJSON));
+	if (node) {
+		memset(node, 0, sizeof(cJSON));
+		node->needfree = 1;
+		node->freestring = 1;
+		node->freevaluestring = 1;
+	}
 	return node;
 }
 
@@ -98,9 +104,9 @@ void cJSON_Delete(cJSON *c)
 	{
 		next=c->next;
 		if (c->child) cJSON_Delete(c->child);
-		if (c->valuestring) cJSON_free(c->valuestring);
-		if (!c->conststring && c->string) cJSON_free(c->string);
-		cJSON_free(c);
+		if (c->freevaluestring && c->valuestring) cJSON_free(c->valuestring);
+		if (c->freestring && c->string) cJSON_free(c->string);
+		if (c->needfree) cJSON_free(c);
 		c=next;
 	}
 }
@@ -700,9 +706,9 @@ static char *print_object(cJSON *item,int depth,int fmt,printbuffer *p)
 }
 
 /* Get Array size/item / object item. */
-int    cJSON_GetItemSize(cJSON *array)							{cJSON *c=array->child;int i=0;while(c)i++,c=c->next;return i;}
-cJSON *cJSON_GetArrayItem(cJSON *array,int item)				{cJSON *c=array->child;  while (c && item>0) item--,c=c->next; return c;}
-cJSON *cJSON_GetObjectItem(cJSON *object,const char *string)	{cJSON *c=object->child; while (c && cJSON_strcasecmp(c->string,string)) c=c->next; return c;}
+int    cJSON_Size(cJSON *array)							{cJSON *c=array->child;int i=0;while(c)i++,c=c->next;return i;}
+cJSON *cJSON_Index(cJSON *array,int item)				{cJSON *c=array->child;  while (c && item>0) item--,c=c->next; return c;}
+cJSON *cJSON_Field(cJSON *object,const char *string)	{cJSON *c=object->child; while (c && cJSON_strcasecmp(c->string,string)) c=c->next; return c;}
 
 /* Utility for array list handling. */
 static void suffix_object(cJSON *prev,cJSON *item) {prev->next=item;item->prev=prev;}
@@ -727,18 +733,12 @@ cJSON* cJSON_AddItemToArray(cJSON *array, cJSON *item) {
 cJSON* cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item) {
 	if (!item || !object)
 		return NULL;
-	if (item->string)
+	if (item->freestring && item->string)
 		cJSON_free(item->string);
-	item->string = cJSON_strdup(string);
-	return cJSON_AddItemToArray(object, item);
-}
-cJSON* cJSON_AddItemToObjectCS(cJSON *object,const char *string,cJSON *item) {
-	if (!item || !object)
-		return NULL;
-	if (!item->conststring && item->string)
-		cJSON_free(item->string);
-	item->string = (char*)string;
-	item->conststring = 1;
+	if (item->freestring)
+		item->string = cJSON_strdup(string);
+	else
+		item->string = (char*)string;
 	return cJSON_AddItemToArray(object, item);
 }
 
@@ -786,7 +786,7 @@ void   cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *newitem
 cJSON *cJSON_CreateNull(void)					{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_NULL;return item;}
 cJSON *cJSON_CreateBool(int b)					{cJSON *item=cJSON_New_Item();if(item)item->type=b?cJSON_True:cJSON_False;return item;}
 cJSON *cJSON_CreateNumber(double num)			{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_Number;item->valuedouble=num;item->valueint=(long long)num;}return item;}
-cJSON *cJSON_CreateString(const char *string)	{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_String;item->valuestring=cJSON_strdup(string);}return item;}
+cJSON *cJSON_CreateString(const char *string)	{cJSON *item=cJSON_New_Item();if(item){item->type=cJSON_String;item->freevaluestring=1;item->valuestring=cJSON_strdup(string);}return item;}
 cJSON *cJSON_CreateArray(void)					{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_Array;return item;}
 cJSON *cJSON_CreateObject(void)					{cJSON *item=cJSON_New_Item();if(item)item->type=cJSON_Object;return item;}
 
@@ -809,8 +809,9 @@ cJSON *cJSON_Duplicate(cJSON *item,int recurse)
 	if (!newitem) return NULL;
 	/* Copy over all vars */
 	newitem->type=item->type,newitem->valueint=item->valueint,newitem->valuedouble=item->valuedouble;
-	if (item->valuestring)	{newitem->valuestring=cJSON_strdup(item->valuestring);	if (!newitem->valuestring){cJSON_Delete(newitem);return NULL;}}
-	if (item->string)		{newitem->string = item->conststring ? item->string : cJSON_strdup(item->string);	if (!newitem->string){cJSON_Delete(newitem);return NULL;}}
+	newitem->freestring=item->freestring,newitem->freevaluestring=item->freevaluestring;
+	if (item->valuestring)	{newitem->valuestring = item->freevaluestring ? cJSON_strdup(item->valuestring) : item->valuestring;	if (!newitem->valuestring){cJSON_Delete(newitem);return NULL;}}
+	if (item->string)		{newitem->string = item->freestring ? cJSON_strdup(item->string) : item->string;	if (!newitem->string){cJSON_Delete(newitem);return NULL;}}
 	/* If non-recursive, then we're done! */
 	if (!recurse) return newitem;
 	/* Walk the ->next chain for the child. */

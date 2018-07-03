@@ -32,6 +32,7 @@ extern "C"
 
 /* cJSON Types: */
 typedef enum cJSON_Type {
+	cJSON_Unknown,
 	cJSON_False,
 	cJSON_True,
 	cJSON_NULL,
@@ -48,13 +49,15 @@ typedef struct cJSON {
 	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
 
 	int type;					/* The type of the item, as above. */
+	int needfree;				/* The item will be free */
 
+	int freestring;
+	int freevaluestring;
+	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
 	char *valuestring;			/* The item's string, if type==cJSON_String */
 	long long valueint;			/* The item's number, if type==cJSON_Number */
 	double valuedouble;			/* The item's number, if type==cJSON_Number */
 
-	int conststring;			/* The item's name is const string */
-	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
 } cJSON;
 
 typedef struct cJSON_Hooks {
@@ -64,7 +67,7 @@ typedef struct cJSON_Hooks {
 
 /* Supply malloc, realloc and free functions to cJSON */
 extern void cJSON_InitHooks(cJSON_Hooks* hooks);
-extern void cJSON_GetHooks(cJSON_Hooks* hooks);
+extern cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
 
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. Call cJSON_Delete when finished. */
 extern cJSON *cJSON_Parse(const char *value);
@@ -82,11 +85,11 @@ extern void   cJSON_Delete(cJSON *c);
 extern void cJSON_DeleteSub(cJSON *c);
 
 /* Returns the number of items in an array (or object). */
-extern int	  cJSON_GetItemSize(cJSON *array);
+extern int	  cJSON_Size(cJSON *array);
 /* Retrieve item number "item" from array "array". Returns NULL if unsuccessful. */
-extern cJSON *cJSON_GetArrayItem(cJSON *array,int item);
+extern cJSON *cJSON_Index(cJSON *array,int item);
 /* Get item "string" from object. Case insensitive. */
-extern cJSON *cJSON_GetObjectItem(cJSON *object,const char *string);
+extern cJSON *cJSON_Field(cJSON *object,const char *string);
 
 /* These calls create a cJSON item of the appropriate type. */
 extern cJSON *cJSON_CreateNull(void);
@@ -107,7 +110,6 @@ extern cJSON *cJSON_CreateStringArray(const char **strings,int count);
 /* Append item to the specified array/object. */
 extern cJSON* cJSON_AddItemToArray(cJSON *array, cJSON *item);
 extern cJSON* cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item);
-extern cJSON* cJSON_AddItemToObjectCS(cJSON *object,const char *string,cJSON *item);	/* Use this when string is definitely const (i.e. a literal, or as good as), and will definitely survive the cJSON object */
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON* cJSON_DetachItem(cJSON* item);
