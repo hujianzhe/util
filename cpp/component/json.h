@@ -24,7 +24,7 @@ public:
 	cJSON* root(void) const { return m_root; }
 	cJSON* mutableRoot(void) {
 		if (!m_root) {
-			m_root = cJSON_CreateObject();
+			m_root = cJSON_NewObject(NULL);
 		}
 		return m_root;
 	}

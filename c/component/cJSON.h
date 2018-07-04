@@ -44,20 +44,19 @@ typedef enum cJSON_Type {
 
 /* The cJSON structure: */
 typedef struct cJSON {
-	struct cJSON *parent;		/* An array or object item parent item */
-	struct cJSON *next,*prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
-	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
-
 	int type;					/* The type of the item, as above. */
-	int needfree;				/* The item will be free */
-
-	int freestring;
-	int freevaluestring;
 	char *string;				/* The item's name string, if this item is the child of, or is in the list of subitems of an object. */
+
 	char *valuestring;			/* The item's string, if type==cJSON_String */
 	long long valueint;			/* The item's number, if type==cJSON_Number */
 	double valuedouble;			/* The item's number, if type==cJSON_Number */
 
+	int needfree;				/* The item will be free */
+	int freestring;
+	int freevaluestring;
+	struct cJSON *parent;		/* An array or object item parent item */
+	struct cJSON *next, *prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
+	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
 } cJSON;
 
 typedef struct cJSON_Hooks {
@@ -92,12 +91,12 @@ extern cJSON *cJSON_Index(cJSON *array,int item);
 extern cJSON *cJSON_Field(cJSON *object,const char *string);
 
 /* These calls create a cJSON item of the appropriate type. */
-extern cJSON *cJSON_CreateNull(void);
-extern cJSON *cJSON_CreateBool(int b);
-extern cJSON *cJSON_CreateNumber(double num);
-extern cJSON *cJSON_CreateString(const char *string);
-extern cJSON *cJSON_CreateArray(void);
-extern cJSON *cJSON_CreateObject(void);
+extern cJSON *cJSON_NewNull(const char* name);
+extern cJSON *cJSON_NewBool(const char* name, int b);
+extern cJSON *cJSON_NewNumber(const char* name, double num);
+extern cJSON *cJSON_NewString(const char* name, const char *string);
+extern cJSON *cJSON_NewArray(const char* name);
+extern cJSON *cJSON_NewObject(const char* name);
 
 /* These utilities create an Array of count items. */
 /*
@@ -109,7 +108,6 @@ extern cJSON *cJSON_CreateStringArray(const char **strings,int count);
 
 /* Append item to the specified array/object. */
 extern cJSON* cJSON_Add(cJSON *array, cJSON *item);
-extern cJSON* cJSON_AddField(cJSON *object,const char *string,cJSON *item);
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON* cJSON_Detach(cJSON* item);
@@ -134,19 +132,19 @@ The item->next and ->prev pointers are always zero on return from Duplicate. */
 extern void cJSON_Minify(char *json);
 
 /* Macros for creating things quickly. */
-#define cJSON_ObjectAddNull(object,name)			cJSON_AddField(object, name, cJSON_CreateNull())
-#define cJSON_ObjectAddBool(object,name,b)			cJSON_AddField(object, name, cJSON_CreateBool(b))
-#define cJSON_ObjectAddNumber(object,name,n)		cJSON_AddField(object, name, cJSON_CreateNumber(n))
-#define cJSON_ObjectAddString(object,name,s)		cJSON_AddField(object, name, cJSON_CreateString(s))
-#define	cJSON_ObjectAddArray(object,name)			cJSON_AddField(object, name, cJSON_CreateArray())
-#define	cJSON_ObjectAddObject(object,name)			cJSON_AddField(object, name, cJSON_CreateObject())
+#define cJSON_ObjectAddNull(object,name)			cJSON_Add(object, cJSON_NewNull(name))
+#define cJSON_ObjectAddBool(object,name,b)			cJSON_Add(object, cJSON_NewBool(name,b))
+#define cJSON_ObjectAddNumber(object,name,n)		cJSON_Add(object, cJSON_NewNumber(name,n))
+#define cJSON_ObjectAddString(object,name,s)		cJSON_Add(object, cJSON_NewString(name,s))
+#define	cJSON_ObjectAddArray(object,name)			cJSON_Add(object, cJSON_NewArray(name))
+#define	cJSON_ObjectAddObject(object,name)			cJSON_Add(object, cJSON_NewObject(name))
 
-#define cJSON_ArrayAddNull(array)					cJSON_Add(array, cJSON_CreateNull())
-#define cJSON_ArrayAddBool(array,b)					cJSON_Add(array, cJSON_CreateBool(b))
-#define cJSON_ArrayAddNumber(array,n)				cJSON_Add(array, cJSON_CreateNumber(n))
-#define cJSON_ArrayAddString(array,s)				cJSON_Add(array, cJSON_CreateString(s))
-#define	cJSON_ArrayAddArray(array)					cJSON_Add(array, cJSON_CreateArray())
-#define	cJSON_ArrayAddObject(array)					cJSON_Add(array, cJSON_CreateObject())
+#define cJSON_ArrayAddNull(array)					cJSON_Add(array, cJSON_NewNull(NULL))
+#define cJSON_ArrayAddBool(array,b)					cJSON_Add(array, cJSON_NewBool(NULL,b))
+#define cJSON_ArrayAddNumber(array,n)				cJSON_Add(array, cJSON_NewNumber(NULL,n))
+#define cJSON_ArrayAddString(array,s)				cJSON_Add(array, cJSON_NewString(NULL,s))
+#define	cJSON_ArrayAddArray(array)					cJSON_Add(array, cJSON_NewArray(NULL))
+#define	cJSON_ArrayAddObject(array)					cJSON_Add(array, cJSON_NewObject(NULL))
 
 #ifdef __cplusplus
 }
