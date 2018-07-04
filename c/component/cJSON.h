@@ -99,6 +99,12 @@ extern cJSON *cJSON_NewObject(const char* name);
 
 /* Append item to the specified array/object. */
 extern cJSON* cJSON_Add(cJSON *array, cJSON *item);
+#define cJSON_AddNewNull(object,name)				cJSON_Add(object, cJSON_NewNull(name))
+#define cJSON_AddNewBool(object,name,b)				cJSON_Add(object, cJSON_NewBool(name,b))
+#define cJSON_AddNewNumber(object,name,n)			cJSON_Add(object, cJSON_NewNumber(name,n))
+#define cJSON_AddNewString(object,name,s)			cJSON_Add(object, cJSON_NewString(name,s))
+#define	cJSON_AddNewArray(object,name)				cJSON_Add(object, cJSON_NewArray(name))
+#define	cJSON_AddNewObject(object,name)				cJSON_Add(object, cJSON_NewObject(name))
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON* cJSON_Detach(cJSON* item);
@@ -106,23 +112,7 @@ extern cJSON* cJSON_Detach(cJSON* item);
 
 /* Duplicate a cJSON item */
 extern cJSON *cJSON_Duplicate(cJSON *item,int recurse);
-
 extern void cJSON_Minify(char *json);
-
-/* Macros for creating things quickly. */
-#define cJSON_ObjectAddNull(object,name)			cJSON_Add(object, cJSON_NewNull(name))
-#define cJSON_ObjectAddBool(object,name,b)			cJSON_Add(object, cJSON_NewBool(name,b))
-#define cJSON_ObjectAddNumber(object,name,n)		cJSON_Add(object, cJSON_NewNumber(name,n))
-#define cJSON_ObjectAddString(object,name,s)		cJSON_Add(object, cJSON_NewString(name,s))
-#define	cJSON_ObjectAddArray(object,name)			cJSON_Add(object, cJSON_NewArray(name))
-#define	cJSON_ObjectAddObject(object,name)			cJSON_Add(object, cJSON_NewObject(name))
-
-#define cJSON_ArrayAddNull(array)					cJSON_Add(array, cJSON_NewNull(NULL))
-#define cJSON_ArrayAddBool(array,b)					cJSON_Add(array, cJSON_NewBool(NULL,b))
-#define cJSON_ArrayAddNumber(array,n)				cJSON_Add(array, cJSON_NewNumber(NULL,n))
-#define cJSON_ArrayAddString(array,s)				cJSON_Add(array, cJSON_NewString(NULL,s))
-#define	cJSON_ArrayAddArray(array)					cJSON_Add(array, cJSON_NewArray(NULL))
-#define	cJSON_ArrayAddObject(array)					cJSON_Add(array, cJSON_NewObject(NULL))
 
 #ifdef __cplusplus
 }
