@@ -33,9 +33,8 @@ extern "C"
 /* cJSON Types: */
 typedef enum cJSON_Type {
 	cJSON_Unknown,
-	cJSON_False,
-	cJSON_True,
-	cJSON_NULL,
+	cJSON_Null,
+	cJSON_Bool,
 	cJSON_Number,
 	cJSON_String,
 	cJSON_Array,
@@ -65,7 +64,7 @@ typedef struct cJSON_Hooks {
 } cJSON_Hooks;
 
 /* Supply malloc, realloc and free functions to cJSON */
-extern void cJSON_InitHooks(cJSON_Hooks* hooks);
+extern void cJSON_SetHooks(cJSON_Hooks* hooks);
 extern cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
 
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. Call cJSON_Delete when finished. */
@@ -98,36 +97,15 @@ extern cJSON *cJSON_NewString(const char* name, const char *string);
 extern cJSON *cJSON_NewArray(const char* name);
 extern cJSON *cJSON_NewObject(const char* name);
 
-/* These utilities create an Array of count items. */
-/*
-extern cJSON *cJSON_CreateIntArray(const int *numbers,int count);
-extern cJSON *cJSON_CreateFloatArray(const float *numbers,int count);
-extern cJSON *cJSON_CreateDoubleArray(const double *numbers,int count);
-extern cJSON *cJSON_CreateStringArray(const char **strings,int count);
-*/
-
 /* Append item to the specified array/object. */
 extern cJSON* cJSON_Add(cJSON *array, cJSON *item);
 
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON* cJSON_Detach(cJSON* item);
-extern cJSON* cJSON_IndexDetach(cJSON *array,int which);
-extern cJSON* cJSON_FieldDetach(cJSON *object,const char *string);
-#define	cJSON_ObjectDelete(object,name)				cJSON_Delete(cJSON_FieldDetach(object,name))
-#define	cJSON_ArrayDelete(array,i)					cJSON_Delete(cJSON_IndexDetach(array,i))
-
-/* Update array items. */
-/*
-extern void cJSON_InsertItemInArray(cJSON *array,int which,cJSON *newitem);
-extern void cJSON_ReplaceItemInArray(cJSON *array,int which,cJSON *newitem);
-extern void cJSON_ReplaceItemInObject(cJSON *object,const char *string,cJSON *newitem);
-*/
+#define	cJSON_DetachDelete(item)					cJSON_Delete(cJSON_Detach(item))
 
 /* Duplicate a cJSON item */
 extern cJSON *cJSON_Duplicate(cJSON *item,int recurse);
-/* Duplicate will create a new, identical cJSON item to the one you pass, in new memory that will
-need to be released. With recurse!=0, it will duplicate any children connected to the item.
-The item->next and ->prev pointers are always zero on return from Duplicate. */
 
 extern void cJSON_Minify(char *json);
 

@@ -63,7 +63,7 @@ static char* cJSON_strdup(const char* str)
       return copy;
 }
 
-void cJSON_InitHooks(cJSON_Hooks* hooks)
+void cJSON_SetHooks(cJSON_Hooks* hooks)
 {
     if (!hooks) { /* Reset hooks */
         cJSON_malloc = malloc;
@@ -75,12 +75,13 @@ void cJSON_InitHooks(cJSON_Hooks* hooks)
 	cJSON_free	 = (hooks->free_fn)?hooks->free_fn:free;
 }
 
-cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks) {
-	if (hooks) {
-		hooks->malloc_fn = cJSON_malloc;
-		hooks->free_fn = cJSON_free;
-	}
-	return hooks;
+cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* p) {
+	static cJSON_Hooks hooks;
+	if (!p)
+		p = &hooks;
+	p->malloc_fn = cJSON_malloc;
+	p->free_fn = cJSON_free;
+	return p;
 }
 
 /* Internal constructor. */
@@ -403,9 +404,9 @@ char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt)
 static const char *parse_value(cJSON *item,const char *value)
 {
 	if (!value)						return 0;	/* Fail on null. */
-	if (!strncmp(value,"null",4))	{ item->type=cJSON_NULL;  return value+4; }
-	if (!strncmp(value,"false",5))	{ item->type=cJSON_False; return value+5; }
-	if (!strncmp(value,"true",4))	{ item->type=cJSON_True; item->valueint=1;	return value+4; }
+	if (!strncmp(value,"null",4))	{ item->type=cJSON_Null;  return value+4; }
+	if (!strncmp(value,"false",5))	{ item->type=cJSON_Bool; return value+5; }
+	if (!strncmp(value,"true",4))	{ item->type=cJSON_Bool; item->valueint=1;	return value+4; }
 	if (*value=='\"')				{ return parse_string(item,value); }
 	if (*value=='-' || (*value>='0' && *value<='9'))	{ return parse_number(item,value); }
 	if (*value=='[')				{ return parse_array(item,value); }
@@ -423,9 +424,16 @@ static char *print_value(cJSON *item,int depth,int fmt,printbuffer *p)
 	{
 		switch (item->type)
 		{
-			case cJSON_NULL:	{out=ensure(p,5);	if (out) strcpy(out,"null");	break;}
-			case cJSON_False:	{out=ensure(p,6);	if (out) strcpy(out,"false");	break;}
-			case cJSON_True:	{out=ensure(p,5);	if (out) strcpy(out,"true");	break;}
+			case cJSON_Null:	{out=ensure(p,5);	if (out) strcpy(out,"null");	break;}
+			case cJSON_Bool:	{
+				if (item->valueint) {
+					out = ensure(p, 5); if (out) strcpy(out, "true");
+				}
+				else {
+					out = ensure(p, 6); if (out) strcpy(out, "false");
+				}
+				break;
+			}
 			case cJSON_Number:	out=print_number(item,p);break;
 			case cJSON_String:	out=print_string(item,p);break;
 			case cJSON_Array:	out=print_array(item,depth,fmt,p);break;
@@ -436,9 +444,8 @@ static char *print_value(cJSON *item,int depth,int fmt,printbuffer *p)
 	{
 		switch (item->type)
 		{
-			case cJSON_NULL:	out=cJSON_strdup("null");	break;
-			case cJSON_False:	out=cJSON_strdup("false");break;
-			case cJSON_True:	out=cJSON_strdup("true"); break;
+			case cJSON_Null:	out=cJSON_strdup("null");break;
+			case cJSON_Bool:	out=item->valueint?cJSON_strdup("true"):cJSON_strdup("false");break;
 			case cJSON_Number:	out=print_number(item,0);break;
 			case cJSON_String:	out=print_string(item,0);break;
 			case cJSON_Array:	out=print_array(item,depth,fmt,0);break;
@@ -708,7 +715,7 @@ static char *print_object(cJSON *item,int depth,int fmt,printbuffer *p)
 /* Get Array size/item / object item. */
 int    cJSON_Size(cJSON *array)							{cJSON *c=array->child;int i=0;while(c)i++,c=c->next;return i;}
 cJSON *cJSON_Index(cJSON *array,int item)				{cJSON *c=array->child;  while (c && item>0) item--,c=c->next; return c;}
-cJSON *cJSON_Field(cJSON *object,const char *string)	{cJSON *c=object->child; while (c && cJSON_strcasecmp(c->string,string)) c=c->next; return c;}
+cJSON *cJSON_Field(cJSON *object,const char *string)	{cJSON *c=object->child; while (c && strcmp(c->string,string)) c=c->next; return c;}
 
 /* Utility for array list handling. */
 static void suffix_object(cJSON *prev,cJSON *item) {prev->next=item;item->prev=prev;}
@@ -732,40 +739,28 @@ cJSON* cJSON_Add(cJSON *array, cJSON *item) {
 }
 
 cJSON* cJSON_Detach(cJSON* c) {
-	cJSON *parent = c->parent;
-	if (!parent) {
-		return NULL;
+	if (c) {
+		cJSON *parent = c->parent;
+		if (!parent) {
+			return NULL;
+		}
+		if (parent->child == c) {
+			parent->child = c->next;
+		}
+		if (c->prev)
+			c->prev->next = c->next;
+		if (c->next)
+			c->next->prev = c->prev;
+		c->parent = c->prev = c->next = NULL;
 	}
-	if (parent->child == c) {
-		parent->child = c->next;
-	}
-	if (c->prev)
-		c->prev->next = c->next;
-	if (c->next)
-		c->next->prev = c->prev;
-	c->parent = c->prev = c->next = NULL;
 	return c;
-}
-
-cJSON* cJSON_IndexDetach(cJSON *array,int which) {
-	cJSON *c = array->child;
-	while (c && which > 0)
-		c = c->next,which--;
-	return c ? cJSON_Detach(c) : NULL;
-}
-cJSON* cJSON_FieldDetach(cJSON *object,const char *string) {
-	int i = 0;
-	cJSON *c = object->child;
-	while (c && cJSON_strcasecmp(c->string, string))
-		i++, c = c->next;
-	return c ? cJSON_Detach(c) : NULL;
 }
 
 /* Create basic types: */
 cJSON *cJSON_NewNull(const char* name) {
 	cJSON *item = cJSON_New_Item();
 	if (item) {
-		item->type = cJSON_NULL;
+		item->type = cJSON_Null;
 		if (name && name[0])
 			item->string = cJSON_strdup(name);
 	}
@@ -774,7 +769,8 @@ cJSON *cJSON_NewNull(const char* name) {
 cJSON *cJSON_NewBool(const char* name, int b) {
 	cJSON *item = cJSON_New_Item();
 	if (item) {
-		item->type = b ? cJSON_True : cJSON_False;
+		item->type = cJSON_Bool;
+		item->valueint = b;
 		if (name && name[0])
 			item->string = cJSON_strdup(name);
 	}
