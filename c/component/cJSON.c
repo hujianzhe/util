@@ -176,13 +176,16 @@ static char *print_number(cJSON *item,printbuffer *p)
 {
 	char *str=0;
 	double d=item->valuedouble;
-	if (d==0)
+	if (d > -DBL_EPSILON && d < DBL_EPSILON) {
+		d=(double)item->valueint;
+	}
+	if (d > -DBL_EPSILON && d < DBL_EPSILON)
 	{
 		if (p)	str=ensure(p,2);
 		else	str=(char*)cJSON_malloc(2);	/* special case for 0. */
 		if (str) strcpy(str,"0");
 	}
-	else if (fabs(((double)item->valueint)-d)<=DBL_EPSILON && d<=INT_MAX && d>=INT_MIN)
+	else if (fabs(((double)item->valueint) - d) <= DBL_EPSILON)
 	{
 		if (p)	str=ensure(p,21);
 		else	str=(char*)cJSON_malloc(21);	/* 2^64+1 can be represented in 21 chars. */
