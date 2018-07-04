@@ -714,7 +714,7 @@ cJSON *cJSON_Field(cJSON *object,const char *string)	{cJSON *c=object->child; wh
 static void suffix_object(cJSON *prev,cJSON *item) {prev->next=item;item->prev=prev;}
 
 /* Add item to array/object. */
-cJSON* cJSON_AddItemToArray(cJSON *array, cJSON *item) {
+cJSON* cJSON_Add(cJSON *array, cJSON *item) {
 	cJSON *c;
 	if (!item || !array)
 		return NULL;
@@ -730,7 +730,7 @@ cJSON* cJSON_AddItemToArray(cJSON *array, cJSON *item) {
 	item->parent = array;
 	return item;
 }
-cJSON* cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item) {
+cJSON* cJSON_AddField(cJSON *object,const char *string,cJSON *item) {
 	if (!item || !object)
 		return NULL;
 	if (item->freestring && item->string)
@@ -739,10 +739,10 @@ cJSON* cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item) {
 		item->string = cJSON_strdup(string);
 	else
 		item->string = (char*)string;
-	return cJSON_AddItemToArray(object, item);
+	return cJSON_Add(object, item);
 }
 
-cJSON* cJSON_DetachItem(cJSON* c) {
+cJSON* cJSON_Detach(cJSON* c) {
 	cJSON *parent = c->parent;
 	if (!parent) {
 		return NULL;
@@ -758,18 +758,18 @@ cJSON* cJSON_DetachItem(cJSON* c) {
 	return c;
 }
 
-cJSON* cJSON_DetachItemFromArray(cJSON *array,int which) {
+cJSON* cJSON_IndexDetach(cJSON *array,int which) {
 	cJSON *c = array->child;
 	while (c && which > 0)
 		c = c->next,which--;
-	return c ? cJSON_DetachItem(c) : NULL;
+	return c ? cJSON_Detach(c) : NULL;
 }
-cJSON* cJSON_DetachItemFromObject(cJSON *object,const char *string) {
+cJSON* cJSON_FieldDetach(cJSON *object,const char *string) {
 	int i = 0;
 	cJSON *c = object->child;
 	while (c && cJSON_strcasecmp(c->string, string))
 		i++, c = c->next;
-	return c ? cJSON_DetachItem(c) : NULL;
+	return c ? cJSON_Detach(c) : NULL;
 }
 
 /* Replace array/object items with new ones. */
