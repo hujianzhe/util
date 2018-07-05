@@ -71,10 +71,10 @@ extern cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
 extern cJSON *cJSON_Parse(cJSON *root, const char *value);
 /* Parse JSON from a file. */
 extern cJSON *cJSON_ParseFromFile(cJSON *root, const char* path);
-/* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
-extern char  *cJSON_Print(cJSON *item);
 /* Render a cJSON entity to text for transfer/storage without any formatting. Free the char* when finished. */
-extern char  *cJSON_PrintUnformatted(cJSON *item);
+extern char  *cJSON_Print(cJSON *item);
+/* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
+extern char  *cJSON_PrintFormatted(cJSON *item);
 /* Render a cJSON entity to text using a buffered strategy. prebuffer is a guess at the final size. guessing well reduces reallocation. fmt=0 gives unformatted, =1 gives formatted */
 extern char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
 /* Delete a cJSON text */

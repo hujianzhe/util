@@ -18,7 +18,7 @@ public:
 	~JsonRoot(void) { cJSON_Reset(this); cJSON_FreeString(text); }
 
 	char* serialize(bool format = false) {
-		char* s = format ? cJSON_Print(this) : cJSON_PrintUnformatted(this);
+		char* s = format ? cJSON_PrintFormatted(this) : cJSON_Print(this);
 		if (!s) {
 			return "";
 		}
