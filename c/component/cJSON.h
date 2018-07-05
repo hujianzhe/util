@@ -25,11 +25,6 @@
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 /* cJSON Types: */
 typedef enum cJSON_Type {
 	cJSON_Unknown,
@@ -56,12 +51,36 @@ typedef struct cJSON {
 	struct cJSON *parent;		/* An array or object item parent item */
 	struct cJSON *next, *prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
 	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
+
+#ifdef __cplusplus
+	int valsize(void);
+	cJSON* val(int index);
+	cJSON* val(const char* name);
+
+	void del(cJSON* item);
+	void delval(const char* name);
+	void delval(int index);
+
+	cJSON* add(cJSON* item);
+	cJSON* addarray(const char* name);
+	cJSON* addobject(const char* name);
+	cJSON* addval(const char* name);
+	cJSON* addval(const char* name, bool b);
+	cJSON* addval(const char* name, long long n);
+	cJSON* addval(const char* name, double n);
+	cJSON* addval(const char* name, const char* s);
+#endif
 } cJSON;
 
 typedef struct cJSON_Hooks {
 	void *(*malloc_fn)(size_t sz);
 	void (*free_fn)(void *ptr);
 } cJSON_Hooks;
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 /* Supply malloc, realloc and free functions to cJSON */
 extern void cJSON_SetHooks(cJSON_Hooks* hooks);
