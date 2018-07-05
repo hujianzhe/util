@@ -3,26 +3,19 @@
 //
 
 #include "json.h"
-#include <stdlib.h>
 
 namespace Util {
-std::string Json::serialize(bool format) const {
-	std::string res;
-	do {
-		if (!m_root) {
-			break;
-		}
-		char* text = (format ? cJSON_Print(m_root) : cJSON_PrintUnformatted(m_root));
-		if (!text) {
-			break;
-		}
-		res = text;
-
-		cJSON_Hooks hk;
-		cJSON_GetHooks(&hk);
-		hk.free_fn(text);
-	} while (0);
-	return res;
+char* Json::serialize(bool format) {
+	if (!m_root) {
+		return "";
+	}
+	char* s = format ? cJSON_Print(m_root) : cJSON_PrintUnformatted(m_root);
+	if (!s) {
+		return "";
+	}
+	cJSON_FreeString(m_str);
+	m_str = s;
+	return m_str;
 }
 bool Json::deserialize(const char* text) {
 	cJSON* root = cJSON_Parse(NULL, text);

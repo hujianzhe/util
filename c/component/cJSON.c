@@ -97,6 +97,12 @@ static cJSON *cJSON_New_Item(void)
 	return node;
 }
 
+/* Delete a cJSON text */
+void cJSON_FreeString(char* s) {
+	cJSON_Hooks hk;
+	cJSON_GetHooks(&hk)->free_fn(s);
+}
+
 /* Delete a cJSON structure. */
 void cJSON_Delete(cJSON *c)
 {

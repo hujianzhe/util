@@ -6,14 +6,14 @@
 #define UTIL_CPP_JSON_H
 
 #include "../../c/component/cJSON.h"
-#include <string>
 
 namespace Util {
 class Json {
 public:
-	Json(cJSON* root = NULL) : m_root(root) {}
+	Json(cJSON* root = NULL) : m_root(root), m_str(NULL) {}
+	~Json(void) { cJSON_Delete(m_root); cJSON_FreeString(m_str); }
 
-	std::string serialize(bool format = false) const;
+	char* serialize(bool format = false);
 	bool deserialize(const char* text);
 
 	bool deserializeFromFile(const char* path);
@@ -28,6 +28,7 @@ public:
 
 private:
 	cJSON* m_root;
+	char* m_str;
 };
 }
 
