@@ -110,9 +110,18 @@ void cJSON_Delete(cJSON *c)
 	while (c)
 	{
 		next=c->next;
-		if (c->child) cJSON_Delete(c->child);
-		if (c->freevaluestring && c->valuestring) cJSON_free(c->valuestring);
-		if (c->freestring && c->string) cJSON_free(c->string);
+		if (c->child) {
+			cJSON_Delete(c->child);
+			c->child = NULL;
+		}
+		if (c->freevaluestring && c->valuestring) {
+			cJSON_free(c->valuestring);
+			c->valuestring = NULL;
+		}
+		if (c->freestring && c->string) {
+			cJSON_free(c->string);
+			c->string = NULL;
+		}
 		if (c->needfree) cJSON_free(c);
 		c=next;
 	}

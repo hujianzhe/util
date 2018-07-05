@@ -6,29 +6,29 @@
 #define UTIL_CPP_JSON_H
 
 #include "../../c/component/cJSON.h"
+#include <string.h>
 
 namespace Util {
-class Json {
+class JsonRoot : public cJSON {
 public:
-	Json(cJSON* root = NULL) : m_root(root), m_str(NULL) {}
-	~Json(void) { cJSON_Delete(m_root); cJSON_FreeString(m_str); }
+	JsonRoot(void) : text(NULL) {
+		memset((cJSON*)this, 0, sizeof(cJSON));
+		type = cJSON_Object;
+	}
+	~JsonRoot(void) { cJSON_Reset(this); cJSON_FreeString(text); }
 
-	char* serialize(bool format = false);
-	bool deserialize(const char* text);
-
-	bool deserializeFromFile(const char* path);
-
-	cJSON* root(void) const { return m_root; }
-	cJSON* mutableRoot(void) {
-		if (!m_root) {
-			m_root = cJSON_NewObject(NULL);
+	char* serialize(bool format = false) {
+		char* s = format ? cJSON_Print(this) : cJSON_PrintUnformatted(this);
+		if (!s) {
+			return "";
 		}
-		return m_root;
+		cJSON_FreeString(text);
+		text = s;
+		return text;
 	}
 
-private:
-	cJSON* m_root;
-	char* m_str;
+public:
+	char* text;
 };
 }
 
