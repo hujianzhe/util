@@ -68,9 +68,9 @@ extern void cJSON_SetHooks(cJSON_Hooks* hooks);
 extern cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
 
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. Call cJSON_Delete when finished. */
-extern cJSON *cJSON_Parse(const char *value);
+extern cJSON *cJSON_Parse(cJSON *root, const char *value);
 /* Parse JSON from a file. */
-extern cJSON *cJSON_ParseFromFile(const char* path);
+extern cJSON *cJSON_ParseFromFile(cJSON *root, const char* path);
 /* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
 extern char  *cJSON_Print(cJSON *item);
 /* Render a cJSON entity to text for transfer/storage without any formatting. Free the char* when finished. */
@@ -80,7 +80,7 @@ extern char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
 /* Delete a cJSON entity and all subentities. */
 extern void   cJSON_Delete(cJSON *c);
 /* Delete all subentities */
-extern void cJSON_DeleteSub(cJSON *c);
+extern void cJSON_Reset(cJSON *c);
 
 /* Returns the number of items in an array (or object). */
 extern int	  cJSON_Size(cJSON *array);
@@ -109,6 +109,7 @@ extern cJSON* cJSON_Add(cJSON *array, cJSON *item);
 /* Remove/Detatch items from Arrays/Objects. */
 extern cJSON* cJSON_Detach(cJSON* item);
 #define	cJSON_DetachDelete(item)					cJSON_Delete(cJSON_Detach(item))
+#define	cJSON_DetachReset(item)						cJSON_Reset(cJSON_Detach(item))
 
 /* Duplicate a cJSON item */
 extern cJSON *cJSON_Duplicate(cJSON *item,int recurse);

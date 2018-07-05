@@ -25,7 +25,7 @@ std::string Json::serialize(bool format) const {
 	return res;
 }
 bool Json::deserialize(const char* text) {
-	cJSON* root = cJSON_Parse(text);
+	cJSON* root = cJSON_Parse(NULL, text);
 	if (root) {
 		cJSON_Delete(m_root);
 		m_root = root;
@@ -34,7 +34,7 @@ bool Json::deserialize(const char* text) {
 	return false;
 }
 bool Json::deserializeFromFile(const char* path) {
-	cJSON* root = cJSON_ParseFromFile(path);
+	cJSON* root = cJSON_ParseFromFile(NULL, path);
 	if (root) {
 		cJSON_Delete(m_root);
 		m_root = root;

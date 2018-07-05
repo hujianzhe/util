@@ -113,10 +113,21 @@ void cJSON_Delete(cJSON *c)
 }
 
 /* Delete all subentities */
-void cJSON_DeleteSub(cJSON *c) {
-	if (c->child) {
+void cJSON_Reset(cJSON *c) {
+	if (c && c->child) {
 		cJSON_Delete(c->child);
 		c->child = NULL;
+
+		c->valuedouble = 0.0;
+		c->valueint = 0;
+
+		if (c->freestring)
+			cJSON_free(c->string);
+		c->string = NULL;
+
+		if (c->freevaluestring)
+			cJSON_free(c->valuestring);
+		c->valuestring = NULL;
 	}
 }
 
@@ -351,23 +362,23 @@ static char *print_object(cJSON *item,int depth,int fmt,printbuffer *p);
 static const char *skip(const char *in) {while (in && *in && (unsigned char)*in<=32) in++; return in;}
 
 /* Default options for cJSON_Parse */
-cJSON *cJSON_Parse(const char *value)
+cJSON *cJSON_Parse(cJSON *root, const char *value)
 {
 	cJSON *c;
 	const char *end=skip(value);
 	
-	if (!end || *end != '{') return 0;
+	if (!end || *end != '{') return NULL;
 
-	c=cJSON_New_Item();
-	if (!c) return 0;       /* memory fail */
+	c = root ? root : cJSON_New_Item();
+	if (!c) return NULL;       /* memory fail */
 
 	end=parse_object(c,end);
-	if (!end)	{cJSON_Delete(c);return 0;}	/* parse failure. ep is set. */
+	if (!end)	{cJSON_Delete(c);return NULL;}	/* parse failure. ep is set. */
 	return c;
 }
 
 /* Parse JSON from a file. */
-cJSON *cJSON_ParseFromFile(const char* path)
+cJSON *cJSON_ParseFromFile(cJSON *root, const char* path)
 {
 	cJSON *c = NULL;
 	char* fc = NULL;
@@ -382,7 +393,7 @@ cJSON *cJSON_ParseFromFile(const char* path)
 		if (fseek(fp, 0, SEEK_SET)) break;
 		rz = fread(fc, 1, fz, fp); fc[rz] = 0;
 		fclose(fp); fp=NULL;
-		c=cJSON_Parse(fc);
+		c=cJSON_Parse(root,fc);
 	} while (0);
 	if (fp) fclose(fp);
 	free(fc);
@@ -744,10 +755,7 @@ cJSON* cJSON_Add(cJSON *array, cJSON *item) {
 cJSON* cJSON_Detach(cJSON* c) {
 	if (c) {
 		cJSON *parent = c->parent;
-		if (!parent) {
-			return NULL;
-		}
-		if (parent->child == c) {
+		if (parent && parent->child == c) {
 			parent->child = c->next;
 		}
 		if (c->prev)
