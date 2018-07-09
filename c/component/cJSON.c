@@ -434,7 +434,7 @@ static const char *parse_value(cJSON *item,const char *value)
 {
 	if (!value)						return 0;	/* Fail on null. */
 	if (!strncmp(value,"null",4))	{ item->type=cJSON_Null;  return value+4; }
-	if (!strncmp(value,"false",5))	{ item->type=cJSON_Bool; return value+5; }
+	if (!strncmp(value,"false",5))	{ item->type=cJSON_Bool; item->valueint=0;	return value+5; }
 	if (!strncmp(value,"true",4))	{ item->type=cJSON_Bool; item->valueint=1;	return value+4; }
 	if (*value=='\"')				{ return parse_string(item,value); }
 	if (*value=='-' || (*value>='0' && *value<='9'))	{ return parse_number(item,value); }
