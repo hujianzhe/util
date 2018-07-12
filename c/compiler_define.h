@@ -5,17 +5,18 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
-#define	COMPILE_TIME_ASSERT(exp)					extern char __COMPILE_TIME_ASSERT__[(exp) ? 1 : -1]
-
-COMPILE_TIME_ASSERT(sizeof(char) == 1);
-COMPILE_TIME_ASSERT(sizeof(signed char) == 1);
-COMPILE_TIME_ASSERT(sizeof(unsigned char) == 1);
-COMPILE_TIME_ASSERT(sizeof(short) == 2);
-COMPILE_TIME_ASSERT(sizeof(unsigned short) == 2);
-COMPILE_TIME_ASSERT(sizeof(int) == 4);
-COMPILE_TIME_ASSERT(sizeof(unsigned int) == 4);
-COMPILE_TIME_ASSERT(sizeof(long long) == 8);
-COMPILE_TIME_ASSERT(sizeof(unsigned long long) == 8);
+#ifndef STATIC_ASSERT
+	#define	STATIC_ASSERT(exp,msg)					extern char __STATIC_ASSERT__[(exp) ? 1 : -1]
+#endif
+STATIC_ASSERT(sizeof(char) == 1, "");
+STATIC_ASSERT(sizeof(signed char) == 1, "");
+STATIC_ASSERT(sizeof(unsigned char) == 1, "");
+STATIC_ASSERT(sizeof(short) == 2, "");
+STATIC_ASSERT(sizeof(unsigned short) == 2, "");
+STATIC_ASSERT(sizeof(int) == 4, "");
+STATIC_ASSERT(sizeof(unsigned int) == 4, "");
+STATIC_ASSERT(sizeof(long long) == 8, "");
+STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 #define	field_sizeof(type, field)					sizeof(((type*)0)->field)
 #define	pod_offsetof(type, field)					((char*)(&((type *)0)->field) - (char*)(0))

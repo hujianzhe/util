@@ -29,4 +29,9 @@
 	#error "Unknown Compiler"
 #endif
 
-#endif // !UTIL_CPP_CPP_COMPILER_DEFINE_H
+#if __CPP_VERSION >= 2011
+	#undef	STATIC_ASSERT
+	#define	STATIC_ASSERT	static_assert
+#endif
+
+#endif
