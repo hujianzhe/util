@@ -57,7 +57,7 @@ void rudp_ctx_clean(struct rudp_ctx* ctx) {
 	}
 }
 
-void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, const struct rudp_hdr* hdr, unsigned short len) {
+void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, const struct rudp_hdr* hdr) {
 	unsigned long long hdr_seq = ntohll(hdr->seq);
 	switch (hdr->type) {
 		case RUDP_HDR_TYPE_DATA:

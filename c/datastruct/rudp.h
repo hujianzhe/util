@@ -50,7 +50,7 @@ extern "C" {
 #endif
 
 void rudp_ctx_clean(struct rudp_ctx* ctx);
-void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, const struct rudp_hdr* hdr, unsigned short len);
+void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, const struct rudp_hdr* hdr);
 int rudp_send(struct rudp_ctx* ctx, long long now_timestamp_msec, struct rudp_hdr* hdr, unsigned short len);
 int rudp_check_resend(struct rudp_ctx* ctx, long long now_timestamp_msec, int* next_wait_msec);
 
