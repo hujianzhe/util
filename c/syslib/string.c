@@ -120,26 +120,26 @@ size_t strlen_utf8(const char* s) {
 	return u8_len;
 }
 
-size_t strcopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
+char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 	size_t i;
 	size_t len = dst_len > src_len ? src_len : dst_len;
 	for (i = 0; i < len; ++i) {
 		dst[i] = src[i];
 		if (0 == dst[i]) {
-			return i;
+			return dst;
 		}
 	}
 	if (len) {
 		if (len < dst_len) {
 			dst[len] = 0;
-			return len;
+			return dst;
 		}
 		else {
 			dst[dst_len - 1] = 0;
-			return dst_len - 1;
+			return dst;
 		}
 	}
-	return 0;
+	return dst;
 }
 
 size_t strlen_safe(const char* s, size_t maxlen) {

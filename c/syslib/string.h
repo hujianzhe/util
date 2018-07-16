@@ -28,7 +28,7 @@ char* strlcpy(char* dst, const char* src, size_t size);
 void strtrim(const char* str, size_t len, char** newstr, size_t* newlen);
 unsigned int strhash(const char* str);
 size_t strlen_utf8(const char* s);
-size_t strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
+char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
 size_t strlen_safe(const char* s, size_t maxlen);
 
 #ifdef	__cplusplus
