@@ -22,13 +22,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 #define	pod_offsetof(type, field)					((char*)(&((type *)0)->field) - (char*)(0))
 #define pod_container_of(address, type, field)		((type *)((char*)(address) - (char*)(&((type *)0)->field)))
 
-#ifndef __cplusplus
-typedef	unsigned char	bool;
-#define	true			1
-#define	false			0
-#endif
-#define	undefined		-1
-
 #ifdef _MSC_VER
 	#pragma warning(disable:4200)
 	#pragma warning(disable:4018)

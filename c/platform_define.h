@@ -72,6 +72,7 @@
 	#endif
 #endif
 
+#define	undefined					-1
 #define	assert_true(exp)			if (!(exp)) *(volatile int*)0 = 0
 
 #endif
