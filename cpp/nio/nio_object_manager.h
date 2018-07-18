@@ -8,7 +8,6 @@
 #include "../../c/syslib/io.h"
 #include "../../c/syslib/ipc.h"
 #include "../../c/datastruct/list.h"
-#include <list>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -23,23 +22,20 @@ public:
 	Reactor_t* getReactor(void);
 
 	size_t count(void);
-	void get(std::list<std::shared_ptr<NioObject> >& l);
 	void get(std::vector<std::shared_ptr<NioObject> >& v);
 	bool add(const std::shared_ptr<NioObject>& object);
 	bool del(const std::shared_ptr<NioObject>& object);
 
-	size_t checkObjectValid(void);
+	list_node_t* expireObjectList(void);
 
 public:
 	struct NioEvent : public list_node_t {
 		std::shared_ptr<NioObject> obj;
 		int event;
-		void* ol;
 
-		NioEvent(const std::shared_ptr<NioObject>& _obj, int _event, void* _ol) :
-			obj(_obj),
-			event(_event),
-			ol(_ol)
+		NioEvent(const std::shared_ptr<NioObject>& obj, int event) :
+			obj(obj),
+			event(event)
 		{}
 	};
 

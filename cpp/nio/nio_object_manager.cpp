@@ -22,9 +22,9 @@ NioObjectManager::~NioObjectManager(void) {
 
 Reactor_t* NioObjectManager::getReactor(void) { return &m_reactor; }
 
-size_t NioObjectManager::checkObjectValid(void) {
-	size_t count = 0;
-	std::list<std::shared_ptr<NioObject> > expire_objs;
+list_node_t* NioObjectManager::expireObjectList(void) {
+	list_t list;
+	list_init(&list);
 	//
 	rwlock_LockWrite(&m_validLock);
 
@@ -33,19 +33,17 @@ size_t NioObjectManager::checkObjectValid(void) {
 			++it;
 		}
 		else {
-			expire_objs.push_back(it->second);
+			NioEvent* ptr = new (std::nothrow) NioEvent(it->second, REACTOR_NOP);
+			if (ptr) {
+				list_insert_node_back(&list, list.tail, ptr);
+			}
 			m_validObjects.erase(it++);
 		}
 	}
 
 	rwlock_Unlock(&m_validLock);
 	//
-	for (std::list<std::shared_ptr<NioObject> >::iterator it = expire_objs.begin();
-			it != expire_objs.end(); ++it) {
-		(*it)->shutdownDirect();
-		++count;
-	}
-	return count;
+	return list.head;
 }
 
 size_t NioObjectManager::count(void) {
@@ -55,13 +53,6 @@ size_t NioObjectManager::count(void) {
 	return count;
 }
 
-void NioObjectManager::get(std::list<std::shared_ptr<NioObject> >& l) {
-	rwlock_LockRead(&m_validLock);
-	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ++it) {
-		l.push_back(it->second);
-	}
-	rwlock_Unlock(&m_validLock);
-}
 void NioObjectManager::get(std::vector<std::shared_ptr<NioObject> >& v) {
 	rwlock_LockRead(&m_validLock);
 	v.reserve(m_validObjects.size());
@@ -116,7 +107,7 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 			continue;
 		}
 
-		NioEvent* ptr = new (std::nothrow) NioEvent(iter->second, event, ol);
+		NioEvent* ptr = new (std::nothrow) NioEvent(iter->second, event);
 		if (ptr) {
 			list_insert_node_back(&list, list.tail, ptr);
 		}
@@ -133,6 +124,10 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 void NioObjectManager::exec(struct NioEvent* objev) {
 	objev->obj->updateLastActiveTime();
 	switch (objev->event) {
+		case REACTOR_NOP:
+			objev->obj->shutdownDirect();
+			return;
+
 		case REACTOR_READ:
 			objev->obj->onRead();
 			break;

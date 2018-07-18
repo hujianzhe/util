@@ -91,11 +91,7 @@ bool NioObject::checkTimeout(void) {
 	return m_timeoutSecond >= 0 && gmt_second() - m_timeoutSecond > m_lastActiveTime;
 }
 bool NioObject::checkValid(void) {
-	if (m_valid && checkTimeout()) {
-		m_valid = false;
-		return false;
-	}
-	return m_valid;
+	return m_valid && !checkTimeout();
 }
 
 int NioObject::onRead(void) {
