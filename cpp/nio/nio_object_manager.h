@@ -50,8 +50,8 @@ private:
 private:
 	Reactor_t m_reactor;
 	//
-	RWLock_t m_validLock;
-	std::unordered_map<FD_t, std::shared_ptr<NioObject> > m_validObjects;
+	RWLock_t m_lock;
+	std::unordered_map<FD_t, std::shared_ptr<NioObject> > m_objects;
 };
 }
 

@@ -11,12 +11,12 @@ namespace Util {
 NioObjectManager::NioObjectManager(const NioObjectManager& o) {}
 NioObjectManager& NioObjectManager::operator=(const NioObjectManager& o) { return *this; }
 NioObjectManager::NioObjectManager(void) {
-	assert_true(rwlock_Create(&m_validLock));
+	assert_true(rwlock_Create(&m_lock));
 	assert_true(reactor_Create(&m_reactor));
 }
 
 NioObjectManager::~NioObjectManager(void) {
-	rwlock_Close(&m_validLock);
+	rwlock_Close(&m_lock);
 	reactor_Close(&m_reactor);
 }
 
@@ -26,9 +26,9 @@ list_node_t* NioObjectManager::expireObjectList(void) {
 	list_t list;
 	list_init(&list);
 	//
-	rwlock_LockWrite(&m_validLock);
+	rwlock_LockWrite(&m_lock);
 
-	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ) {
+	for (auto it = m_objects.begin(); it != m_objects.end(); ) {
 		if (it->second->checkValid()) {
 			++it;
 		}
@@ -37,35 +37,35 @@ list_node_t* NioObjectManager::expireObjectList(void) {
 			if (ptr) {
 				list_insert_node_back(&list, list.tail, ptr);
 			}
-			m_validObjects.erase(it++);
+			m_objects.erase(it++);
 		}
 	}
 
-	rwlock_Unlock(&m_validLock);
+	rwlock_Unlock(&m_lock);
 	//
 	return list.head;
 }
 
 size_t NioObjectManager::count(void) {
-	rwlock_LockRead(&m_validLock);
-	size_t count = m_validObjects.size();
-	rwlock_Unlock(&m_validLock);
+	rwlock_LockRead(&m_lock);
+	size_t count = m_objects.size();
+	rwlock_Unlock(&m_lock);
 	return count;
 }
 
 void NioObjectManager::get(std::vector<std::shared_ptr<NioObject> >& v) {
-	rwlock_LockRead(&m_validLock);
-	v.reserve(m_validObjects.size());
-	for (auto it = m_validObjects.begin(); it != m_validObjects.end(); ++it) {
+	rwlock_LockRead(&m_lock);
+	v.reserve(m_objects.size());
+	for (auto it = m_objects.begin(); it != m_objects.end(); ++it) {
 		v.push_back(it->second);
 	}
-	rwlock_Unlock(&m_validLock);
+	rwlock_Unlock(&m_lock);
 }
 
 bool NioObjectManager::add(const std::shared_ptr<NioObject>& object) {
-	rwlock_LockWrite(&m_validLock);
-	bool res = m_validObjects.insert(std::pair<FD_t, const std::shared_ptr<NioObject>& >(object->fd(), object)).second;
-	rwlock_Unlock(&m_validLock);
+	rwlock_LockWrite(&m_lock);
+	bool res = m_objects.insert(std::pair<FD_t, const std::shared_ptr<NioObject>& >(object->fd(), object)).second;
+	rwlock_Unlock(&m_lock);
 	return res;
 }
 
@@ -73,9 +73,9 @@ bool NioObjectManager::del(const std::shared_ptr<NioObject>& object) {
 	bool exist = false;
 	if (object) {
 		object->invalid();
-		rwlock_LockWrite(&m_validLock);
-		exist = m_validObjects.erase(object->fd());
-		rwlock_Unlock(&m_validLock);
+		rwlock_LockWrite(&m_lock);
+		exist = m_objects.erase(object->fd());
+		rwlock_Unlock(&m_lock);
 	}
 	else {
 		exist = true;
@@ -95,15 +95,15 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 	list_t list;
 	list_init(&list);
 
-	rwlock_LockRead(&m_validLock);
+	rwlock_LockRead(&m_lock);
 
 	for (int i = 0; i < n; ++i) {
 		FD_t fd;
 		int event;
 		void* ol;
 		reactor_Result(&e[i], &fd, &event, &ol);
-		auto iter = m_validObjects.find(fd);
-		if (iter == m_validObjects.end() || NULL == iter->second) {
+		auto iter = m_objects.find(fd);
+		if (iter == m_objects.end() || NULL == iter->second) {
 			continue;
 		}
 
@@ -116,7 +116,7 @@ list_node_t* NioObjectManager::result(NioEv_t* e, int n) {
 		}
 	}
 
-	rwlock_Unlock(&m_validLock);
+	rwlock_Unlock(&m_lock);
 
 	return list.head;
 }
