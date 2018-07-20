@@ -61,7 +61,7 @@ void DatabaseConnectPool::pushConnection(DBHandle_t* dbhandle) {
 }
 
 void DatabaseConnectPool::clean(void) {
-	for (auto it = m_dbhandles.begin(); it != m_dbhandles.end(); m_dbhandles.erase(it++)) {
+	for (handle_iter it = m_dbhandles.begin(); it != m_dbhandles.end(); m_dbhandles.erase(it++)) {
 		db_CloseHandle(*it);
 		delete (*it);
 	}

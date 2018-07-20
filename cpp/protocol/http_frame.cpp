@@ -129,7 +129,7 @@ std::string HttpFrame::uriQuery(const std::string& uri) {
 	}
 	return uri.substr(pos + 1);
 }
-void HttpFrame::parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv) {
+void HttpFrame::parseQuery(const std::string& qs, std::map<std::string, std::string>& kv) {
 	if (qs.empty()) {
 		return;
 	}
@@ -195,7 +195,7 @@ HttpFrame::HttpFrame(size_t frame_length_limit, int status_code) :
 }
 
 std::string HttpFrame::getHeader(const std::string& key) const {
-	auto it = m_headers.find(key);
+	header_const_iter it = m_headers.find(key);
 	return it != m_headers.end() ? it->second : std::string();
 }
 void HttpFrame::setHeader(const std::string& key, const std::string& value) {
@@ -288,7 +288,7 @@ int HttpFrame::parseHeader(const char* data, size_t len) {
 int HttpFrame::parseContentLengthBody(const char* data, size_t len) {
 	m_data = NULL;
 	m_dataLength = m_frameLength = 0;
-	auto it = m_headers.find("Content-Length");
+	header_iter it = m_headers.find("Content-Length");
 	if (it == m_headers.end() || it->second.empty()) {
 		return PARSE_BODY_NOT_EXIST;
 	}
@@ -317,7 +317,7 @@ int HttpFrame::parseContentLengthBody(const char* data, size_t len) {
 int HttpFrame::parseNextChunkedBody(const char* data, size_t len) {
 	m_data = NULL;
 	m_dataLength = m_frameLength = 0;
-	auto it = m_headers.find("Transfer-Encoding");
+	header_iter it = m_headers.find("Transfer-Encoding");
 	if (it == m_headers.end() || it->second != "chunked") {
 		return PARSE_BODY_NOT_EXIST;
 	}
@@ -381,14 +381,14 @@ bool HttpFrame::buildResponseHeader(std::string& s) {
 		s.clear();
 		return false;
 	}
-	for (auto& header : m_headers) {
-		if (header.first.empty() || header.second.empty()) {
+	for (header_iter iter = m_headers.begin(); iter != m_headers.end(); ++iter) {
+		if (iter->first.empty() || iter->second.empty()) {
 			continue;
 		}
-		if (s.size() + header.first.size() + header.second.size() + 6 > m_frameLengthLimit) {
+		if (s.size() + iter->first.size() + iter->second.size() + 6 > m_frameLengthLimit) {
 			return false;
 		}
-		s += header.first; s += ": "; s += header.second; s += "\r\n";
+		s += iter->first; s += ": "; s += iter->second; s += "\r\n";
 	}
 	s += "\r\n";
 	if (s.size() > m_frameLengthLimit) {

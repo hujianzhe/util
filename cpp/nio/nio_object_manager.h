@@ -5,11 +5,13 @@
 #ifndef	UTIL_CPP_NIO_NIO_OBJECT_MANAGER_H
 #define	UTIL_CPP_NIO_NIO_OBJECT_MANAGER_H
 
-#include "../../c/syslib/io.h"
 #include "../../c/syslib/ipc.h"
-#include "../../c/datastruct/list.h"
-#include <memory>
+#include "../cpp_compiler_define.h"
+#if __CPP_VERSION >= 2011
 #include <unordered_map>
+#else
+#include <map>
+#endif
 #include <vector>
 
 namespace Util {
@@ -19,39 +21,27 @@ public:
 	NioObjectManager(void);
 	~NioObjectManager(void);
 
-	Reactor_t* getReactor(void);
-
 	size_t count(void);
-	void get(std::vector<std::shared_ptr<NioObject> >& v);
-	bool add(const std::shared_ptr<NioObject>& object);
-	bool del(const std::shared_ptr<NioObject>& object);
-
-	list_node_t* expireObjectList(void);
-
-public:
-	struct NioEvent : public list_node_t {
-		std::shared_ptr<NioObject> obj;
-		int event;
-
-		NioEvent(const std::shared_ptr<NioObject>& obj, int event) :
-			obj(obj),
-			event(event)
-		{}
-	};
-
-	int wait(NioEv_t* e, int n, int msec);
-	list_node_t* result(NioEv_t* e, int n);
-	void exec(struct NioEvent* objev);
+	void get(std::vector<NioObject*>& v);
+	NioObject* get(FD_t fd);
+	void add(NioObject* object);
+	void del(FD_t fd);
+	int expire(NioObject* buf[], int n);
 
 private:
 	NioObjectManager(const NioObjectManager& o);
 	NioObjectManager& operator=(const NioObjectManager& o);
 
 private:
-	Reactor_t m_reactor;
 	//
 	RWLock_t m_lock;
-	std::unordered_map<FD_t, std::shared_ptr<NioObject> > m_objects;
+#if __CPP_VERSION >= 2011
+	std::unordered_map<FD_t, NioObject*> m_objects;
+	typedef std::unordered_map<FD_t, NioObject*>::iterator object_iter;
+#else
+	std::map<FD_t, NioObject*> m_objects;
+	typedef std::map<FD_t, NioObject*>::iterator object_iter;
+#endif
 };
 }
 

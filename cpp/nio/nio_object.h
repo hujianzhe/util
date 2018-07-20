@@ -8,14 +8,12 @@
 #include "../../c/syslib/atomic.h"
 #include "../../c/syslib/io.h"
 #include "../../c/syslib/socket.h"
-
-#include <memory>
-#include <string>
+#include "../cpp_compiler_define.h"
 #include <vector>
 
 namespace Util {
 class NioObjectManager;
-class NioObject : public std::enable_shared_from_this<NioObject> {
+class NioObject {
 friend class NioObjectManager;
 public:
 	NioObject(FD_t fd, int domain, int socktype, int protocol);
@@ -35,10 +33,14 @@ public:
 
 	time_t createTime(void) { return m_createTime; }
 	time_t lastActiveTime(void) { return m_lastActiveTime; }
+	void updateLastActiveTime(void);
+
+	int onRead(void);
+	virtual int onWrite(void) { return 0; }
+	virtual void onRemove(void) {}
 
 	void invalid(void) { m_valid = false; }
 
-	void shutdownDirect(void);
 	void shutdownWaitAck(void);
 
 	void timeoutSecond(int sec) { m_timeoutSecond = sec; }
@@ -55,12 +57,6 @@ private:
 	NioObject& operator=(const NioObject& o) { return *this; }
 
 	virtual int recv(void) { return 0; }
-
-	int onRead(void);
-	virtual int onWrite(void) { return 0; }
-	virtual void onRemove(void) {}
-
-	time_t updateLastActiveTime(void);
 
 protected:
 	virtual int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) = 0; //{ return len > 0x7fffffff ? 0x7fffffff : (int)len; }

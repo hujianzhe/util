@@ -24,6 +24,7 @@ private:
 	void(*m_deleter)(list_node_t*);
 	Mutex_t m_mutex;
 	std::map<long long, list_t> m_tasks;//timestamp
+	typedef std::map<long long, list_t>::iterator task_iter;
 };
 }
 

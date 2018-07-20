@@ -32,9 +32,8 @@ NioObject::~NioObject(void) {
 	free(m_writeOl);
 }
 
-time_t NioObject::updateLastActiveTime(void) {
+void NioObject::updateLastActiveTime(void) {
 	m_lastActiveTime = gmt_second();
-	return m_lastActiveTime;
 }
 
 bool NioObject::reactorInit(Reactor_t* reactor) {
@@ -70,21 +69,17 @@ bool NioObject::reactorWrite(void) {
 	return false;
 }
 
-void NioObject::shutdownDirect(void) {
+void NioObject::shutdownWaitAck(void) {
 	if (!_xchg8(&m_shutdown, 0)) {
 		return;
 	}
-	m_valid = false;
-	onRemove();
-}
-void NioObject::shutdownWaitAck(void) {
 	if (!m_isListen) {
 		if (SOCK_STREAM == m_socktype) {
 			sock_Shutdown(m_fd, SHUT_WR);
-			reactorRead();
+			//reactorRead();
 		}
 	}
-	shutdownDirect();
+	m_valid = false;
 }
 
 bool NioObject::checkTimeout(void) {
