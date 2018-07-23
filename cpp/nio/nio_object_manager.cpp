@@ -67,7 +67,7 @@ int NioObjectManager::expire(NioObject* buf[], int n) {
 		}
 		object->invalid();
 		if (i < n) {
-			iter = m_objects.erase(iter);
+			m_objects.erase(iter++);
 			buf[i++] = object;
 		}
 		else {

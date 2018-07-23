@@ -4,6 +4,7 @@
 
 #include "../../c/syslib/error.h"
 #include "tcp_nio_object.h"
+#include <stdlib.h>
 #include <string.h>
 #include <exception>
 #include <stdexcept>

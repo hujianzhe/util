@@ -5,6 +5,7 @@
 #include "../../c/syslib/error.h"
 #include "../../c/syslib/time.h"
 #include "nio_object.h"
+#include <stdlib.h>
 
 namespace Util {
 NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol) :

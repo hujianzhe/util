@@ -4,6 +4,7 @@
 
 #include "../string_util.h"
 #include "http_frame.h"
+#include <stdio.h>
 #include <sstream>
 #include <vector>
 

@@ -19,7 +19,7 @@ std::string join(const char c, const std::list<std::string>& str) {
 		res += c;
 	}
 	if (!res.empty()) {
-		res.pop_back();
+		res = res.substr(0, res.size() - 1);
 	}
 	return res;
 }
@@ -30,7 +30,7 @@ std::string join(const char c, const std::string str[], size_t cnt) {
 		res += c;
 	}
 	if (!res.empty()) {
-		res.pop_back();
+		res = res.substr(0, res.size() - 1);
 	}
 	return res;
 }

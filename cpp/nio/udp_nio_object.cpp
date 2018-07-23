@@ -2,6 +2,7 @@
 // Created by hujianzhe on 16-11-11.
 //
 
+#include "../../c/syslib/alloca.h"
 #include "../../c/syslib/error.h"
 #include "udp_nio_object.h"
 

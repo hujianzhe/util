@@ -5,6 +5,8 @@
 #ifndef UTIL_CPP_PROTOCOL_PACKET_WORKER_H
 #define	UTIL_CPP_PROTOCOL_PACKET_WORKER_H
 
+#include <stddef.h>
+
 struct sockaddr_storage;
 
 namespace Util {
