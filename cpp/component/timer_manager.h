@@ -9,7 +9,14 @@
 #include "../../c/syslib/ipc.h"
 #include <map>
 
+
 namespace Util {
+typedef struct TimerEvent {
+	list_node_t m_listnode;
+	void* arg;
+	long long(*callback)(void*);
+} TimerEvent;
+
 class TimerManager {
 public:
 	TimerManager(void(*deleter)(list_node_t*) = NULL);
