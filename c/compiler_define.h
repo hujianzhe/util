@@ -29,6 +29,7 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#pragma warning(disable:4267)
 	#pragma warning(disable:4800)
 	#pragma warning(disable:4819)
+	#pragma warning(disable:4996)
 
 	#define	embed_asm(exp)						__asm {exp}
 	#define	__declspec_align(alignment)			__declspec(align(alignment))
