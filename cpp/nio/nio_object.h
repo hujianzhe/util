@@ -76,7 +76,6 @@ protected:
 
 private:
 	Atom8_t m_readCommit;
-	Atom8_t m_shutdown;
 	//
 	time_t m_createTime;
 	time_t m_lastActiveTime;

@@ -20,7 +20,6 @@ NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol) :
 	m_isListen(false),
 	m_userdata(NULL),
 	m_readCommit(FALSE),
-	m_shutdown(1),
 	m_createTime(gmt_second()),
 	m_lastActiveTime(0),
 	m_timeoutSecond(INFTIM)
@@ -71,9 +70,6 @@ bool NioObject::reactorWrite(void) {
 }
 
 void NioObject::shutdownWaitAck(void) {
-	if (!_xchg8(&m_shutdown, 0)) {
-		return;
-	}
 	if (!m_isListen) {
 		if (SOCK_STREAM == m_socktype) {
 			sock_Shutdown(m_fd, SHUT_WR);
