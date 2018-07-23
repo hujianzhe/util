@@ -10,14 +10,13 @@ typedef struct hashtable_node_t {
 	struct hashtable_t* table;
 	struct hashtable_node_t *prev, *next;
 	unsigned int bucket_index;
-	void *key;
 } hashtable_node_t;
 
 typedef struct hashtable_t {
 	struct hashtable_node_t** buckets;
 	unsigned int buckets_size;
-	int (*keycmp)(void*, void*);
-	unsigned int (*keyhash)(void*);
+	int (*keycmp)(struct hashtable_node_t*, void*);
+	unsigned int (*keyhash)(struct hashtable_node_t*);
 } hashtable_t;
 
 #ifdef	__cplusplus
@@ -26,9 +25,10 @@ extern "C" {
 
 struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 		struct hashtable_node_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(void*,void*), unsigned int (*keyhash)(void*));
+		int (*keycmp)(struct hashtable_node_t*, void*),
+		unsigned int (*keyhash)(struct hashtable_node_t*));
 
-struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node);
+struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, void* key);
 void hashtable_replace_node(struct hashtable_node_t* old_node, struct hashtable_node_t* new_node);
 void hashtable_remove_node(struct hashtable_t* hashtable, struct hashtable_node_t* node);
 

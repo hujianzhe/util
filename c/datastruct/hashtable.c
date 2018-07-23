@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 
-struct hashtable_node_t** __get_bucket_list_head(struct hashtable_t* hashtable, void* key) {
-	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
+struct hashtable_node_t** __get_bucket_list_head(struct hashtable_t* hashtable, hashtable_node_t* node) {
+	unsigned int bucket_index = hashtable->keyhash(node) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
 }
 
@@ -17,7 +17,7 @@ struct hashtable_node_t* __get_node(struct hashtable_node_t** bucket_list_head, 
 	if (*bucket_list_head) {
 		struct hashtable_node_t* node;
 		for (node = *bucket_list_head; node; node = node->next) {
-			if (node->table->keycmp(node->key, key)) {
+			if (node->table->keycmp(node, key)) {
 				continue;
 			}
 			return node;
@@ -28,7 +28,8 @@ struct hashtable_node_t* __get_node(struct hashtable_node_t** bucket_list_head, 
 
 struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 		struct hashtable_node_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(void*, void*), unsigned int (*keyhash)(void*))
+		int (*keycmp)(struct hashtable_node_t*, void*),
+		unsigned int (*keyhash)(struct hashtable_node_t*))
 {
 	unsigned int i;
 	for (i = 0; i < buckets_size; ++i) {
@@ -41,9 +42,9 @@ struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 	return hashtable;
 }
 
-struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node) {
-	struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(hashtable, node->key);
-	struct hashtable_node_t* exist_node = __get_node(bucket_list_head, node->key);
+struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node, void* key) {
+	struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(hashtable, node);
+	struct hashtable_node_t* exist_node = __get_node(bucket_list_head, key);
 	if (exist_node) {
 		return exist_node;
 	}
@@ -60,19 +61,17 @@ struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, st
 
 void hashtable_replace_node(struct hashtable_node_t* old_node, struct hashtable_node_t* new_node) {
 	if (old_node && old_node != new_node) {
-		void* new_key = new_node->key;
 		if (old_node->prev) {
 			old_node->prev->next = new_node;
 		}
 		else {
-			struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(old_node->table, old_node->key);
+			struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(old_node->table, old_node);
 			*bucket_list_head = new_node;
 		}
 		if (old_node->next) {
 			old_node->next->prev = new_node;
 		}
 		*new_node = *old_node;
-		new_node->key = new_key;
 	}
 }
 
