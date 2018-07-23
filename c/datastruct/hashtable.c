@@ -66,7 +66,7 @@ void hashtable_replace_node(struct hashtable_node_t* old_node, struct hashtable_
 			old_node->prev->next = new_node;
 		}
 		else {
-			struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(old_node->table, old_node);
+			struct hashtable_node_t** bucket_list_head = __get_bucket_list_head(old_node->table, old_node->key);
 			*bucket_list_head = new_node;
 		}
 		if (old_node->next) {
