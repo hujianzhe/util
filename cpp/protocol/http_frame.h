@@ -40,8 +40,8 @@ public:
 	int statusCode(void) const { return m_statusCode; }
 	const char* statusDescription(void) const { return statusDesc(m_statusCode); }
 
-	std::map<std::string, std::string> headers(void) const { return m_headers; }
-	std::string getHeader(const std::string& key) const;
+	const std::map<std::string, std::string>& headers(void) const { return m_headers; }
+	const std::string& getHeader(const std::string& key) const;
 	void setHeader(const std::string& key, const std::string& value);
 	void setContentLengthHeader(size_t len);
 	void setAccessControlAllowOriginHeader(const std::string& origin = "*");

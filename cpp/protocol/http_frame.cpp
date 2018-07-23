@@ -195,9 +195,10 @@ HttpFrame::HttpFrame(size_t frame_length_limit, int status_code) :
 	memset(m_method, 0, sizeof(m_method));
 }
 
-std::string HttpFrame::getHeader(const std::string& key) const {
+const std::string& HttpFrame::getHeader(const std::string& key) const {
+	static const std::string null_string;
 	header_const_iter it = m_headers.find(key);
-	return it != m_headers.end() ? it->second : std::string();
+	return it != m_headers.end() ? it->second : null_string;
 }
 void HttpFrame::setHeader(const std::string& key, const std::string& value) {
 	if (key.empty() || value.empty()) {
