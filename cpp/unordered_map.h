@@ -10,8 +10,9 @@
 #include <unordered_map>
 #else
 #include "../c/datastruct/hashtable.h"
-#include <utility>
 #include <stddef.h>
+#include <utility>
+#include <string>
 namespace std {
 template <typename K, typename V>
 class unordered_map {
@@ -44,10 +45,10 @@ public:
 			return !operator==(i);
 		}
 
-		pair<K, V>* operator->(void) const {
+		value_type* operator->(void) const {
 			return &((Xnode*)x)->v;
 		}
-		pair<K, V>& operator*(void) const {
+		value_type& operator*(void) const {
 			return ((Xnode*)x)->v;
 		}
 		iterator& operator++(void) {
@@ -66,11 +67,24 @@ public:
 
 private:
 	static int keycmp(hashtable_node_t* _n, void* key) {
-		return ((Xnode*)_n)->v.first != *(K*)key;
+		return ((Xnode*)_n)->v.first != *(key_type*)key;
 	}
 
+	static unsigned int __key_hash(const std::string& s) {
+		const char* str = s.empty() ? "" : s.c_str();
+		/* BKDR hash */
+		unsigned int seed = 131;
+		unsigned int hash = 0;
+		while (*str) {
+			hash = hash * seed + (*str++);
+		}
+		return hash & 0x7fffffff;
+	}
+	static unsigned int __key_hash(size_t n) { return n; }
+	static unsigned int __key_hash(const void* p) { return (unsigned int)(size_t)p; }
+
 	static unsigned int keyhash(void* key) {
-		return (unsigned int)(size_t)(*(K*)key);
+		return __key_hash(*(key_type*)key);
 	}
 
 public:
