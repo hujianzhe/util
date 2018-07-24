@@ -33,25 +33,33 @@ public:
 	public:
 		iterator(hashtable_node_t* p = NULL) : x(p) {}
 		iterator(const iterator& i) : x(i.x) {}
-		iterator& opeartor=(const iterator& i) {
+		iterator& operator=(const iterator& i) {
 			x = i.x;
 			return *this;
 		}
 
-		std::pair<const K&, V&>* operator->(void) const {
+		bool operator==(const iterator& i) const {
+			return i.x == x;
+		}
+
+		bool operator!=(const iterator& i) const {
+			return !operator==(i);
+		}
+
+		pair<const K&, V&>* operator->(void) const {
 			return &((Xnode*)x)->iter;
 		}
-		std::pair<const K&, V&>& operator*(void) const {
+		pair<const K&, V&>& operator*(void) const {
 			return ((Xnode*)x)->iter;
 		}
-		iterator opeartor++(int unused) const {
-			iterator it = *this;
-			this->x = hashtable_next_node(x);
-			return it;
-		}
-		iterator& opeartor++(void) const {
-			this->x = hashtable_next_node(x);
+		iterator& operator++(void) {
+			x = hashtable_next_node(x);
 			return *this;
+		}
+		iterator operator++(int unused) {
+			iterator it = *this;
+			x = hashtable_next_node(x);
+			return it;
 		}
 
 	private:
@@ -60,7 +68,7 @@ public:
 
 private:
 	static int keycmp(hashtable_node_t* _n, void* key) {
-		return !(((value_type*)_n)->k == *(K*)key);
+		return ((Xnode*)_n)->v.first != *(K*)key;
 	}
 
 	static unsigned int keyhash(void* key) {
@@ -71,7 +79,7 @@ public:
 	unordered_map(void) :
 		m_size(0)
 	{
-		hashtable_init(&m_table, buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
+		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 	}
 
 	~unordered_map(void) { clear(); }
@@ -82,7 +90,7 @@ public:
 			next = hashtable_next_node(cur);
 			delete ((Xnode*)cur);
 		}
-		hashtable_init(&m_table, buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
+		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 		m_size = 0;
 	}
 
@@ -95,8 +103,51 @@ public:
 			return ((Xnode*)n)->v.second;
 		}
 		Xnode* node = new Xnode();
+		node->v.first = k;
 		hashtable_insert_node(&m_table, node);
+		++m_size;
 		return node->v.second;
+	}
+	
+	void erase(iterator iter) {
+		--m_size;
+		hashtable_remove_node(&m_table, iter.x);
+		delete (Xnode*)(iter.x);
+	}
+
+	size_t erase(const key_type& k) {
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		if (node) {
+			hashtable_remove_node(&m_table, node);
+			delete (Xnode*)node;
+			--m_size;
+			return 1;
+		}
+		return 0;
+	}
+
+	iterator find(const key_type& k) {
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		return iterator(node);
+	}
+
+	pair<iterator, bool> insert(const value_type& vt) {
+		hashtable_node_t* n = hashtable_search_key(&m_table, &vt.first);
+		if (n) {
+			return pair<iterator, bool>(iterator(n), false);
+		}
+		Xnode* node = new Xnode();
+		node->v.first = vt.first;
+		hashtable_insert_node(&m_table, node);
+		++m_size;
+		return pair<iterator, bool>(iterator(node), true);
+	}
+
+	iterator begin(void) {
+		return iterator(hashtable_first_node(&m_table));
+	}
+	iterator end(void) {
+		return iterator();
 	}
 
 private:
