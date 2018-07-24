@@ -20,16 +20,14 @@ public:
 	typedef pair<K, V>	value_type;
 	typedef struct Xnode : public hashtable_node_t {
 		value_type v;
-		std::pair<const K&, V&> iter;
 
 		Xnode(void) {
-			key = &v.k;
-			iter.first = v.first;
-			iter.second = v.second;
+			key = (void*)&v.first;
 		}
 	} Xnode;
 
 	class iterator {
+	friend class unordered_map;
 	public:
 		iterator(hashtable_node_t* p = NULL) : x(p) {}
 		iterator(const iterator& i) : x(i.x) {}
@@ -46,11 +44,11 @@ public:
 			return !operator==(i);
 		}
 
-		pair<const K&, V&>* operator->(void) const {
-			return &((Xnode*)x)->iter;
+		pair<K, V>* operator->(void) const {
+			return &((Xnode*)x)->v;
 		}
-		pair<const K&, V&>& operator*(void) const {
-			return ((Xnode*)x)->iter;
+		pair<K, V>& operator*(void) const {
+			return ((Xnode*)x)->v;
 		}
 		iterator& operator++(void) {
 			x = hashtable_next_node(x);
@@ -97,16 +95,16 @@ public:
 	size_t size(void) const { return m_size; };
 	bool empty(void) const { return hashtable_first_node(&m_table) == NULL; }
 
-	V& operator[](const K& k) {
-		hashtable_node_t* n = hashtable_search_key(&m_table, &k);
+	V& operator[](const key_type& k) {
+		hashtable_node_t* n = hashtable_search_key(&m_table, (void*)&k);
 		if (n) {
 			return ((Xnode*)n)->v.second;
 		}
-		Xnode* node = new Xnode();
-		node->v.first = k;
-		hashtable_insert_node(&m_table, node);
+		Xnode* xnode = new Xnode();
+		xnode->v.first = k;
+		hashtable_insert_node(&m_table, xnode);
 		++m_size;
-		return node->v.second;
+		return xnode->v.second;
 	}
 	
 	void erase(iterator iter) {
@@ -132,15 +130,15 @@ public:
 	}
 
 	pair<iterator, bool> insert(const value_type& vt) {
-		hashtable_node_t* n = hashtable_search_key(&m_table, &vt.first);
+		hashtable_node_t* n = hashtable_search_key(&m_table, (void*)&vt.first);
 		if (n) {
 			return pair<iterator, bool>(iterator(n), false);
 		}
-		Xnode* node = new Xnode();
-		node->v.first = vt.first;
-		hashtable_insert_node(&m_table, node);
+		Xnode* xnode = new Xnode();
+		xnode->v.first = vt.first;
+		hashtable_insert_node(&m_table, xnode);
 		++m_size;
-		return pair<iterator, bool>(iterator(node), true);
+		return pair<iterator, bool>(iterator(xnode), true);
 	}
 
 	iterator begin(void) {
