@@ -34,13 +34,7 @@
 	typedef SOCKET					FD_t;
 	#define INVALID_FD_HANDLE       ((SOCKET)INVALID_HANDLE_VALUE)
 	#define	INFTIM					-1
-	#ifdef	_WIN64
-		/* long long*/
-		typedef	__int64				ssize_t;
-	#else
-		/* long */
-		typedef	int					ssize_t;
-	#endif
+	typedef	SSIZE_T					ssize_t;
 #else
 	#ifndef _REENTRANT
 		#define	_REENTRANT
