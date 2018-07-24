@@ -93,7 +93,7 @@ public:
 	}
 
 	size_t size(void) const { return m_size; };
-	bool empty(void) const { return hashtable_first_node(&m_table) == NULL; }
+	bool empty(void) const { return hashtable_first_node((hashtable_t*)&m_table) == NULL; }
 
 	V& operator[](const key_type& k) {
 		hashtable_node_t* n = hashtable_search_key(&m_table, (void*)&k);
