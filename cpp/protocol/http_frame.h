@@ -5,10 +5,9 @@
 #ifndef	UTIL_CPP_PROTOCOL_HTTP_FRAME_H
 #define	UTIL_CPP_PROTOCOL_HTTP_FRAME_H
 
+#include "../unordered_map.h"
 #include <stddef.h>
 #include <string>
-#include "../cpp_compiler_define.h"
-#include <map>
 
 namespace Util {
 class HttpFrame {
@@ -22,7 +21,7 @@ public:
 	};
 	static const char* statusDesc(int status_code);
 	static std::string uriQuery(const std::string& uri);
-	static void parseQuery(const std::string& qs, std::map<std::string, std::string>& kv);
+	static void parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv);
 
 	HttpFrame(size_t frame_length_limit);
 	HttpFrame(size_t frame_length_limit, const char* method, const char* uri);
@@ -40,7 +39,7 @@ public:
 	int statusCode(void) const { return m_statusCode; }
 	const char* statusDescription(void) const { return statusDesc(m_statusCode); }
 
-	const std::map<std::string, std::string>& headers(void) const { return m_headers; }
+	const std::unordered_map<std::string, std::string>& headers(void) const { return m_headers; }
 	const std::string& getHeader(const std::string& key) const;
 	void setHeader(const std::string& key, const std::string& value);
 	void setContentLengthHeader(size_t len);
@@ -61,9 +60,9 @@ private:
 	char m_method[8];
 	std::string m_uri;
 	int m_statusCode;
-	std::map<std::string, std::string> m_headers;
-	typedef std::map<std::string, std::string>::iterator header_iter;
-	typedef std::map<std::string, std::string>::const_iterator header_const_iter;
+	std::unordered_map<std::string, std::string> m_headers;
+	typedef std::unordered_map<std::string, std::string>::iterator header_iter;
+	typedef std::unordered_map<std::string, std::string>::const_iterator header_const_iter;
 };
 }
 

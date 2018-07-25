@@ -8,6 +8,7 @@
 #include "../../c/datastruct/list.h"
 #include "../../c/syslib/ipc.h"
 #include "nio_object.h"
+#include "../cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <functional>
 #endif

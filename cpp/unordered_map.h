@@ -64,6 +64,7 @@ public:
 	private:
 		hashtable_node_t* x;
 	};
+	typedef iterator	const_iterator;
 
 private:
 	static int keycmp(hashtable_node_t* _n, void* key) {

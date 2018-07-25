@@ -7,11 +7,7 @@
 
 #include "../../c/syslib/ipc.h"
 #include "../cpp_compiler_define.h"
-#if __CPP_VERSION >= 2011
-#include <unordered_map>
-#else
-#include <map>
-#endif
+#include "../unordered_map.h"
 #include <vector>
 
 namespace Util {
@@ -35,13 +31,8 @@ private:
 private:
 	//
 	RWLock_t m_lock;
-#if __CPP_VERSION >= 2011
 	std::unordered_map<FD_t, NioObject*> m_objects;
 	typedef std::unordered_map<FD_t, NioObject*>::iterator object_iter;
-#else
-	std::map<FD_t, NioObject*> m_objects;
-	typedef std::map<FD_t, NioObject*>::iterator object_iter;
-#endif
 };
 }
 

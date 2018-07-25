@@ -8,12 +8,8 @@
 #include "../../c/syslib/ipc.h"
 #include "../../c/component/db.h"
 #include "../cpp_compiler_define.h"
+#include "../unordered_set.h"
 #include <string>
-#if __CPP_VERSION >= 2011
-#include <unordered_set>
-#else
-#include <set>
-#endif
 
 namespace Util {
 class DatabaseConnectPool {
@@ -47,13 +43,8 @@ private:
 	const std::string m_database;
 
 	CSLock_t m_lock;
-#if __CPP_VERSION >= 2011
 	std::unordered_set<DBHandle_t*> m_dbhandles;
 	typedef std::unordered_set<DBHandle_t*>::iterator handle_iter;
-#else
-	std::set<DBHandle_t*> m_dbhandles;
-	typedef std::set<DBHandle_t*>::iterator handle_iter;
-#endif
 };
 }
 

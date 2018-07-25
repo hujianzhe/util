@@ -130,7 +130,7 @@ std::string HttpFrame::uriQuery(const std::string& uri) {
 	}
 	return uri.substr(pos + 1);
 }
-void HttpFrame::parseQuery(const std::string& qs, std::map<std::string, std::string>& kv) {
+void HttpFrame::parseQuery(const std::string& qs, std::unordered_map<std::string, std::string>& kv) {
 	if (qs.empty()) {
 		return;
 	}
