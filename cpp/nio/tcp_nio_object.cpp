@@ -12,7 +12,7 @@
 namespace Util {
 TcpNioObject::TcpNioObject(FD_t fd, int domain) :
 	NioObject(fd, domain, SOCK_STREAM, 0),
-	m_connectCallbackFunctor(NULL),
+	m_connectcallback(NULL),
 	m_connecting(false),
 	m_writeCommit(false)
 {
@@ -25,66 +25,22 @@ TcpNioObject::~TcpNioObject(void) {
 	mutex_Close(&m_outbufMutex);
 }
 
-#if __CPP_VERSION >= 2011
-bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, const std::function<bool(TcpNioObject*, bool)>& cb) {
+bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, bool)) {
 	struct sockaddr_storage saddr;
 	if (!sock_Text2Addr(&saddr, family, ip, port)) {
 		return false;
 	}
-	return reactorConnect(&saddr, cb);
+	return reactorConnect(&saddr, callback);
 }
-bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, const std::function<bool(TcpNioObject*, bool)>& cb) {
+bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, bool)) {
 	m_connecting = true;
-	m_connectCallback = cb;
+	m_connectcallback = callback;
 	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
 	}
 	m_connecting = false;
 	m_valid = false;
 	return false;
-}
-#endif
-bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, ConnectFunctor* cb) {
-	struct sockaddr_storage saddr;
-	if (!sock_Text2Addr(&saddr, family, ip, port)) {
-		return false;
-	}
-	return reactorConnect(&saddr, cb);
-}
-bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, ConnectFunctor* cb) {
-	m_connecting = true;
-	m_connectCallbackFunctor = cb;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
-		return true;
-	}
-	m_connecting = false;
-	m_valid = false;
-	return false;
-}
-
-bool TcpNioObject::onConnect(void) {
-	bool ok = false;
-	bool connect_ok = reactor_ConnectCheckSuccess(m_fd);
-	try {
-#if __CPP_VERSION >= 2011
-		if (m_connectCallback) {
-			ok = m_connectCallback(this, connect_ok);
-			m_connectCallback = nullptr;//std::function<bool(NioObject*, bool)>();
-		}
-		else if (m_connectCallbackFunctor) {
-#else
-		if (m_connectCallbackFunctor) {
-#endif
-			ok = (*m_connectCallbackFunctor)(this, connect_ok);
-			delete m_connectCallbackFunctor;
-			m_connectCallbackFunctor = NULL;
-		}
-		else {
-			ok = connect_ok;
-		}
-	}
-	catch (...) {}
-	return ok;
 }
 
 int TcpNioObject::inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr) {
@@ -206,7 +162,13 @@ int TcpNioObject::onWrite(void) {
 	int count = 0;
 	if (m_connecting) {
 		m_connecting = false;
-		if (!onConnect()) {
+		bool ok = false;
+		try {
+			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(m_fd));
+		}
+		catch (...) {}
+		m_connectcallback = NULL;
+		if (!ok) {
 			m_valid = false;
 			return -1;
 		}
