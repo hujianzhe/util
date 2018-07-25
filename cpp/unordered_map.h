@@ -150,7 +150,7 @@ public:
 			return pair<iterator, bool>(iterator(n), false);
 		}
 		Xnode* xnode = new Xnode();
-		xnode->v.first = vt.first;
+		xnode->v = vt;
 		hashtable_insert_node(&m_table, xnode);
 		++m_size;
 		return pair<iterator, bool>(iterator(xnode), true);
