@@ -12,9 +12,11 @@
 
 namespace Util {
 typedef struct TimerEvent {
+	typedef long long(*Entry)(void*);
+
 	list_node_t m_listnode;
 	void* arg;
-	long long(*callback)(void*);
+	Entry callback;
 } TimerEvent;
 
 class TimerManager {
