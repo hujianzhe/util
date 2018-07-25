@@ -129,7 +129,7 @@ public:
 	}
 
 	size_t erase(const key_type& k) {
-		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		hashtable_node_t* node = hashtable_search_key(&m_table, (void*)&k);
 		if (node) {
 			hashtable_remove_node(&m_table, node);
 			delete (Xnode*)node;
@@ -139,8 +139,8 @@ public:
 		return 0;
 	}
 
-	iterator find(const key_type& k) {
-		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+	iterator find(const key_type& k) const {
+		hashtable_node_t* node = hashtable_search_key((hashtable_t*)&m_table, (void*)&k);
 		return iterator(node);
 	}
 
@@ -156,10 +156,10 @@ public:
 		return pair<iterator, bool>(iterator(xnode), true);
 	}
 
-	iterator begin(void) {
-		return iterator(hashtable_first_node(&m_table));
+	iterator begin(void) const {
+		return iterator(hashtable_first_node((hashtable_t*)&m_table));
 	}
-	iterator end(void) {
+	iterator end(void) const {
 		return iterator();
 	}
 
