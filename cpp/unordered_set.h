@@ -19,17 +19,17 @@ public:
 	typedef	K			key_type;	
 	typedef	K			value_type;
 	typedef struct Xnode : public hashtable_node_t {
-		value_type v;
+		key_type k;
 
 		Xnode(void) {
-			key = (void*)&v;
+			key = (void*)&k;
 		}
 	} Xnode;
 
 	class iterator {
 	friend class unordered_set;
 	public:
-		iterator(hashtable_node_t* p) : x(p) {}
+		iterator(hashtable_node_t* p = NULL) : x(p) {}
 		iterator(const iterator& i) : x(i.x) {}
 		iterator& operator=(const iterator& i) {
 			x = i.x;
@@ -44,8 +44,8 @@ public:
 			return !operator==(i);
 		}
 
-		value_type& operator*(void) {
-			return ((Xnode*)x)->v;
+		key_type& operator*(void) {
+			return ((Xnode*)x)->k;
 		}
 
 		iterator& operator++(void) {
@@ -64,7 +64,7 @@ public:
 
 private:
 	static int keycmp(hashtable_node_t* _n, void* key) {
-		return ((Xnode*)_n)->v != *(key_type*)key;
+		return ((Xnode*)_n)->k != *(key_type*)key;
 	}
 
 	static unsigned int __key_hash(const std::string& s) {
@@ -105,6 +105,47 @@ public:
 
 	size_t size(void) const { return m_size; };
 	bool empty(void) const { return hashtable_first_node((hashtable_t*)&m_table) == NULL; }
+
+	void erase(iterator iter) {
+		--m_size;
+		hashtable_remove_node(&m_table, iter.x);
+		delete (Xnode*)(iter.x);
+	}
+
+	size_t erase(const key_type& k) {
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		if (node) {
+			hashtable_remove_node(&m_table, node);
+			delete (Xnode*)node;
+			--m_size;
+			return 1;
+		}
+		return 0;
+	}
+
+	iterator find(const key_type& k) {
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		return iterator(node);
+	}
+
+	pair<iterator, bool> insert(const key_type& k) {
+		hashtable_node_t* n = hashtable_search_key(&m_table, (void*)&k);
+		if (n) {
+			return pair<iterator, bool>(iterator(n), false);
+		}
+		Xnode* xnode = new Xnode();
+		xnode->k = k;
+		hashtable_insert_node(&m_table, xnode);
+		++m_size;
+		return pair<iterator, bool>(iterator(xnode), true);
+	}
+
+	iterator begin(void) {
+		return iterator(hashtable_first_node(&m_table));
+	}
+	iterator end(void) {
+		return iterator();
+	}
 
 private:
 	hashtable_t m_table;
