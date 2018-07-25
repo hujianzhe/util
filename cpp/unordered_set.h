@@ -92,7 +92,9 @@ public:
 		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 	}
 
-	unordered_set(const unordered_set<K>& m) {
+	unordered_set(const unordered_set<K>& m) :
+		m_size(0)
+	{
 		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
 			Xnode* xnode = new Xnode();
