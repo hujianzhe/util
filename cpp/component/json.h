@@ -20,7 +20,7 @@ public:
 	char* serialize(bool format = false) {
 		char* s = format ? cJSON_PrintFormatted(this) : cJSON_Print(this);
 		if (!s) {
-			return "";
+			return (char*)"";
 		}
 		cJSON_FreeString(text);
 		text = s;
