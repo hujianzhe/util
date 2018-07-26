@@ -20,6 +20,9 @@ case "$EXT" in
 	"tar.bz2")
 		tar -jxvf $FILENAME
 		;;
+	"tar.xz")
+		tar -Jxvf $FILENAME
+		;;
 	"tar.Z")
 		tar -Zxvf $FILENAME
 		;;
