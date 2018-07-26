@@ -11,6 +11,9 @@ case "$EXT" in
 	"tar")
 		tar -xvf $FILENAME
 		;;
+	"tgz")
+		tar -zxvf $FILENAME
+		;;
 	"tar.gz")
 		tar -zxvf $FILENAME
 		;;
