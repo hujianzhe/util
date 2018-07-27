@@ -16,7 +16,7 @@ private:
 	void* __p;
 } nullptr_t;
 }
-extern std::nullptr_t nullptr;
+#define	nullptr		(std::nullptr_t())
 #endif
 
 #endif
