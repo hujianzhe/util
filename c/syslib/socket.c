@@ -455,8 +455,8 @@ BOOL IPstringIsLoopBack(const char* ip) {
 
 BOOL IPstringIsInner(const char* ip) {
 	/*
-	* A 10.0.0.0		--	10.255.255.255
-	* B 172.16.0.0		--	172.31.255.255
+	* A 10.0.0.0	--	10.255.255.255
+	* B 172.16.0.0	--	172.31.255.255
 	* C 192.168.0.0	--	192.168.255.255
 	*/
 	unsigned int addr = inet_addr(ip);
