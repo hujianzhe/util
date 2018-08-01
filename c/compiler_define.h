@@ -47,6 +47,11 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#else
 		#undef	_DEBUG	/* same as VC */
 	#endif
+	#ifndef	__linux__
+		#define	__forceinline						inline __attribute__((always_inline))
+	#else
+		#define	__forceinline
+	#endif
 
 	#define	embed_asm(exp)						asm __volatile__(exp)
 	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
@@ -57,6 +62,7 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_const_seg(name)			__attribute__((section(name)))
 
 #else
+	#define	__forceinline
 	#error "Unknown Compiler"
 #endif
 
