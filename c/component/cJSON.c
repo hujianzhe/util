@@ -54,13 +54,9 @@ static void (*cJSON_free)(void *ptr) = free;
 
 static char* cJSON_strdup(const char* str)
 {
-      size_t len;
-      char* copy;
-
-      len = strlen(str) + 1;
-      if (!(copy = (char*)cJSON_malloc(len))) return 0;
-      memcpy(copy,str,len);
-      return copy;
+	size_t len = strlen(str) + 1;
+	char* copy = (char*)cJSON_malloc(len);
+	return copy ? strcpy(copy, str, len) : NULL;
 }
 
 void cJSON_SetHooks(cJSON_Hooks* hooks)
