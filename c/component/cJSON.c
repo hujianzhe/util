@@ -42,13 +42,6 @@ extern "C"
 {
 #endif
 
-static int cJSON_strcasecmp(const char *s1,const char *s2)
-{
-	if (!s1) return (s1==s2)?0:1;if (!s2) return 1;
-	for(; tolower(*s1) == tolower(*s2); ++s1, ++s2)	if(*s1 == 0)	return 0;
-	return tolower(*(const unsigned char *)s1) - tolower(*(const unsigned char *)s2);
-}
-
 static void *(*cJSON_malloc)(size_t sz) = malloc;
 static void (*cJSON_free)(void *ptr) = free;
 
@@ -94,10 +87,7 @@ static cJSON *cJSON_New_Item(void)
 }
 
 /* Delete a cJSON text */
-void cJSON_FreeString(char* s) {
-	cJSON_Hooks hk;
-	cJSON_GetHooks(&hk)->free_fn(s);
-}
+void cJSON_FreeString(char* s) { cJSON_free(s); }
 
 /* Delete a cJSON structure. */
 void cJSON_Delete(cJSON *c)
