@@ -56,7 +56,7 @@ static char* cJSON_strdup(const char* str)
 {
 	size_t len = strlen(str) + 1;
 	char* copy = (char*)cJSON_malloc(len);
-	return copy ? strcpy(copy, str, len) : NULL;
+	return copy ? strcpy(copy, str) : NULL;
 }
 
 void cJSON_SetHooks(cJSON_Hooks* hooks)
