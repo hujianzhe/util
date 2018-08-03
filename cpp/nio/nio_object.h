@@ -36,7 +36,6 @@ public:
 
 	int onRead(void);
 	virtual int onWrite(void) { return 0; }
-	virtual void onRemove(void) {}
 
 	void invalid(void) { m_valid = false; }
 
