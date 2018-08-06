@@ -19,9 +19,6 @@ public:
 	NioObject(FD_t fd, int domain, int socktype, int protocol, bool islisten);
 	virtual ~NioObject(void);
 
-	void userdata(void* userdata) { m_userdata = userdata; }
-	void* userdata(void) const { return m_userdata; }
-
 	FD_t fd(void) const { return m_fd; }
 	int domain(void) const { return m_domain; }
 	int socktype(void) const { return m_socktype; }
@@ -71,11 +68,14 @@ protected:
 	void* m_readOl;
 	void* m_writeOl;
 	Reactor_t* m_reactor;
-	void* m_userdata;
 	time_t m_lastActiveTime;
 	int m_timeoutSecond;
 private:
 	Atom8_t m_readCommit;
+
+public:
+	void* session;// user define session structure
+	void* closemsg;// user define message structrue
 };
 }
 

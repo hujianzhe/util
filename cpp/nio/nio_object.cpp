@@ -17,10 +17,11 @@ NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol, bool islis
 	m_readOl(NULL),
 	m_writeOl(NULL),
 	m_reactor(NULL),
-	m_userdata(NULL),
 	m_lastActiveTime(0),
 	m_timeoutSecond(INFTIM),
-	m_readCommit(FALSE)
+	m_readCommit(FALSE),
+	session(NULL),
+	closemsg(NULL)
 {
 }
 
