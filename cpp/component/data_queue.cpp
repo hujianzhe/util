@@ -35,6 +35,22 @@ void DataQueue::push(list_node_t* data) {
 	cslock_Leave(&m_cslock);
 }
 
+void DataQueue::push(list_t* list) {
+	if (!list->head || !list->tail) {
+		return;
+	}
+
+	cslock_Enter(&m_cslock);
+
+	bool is_empty = !m_datalist.head;
+	list_merge(&m_datalist, list);
+	if (is_empty) {
+		condition_WakeThread(&m_condition);
+	}
+
+	cslock_Leave(&m_cslock);
+}
+
 list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 	list_node_t* res = NULL;
 	if (0 == expect_cnt) {

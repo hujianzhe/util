@@ -16,6 +16,7 @@ public:
 	virtual ~DataQueue(void);
 
 	void push(list_node_t* data);
+	void push(list_t* list);
 	list_node_t* pop(int msec, size_t expect_cnt = ~0);
 	void clear(void);
 
