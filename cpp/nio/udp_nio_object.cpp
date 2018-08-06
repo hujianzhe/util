@@ -8,12 +8,12 @@
 
 namespace Util {
 UdpNioObject::UdpNioObject(FD_t sockfd, int domain, unsigned short frame_length_limit) :
-	NioObject(sockfd, domain, SOCK_DGRAM, 0),
+	NioObject(sockfd, domain, SOCK_DGRAM, 0, false),
 	m_frameLengthLimit(frame_length_limit)
 {
 }
 
-int UdpNioObject::recv(void) {
+int UdpNioObject::read(void) {
 	int res;
 	struct sockaddr_storage saddr;
 	while (1) {

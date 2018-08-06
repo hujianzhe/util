@@ -8,6 +8,7 @@
 #include "../../c/syslib/atomic.h"
 #include "../../c/syslib/io.h"
 #include "../../c/syslib/socket.h"
+#include "../../c/syslib/time.h"
 #include <vector>
 
 namespace Util {
@@ -15,7 +16,7 @@ class NioObjectManager;
 class NioObject {
 friend class NioObjectManager;
 public:
-	NioObject(FD_t fd, int domain, int socktype, int protocol);
+	NioObject(FD_t fd, int domain, int socktype, int protocol, bool islisten);
 	virtual ~NioObject(void);
 
 	void userdata(void* userdata) { m_userdata = userdata; }
@@ -30,10 +31,6 @@ public:
 	bool reactorInit(Reactor_t* reactor);
 	bool reactorRead(void);
 
-	time_t createTime(void) { return m_createTime; }
-	time_t lastActiveTime(void) { return m_lastActiveTime; }
-	void updateLastActiveTime(void);
-
 	int onRead(void);
 	virtual int onWrite(void) { return 0; }
 
@@ -42,8 +39,12 @@ public:
 	void shutdownWaitAck(void);
 
 	void timeoutSecond(int sec) { m_timeoutSecond = sec; }
-	bool checkTimeout(void);
-	bool checkValid(void);
+	bool checkTimeout(void) {
+		return m_timeoutSecond >= 0 && gmt_second() - m_timeoutSecond > m_lastActiveTime;
+	}
+	bool checkValid(void) {
+		return m_valid && !checkTimeout();
+	}
 
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) = 0;
 	int sendv(IoBuf_t iov, struct sockaddr_storage* saddr = NULL) { return sendv(&iov, 1, saddr); }
@@ -51,10 +52,10 @@ public:
 	int sendpacket(IoBuf_t iov, struct sockaddr_storage* saddr = NULL) { return sendpacket(&iov, 1, saddr); }
 
 private:
-	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_domain(AF_UNSPEC), m_socktype(-1), m_protocol(0) {}
+	NioObject(const NioObject& o) : m_fd(INVALID_FD_HANDLE), m_domain(AF_UNSPEC), m_socktype(-1), m_protocol(0), m_isListen(false) {}
 	NioObject& operator=(const NioObject& o) { return *this; }
 
-	virtual int recv(void) { return 0; }
+	virtual int read(void) = 0;
 
 protected:
 	virtual int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) = 0; //{ return len > 0x7fffffff ? 0x7fffffff : (int)len; }
@@ -65,19 +66,16 @@ protected:
 	const int m_domain;
 	const int m_socktype;
 	const int m_protocol;
+	const bool m_isListen;
+	volatile bool m_valid;
 	void* m_readOl;
 	void* m_writeOl;
 	Reactor_t* m_reactor;
-	volatile bool m_valid;
-	bool m_isListen;
 	void* m_userdata;
-
-private:
-	Atom8_t m_readCommit;
-	//
-	time_t m_createTime;
 	time_t m_lastActiveTime;
 	int m_timeoutSecond;
+private:
+	Atom8_t m_readCommit;
 };
 }
 

@@ -26,7 +26,7 @@ private:
 
 	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);
 	void inbufRemove(unsigned int nbytes);
-	virtual int recv(void);
+	virtual int read(void);
 
 private:
 	bool(*m_connectcallback)(TcpNioObject*, bool);

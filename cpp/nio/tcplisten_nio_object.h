@@ -16,12 +16,9 @@ public:
 	bool bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
 	bool bindlisten(const struct sockaddr_storage* saddr, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg = 0);
 
-	bool accept(int msec);
-	bool reactorAccept(void);
-
 private:
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL) { return -1; }
-	virtual int recv(void);
+	virtual int read(void);
 	int onRead(unsigned char* buf, size_t len, struct sockaddr_storage* from) { return 0; }
 
 private:

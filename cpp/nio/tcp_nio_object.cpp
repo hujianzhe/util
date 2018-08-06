@@ -11,7 +11,7 @@
 
 namespace Util {
 TcpNioObject::TcpNioObject(FD_t fd, int domain) :
-	NioObject(fd, domain, SOCK_STREAM, 0),
+	NioObject(fd, domain, SOCK_STREAM, 0, false),
 	m_connectcallback(NULL),
 	m_connecting(false),
 	m_writeCommit(false)
@@ -61,7 +61,7 @@ void TcpNioObject::inbufRemove(unsigned int nbytes) {
 	}
 }
 
-int TcpNioObject::recv(void) {
+int TcpNioObject::read(void) {
 	struct sockaddr_storage saddr;
 	int res = sock_TcpReadableBytes(m_fd);
 	do {
@@ -160,6 +160,8 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 }
 int TcpNioObject::onWrite(void) {
 	int count = 0;
+	m_lastActiveTime = gmt_second();
+
 	if (m_connecting) {
 		m_connecting = false;
 		bool ok = false;

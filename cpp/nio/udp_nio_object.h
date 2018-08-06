@@ -15,7 +15,7 @@ public:
 	unsigned short frameLengthLimit(void) const { return m_frameLengthLimit; }
 
 private:
-	virtual int recv(void);
+	virtual int read(void);
 
 protected:
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
