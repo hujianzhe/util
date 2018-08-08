@@ -27,7 +27,6 @@ private:
 
 private:
 	bool(*m_connectcallback)(TcpNioObject*, bool);
-	volatile bool m_connecting;
 	bool m_writeCommit;
 
 	unsigned char* m_inbuf;

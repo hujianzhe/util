@@ -13,7 +13,6 @@ namespace Util {
 TcpNioObject::TcpNioObject(FD_t fd, int domain) :
 	NioObject(fd, domain, SOCK_STREAM, 0, false),
 	m_connectcallback(NULL),
-	m_connecting(false),
 	m_writeCommit(false),
 	m_inbuf(NULL),
 	m_inbuflen(0)
@@ -36,12 +35,11 @@ bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short por
 	return reactorConnect(&saddr, callback);
 }
 bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, bool)) {
-	m_connecting = true;
 	m_connectcallback = callback;
 	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
 	}
-	m_connecting = false;
+	m_connectcallback = NULL;
 	m_valid = false;
 	return false;
 }
@@ -176,8 +174,7 @@ int TcpNioObject::onWrite(void) {
 	int count = 0;
 	m_lastActiveTime = gmt_second();
 
-	if (m_connecting) {
-		m_connecting = false;
+	if (m_connectcallback) {
 		bool ok = false;
 		try {
 			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(m_fd));
