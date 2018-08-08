@@ -5,6 +5,7 @@
 #include "../nio/nio_object.h"
 #include "websocket_packet_worker.h"
 #include <stdlib.h>
+#include <string.h>
 
 namespace Util {
 WebsocketPacketWorker::WebsocketPacketWorker(unsigned int frame_length_limit) :
