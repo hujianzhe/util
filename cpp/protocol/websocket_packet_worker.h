@@ -12,6 +12,7 @@ namespace Util {
 class WebsocketPacketWorker : public PacketWorker {
 public:
 	WebsocketPacketWorker(unsigned int frame_length_limit);
+	~WebsocketPacketWorker(void);
 
 	unsigned int frameLengthLimit(void) const { return m_frameLengthLimit; }
 
@@ -23,6 +24,8 @@ private:
 private:
 	const unsigned int m_frameLengthLimit;
 	bool m_hasHandshake;
+	unsigned char* m_data;
+	size_t m_datalen;
 };
 }
 

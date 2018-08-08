@@ -4,13 +4,17 @@
 
 #include "../nio/nio_object.h"
 #include "websocket_packet_worker.h"
+#include <stdlib.h>
 
 namespace Util {
 WebsocketPacketWorker::WebsocketPacketWorker(unsigned int frame_length_limit) :
 	m_frameLengthLimit(frame_length_limit),
-	m_hasHandshake(false)
+	m_hasHandshake(false),
+	m_data(NULL),
+	m_datalen(0)
 {
 }
+WebsocketPacketWorker::~WebsocketPacketWorker(void) { free(m_data); }
 
 int WebsocketPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, struct sockaddr_storage* from) {
 	WebSocketFrame protocol(m_frameLengthLimit, Util::WebSocketFrame::FRAME_TYPE_BINARY);
@@ -19,14 +23,33 @@ int WebsocketPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, stru
 		if (WebSocketFrame::PARSE_OVERRANGE == retcode) {
 			return -1;
 		}
-		if (WebSocketFrame::PARSE_INCOMPLETION == retcode) {
+		else if (WebSocketFrame::PARSE_INCOMPLETION == retcode) {
 			return 0;
 		}
 		if (protocol.frameType() == WebSocketFrame::FRAME_TYPE_CLOSE) {
 			return -1;
 		}
-		if (!onRecvPacket(protocol.data(), protocol.dataLength(), from)) {
+		else if (protocol.frameType() == WebSocketFrame::FRAME_TYPE_CONTINUE) {
+			m_data = (unsigned char*)realloc(m_data, m_datalen + protocol.dataLength());
+			if (!m_data) {
+				return -1;
+			}
+			memcpy(m_data + m_datalen, protocol.data(), protocol.dataLength());
+			m_datalen += protocol.dataLength();
+			return protocol.frameLength();
+		}
+		if (!onRecvPacket(m_data ? m_data : protocol.data(), m_data ? m_datalen : protocol.dataLength(), from)) {
+			if (m_data) {
+				free(m_data);
+				m_data = NULL;
+				m_datalen = 0;
+			}
 			return -1;
+		}
+		if (m_data) {
+			free(m_data);
+			m_data = NULL;
+			m_datalen = 0;
 		}
 		return protocol.frameLength();
 	}
