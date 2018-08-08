@@ -31,10 +31,14 @@ int WebsocketPacketWorker::onParsePacket(unsigned char* buf, size_t buflen, stru
 			return -1;
 		}
 		else if (protocol.frameType() == WebSocketFrame::FRAME_TYPE_CONTINUE) {
-			m_data = (unsigned char*)realloc(m_data, m_datalen + protocol.dataLength());
-			if (!m_data) {
+			unsigned char* p = (unsigned char*)realloc(m_data, m_datalen + protocol.dataLength());
+			if (!p) {
+				free(m_data);
+				m_data = NULL;
+				m_datalen = 0;
 				return -1;
 			}
+			m_data = p;
 			memcpy(m_data + m_datalen, protocol.data(), protocol.dataLength());
 			m_datalen += protocol.dataLength();
 			return protocol.frameLength();

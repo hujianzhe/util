@@ -22,19 +22,17 @@ protected:
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
 
 private:
-	virtual int onWrite(void);
-
-	int inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr);
-	void inbufRemove(unsigned int nbytes);
 	virtual int read(void);
+	virtual int onWrite(void);
 
 private:
 	bool(*m_connectcallback)(TcpNioObject*, bool);
 	volatile bool m_connecting;
-
-	std::vector<unsigned char> m_inbuf;
-
 	bool m_writeCommit;
+
+	unsigned char* m_inbuf;
+	size_t m_inbuflen;
+
 	Mutex_t m_outbufMutex;
 	struct WaitSendData {
 		list_node_t m_listnode;

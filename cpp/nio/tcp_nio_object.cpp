@@ -14,7 +14,9 @@ TcpNioObject::TcpNioObject(FD_t fd, int domain) :
 	NioObject(fd, domain, SOCK_STREAM, 0, false),
 	m_connectcallback(NULL),
 	m_connecting(false),
-	m_writeCommit(false)
+	m_writeCommit(false),
+	m_inbuf(NULL),
+	m_inbuflen(0)
 {
 	if (!mutex_Create(&m_outbufMutex)) {
 		throw std::logic_error("Util::TcpNioObject mutex_Create failure");
@@ -23,6 +25,7 @@ TcpNioObject::TcpNioObject(FD_t fd, int domain) :
 }
 TcpNioObject::~TcpNioObject(void) {
 	mutex_Close(&m_outbufMutex);
+	free(m_inbuf);
 }
 
 bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, bool)) {
@@ -43,24 +46,6 @@ bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback
 	return false;
 }
 
-int TcpNioObject::inbufRead(unsigned int nbytes, struct sockaddr_storage* saddr) {
-	size_t offset = m_inbuf.size();
-	m_inbuf.resize(offset + nbytes);
-	int res = sock_Recv(m_fd, &m_inbuf[offset], nbytes, 0, saddr);
-	if (res > 0) {
-		m_inbuf.resize(offset + res);
-	}
-	return res;
-}
-void TcpNioObject::inbufRemove(unsigned int nbytes) {
-	if (m_inbuf.size() <= nbytes) {
-		std::vector<unsigned char>().swap(m_inbuf);
-	}
-	else {
-		m_inbuf.erase(m_inbuf.begin(), m_inbuf.begin() + nbytes);
-	}
-}
-
 int TcpNioObject::read(void) {
 	struct sockaddr_storage saddr;
 	int res = sock_TcpReadableBytes(m_fd);
@@ -69,25 +54,54 @@ int TcpNioObject::read(void) {
 			m_valid = false;
 			break;
 		}
-		res = inbufRead(res, &saddr);
-		if (res <= 0) {
+
+		unsigned char* p = (unsigned char*)realloc(m_inbuf, m_inbuflen + res);
+		if (!p) {
+			free(m_inbuf);
+			m_inbuf = NULL;
+			m_inbuflen = 0;
 			m_valid = false;
 			break;
 		}
+		m_inbuf = p;
+		res = sock_Recv(m_fd, m_inbuf + m_inbuflen, res, 0, &saddr);
+		if (res <= 0) {
+			free(m_inbuf);
+			m_inbuf = NULL;
+			m_inbuflen = 0;
+			m_valid = false;
+			break;
+		}
+		else {
+			m_inbuflen += res;
+		}
+
 		size_t offset = 0;
-		while (offset < m_inbuf.size()) {
-			int len = onRead(&m_inbuf[offset], m_inbuf.size() - offset, &saddr);
+		while (offset < m_inbuflen) {
+			int len = onRead(m_inbuf + offset, m_inbuflen - offset, &saddr);
 			if (0 == len) {
 				break;
 			}
 			if (len < 0) {
 				m_valid = false;
-				offset = m_inbuf.size();
+				offset = m_inbuflen;
 				break;
 			}
 			offset += len;
 		}
-		inbufRemove(offset);
+
+		if (offset >= m_inbuflen) {
+			free(m_inbuf);
+			m_inbuf = NULL;
+			m_inbuflen = 0;
+		}
+		else {
+			size_t n = offset;
+			for (size_t start = 0; offset < m_inbuflen; ++start, ++offset) {
+				m_inbuf[start] = m_inbuf[offset];
+			}
+			m_inbuflen -= n;
+		}
 	} while (0);
 	return res;
 }
