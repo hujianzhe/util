@@ -509,7 +509,7 @@ BOOL reactor_ConnectCheckSuccess(FD_t sockfd) {
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len)) {
 		return FALSE;
 	}
-	if (error)
+	if (error) {
 		errno = error;
 	}
 	return !error;
