@@ -27,14 +27,14 @@ TcpNioObject::~TcpNioObject(void) {
 	free(m_inbuf);
 }
 
-bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, bool)) {
+bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, int)) {
 	struct sockaddr_storage saddr;
 	if (!sock_Text2Addr(&saddr, family, ip, port)) {
 		return false;
 	}
 	return reactorConnect(&saddr, callback);
 }
-bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, bool)) {
+bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, int)) {
 	m_connectcallback = callback;
 	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
@@ -177,7 +177,7 @@ int TcpNioObject::onWrite(void) {
 	if (m_connectcallback) {
 		bool ok = false;
 		try {
-			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(m_fd));
+			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(m_fd) ? 0 : error_code());
 		}
 		catch (...) {}
 		m_connectcallback = NULL;

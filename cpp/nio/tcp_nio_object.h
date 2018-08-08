@@ -15,8 +15,8 @@ public:
 	TcpNioObject(FD_t fd, int domain);
 	~TcpNioObject(void);
 
-	bool reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, bool));
-	bool reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, bool));
+	bool reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, int));
+	bool reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, int));
 
 protected:
 	virtual int sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr = NULL);
@@ -26,7 +26,7 @@ private:
 	virtual int onWrite(void);
 
 private:
-	bool(*m_connectcallback)(TcpNioObject*, bool);
+	bool(*m_connectcallback)(TcpNioObject*, int);
 	bool m_writeCommit;
 
 	unsigned char* m_inbuf;

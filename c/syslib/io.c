@@ -499,6 +499,7 @@ BOOL reactor_ConnectCheckSuccess(FD_t sockfd) {
 		return FALSE;
 	}
 	if (~0 == sec) {
+		SetLastError(ERROR_TIMEOUT);
 		return FALSE;
 	}
 	return !setsockopt(sockfd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
@@ -507,6 +508,9 @@ BOOL reactor_ConnectCheckSuccess(FD_t sockfd) {
 	socklen_t len = sizeof(int);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len)) {
 		return FALSE;
+	}
+	if (error)
+		errno = error;
 	}
 	return !error;
 #endif
