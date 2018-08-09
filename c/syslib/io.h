@@ -65,7 +65,7 @@ BOOL aio_HasCompleted(const struct aiocb* cb);
 BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec);
 BOOL aio_Cancel(FD_t fd, struct aiocb* cb);
 int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
-/* NIO */
+/* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
 #define	REACTOR_WRITE	2

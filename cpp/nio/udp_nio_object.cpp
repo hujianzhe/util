@@ -20,7 +20,7 @@ int UdpNioObject::read(void) {
 		unsigned char* buffer = (unsigned char*)alloca(m_frameLengthLimit);
 		res = sock_Recv(fd, buffer, m_frameLengthLimit, 0, &saddr);
 		if (res < 0) {
-			if (error_code() != EWOULDBLOCK) {
+			if (errno_get() != EWOULDBLOCK) {
 				valid = false;
 			}
 			break;

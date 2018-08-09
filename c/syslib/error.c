@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-int error_code(void) {
+int errno_get(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (GetLastError()) {
 		case ERROR_TOO_MANY_OPEN_FILES:
@@ -141,27 +141,16 @@ int error_code(void) {
 	return errno;
 }
 
-void error_code_clear(void) {
+void errno_set(int errnum) {
 #if defined(_WIN32) || defined(_WIN64)
-	SetLastError(ERROR_SUCCESS);
+	SetLastError(errnum);
 #endif
-	errno = 0;
+	errno = errnum;
 }
 
-char* error_msg(int errnum, char* buf, size_t bufsize) {
+char* errno_txt(int errnum, char* buf, size_t bufsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	return strerror_s(buf, bufsize, errnum) ? NULL : buf;
-	/*
-	if (!FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errnum, MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL), buf, bufsize, 0)) {
-		if (!bufsize) {
-			buf = NULL;
-		}
-		else if (buf) {
-			buf[0] = 0;
-		}
-	}
-	return buf;
-	*/
 #else
 	#if defined(_GNU_SOURCE)
 	return strerror_r(errnum, buf, bufsize);

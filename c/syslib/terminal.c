@@ -25,7 +25,7 @@ static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
 }
 #endif
 
-char* terminal_Name(char* buf, size_t buflen) {
+char* terminal_name(char* buf, size_t buflen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD res = GetConsoleTitleA(buf, buflen);
 	if (res) {
@@ -50,7 +50,7 @@ char* terminal_Name(char* buf, size_t buflen) {
 #endif
 }
 
-int terminal_Kbhit(void) {
+int terminal_kbhit(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _kbhit();
 #else
@@ -63,7 +63,7 @@ int terminal_Kbhit(void) {
 #endif
 }
 
-int terminal_Getch(void) {
+int terminal_getch(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return _getch();
 #else

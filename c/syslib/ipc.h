@@ -14,14 +14,13 @@
 	typedef CONDITION_VARIABLE		ConditionVariable_t;
 	typedef HANDLE 					Mutex_t;
 	typedef HANDLE 					SemId_t;
-	#define	INVALID_SEMID			NULL
-	/*typedef SRWLOCK				RWLock_t;*/
 	typedef struct RWLock_t {
 		volatile BOOL __exclusive_lock;
 		volatile LONG __read_cnt;
 		HANDLE __read_ev, __write_ev, __wait_ev;
 	} RWLock_t;
 	typedef	INIT_ONCE				InitOnce_t;
+	#define	SEM_FAILED				NULL
 #else
 	#include <sys/ipc.h>
 	#include <pthread.h>
@@ -33,7 +32,6 @@
 	typedef pthread_cond_t			ConditionVariable_t;
 	typedef pthread_mutex_t 		Mutex_t;
 	typedef	sem_t* 					SemId_t;
-	#define	INVALID_SEMID			SEM_FAILED
 	typedef pthread_rwlock_t		RWLock_t;
 	typedef pthread_once_t          InitOnce_t;
 	#define INIT_ONCE_STATIC_INIT	PTHREAD_ONCE_INIT

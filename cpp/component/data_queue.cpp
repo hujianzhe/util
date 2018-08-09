@@ -64,7 +64,7 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		if (condition_Wait(&m_condition, &m_cslock, msec)) {
 			continue;
 		}
-		assert_true(error_code() == ETIMEDOUT);
+		assert_true(errno_get() == ETIMEDOUT);
 		break;
 	}
 	m_forcewakeup = false;

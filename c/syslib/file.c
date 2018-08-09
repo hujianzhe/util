@@ -22,13 +22,13 @@ static const char* __win32_path(char* path) {
 #endif
 
 /* FD_t generate operator */
-BOOL fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
+BOOL fd_Type(FD_t fd, int* type) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = GetFileType((HANDLE)fd);
 	switch (mode) {
 		case FILE_TYPE_REMOTE:
 		case FILE_TYPE_UNKNOWN:
-			*type = FD_HADNLE_UNKNOWN;
+			*type = FD_TYPE_UNKNOWN;
 			if (GetLastError() != NO_ERROR) {
 				return FALSE;
 			}
@@ -36,19 +36,19 @@ BOOL fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 
 		case FILE_TYPE_PIPE:
 			if (GetNamedPipeInfo((HANDLE)fd, NULL, NULL, NULL, NULL))
-				*type = FD_HANDLE_PIPE;
+				*type = FD_TYPE_PIPE;
 			else {
 				int val;
 				int len = sizeof(val);
 				if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char*)&val, &len)) {
 					return FALSE;
 				}
-				*type = FD_HANDLE_SOCKET;
+				*type = FD_TYPE_SOCKET;
 			}
 			break;
 
 		case FILE_TYPE_CHAR:
-			*type = FD_HANDLE_CHAR;
+			*type = FD_TYPE_CHAR;
 			break;
 
 		case FILE_TYPE_DISK: {
@@ -56,11 +56,11 @@ BOOL fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 			if (!GetFileInformationByHandle((HANDLE)fd, &info))
 				return FALSE;
 			else if (info.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
-				*type = FD_HANDLE_REGULAR;
+				*type = FD_TYPE_REGULAR;
 			else if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-				*type = FD_HANDLE_DIRECTORY;
+				*type = FD_TYPE_DIRECTORY;
 			else if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
-				*type = FD_HANDLE_SYMLINK;
+				*type = FD_TYPE_SYMLINK;
 			break;
 		}
 	}
@@ -70,19 +70,19 @@ BOOL fd_Type(FD_t fd, FD_HANDLE_TYPE* type) {
 	if (fstat(fd, &f_stat) == 0) {
 		mode_t mode = f_stat.st_mode;
 		if (S_ISDIR(mode))
-			*type = FD_HANDLE_DIRECTORY;
+			*type = FD_TYPE_DIRECTORY;
 		else if (S_ISREG(mode))
-			*type = FD_HANDLE_REGULAR;
+			*type = FD_TYPE_REGULAR;
 		else if (S_ISLNK(mode))
-			*type = FD_HANDLE_SYMLINK;
+			*type = FD_TYPE_SYMLINK;
 		else if (S_ISCHR(mode))
-			*type = FD_HANDLE_CHAR;
+			*type = FD_TYPE_CHAR;
 		else if (S_ISSOCK(mode))
-			*type = FD_HANDLE_SOCKET;
+			*type = FD_TYPE_SOCKET;
 		else if (S_ISFIFO(mode))
-			*type = FD_HANDLE_PIPE;
+			*type = FD_TYPE_PIPE;
 		else
-			*type = FD_HADNLE_UNKNOWN;
+			*type = FD_TYPE_UNKNOWN;
 		return TRUE;
 	}
 	return FALSE;
@@ -141,7 +141,7 @@ FD_t fd_Dup2(FD_t oldfd, FD_t newfd) {
 }
 
 /* file operator */
-FD_t file_Open(const char* path, int obit) {
+FD_t fd_Open(const char* path, int obit) {
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
 	DWORD dwDesiredAccess = 0, dwCreationDisposition = 0, dwFlagsAndAttributes = 0;
@@ -216,7 +216,7 @@ FD_t file_Open(const char* path, int obit) {
 #endif
 }
 
-int file_Read(FD_t fd, void* buf, unsigned int nbytes) {
+int fd_Read(FD_t fd, void* buf, unsigned int nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _readbytes;
 	return ReadFile((HANDLE)fd, buf, nbytes, &_readbytes, NULL) ? _readbytes : -1;
@@ -225,7 +225,7 @@ int file_Read(FD_t fd, void* buf, unsigned int nbytes) {
 #endif
 }
 
-int file_Write(FD_t fd, const void* buf, unsigned int nbytes) {
+int fd_Write(FD_t fd, const void* buf, unsigned int nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _writebytes = 0;
 	return WriteFile((HANDLE)fd, buf, nbytes, &_writebytes, NULL) ? _writebytes : -1;
@@ -234,7 +234,7 @@ int file_Write(FD_t fd, const void* buf, unsigned int nbytes) {
 #endif
 }
 
-long long file_Seek(FD_t fd, long long offset, int whence) {
+long long fd_Seek(FD_t fd, long long offset, int whence) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
@@ -248,7 +248,7 @@ long long file_Seek(FD_t fd, long long offset, int whence) {
 #endif
 }
 
-long long file_Tell(FD_t fd) {
+long long fd_Tell(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
@@ -261,7 +261,7 @@ long long file_Tell(FD_t fd) {
 #endif
 }
 
-BOOL file_Flush(FD_t fd) {
+BOOL fd_Flush(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FlushFileBuffers((HANDLE)fd);
 #else
@@ -269,7 +269,7 @@ BOOL file_Flush(FD_t fd) {
 #endif
 }
 
-BOOL file_Close(FD_t fd) {
+BOOL fd_Close(FD_t fd) {
 	if (INVALID_FD_HANDLE == fd) {
 		return TRUE;
 	}
@@ -280,7 +280,7 @@ BOOL file_Close(FD_t fd) {
 #endif
 }
 
-long long file_Size(FD_t fd) {
+long long fd_GetSize(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER n = {0};
 	return GetFileSizeEx((HANDLE)fd, &n) ? n.QuadPart : -1;
@@ -290,7 +290,7 @@ long long file_Size(FD_t fd) {
 #endif
 }
 
-BOOL file_ChangeLength(FD_t fd, long long length) {
+BOOL fd_SetLength(FD_t fd, long long length) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL res;
 	LARGE_INTEGER pos = {0};

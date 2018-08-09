@@ -37,12 +37,8 @@ int WebSocketFrame::parseHandshake(char* data, size_t len, std::string& response
 	handle_shanke_key += WEB_SOCKET_MAGIC_KEY;
 	unsigned char sha1_handle_key[CC_SHA1_DIGEST_LENGTH];
 	char base64_handle_key[CC_SHA1_DIGEST_LENGTH * 3];
-	CC_SHA1_CTX sha1_ctx;
-	sha1_Init(&sha1_ctx);
-	sha1_Update(&sha1_ctx, handle_shanke_key.data(), handle_shanke_key.size());
-	sha1_Final(sha1_handle_key, &sha1_ctx);
-	sha1_Clean(&sha1_ctx);
-	base64_Encode(sha1_handle_key, sizeof(sha1_handle_key), base64_handle_key);
+	crypt_sha1_encode(handle_shanke_key.data(), handle_shanke_key.size(), sha1_handle_key);
+	crypt_base64_encode(sha1_handle_key, sizeof(sha1_handle_key), base64_handle_key);
 	response += "HTTP/1.1 101 Switching Protocols\r\n"
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"

@@ -28,7 +28,7 @@ Logger::Logger(void) :
 }
 Logger::~Logger(void) {
 	if (m_file != INVALID_FD_HANDLE) {
-		file_Close(m_file);
+		fd_Close(m_file);
 	}
 	cslock_Close(&m_lock);
 }
@@ -116,7 +116,7 @@ void Logger::flush(void) {
 		if (m_days != cache->dt.tm_yday) {
 			m_days = cache->dt.tm_yday;
 			if (txt && m_file != INVALID_FD_HANDLE) {
-				file_Write(m_file, txt, txtlen);
+				fd_Write(m_file, txt, txtlen);
 			}
 			free(txt);
 			txt = NULL;
@@ -149,7 +149,7 @@ void Logger::flush(void) {
 	}
 	// io
 	if (m_file != INVALID_FD_HANDLE && txt) {
-		file_Write(m_file, txt, txtlen);
+		fd_Write(m_file, txt, txtlen);
 	}
 	free(txt);
 }
@@ -185,7 +185,7 @@ void Logger::build(const char* priority, const char* format, va_list varg) {
 
 void Logger::rotate(const struct tm* dt, bool trunc) {
 	if (m_file != INVALID_FD_HANDLE) {
-		file_Close(m_file);
+		fd_Close(m_file);
 		m_file = INVALID_FD_HANDLE;
 	}
 	m_filesize = 0;
@@ -193,9 +193,9 @@ void Logger::rotate(const struct tm* dt, bool trunc) {
 	if (snprintf(path, sizeof(path), "%s%s.%d-%d-%d.txt", m_path, m_ident, dt->tm_year, dt->tm_mon, dt->tm_mday) < 0) {
 		return;
 	}
-	m_file = file_Open(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
+	m_file = fd_Open(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
 	if (m_file != INVALID_FD_HANDLE) {
-		m_filesize = file_Size(m_file);
+		m_filesize = fd_GetSize(m_file);
 	}
 }
 
@@ -233,7 +233,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 			}
 			// io
 			if (INVALID_FD_HANDLE != m_file) {
-				file_Write(m_file, content, len);
+				fd_Write(m_file, content, len);
 			}
 			m_filesize += len;
 		}

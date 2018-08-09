@@ -126,7 +126,7 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 		if (!m_outbuflist.head) {
 			res = sock_SendVec(fd, iov, iovcnt, 0, NULL);
 			if (res < 0) {
-				if (error_code() != EWOULDBLOCK) {
+				if (errno_get() != EWOULDBLOCK) {
 					valid = false;
 					res = -1;
 					break;
@@ -177,7 +177,7 @@ int TcpNioObject::onWrite(void) {
 	if (m_connectcallback) {
 		bool ok = false;
 		try {
-			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(fd) ? 0 : error_code());
+			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(fd) ? 0 : errno_get());
 		}
 		catch (...) {}
 		m_connectcallback = NULL;
@@ -197,7 +197,7 @@ int TcpNioObject::onWrite(void) {
 		WaitSendData* wsd = pod_container_of(iter, WaitSendData, m_listnode);
 		int res = sock_Send(fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
 		if (res < 0) {
-			if (error_code() != EWOULDBLOCK) {
+			if (errno_get() != EWOULDBLOCK) {
 				valid = false;
 				count = -1;
 				break;

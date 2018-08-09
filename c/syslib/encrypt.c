@@ -3,13 +3,14 @@
 //
 
 #include "encrypt.h"
+#include <ctype.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
 /* url */
-size_t url_Encode(const char* src, size_t srclen, char* dst) {
+size_t crypt_url_encode(const char* src, size_t srclen, char* dst) {
 	static const char hex2char[] = "0123456789ABCDEF";
 	size_t i, dstlen;
 	for (dstlen = 0, i = 0; i < srclen; ++i) {
@@ -41,7 +42,7 @@ size_t url_Encode(const char* src, size_t srclen, char* dst) {
 	return dstlen;
 }
 
-size_t url_Decode(const char* src, size_t srclen, char* dst) {
+size_t crypt_url_decode(const char* src, size_t srclen, char* dst) {
 	size_t i, dstlen;
 	for (dstlen = 0,i = 0; i < srclen; ++i) {
 		char c = src[i];
@@ -78,7 +79,7 @@ size_t url_Decode(const char* src, size_t srclen, char* dst) {
 #if !defined(_WIN32) && !defined(_WIN64)
 static const unsigned char base64map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 #endif
-size_t base64_Encode(const unsigned char* src, size_t srclen, char* dst) {
+size_t crypt_base64_encode(const unsigned char* src, size_t srclen, char* dst) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dstLen;
 	return CryptBinaryToStringA(src, srclen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, dst, &dstLen) ? dstLen : 0;
@@ -132,7 +133,7 @@ static unsigned char base64byte(char c) {
 	}
 }
 #endif
-size_t base64_Decode(const char* src, size_t srclen, unsigned char* dst) {
+size_t crypt_base64_decode(const char* src, size_t srclen, unsigned char* dst) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dstLen;
 	return CryptStringToBinaryA(src, srclen, CRYPT_STRING_BASE64, dst, &dstLen, NULL, NULL) ? dstLen : 0;
@@ -166,6 +167,12 @@ size_t base64_Decode(const char* src, size_t srclen, unsigned char* dst) {
 }
 
 #if defined(_WIN32) || defined(_WIN64)
+typedef struct __WIN32_CRYPT_CTX {
+	HCRYPTPROV hProv;
+	HCRYPTHASH hHash;
+	DWORD dwLen;
+} __WIN32_CRYPT_CTX;
+
 static BOOL __win32_crypt_init(struct __WIN32_CRYPT_CTX* ctx) {
 	ctx->hProv = ctx->hHash = 0;
 	return CryptAcquireContext(&ctx->hProv, NULL, MS_DEF_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
@@ -190,80 +197,59 @@ static BOOL __win32_crypt_clean(struct __WIN32_CRYPT_CTX* ctx) {
 	return CryptReleaseContext(ctx->hProv, 0);
 }
 #endif
+
 /* md5 */
-BOOL md5_Init(CC_MD5_CTX* ctx) {
+BOOL crypt_md5_encode(const void* data, size_t len, unsigned char* md5) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_init(ctx);
-#elif	__APPLE__
-	return CC_MD5_Init(ctx);
-#else
-	return MD5_Init(ctx);
-#endif
-}
-BOOL md5_Update(CC_MD5_CTX* ctx, const void* data, size_t len) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (ctx->hHash == 0 && !__win32_crypt_hash_create(ctx, CALG_MD5)) {
+	__WIN32_CRYPT_CTX ctx;
+	BOOL ok = __win32_crypt_init(&ctx);
+	if (!ok)
 		return FALSE;
-	}
-	return __win32_crypt_update(ctx, (const BYTE*)data, len);
+	do {
+		ok = FALSE;
+		if (ctx.hHash == 0 && !__win32_crypt_hash_create(&ctx, CALG_MD5))
+			break;
+		if (!__win32_crypt_update(&ctx, (const BYTE*)data, len))
+			break;
+		if (!__win32_crypt_final(md5, &ctx))
+			break;
+		ok = TRUE;
+	} while (0);
+	__win32_crypt_clean(&ctx);
+	return ok;
 #elif	__APPLE__
-	return CC_MD5_Update(ctx, data, (CC_LONG)len);
+	CC_MD5_CTX ctx;
+	return CC_MD5_Init(&ctx) && CC_MD5_Update(&ctx, data, (CC_LONG)len) && CC_MD5_Final(md5, &ctx);
 #else
-	return MD5_Update(ctx, data, len);
+	MD5_CTX ctx;
+	return MD5_Init(&ctx) && MD5_Update(&ctx, data, len) && MD5_Final(md5, &ctx);
 #endif
 }
-BOOL md5_Final(unsigned char* md5, CC_MD5_CTX* ctx) {
-#if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_final(md5, ctx);
-#elif	__APPLE__
-	return CC_MD5_Final(md5, ctx);
-#else
-	return MD5_Final(md5, ctx);
-#endif
-}
-BOOL md5_Clean(CC_MD5_CTX* ctx) {
-#if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_clean(ctx);
-#else
-	return TRUE;
-#endif
-}
+
 /* sha1 */
-BOOL sha1_Init(CC_SHA1_CTX* ctx) {
+BOOL crypt_sha1_encode(const void* data, size_t len, unsigned char* sha1) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_init(ctx);
-#elif	__APPLE__
-	return CC_SHA1_Init(ctx);
-#else
-	return SHA1_Init(ctx);
-#endif
-}
-BOOL sha1_Update(CC_SHA1_CTX* ctx, const void* data, size_t len) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (ctx->hHash == 0 && !__win32_crypt_hash_create(ctx, CALG_SHA1)) {
+	__WIN32_CRYPT_CTX ctx;
+	BOOL ok = __win32_crypt_init(&ctx);
+	if (!ok)
 		return FALSE;
-	}
-	return __win32_crypt_update(ctx, (const BYTE*)data, len);
+	do {
+		if (ctx.hHash == 0 && !__win32_crypt_hash_create(&ctx, CALG_SHA1))
+			break;
+		if (!__win32_crypt_update(&ctx, (const BYTE*)data, len))
+			break;
+		if (!__win32_crypt_final(sha1, &ctx))
+			break;
+		ok = TRUE;
+	} while (0);
+	__win32_crypt_clean(&ctx);
+	return ok;
 #elif	__APPLE__
-	return CC_SHA1_Update(ctx, data, len);
+	CC_SHA1_CTX ctx;
+	return CC_SHA1_Init(&ctx) && CC_SHA1_Update(&ctx, data, len) && CC_SHA1_Final(sha1, &ctx);
 #else
-	return SHA1_Update(ctx, data, len);
-#endif
-}
-BOOL sha1_Final(unsigned char* sha1, CC_SHA1_CTX* ctx) {
-#if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_final(sha1, ctx);
-#elif	__APPLE__
-	return CC_SHA1_Final(sha1, ctx);
-#else
-	return SHA1_Final(sha1, ctx);
-#endif
-}
-BOOL sha1_Clean(CC_SHA1_CTX* ctx) {
-#if defined(_WIN32) || defined(_WIN64)
-	return __win32_crypt_clean(ctx);
-#else
-	return TRUE;
+	SHA_CTX ctx;
+	return SHA1_Init(&ctx) && SHA1_Update(&ctx, data, len) && SHA1_Final(sha1, &ctx);
 #endif
 }
 
