@@ -16,13 +16,6 @@ NioObjectManager::~NioObjectManager(void) {
 	rwlock_Close(&m_lock);
 }
 
-size_t NioObjectManager::count(void) {
-	rwlock_LockRead(&m_lock);
-	size_t count = m_objects.size();
-	rwlock_Unlock(&m_lock);
-	return count;
-}
-
 void NioObjectManager::get(std::vector<NioObject*>& v) {
 	rwlock_LockRead(&m_lock);
 	v.reserve(m_objects.size());
@@ -50,14 +43,20 @@ void NioObjectManager::add(NioObject* object) {
 	rwlock_Unlock(&m_lock);
 }
 
-void NioObjectManager::del(FD_t fd) {
+NioObject* NioObjectManager::del(FD_t fd) {
+	NioObject* object = NULL;
 	rwlock_LockWrite(&m_lock);
-	m_objects.erase(fd);
+	object_iter it = m_objects.find(fd);
+	if (it != m_objects.end()) {
+		object = it->second;
+		m_objects.erase(it);
+	}
 	rwlock_Unlock(&m_lock);
+	return object;
 }
 
-int NioObjectManager::expire(NioObject* buf[], int n) {
-	int i = 0;
+size_t NioObjectManager::expire(NioObject* buf[], size_t n) {
+	size_t i = 0;
 	rwlock_LockWrite(&m_lock);
 	for (object_iter iter = m_objects.begin(); iter != m_objects.end(); ) {
 		NioObject* object = iter->second;

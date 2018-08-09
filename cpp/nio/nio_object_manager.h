@@ -17,12 +17,11 @@ public:
 	NioObjectManager(void);
 	~NioObjectManager(void);
 
-	size_t count(void);
 	void get(std::vector<NioObject*>& v);
 	NioObject* get(FD_t fd);
 	void add(NioObject* object);
-	void del(FD_t fd);
-	int expire(NioObject* buf[], int n);
+	NioObject* del(FD_t fd);
+	size_t expire(NioObject* buf[], size_t n);
 
 private:
 	NioObjectManager(const NioObjectManager& o);
