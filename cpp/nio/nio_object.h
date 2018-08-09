@@ -25,7 +25,7 @@ public:
 	int protocol(void) const { return m_protocol; }
 	bool isListen(void) const { return m_isListen; }
 
-	bool reactorInit(Reactor_t* reactor);
+	bool reg(Reactor_t* reactor);
 	bool reactorRead(void);
 
 	int onRead(void);

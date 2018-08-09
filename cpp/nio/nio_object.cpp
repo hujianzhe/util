@@ -31,7 +31,7 @@ NioObject::~NioObject(void) {
 	free(m_writeOl);
 }
 
-bool NioObject::reactorInit(Reactor_t* reactor) {
+bool NioObject::reg(Reactor_t* reactor) {
 	if (!sock_NonBlock(m_fd, TRUE)) {
 		return false;
 	}
