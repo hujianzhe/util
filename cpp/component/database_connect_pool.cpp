@@ -2,6 +2,7 @@
 // Created by hujianzhe on 17-6-30.
 //
 
+#include "../../c/syslib/assert.h"
 #include "database_connect_pool.h"
 
 namespace Util {

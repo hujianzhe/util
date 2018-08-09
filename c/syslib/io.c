@@ -3,6 +3,7 @@
 //
 
 #include "io.h"
+#include "assert.h"
 #if defined(_WIN32) || defined(_WIN64)
 	#include <mswsock.h>
 	#include <ws2ipdef.h>

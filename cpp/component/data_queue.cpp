@@ -2,6 +2,7 @@
 // Created by hujianzhe on 16-5-2.
 //
 
+#include "../../c/syslib/assert.h"
 #include "data_queue.h"
 
 namespace Util {

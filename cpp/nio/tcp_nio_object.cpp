@@ -29,27 +29,27 @@ TcpNioObject::~TcpNioObject(void) {
 
 bool TcpNioObject::reactorConnect(int family, const char* ip, unsigned short port, bool(*callback)(TcpNioObject*, int)) {
 	struct sockaddr_storage saddr;
-	if (!sock_Text2Addr(&saddr, family, ip, port)) {
+	if (!sock_AddrEncode(&saddr, family, ip, port)) {
 		return false;
 	}
 	return reactorConnect(&saddr, callback);
 }
 bool TcpNioObject::reactorConnect(struct sockaddr_storage* saddr, bool(*callback)(TcpNioObject*, int)) {
 	m_connectcallback = callback;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
+	if (reactor_Commit(m_reactor, fd, REACTOR_CONNECT, &m_writeOl, saddr)) {
 		return true;
 	}
 	m_connectcallback = NULL;
-	m_valid = false;
+	valid = false;
 	return false;
 }
 
 int TcpNioObject::read(void) {
 	struct sockaddr_storage saddr;
-	int res = sock_TcpReadableBytes(m_fd);
+	int res = sock_TcpReadableBytes(fd);
 	do {
 		if (res <= 0) {
-			m_valid = false;
+			valid = false;
 			break;
 		}
 
@@ -58,16 +58,16 @@ int TcpNioObject::read(void) {
 			free(m_inbuf);
 			m_inbuf = NULL;
 			m_inbuflen = 0;
-			m_valid = false;
+			valid = false;
 			break;
 		}
 		m_inbuf = p;
-		res = sock_Recv(m_fd, m_inbuf + m_inbuflen, res, 0, &saddr);
+		res = sock_Recv(fd, m_inbuf + m_inbuflen, res, 0, &saddr);
 		if (res <= 0) {
 			free(m_inbuf);
 			m_inbuf = NULL;
 			m_inbuflen = 0;
-			m_valid = false;
+			valid = false;
 			break;
 		}
 		else {
@@ -81,7 +81,7 @@ int TcpNioObject::read(void) {
 				break;
 			}
 			if (len < 0) {
-				m_valid = false;
+				valid = false;
 				offset = m_inbuflen;
 				break;
 			}
@@ -105,7 +105,7 @@ int TcpNioObject::read(void) {
 }
 
 int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
-	if (!m_valid) {
+	if (!valid) {
 		return -1;
 	}
 	if (!iov || !iovcnt) {
@@ -124,10 +124,10 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 
 	do {
 		if (!m_outbuflist.head) {
-			res = sock_SendVec(m_fd, iov, iovcnt, 0, NULL);
+			res = sock_SendVec(fd, iov, iovcnt, 0, NULL);
 			if (res < 0) {
 				if (error_code() != EWOULDBLOCK) {
-					m_valid = false;
+					valid = false;
 					res = -1;
 					break;
 				}
@@ -137,7 +137,7 @@ int TcpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 		if (res < nbytes) {
 			WaitSendData* wsd = (WaitSendData*)malloc(sizeof(WaitSendData) + (nbytes - res));
 			if (!wsd) {
-				m_valid = false;
+				valid = false;
 				res = -1;
 				break;
 			}
@@ -177,17 +177,17 @@ int TcpNioObject::onWrite(void) {
 	if (m_connectcallback) {
 		bool ok = false;
 		try {
-			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(m_fd) ? 0 : error_code());
+			ok = m_connectcallback(this, reactor_ConnectCheckSuccess(fd) ? 0 : error_code());
 		}
 		catch (...) {}
 		m_connectcallback = NULL;
 		if (!ok) {
-			m_valid = false;
+			valid = false;
 			return -1;
 		}
 		return 0;
 	}
-	if (!m_valid) {
+	if (!valid) {
 		return -1;
 	}
 
@@ -195,10 +195,10 @@ int TcpNioObject::onWrite(void) {
 
 	for (list_node_t* iter = m_outbuflist.head; iter; ) {
 		WaitSendData* wsd = pod_container_of(iter, WaitSendData, m_listnode);
-		int res = sock_Send(m_fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
+		int res = sock_Send(fd, wsd->data + wsd->offset, wsd->len - wsd->offset, 0, NULL);
 		if (res < 0) {
 			if (error_code() != EWOULDBLOCK) {
-				m_valid = false;
+				valid = false;
 				count = -1;
 				break;
 			}
@@ -211,7 +211,7 @@ int TcpNioObject::onWrite(void) {
 			iter = iter->next;
 			free(wsd);
 		}
-		else if (m_valid) {
+		else if (valid) {
 			reactorWrite();
 			break;
 		}

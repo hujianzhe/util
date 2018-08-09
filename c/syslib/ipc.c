@@ -3,6 +3,7 @@
 //
 
 #include "ipc.h"
+#include "assert.h"
 #include <errno.h>
 
 #ifdef	__cplusplus

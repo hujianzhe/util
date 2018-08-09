@@ -2,6 +2,7 @@
 // Created by hujianzhe on 16-8-17.
 //
 
+#include "../../c/syslib/assert.h"
 #include "nio_object.h"
 #include "nio_object_manager.h"
 
@@ -37,7 +38,7 @@ NioObject* NioObjectManager::get(FD_t fd) {
 }
 
 void NioObjectManager::add(NioObject* object) {
-	std::pair<FD_t, NioObject*> item(object->fd(), object);
+	std::pair<FD_t, NioObject*> item(object->fd, object);
 	rwlock_LockWrite(&m_lock);
 	m_objects.insert(item);
 	rwlock_Unlock(&m_lock);
@@ -64,7 +65,7 @@ size_t NioObjectManager::expire(NioObject* buf[], size_t n) {
 			++iter;
 			continue;
 		}
-		object->invalid();
+		object->valid = false;
 		if (i < n) {
 			m_objects.erase(iter++);
 			buf[i++] = object;

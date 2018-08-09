@@ -16,16 +16,16 @@ TcplistenNioObject::TcplistenNioObject(FD_t sockfd, int domain) :
 
 bool TcplistenNioObject::bindlisten(const char* ip, unsigned short port, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	struct sockaddr_storage saddr;
-	if (!sock_Text2Addr(&saddr, m_domain, ip, port)) {
+	if (!sock_AddrEncode(&saddr, domain, ip, port)) {
 		return false;
 	}
 	return bindlisten(&saddr, cbfunc, arg);
 }
 bool TcplistenNioObject::bindlisten(const struct sockaddr_storage* saddr, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
-	if (!sock_BindSockaddr(m_fd, saddr)) {
+	if (!sock_BindSockaddr(fd, saddr)) {
 		return false;
 	}
-	if (!sock_TcpListen(m_fd)) {
+	if (!sock_TcpListen(fd)) {
 		return false;
 	}
 	m_cbfunc = cbfunc;
@@ -34,8 +34,8 @@ bool TcplistenNioObject::bindlisten(const struct sockaddr_storage* saddr, REACTO
 }
 
 int TcplistenNioObject::read(void) {
-	if (!reactor_Accept(m_fd, m_readOl, m_cbfunc, m_arg)) {
-		invalid();
+	if (!reactor_Accept(fd, m_readOl, m_cbfunc, m_arg)) {
+		valid = false;
 	}
 	return 0;
 }

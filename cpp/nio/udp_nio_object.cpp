@@ -18,10 +18,10 @@ int UdpNioObject::read(void) {
 	struct sockaddr_storage saddr;
 	while (1) {
 		unsigned char* buffer = (unsigned char*)alloca(m_frameLengthLimit);
-		res = sock_Recv(m_fd, buffer, m_frameLengthLimit, 0, &saddr);
+		res = sock_Recv(fd, buffer, m_frameLengthLimit, 0, &saddr);
 		if (res < 0) {
 			if (error_code() != EWOULDBLOCK) {
-				m_valid = false;
+				valid = false;
 			}
 			break;
 		}
@@ -30,7 +30,7 @@ int UdpNioObject::read(void) {
 		}
 
 		if (onRead(buffer, res, &saddr) < 0) {
-			m_valid = false;
+			valid = false;
 			break;
 		}
 	}
@@ -38,7 +38,7 @@ int UdpNioObject::read(void) {
 }
 
 int UdpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage* saddr) {
-	if (!m_valid) {
+	if (!valid) {
 		return -1;
 	}
 	if (!iov || !iovcnt) {
@@ -52,9 +52,9 @@ int UdpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 		return 0;
 	}
 
-	int res = sock_SendVec(m_fd, iov, iovcnt, 0, saddr);
+	int res = sock_SendVec(fd, iov, iovcnt, 0, saddr);
 	if (res < 0) {
-		m_valid = false;
+		valid = false;
 		return -1;
 	}
 	return res;

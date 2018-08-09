@@ -3,6 +3,7 @@
 //
 
 #include "socket.h"
+#include "assert.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -488,8 +489,9 @@ struct addrinfo* sock_AddrInfoList(const char* host, const char* serv, int ai_so
 	return res;
 }
 
-BOOL sock_Text2Addr(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
-	memset(saddr, 0, sizeof(*saddr));// win32 must zero this structure, otherwise report 10049 error.
+BOOL sock_AddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
+	/* win32 must zero this structure, otherwise report 10049 error. */
+	memset(saddr, 0, sizeof(*saddr));
 	if (af == AF_INET) {/* IPv4 */
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
 		addr_in->sin_family = AF_INET;
@@ -525,7 +527,7 @@ BOOL sock_Text2Addr(struct sockaddr_storage* saddr, int af, const char* strIP, u
 	return FALSE;
 }
 
-BOOL sock_Addr2Text(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
+BOOL sock_AddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
 	unsigned long len;
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;

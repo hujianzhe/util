@@ -3,6 +3,7 @@
 //
 
 #include "mmap.h"
+#include "assert.h"
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <errno.h>
 #include <fcntl.h>

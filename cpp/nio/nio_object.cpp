@@ -8,83 +8,83 @@
 
 namespace Util {
 NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol, bool islisten) :
-	m_fd(fd),
-	m_domain(domain),
-	m_socktype(socktype),
-	m_protocol(protocol),
-	m_isListen(islisten),
-	m_valid(false),
+	fd(fd),
+	domain(domain),
+	socktype(socktype),
+	protocol(protocol),
+	isListen(islisten),
+	valid(false),
+	m_readCommit(FALSE),
 	m_readOl(NULL),
 	m_writeOl(NULL),
 	m_reactor(NULL),
 	m_lastActiveTime(0),
-	m_timeoutSecond(INFTIM),
-	m_readCommit(FALSE),
+	timeout_second(INFTIM),
 	session(NULL),
 	closemsg(NULL)
 {
 }
 
 NioObject::~NioObject(void) {
-	sock_Close(m_fd);
+	sock_Close(fd);
 	free(m_readOl);
 	free(m_writeOl);
 }
 
 bool NioObject::reg(Reactor_t* reactor) {
-	if (!sock_NonBlock(m_fd, TRUE)) {
+	if (!sock_NonBlock(fd, TRUE)) {
 		return false;
 	}
-	if (!reactor_Reg(reactor, m_fd)) {
+	if (!reactor_Reg(reactor, fd)) {
 		return false;
 	}
 	m_reactor = reactor;
-	m_valid = true;
+	valid = true;
 	m_lastActiveTime = gmt_second();
 	return true;
 }
 
 bool NioObject::reactorRead(void) {
 	if (_xchg8(&m_readCommit, TRUE)) {
-		return m_valid;
+		return true;
 	}
 	struct sockaddr_storage saddr;
 	int opcode;
-	if (m_isListen) {
+	if (isListen) {
 		opcode = REACTOR_ACCEPT;
-		saddr.ss_family = m_domain;
+		saddr.ss_family = domain;
 	}
 	else {
 		opcode = REACTOR_READ;
 	}
-	if (reactor_Commit(m_reactor, m_fd, opcode, &m_readOl, &saddr)) {
+	if (reactor_Commit(m_reactor, fd, opcode, &m_readOl, &saddr)) {
 		return true;
 	}
-	m_valid = false;
+	valid = false;
 	return false;
 }
 bool NioObject::reactorWrite(void) {
 	struct sockaddr_storage saddr;
-	if (reactor_Commit(m_reactor, m_fd, REACTOR_WRITE, &m_writeOl, &saddr)) {
+	if (reactor_Commit(m_reactor, fd, REACTOR_WRITE, &m_writeOl, &saddr)) {
 		return true;
 	}
-	m_valid = false;
+	valid = false;
 	return false;
 }
 
 void NioObject::shutdownWaitAck(void) {
-	if (!m_isListen) {
-		if (SOCK_STREAM == m_socktype) {
-			sock_Shutdown(m_fd, SHUT_WR);
+	if (!isListen) {
+		if (SOCK_STREAM == socktype) {
+			sock_Shutdown(fd, SHUT_WR);
 			//reactorRead();
 		}
 	}
-	m_valid = false;
+	valid = false;
 }
 
 int NioObject::onRead(void) {
 	int res = read();
-	if (m_valid) {
+	if (valid) {
 		m_lastActiveTime = gmt_second();
 		_xchg8(&m_readCommit, FALSE);
 		reactorRead();
