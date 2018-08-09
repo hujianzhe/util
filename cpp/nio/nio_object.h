@@ -62,7 +62,7 @@ protected:
 	Reactor_t* m_reactor;
 	time_t m_lastActiveTime;
 public:
-	int timeout_second;
+	volatile int timeout_second;
 	void* session;// user define session structure
 	void* closemsg;// user define message structrue
 };

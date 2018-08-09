@@ -73,13 +73,15 @@ bool NioObject::reactorWrite(void) {
 }
 
 void NioObject::shutdownWaitAck(void) {
-	if (!isListen) {
-		if (SOCK_STREAM == socktype) {
-			sock_Shutdown(fd, SHUT_WR);
-			//reactorRead();
+	if (SOCK_STREAM == socktype && !isListen) {
+		sock_Shutdown(fd, SHUT_WR);
+		if (INFTIM == timeout_second) {
+			timeout_second = 5;
 		}
 	}
-	valid = false;
+	else {
+		valid = false;
+	}
 }
 
 int NioObject::onRead(void) {
