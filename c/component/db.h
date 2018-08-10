@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_DB_DB_H
-#define UTIL_C_DB_DB_H
+#ifndef UTIL_C_COMPONENT_DB_H
+#define UTIL_C_COMPONENT_DB_H
 
 #ifdef DB_ENABLE_MYSQL
 	#if defined(_WIN32) || defined(_WIN64)
