@@ -12,9 +12,9 @@
 extern "C" {
 #endif
 
-int errno_get(void);
-void errno_set(int errnum);
-char* errno_txt(int errnum, char* buf, size_t bufsize);
+int errnoGet(void);
+void errnoSet(int errnum);
+char* errnoText(int errnum, char* buf, size_t bufsize);
 
 #ifdef	__cplusplus
 }

@@ -9,13 +9,12 @@
 extern "C" {
 #endif
 
-/* processor */
-int processor_IsLittleEndian(void) {
+int endianIsLittle(void) {
 	unsigned short v = 0x0001;
 	return *((unsigned char*)&v);
 }
 
-size_t processor_Count(void) {
+size_t processorCount(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -28,8 +27,7 @@ size_t processor_Count(void) {
 #endif
 }
 
-/* name */
-char* current_Username(char* buffer, size_t nbytes) {
+char* systemCurrentLoginUsername(char* buffer, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD len = nbytes;
 	return GetUserNameA(buffer, &len) ? buffer : NULL;
@@ -44,7 +42,7 @@ char* current_Username(char* buffer, size_t nbytes) {
 #endif
 }
 
-char* host_Name(char* buf, size_t len) {
+char* systemHostname(char* buf, size_t len) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dwLen = len;
 	return GetComputerNameA(buf, &dwLen) ? buf : NULL;
@@ -53,50 +51,7 @@ char* host_Name(char* buf, size_t len) {
 #endif
 }
 
-/* memory */
-long memory_PageSize(void) {
-#if defined(_WIN32) || defined(_WIN64)
-	SYSTEM_INFO si;
-	GetSystemInfo(&si);
-	return si.dwPageSize;
-#else
-	return sysconf(_SC_PAGESIZE);
-#endif
-}
-BOOL memory_Size(unsigned long long* total) {
-#if defined(_WIN32) || defined(_WIN64)
-	MEMORYSTATUSEX statex = {0};
-	statex.dwLength = sizeof(statex);
-	if (GlobalMemoryStatusEx(&statex)) {
-		*total = statex.ullTotalPhys;
-		//*avail = statex.ullAvailPhys;
-		return TRUE;
-	}
-	return FALSE;
-#elif __linux__
-	unsigned long page_size, total_page;
-	if ((page_size = sysconf(_SC_PAGESIZE)) == -1)
-		return FALSE;
-	if ((total_page = sysconf(_SC_PHYS_PAGES)) == -1)
-		return FALSE;
-	//if((free_page = sysconf(_SC_AVPHYS_PAGES)) == -1)
-		//return FALSE;
-	*total = (unsigned long long)total_page * (unsigned long long)page_size;
-	//*avail = (unsigned long long)free_page * (unsigned long long)page_size;
-	return TRUE;
-#elif __APPLE__
-	int64_t value;
-	size_t len = sizeof(value);
-	if (sysctlbyname("hw.memsize", &value, &len, NULL, 0) == -1)
-		return FALSE;
-	*total = value;
-	//*avail = 0;// sorry...
-	return TRUE;
-#endif
-}
-
-/* disk */
-BOOL partition_Size(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size) {
+BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD spc,bps,nfc,tnc;
 	ULARGE_INTEGER t,f,a;

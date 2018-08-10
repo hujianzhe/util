@@ -10,7 +10,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#include <process.h>
 	typedef void(*sighandler_t)(int);
-	typedef	CRITICAL_SECTION		CSLock_t;
+	typedef	CRITICAL_SECTION		CriticalSection_t;
 	typedef CONDITION_VARIABLE		ConditionVariable_t;
 	typedef HANDLE 					Mutex_t;
 	typedef HANDLE 					SemId_t;
@@ -28,7 +28,7 @@
 	#include <sys/sem.h>
 	#include <sys/shm.h>
 	#include <sys/time.h>
-	typedef	pthread_mutex_t			CSLock_t;
+	typedef	pthread_mutex_t			CriticalSection_t;
 	typedef pthread_cond_t			ConditionVariable_t;
 	typedef pthread_mutex_t 		Mutex_t;
 	typedef	sem_t* 					SemId_t;
@@ -46,45 +46,45 @@ extern "C" {
 #endif
 
 /* signal */
-sighandler_t signal_Handle(int signo, sighandler_t func);
+sighandler_t signalRegHandler(int signo, sighandler_t func);
 /* pipe */
-BOOL pipe_Create(FD_t* r, FD_t* w);
-BOOL pipe_NonBlock(FD_t pipefd, BOOL bool_val);
-int pipe_ReadableBytes(FD_t r);
+BOOL pipeCreate(FD_t* r, FD_t* w);
+BOOL pipeNonBlock(FD_t pipefd, BOOL bool_val);
+int pipeReadableBytes(FD_t r);
 /* critical section */
-BOOL cslock_Create(CSLock_t* cs);
-BOOL cslock_TryEnter(CSLock_t* cs);
-void cslock_Enter(CSLock_t* cs);
-void cslock_Leave(CSLock_t* cs);
-void cslock_Close(CSLock_t* cs);
+BOOL criticalsectionCreate(CriticalSection_t* cs);
+BOOL criticalsectionTryEnter(CriticalSection_t* cs);
+void criticalsectionEnter(CriticalSection_t* cs);
+void criticalsectionLeave(CriticalSection_t* cs);
+void criticalsectionClose(CriticalSection_t* cs);
 /* condition */
-BOOL condition_Create(ConditionVariable_t* condition);
-BOOL condition_Wait(ConditionVariable_t* condition, CSLock_t* cs, int msec);
-void condition_WakeThread(ConditionVariable_t* condition);
-void condition_WakeAllThread(ConditionVariable_t* condition);
-void condition_Close(ConditionVariable_t* condition);
+BOOL conditionvariableCreate(ConditionVariable_t* condition);
+BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs, int msec);
+void conditionvariableSignal(ConditionVariable_t* condition);
+void conditionvariableBroadcast(ConditionVariable_t* condition);
+void conditionvariableClose(ConditionVariable_t* condition);
 /* mutex */
-BOOL mutex_Create(Mutex_t* mutex);
-BOOL mutex_TryLock(Mutex_t* mutex);
-void mutex_Lock(Mutex_t* mutex);
-void mutex_Unlock(Mutex_t* mutex);
-void mutex_Close(Mutex_t* mutex);
+BOOL mutexCreate(Mutex_t* mutex);
+BOOL mutexTryLock(Mutex_t* mutex);
+void mutexLock(Mutex_t* mutex);
+void mutexUnlock(Mutex_t* mutex);
+void mutexClose(Mutex_t* mutex);
 /* read/write lock */
-BOOL rwlock_Create(RWLock_t* rwlock);
-void rwlock_LockRead(RWLock_t* rwlock);
-void rwlock_LockWrite(RWLock_t* rwlock);
-void rwlock_Unlock(RWLock_t* rwlock);
-void rwlock_Close(RWLock_t* rwlock);
+BOOL rwlockCreate(RWLock_t* rwlock);
+void rwlockLockRead(RWLock_t* rwlock);
+void rwlockLockWrite(RWLock_t* rwlock);
+void rwlockUnlock(RWLock_t* rwlock);
+void rwlockClose(RWLock_t* rwlock);
 /* semaphore */
-SemId_t semaphore_Create(const char* name, unsigned short val);
-SemId_t semaphore_Open(const char* name);
-BOOL semaphore_TryWait(SemId_t id);
-void semaphore_Wait(SemId_t id);
-void semaphore_Post(SemId_t id);
-void semaphore_Close(SemId_t id);
-BOOL semaphore_Unlink(const char* name);
+SemId_t semaphoreCreate(const char* name, unsigned short val);
+SemId_t semaphoreOpen(const char* name);
+BOOL semaphoreTryWait(SemId_t id);
+void semaphoreWait(SemId_t id);
+void semaphorePost(SemId_t id);
+void semaphoreClose(SemId_t id);
+BOOL semaphoreUnlink(const char* name);
 /* once call */
-BOOL initonce_Call(InitOnce_t* once, void(*callback)(void));
+BOOL initonceCall(InitOnce_t* once, void(*callback)(void));
 
 #ifdef	__cplusplus
 }

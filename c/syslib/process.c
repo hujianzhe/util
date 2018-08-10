@@ -27,7 +27,7 @@ static const char* __win32_path(char* path) {
 #endif
 
 /* process operator */
-BOOL process_Create(Process_t* p_process, const char* path, const char* cmdarg) {
+BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg) {
 	char* _cmdarg = NULL;
 #if defined(_WIN32) || defined(_WIN64)
 	char szFullPath[MAX_PATH];
@@ -98,7 +98,7 @@ BOOL process_Create(Process_t* p_process, const char* path, const char* cmdarg) 
 #endif
 }
 
-BOOL process_Cancel(Process_t* process) {
+BOOL processCancel(Process_t* process) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TerminateProcess(process->handle, 0);
 #else
@@ -106,7 +106,7 @@ BOOL process_Cancel(Process_t* process) {
 #endif
 }
 
-size_t process_Id(void) {
+size_t processId(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return GetCurrentProcessId();
 #else
@@ -114,7 +114,7 @@ size_t process_Id(void) {
 #endif
 }
 
-BOOL process_TryFreeZombie(Process_t* process, unsigned char* retcode) {
+BOOL processTryFreeZombie(Process_t* process, unsigned char* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _code;
 	if (WaitForSingleObject(process->handle, 0) == WAIT_OBJECT_0) {
@@ -136,7 +136,7 @@ BOOL process_TryFreeZombie(Process_t* process, unsigned char* retcode) {
 #endif
 }
 
-void* process_LoadModule(const char* path) {
+void* processLoadModule(const char* path) {
 #if	defined(_WIN32) || defined(_WIN64)
 	if (path) {
 		char szFullPath[MAX_PATH];
@@ -150,7 +150,7 @@ void* process_LoadModule(const char* path) {
 #endif
 }
 
-void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name) {
+void* processGetModuleSymbolAddress(void* handle, const char* symbol_name) {
 #if	defined(_WIN32) || defined(_WIN64)
 	return GetProcAddress(handle, symbol_name);
 #else
@@ -158,7 +158,7 @@ void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name) {
 #endif
 }
 
-BOOL process_UnloadModule(void* handle) {
+BOOL processUnloadModule(void* handle) {
 	if (NULL == handle) {
 		return TRUE;
 	}
@@ -170,7 +170,7 @@ BOOL process_UnloadModule(void* handle) {
 }
 
 /* thread operator */
-BOOL thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
+BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = (HANDLE)_beginthreadex(NULL, 0, entry, arg, 0, NULL);
 	if ((HANDLE)-1 == handle) {
@@ -190,7 +190,7 @@ BOOL thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*),
 #endif
 }
 
-BOOL thread_Detach(Thread_t thread) {
+BOOL threadDetach(Thread_t thread) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(thread);
 #else
@@ -203,7 +203,7 @@ BOOL thread_Detach(Thread_t thread) {
 #endif
 }
 
-BOOL thread_Join(Thread_t thread, unsigned int* retcode) {
+BOOL threadJoin(Thread_t thread, unsigned int* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0) {
 		if (retcode && !GetExitCodeThread(thread, (DWORD*)retcode)) {
@@ -226,7 +226,7 @@ BOOL thread_Join(Thread_t thread, unsigned int* retcode) {
 #endif
 }
 
-void thread_Exit(unsigned int retcode) {
+void threadExit(unsigned int retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	_endthreadex(retcode);
 #else
@@ -234,7 +234,7 @@ void thread_Exit(unsigned int retcode) {
 #endif
 }
 
-void thread_Sleep(unsigned int msec) {
+void threadSleepMillsecond(unsigned int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	SleepEx(msec, FALSE);
 #else
@@ -245,7 +245,7 @@ void thread_Sleep(unsigned int msec) {
 #endif
 }
 
-void thread_Yield(void) {
+void threadYield(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SwitchToThread();
 #elif	__linux__
@@ -257,7 +257,7 @@ void thread_Yield(void) {
 #endif
 }
 
-BOOL thread_SetAffinity(Thread_t thread, unsigned int processor_index) {
+BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index) {
 	/* processor_index start 0...n */
 #if defined(_WIN32) || defined(_WIN64)
 	processor_index %= 32;
@@ -278,7 +278,7 @@ BOOL thread_SetAffinity(Thread_t thread, unsigned int processor_index) {
 }
 
 /* thread local operator */
-BOOL thread_AllocLocalKey(Tls_t* key) {
+BOOL threadAllocLocalKey(Tls_t* key) {
 #if defined(_WIN32) || defined(_WIN64)
 	*key = TlsAlloc();
 	return *key != TLS_OUT_OF_INDEXES;
@@ -292,7 +292,7 @@ BOOL thread_AllocLocalKey(Tls_t* key) {
 #endif
 }
 
-BOOL thread_SetLocalValue(Tls_t key, void* value) {
+BOOL threadSetLocalValue(Tls_t key, void* value) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsSetValue(key, value);
 #else
@@ -305,7 +305,7 @@ BOOL thread_SetLocalValue(Tls_t key, void* value) {
 #endif
 }
 
-void* thread_GetLocalValue(Tls_t key) {
+void* threadGetLocalValue(Tls_t key) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsGetValue(key);
 #else
@@ -313,7 +313,7 @@ void* thread_GetLocalValue(Tls_t key) {
 #endif
 }
 
-BOOL thread_FreeLocalKey(Tls_t key) {
+BOOL threadFreeLocalKey(Tls_t key) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TlsFree(key);
 #else

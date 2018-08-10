@@ -106,77 +106,57 @@ float ntohf(unsigned int val);
 unsigned long long htond(double val);
 double ntohd(unsigned long long val);
 #endif
-BOOL network_SetupEnv(void);
-BOOL network_CleanEnv(void);
-NetworkInterfaceInfo_t* network_InterfaceInfo(void);
-void network_FreeInterfaceInfo(NetworkInterfaceInfo_t* info);
+BOOL networkSetupEnv(void);
+BOOL networkCleanEnv(void);
+NetworkInterfaceInfo_t* networkInterfaceInfo(void);
+void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info);
 /* SOCKET ADDRESS */
-int IPtype(const struct sockaddr_storage* sa);
-const char* loopbackIPstring(int family);
-BOOL IPstringIsLoopBack(const char* ip);
-BOOL IPstringIsInner(const char* ip);
-int IPstring2Family(const char* ip);
-struct addrinfo* sock_AddrInfoList(const char* host, const char* serv, int ai_socktype);
-BOOL sock_AddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
-BOOL sock_AddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
-BOOL sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
-BOOL sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr);
-BOOL sock_GetSockAddr(FD_t sockfd, struct sockaddr_storage* saddr);
-BOOL sock_GetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
+int sockaddrIPType(const struct sockaddr_storage* sa);
+const char* ipstrGetLoopback(int family);
+BOOL ipstrIsLoopback(const char* ip);
+BOOL ipstrIsInner(const char* ip);
+int ipstrFamily(const char* ip);
+BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
+BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
+BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
 /* SOCKET */
+BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr);
+BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
+BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 #if defined(_WIN32) || defined(_WIN64)
-#define	sock_Close(sockfd)	(closesocket((SOCKET)(sockfd)) == 0)
+#define	socketClose(sockfd)	(closesocket((SOCKET)(sockfd)) == 0)
 #else
-#define	sock_Close(sockfd)	(close(sockfd) == 0)
+#define	socketClose(sockfd)	(close(sockfd) == 0)
 #endif
-int sock_Type(FD_t sockfd);
-int sock_Error(FD_t sockfd);
-BOOL sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
-BOOL sock_UdpDisconnect(FD_t sockfd);
-FD_t sock_TcpConnect(const struct sockaddr_storage* saddr, int msec);
-#define sock_TcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
-BOOL sock_IsListened(FD_t sockfd, BOOL* bool_value);
-FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
-#define	sock_Shutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
-BOOL sock_Pair(int type, FD_t sockfd[2]);
-/* SOCKET IO */
-BOOL sock_NonBlock(FD_t sockfd, BOOL bool_val);
-int sock_TcpReadableBytes(FD_t sockfd);
-int sock_Recv(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
-int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
-int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
-int sock_TcpRecvAll(FD_t sockfd, void* buf, unsigned int nbytes);
-int sock_TcpSendAll(FD_t sockfd, const void* buf, unsigned int nbytes);
-#define sock_TcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)
-int sock_TcpCanRecvOOB(FD_t sockfd);
-BOOL sock_TcpRecvOOB(FD_t sockfd, unsigned char* oob);
-/* SOCKET Reactor_t */
-int sock_Select(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
-int sock_Poll(struct pollfd* fdarray, unsigned long nfds, int msec);
-/* SOCKET OPTION */
-BOOL sock_SetSendTimeOut(FD_t sockfd, int msec);
-BOOL sock_SetRecvTimeOut(FD_t sockfd, int msec);
-BOOL sock_SetRecvMininumSize(FD_t sockfd, int size);
-BOOL sock_SetSendMininumSize(FD_t sockfd, int size);
-int sock_GetSendBufSize(FD_t sockfd);
-BOOL sock_SetSendBufSize(FD_t sockfd, int size);
-int sock_GetRecvBufSize(FD_t sockfd);
-BOOL sock_SetRecvBufSize(FD_t sockfd, int size);
-BOOL sock_SetUniCastTTL(FD_t sockfd, unsigned char ttl);
-BOOL sock_SetMultiCastTTL(FD_t sockfd, int ttl);
-BOOL sock_TcpGetMSS(FD_t sockfd, int* mss);
-BOOL sock_TcpSetMSS(FD_t sockfd, int mss);
-BOOL sock_TcpNoDelay(FD_t sockfd, BOOL bool_val);
-BOOL sock_TcpEnableProbePeerAlive(FD_t sockfd, BOOL bool_val);
-BOOL sock_TcpEnableOOBInLine(FD_t sockfd, BOOL bool_val);
-BOOL sock_TcpEnableLinger(FD_t sockfd, BOOL bool_val, unsigned int sec);
-BOOL sock_UdpEnableBroadcast(FD_t sockfd, BOOL bool_val);
-BOOL sock_UdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
-BOOL sock_UdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
-BOOL sock_UdpMcastEnableLoop(FD_t sockfd, BOOL bool_val);
-BOOL sock_UdpMcastGetInterface(FD_t sockfd, struct in_addr* iaddr, unsigned int* ifindex);
-BOOL sock_UdpMcastSetInterface(FD_t sockfd, struct in_addr iaddr, unsigned int ifindex);
+int socketError(FD_t sockfd);
+BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
+BOOL socketUdpDisconnect(FD_t sockfd);
+FD_t socketTcpConnect(const struct sockaddr_storage* saddr, int msec);
+#define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
+BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
+FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
+#define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
+BOOL socketPair(int type, FD_t sockfd[2]);
+int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
+int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
+int socketReadv(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
+int socketWritev(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
+int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
+int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
+#define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)
+int socketTcpCanRecvOOB(FD_t sockfd);
+BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* oob);
+int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
+int socketPoll(struct pollfd* fdarray, unsigned long nfds, int msec);
+BOOL socketNonBlock(FD_t sockfd, BOOL bool_val);
+int socketTcpReadableBytes(FD_t sockfd);
+BOOL socketSetSendTimeout(FD_t sockfd, int msec);
+BOOL socketSetRecvTimeout(FD_t sockfd, int msec);
+BOOL socketSetUnicastTTL(FD_t sockfd, int family, unsigned char ttl);
+BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl);
+BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
+BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
+BOOL socketUdpMcastEnableLoop(FD_t sockfd, int family, BOOL bool_val);
 
 #ifdef	__cplusplus
 }

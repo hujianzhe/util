@@ -26,21 +26,21 @@ NioObject::NioObject(FD_t fd, int domain, int socktype, int protocol, bool islis
 }
 
 NioObject::~NioObject(void) {
-	sock_Close(fd);
+	socketClose(fd);
 	free(m_readOl);
 	free(m_writeOl);
 }
 
 bool NioObject::reg(Reactor_t* reactor) {
-	if (!sock_NonBlock(fd, TRUE)) {
+	if (!socketNonBlock(fd, TRUE)) {
 		return false;
 	}
-	if (!reactor_Reg(reactor, fd)) {
+	if (!reactorReg(reactor, fd)) {
 		return false;
 	}
 	m_reactor = reactor;
 	valid = true;
-	m_lastActiveTime = gmt_second();
+	m_lastActiveTime = gmtimeSecond();
 	return true;
 }
 
@@ -57,7 +57,7 @@ bool NioObject::reactorRead(void) {
 	else {
 		opcode = REACTOR_READ;
 	}
-	if (reactor_Commit(m_reactor, fd, opcode, &m_readOl, &saddr)) {
+	if (reactorCommit(m_reactor, fd, opcode, &m_readOl, &saddr)) {
 		return true;
 	}
 	valid = false;
@@ -65,7 +65,7 @@ bool NioObject::reactorRead(void) {
 }
 bool NioObject::reactorWrite(void) {
 	struct sockaddr_storage saddr;
-	if (reactor_Commit(m_reactor, fd, REACTOR_WRITE, &m_writeOl, &saddr)) {
+	if (reactorCommit(m_reactor, fd, REACTOR_WRITE, &m_writeOl, &saddr)) {
 		return true;
 	}
 	valid = false;
@@ -74,7 +74,7 @@ bool NioObject::reactorWrite(void) {
 
 void NioObject::shutdownWaitAck(void) {
 	if (SOCK_STREAM == socktype && !isListen) {
-		sock_Shutdown(fd, SHUT_WR);
+		socketShutdown(fd, SHUT_WR);
 		if (INFTIM == timeout_second) {
 			timeout_second = 5;
 		}
@@ -87,7 +87,7 @@ void NioObject::shutdownWaitAck(void) {
 int NioObject::onRead(void) {
 	int res = read();
 	if (valid) {
-		m_lastActiveTime = gmt_second();
+		m_lastActiveTime = gmtimeSecond();
 		_xchg8(&m_readCommit, FALSE);
 		reactorRead();
 	}

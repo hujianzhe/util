@@ -28,17 +28,11 @@
 extern "C" {
 #endif
 
-/* processor */
-int processor_IsLittleEndian(void);
-size_t processor_Count(void);
-/* name */
-char* current_Username(char* buffer, size_t nbytes);
-char* host_Name(char* buf, size_t len);
-/* memory */
-long memory_PageSize(void);
-BOOL memory_Size(unsigned long long* total);
-/* disk */
-BOOL partition_Size(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
+int endianIsLittle(void);
+size_t processorCount(void);
+char* systemCurrentLoginUsername(char* buffer, size_t nbytes);
+char* systemHostname(char* buf, size_t len);
+BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
 
 #ifdef	__cplusplus
 }

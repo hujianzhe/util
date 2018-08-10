@@ -20,15 +20,15 @@
 #endif
 #include <stdlib.h>
 
-#define	alloca_align(nbytes, alignment)\
+#define	alignedAlloca(nbytes, alignment)\
 ((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((size_t)alignment) - 1)))
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-void* malloc_align(size_t nbytes, size_t alignment);
-void free_align(const void* p);
+void* alignMalloc(size_t nbytes, size_t alignment);
+void alignFree(const void* p);
 
 #ifdef	__cplusplus
 }

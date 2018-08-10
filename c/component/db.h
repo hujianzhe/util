@@ -76,35 +76,35 @@ extern "C" {
 #endif
 
 /* HANDLE */
-int db_HandleType(DBHandle_t* handle);
-DB_RETURN db_InitEnv(int type);
-void db_CleanEnv(int type);
-DB_RETURN db_AllocThreadLocalData(void);
-void db_FreeThreadLocalData(void);
-DBHandle_t* db_CreateHandle(DBHandle_t* handle, int type);
-void db_CloseHandle(DBHandle_t* handle);
-DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec);
-DBHandle_t* db_Connect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
-DB_RETURN db_PingConnectAlive(DBHandle_t* handle);
-const char* db_HandleErrorMessage(DBHandle_t* handle);
+int dbHandleType(DBHandle_t* handle);
+DB_RETURN dbInitEnv(int type);
+void dbCleanEnv(int type);
+DB_RETURN dbAllocTls(void);
+void dbFreeTls(void);
+DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type);
+void dbCloseHandle(DBHandle_t* handle);
+DB_RETURN dbSetConnectTimeout(DBHandle_t* handle, int sec);
+DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
+DB_RETURN dbCheckAlive(DBHandle_t* handle);
+const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
-DB_RETURN db_EnableAutoCommit(DBHandle_t* handle, int bool_val);
-DB_RETURN db_Commit(DBHandle_t* handle, int bool_val);
+DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val);
+DB_RETURN dbCommit(DBHandle_t* handle, int bool_val);
 /* SQL execute */
-DBStmt_t* db_AllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
-DB_RETURN db_CloseStmt(DBStmt_t* stmt);
-const char* db_StmtErrorMessage(DBStmt_t* stmt);
+DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
+DB_RETURN dbCloseStmt(DBStmt_t* stmt);
+const char* dbStmtErrorMessage(DBStmt_t* stmt);
 typedef struct DBExecuteParam_t {
 	int field_type;
 	const void* buffer;
 	size_t buffer_length;
 } DBExecuteParam_t;
-DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt);
+DB_RETURN dbSQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt);
 /* result set */
-long long db_AutoIncrementValue(DBStmt_t* stmt);
-long long db_AffectedRows(DBStmt_t* stmt);
-short db_GetResult(DBStmt_t* stmt);
-DB_RETURN db_FreeResult(DBStmt_t* stmt);
+long long dbAutoIncrementValue(DBStmt_t* stmt);
+long long dbAffectedRows(DBStmt_t* stmt);
+short dbGetResult(DBStmt_t* stmt);
+DB_RETURN dbFreeResult(DBStmt_t* stmt);
 typedef struct DBResultParam_t {
 	void* buffer;
 	size_t buffer_length;
@@ -113,7 +113,7 @@ typedef struct DBResultParam_t {
 		unsigned long mysql_value_length;
 	};
 } DBResultParam_t;
-short db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
+short dbFetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
 
 #ifdef __cplusplus
 }

@@ -15,22 +15,22 @@ namespace Util {
 Logger::Logger(void) :
 	m_async(false),
 	m_inputOption(InputOption::CONSOLE),
-	m_pid(process_Id()),
+	m_pid(processId()),
 	m_days(-1),
 	m_file(INVALID_FD_HANDLE),
 	m_filesize(0),
 	m_maxfilesize(~0)
 {
-	assert_true(cslock_Create(&m_lock));
+	assertTRUE(criticalsectionCreate(&m_lock));
 	list_init(&m_cachelist);
 	m_ident[0] = 0;
 	m_path[0] = 0;
 }
 Logger::~Logger(void) {
 	if (m_file != INVALID_FD_HANDLE) {
-		fd_Close(m_file);
+		fdClose(m_file);
 	}
-	cslock_Close(&m_lock);
+	criticalsectionClose(&m_lock);
 }
 
 void Logger::ident(const char* format, ...) {
@@ -100,12 +100,12 @@ void Logger::debug(const char* format, ...) {
 void Logger::flush(void) {
 	list_node_t* cachehead;
 
-	cslock_Enter(&m_lock);
+	criticalsectionEnter(&m_lock);
 
 	cachehead = m_cachelist.head;
 	list_init(&m_cachelist);
 
-	cslock_Leave(&m_lock);
+	criticalsectionLeave(&m_lock);
 
 	char* txt = NULL;
 	size_t txtlen = 0;
@@ -116,7 +116,7 @@ void Logger::flush(void) {
 		if (m_days != cache->dt.tm_yday) {
 			m_days = cache->dt.tm_yday;
 			if (txt && m_file != INVALID_FD_HANDLE) {
-				fd_Write(m_file, txt, txtlen);
+				fdWrite(m_file, txt, txtlen);
 			}
 			free(txt);
 			txt = NULL;
@@ -149,7 +149,7 @@ void Logger::flush(void) {
 	}
 	// io
 	if (m_file != INVALID_FD_HANDLE && txt) {
-		fd_Write(m_file, txt, txtlen);
+		fdWrite(m_file, txt, txtlen);
 	}
 	free(txt);
 }
@@ -160,10 +160,10 @@ void Logger::build(const char* priority, const char* format, va_list varg) {
 	if (!format || 0 == *format) {
 		return;
 	}
-	if (!mktm(gmt_second(), &dt)) {
+	if (!structtmMake(gmtimeSecond(), &dt)) {
 		return;
 	}
-	normal_tm(&dt);
+	structtmNormal(&dt);
 	int len = 0, res;
 	res = snprintf(buffer, sizeof(buffer), "%s|%d-%d-%d %d:%d:%d|%zu|%s|",
 					m_ident,
@@ -185,7 +185,7 @@ void Logger::build(const char* priority, const char* format, va_list varg) {
 
 void Logger::rotate(const struct tm* dt, bool trunc) {
 	if (m_file != INVALID_FD_HANDLE) {
-		fd_Close(m_file);
+		fdClose(m_file);
 		m_file = INVALID_FD_HANDLE;
 	}
 	m_filesize = 0;
@@ -193,9 +193,9 @@ void Logger::rotate(const struct tm* dt, bool trunc) {
 	if (snprintf(path, sizeof(path), "%s%s.%d-%d-%d.txt", m_path, m_ident, dt->tm_year, dt->tm_mon, dt->tm_mday) < 0) {
 		return;
 	}
-	m_file = fd_Open(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
+	m_file = fdOpen(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
 	if (m_file != INVALID_FD_HANDLE) {
-		m_filesize = fd_GetSize(m_file);
+		m_filesize = fdGetSize(m_file);
 	}
 }
 
@@ -216,7 +216,7 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 			memcpy(cache->txt, content, len);
 		}
 
-		cslock_Enter(&m_lock);
+		criticalsectionEnter(&m_lock);
 
 		if (is_async) {
 			list_insert_node_back(&m_cachelist, m_cachelist.tail, &cache->m_listnode);
@@ -233,12 +233,12 @@ void Logger::onWrite(const struct tm* dt, const char* content, size_t len) {
 			}
 			// io
 			if (INVALID_FD_HANDLE != m_file) {
-				fd_Write(m_file, content, len);
+				fdWrite(m_file, content, len);
 			}
 			m_filesize += len;
 		}
 
-		cslock_Leave(&m_lock);
+		criticalsectionLeave(&m_lock);
 	}
 }
 }

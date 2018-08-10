@@ -27,16 +27,12 @@
 extern "C" {
 #endif
 
-/* url */
-size_t crypt_url_encode(const char* src, size_t srclen, char* dst);
-size_t crypt_url_decode(const char* src, size_t srclen, char* dst);
-/* base64 */
-size_t crypt_base64_encode(const unsigned char* src, size_t srclen, char* dst);
-size_t crypt_base64_decode(const char* src, size_t srclen, unsigned char* dst);
-/* md5 */
-BOOL crypt_md5_encode(const void* data, size_t len, unsigned char* md5);
-/* sha1 */
-BOOL crypt_sha1_encode(const void* data, size_t len, unsigned char* sha1);
+size_t cryptUrlEncode(const char* src, size_t srclen, char* dst);
+size_t cryptUrlDecode(const char* src, size_t srclen, char* dst);
+size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst);
+size_t cryptBase64Decode(const char* src, size_t srclen, unsigned char* dst);
+BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5);
+BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1);
 
 #ifdef	__cplusplus
 }

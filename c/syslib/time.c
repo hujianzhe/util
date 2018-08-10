@@ -14,8 +14,8 @@ extern "C" {
 int TIMESTAMP_OFFSET_SECOND = 0;
 
 /* time trasform */
-int gmt_timezone_offset_second(void) {
-	/* time_t local_time = gmt_second() - gmt_timezone_offset_second() */
+int gmtimeTimezoneOffsetSecond(void) {
+	/* time_t local_time = gmtimeSecond() - gmtimeTimezoneOffsetSecond() */
 	static int tm_gmtoff;
 	if (0 == tm_gmtoff) {
 #if defined(WIN32) || defined(_WIN64)
@@ -34,31 +34,14 @@ int gmt_timezone_offset_second(void) {
 	return tm_gmtoff;
 }
 
-long long gmt_millisecond(void) {
+long long gmtimeMillisecond(void) {
 #if defined(WIN32) || defined(_WIN64)
-	/*
-	struct __timeb64 tval;
-	int res = _ftime64_s(&tval);
-	if (res) {
-		errno = res;
-		return 0;
-	}
-	else {
-		long long sec = tval.time;
-		return sec * 1000 + tval.millitm;
-	}
-	*/
 	long long intervals;
 	FILETIME  ft;
 	GetSystemTimeAsFileTime(&ft);
 	intervals = ((long long)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
 	intervals -= 116444736000000000;
 	return intervals / 10000;
-	/*
-	tv_sec = intervals / 10000000;
-	tv_usec = intervals % 10000000 / 10;
-	return tv_sec * 1000 + tv_usec / 1000;
-	*/
 #else
 	struct timeval tval;
 	if (0 == gettimeofday(&tval, NULL)) {
@@ -69,25 +52,7 @@ long long gmt_millisecond(void) {
 #endif
 }
 
-char* gmtsecond2localstr(time_t value, char* buf, size_t len) {
-	char* c;
-#if defined(WIN32) || defined(_WIN64)
-	int res = ctime_s(buf, len, &value);
-	if (res) {
-		errno = res;
-		return NULL;
-	}
-#else
-	if (ctime_r(&value, buf) == NULL)
-		return NULL;
-#endif
-	if ((c = strchr(buf, '\n'))) {
-		*c = 0;
-	}
-	return buf;
-}
-
-char* localtm2localstr(struct tm* datetime, char* buf, size_t len) {
+char* structtmText(struct tm* datetime, char* buf, size_t len) {
 	char* c;
 #if defined(WIN32) || defined(_WIN64)
 	int res = asctime_s(buf, len, datetime);
@@ -105,7 +70,7 @@ char* localtm2localstr(struct tm* datetime, char* buf, size_t len) {
 	return buf;
 }
 
-struct tm* mktm(time_t value, struct tm* datetime) {
+struct tm* structtmMake(time_t value, struct tm* datetime) {
 #if defined(WIN32) || defined(_WIN64)
 	int res = localtime_s(datetime, &value);
 	if (res) {
@@ -119,7 +84,7 @@ struct tm* mktm(time_t value, struct tm* datetime) {
 	return datetime;
 }
 
-struct tm* normal_tm(struct tm* datetime) {
+struct tm* structtmNormal(struct tm* datetime) {
 	if (datetime) {
 		datetime->tm_year += 1900;
 		datetime->tm_mon += 1;
@@ -129,7 +94,7 @@ struct tm* normal_tm(struct tm* datetime) {
 	return datetime;
 }
 
-struct tm* unnormal_tm(struct tm* datetime) {
+struct tm* structtmUnnormal(struct tm* datetime) {
 	if (datetime) {
 		datetime->tm_year -= 1900;
 		datetime->tm_mon -= 1;
@@ -139,7 +104,7 @@ struct tm* unnormal_tm(struct tm* datetime) {
 	return datetime;
 }
 
-int tm_cmp(const struct tm* t1, const struct tm* t2) {
+int structtmCmp(const struct tm* t1, const struct tm* t2) {
 	if (t1->tm_yday > t2->tm_yday) {
 		return 1;
 	}

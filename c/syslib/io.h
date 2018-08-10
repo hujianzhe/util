@@ -58,13 +58,13 @@ extern "C" {
 #endif
 
 /* aiocb */
-void aio_Init(struct aiocb* cb, size_t udata);
-void aio_SetOffset(struct aiocb* cb, long long offset);
-BOOL aio_Commit(struct aiocb* cb);
-BOOL aio_HasCompleted(const struct aiocb* cb);
-BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec);
-BOOL aio_Cancel(FD_t fd, struct aiocb* cb);
-int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes);
+void aioInit(struct aiocb* cb, size_t udata);
+void aioSetOffset(struct aiocb* cb, long long offset);
+BOOL aioCommit(struct aiocb* cb);
+BOOL aioHasCompleted(const struct aiocb* cb);
+BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
+BOOL aioCancel(FD_t fd, struct aiocb* cb);
+int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
 /* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
@@ -78,15 +78,15 @@ typedef struct Reactor_t {
 #endif
 } Reactor_t;
 typedef void (*REACTOR_ACCEPT_CALLBACK) (FD_t, struct sockaddr_storage*, size_t);
-BOOL reactor_Create(Reactor_t* reactor);
-BOOL reactor_Reg(Reactor_t* reactor, FD_t fd);
-BOOL reactor_Cancel(Reactor_t* reactor, FD_t fd);
-BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
-int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
-void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
-BOOL reactor_ConnectCheckSuccess(FD_t sockfd);
-BOOL reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
-BOOL reactor_Close(Reactor_t* reactor);
+BOOL reactorCreate(Reactor_t* reactor);
+BOOL reactorReg(Reactor_t* reactor, FD_t fd);
+BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
+BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
+int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
+BOOL reactorConnectCheckSuccess(FD_t sockfd);
+BOOL reactorAccept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
+BOOL reactorClose(Reactor_t* reactor);
 
 #ifdef	__cplusplus
 }

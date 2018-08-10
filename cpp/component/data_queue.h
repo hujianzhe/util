@@ -26,7 +26,7 @@ private:
 	void _clear(void);
 
 private:
-	CSLock_t m_cslock;
+	CriticalSection_t m_cslock;
 	ConditionVariable_t m_condition;
 	list_t m_datalist;
 	bool m_forcewakeup;

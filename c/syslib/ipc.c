@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /* signal */
-sighandler_t signal_Handle(int signo, sighandler_t func) {
+sighandler_t signalRegHandler(int signo, sighandler_t func) {
 #if defined(_WIN32) || defined(_WIN64)
 	return signal(signo, func);
 #else
@@ -30,7 +30,7 @@ sighandler_t signal_Handle(int signo, sighandler_t func) {
 }
 
 /* pipe */
-BOOL pipe_Create(FD_t* r, FD_t* w) {
+BOOL pipeCreate(FD_t* r, FD_t* w) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* note: IOCP can't use anonymous pipes(without an overlapped flag) */
 	SECURITY_ATTRIBUTES sa = {0};
@@ -49,7 +49,7 @@ BOOL pipe_Create(FD_t* r, FD_t* w) {
 #endif
 }
 
-BOOL pipe_NonBlock(FD_t pipefd, BOOL bool_val) {
+BOOL pipeNonBlock(FD_t pipefd, BOOL bool_val) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode = bool_val ? PIPE_NOWAIT : PIPE_WAIT;
 	return SetNamedPipeHandleState((HANDLE)pipefd, &mode, NULL, NULL);
@@ -58,7 +58,7 @@ BOOL pipe_NonBlock(FD_t pipefd, BOOL bool_val) {
 #endif
 }
 
-int pipe_ReadableBytes(FD_t r) {
+int pipeReadableBytes(FD_t r) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD bytes;
 	return PeekNamedPipe((HANDLE)r, NULL, 0, NULL, &bytes, NULL) ? bytes : -1;
@@ -69,7 +69,7 @@ int pipe_ReadableBytes(FD_t r) {
 }
 
 /* critical section */
-BOOL cslock_Create(CSLock_t* cs) {
+BOOL criticalsectionCreate(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	__try {
 		InitializeCriticalSection(cs);
@@ -95,7 +95,7 @@ BOOL cslock_Create(CSLock_t* cs) {
 			break;
 	} while (0);
 	if (attr_ok) {
-		assert_true(0 == pthread_mutexattr_destroy(&attr));
+		assertTRUE(0 == pthread_mutexattr_destroy(&attr));
 	}
 	if (res) {
 		errno = res;
@@ -105,7 +105,7 @@ BOOL cslock_Create(CSLock_t* cs) {
 #endif
 }
 
-BOOL cslock_TryEnter(CSLock_t* cs) {
+BOOL criticalsectionTryEnter(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TryEnterCriticalSection(cs);
 #else
@@ -118,32 +118,32 @@ BOOL cslock_TryEnter(CSLock_t* cs) {
 #endif
 }
 
-void cslock_Enter(CSLock_t* cs) {
+void criticalsectionEnter(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	EnterCriticalSection(cs);
 #else
-	assert_true(pthread_mutex_lock(cs) == 0);
+	assertTRUE(pthread_mutex_lock(cs) == 0);
 #endif
 }
 
-void cslock_Leave(CSLock_t* cs) {
+void criticalsectionLeave(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	LeaveCriticalSection(cs);
 #else
-	assert_true(pthread_mutex_unlock(cs) == 0);
+	assertTRUE(pthread_mutex_unlock(cs) == 0);
 #endif
 }
 
-void cslock_Close(CSLock_t* cs) {
+void criticalsectionClose(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	DeleteCriticalSection(cs);
 #else
-	assert_true(pthread_mutex_destroy(cs) == 0);
+	assertTRUE(pthread_mutex_destroy(cs) == 0);
 #endif
 }
 
 /* condition */
-BOOL condition_Create(ConditionVariable_t* condition) {
+BOOL conditionvariableCreate(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	InitializeConditionVariable(condition);
 	return TRUE;
@@ -157,7 +157,7 @@ BOOL condition_Create(ConditionVariable_t* condition) {
 #endif
 }
 
-BOOL condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec) {
+BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return SleepConditionVariableCS(condition, cs, msec);
 #else
@@ -194,31 +194,31 @@ BOOL condition_Wait(ConditionVariable_t* condition,CSLock_t* cs, int msec) {
 #endif
 }
 
-void condition_WakeThread(ConditionVariable_t* condition) {
+void conditionvariableSignal(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeConditionVariable(condition);
 #else
-	assert_true(pthread_cond_signal(condition) == 0);
+	assertTRUE(pthread_cond_signal(condition) == 0);
 #endif
 }
 
-void condition_WakeAllThread(ConditionVariable_t* condition) {
+void conditionvariableBroadcast(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	WakeAllConditionVariable(condition);
 #else
-	assert_true(pthread_cond_broadcast(condition) == 0);
+	assertTRUE(pthread_cond_broadcast(condition) == 0);
 #endif
 }
 
-void condition_Close(ConditionVariable_t* condition) {
+void conditionvariableClose(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 #else
-	assert_true(pthread_cond_destroy(condition) == 0);
+	assertTRUE(pthread_cond_destroy(condition) == 0);
 #endif
 }
 
 /* mutex */
-BOOL mutex_Create(Mutex_t* mutex) {
+BOOL mutexCreate(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* windows mutex will auto release after it's owner thread exit. */
 	/* then...if another thread call WaitForSingleObject for that mutex,it will return WAIT_ABANDONED */
@@ -238,7 +238,7 @@ BOOL mutex_Create(Mutex_t* mutex) {
 #endif
 }
 
-BOOL mutex_TryLock(Mutex_t* mutex) {
+BOOL mutexTryLock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(*mutex, 0) == WAIT_OBJECT_0;
 #else
@@ -251,32 +251,32 @@ BOOL mutex_TryLock(Mutex_t* mutex) {
 #endif
 }
 
-void mutex_Lock(Mutex_t* mutex) {
+void mutexLock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(WaitForSingleObject(*mutex, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(WaitForSingleObject(*mutex, INFINITE) == WAIT_OBJECT_0);
 #else
-	assert_true(pthread_mutex_lock(mutex) == 0);
+	assertTRUE(pthread_mutex_lock(mutex) == 0);
 #endif
 }
 
-void mutex_Unlock(Mutex_t* mutex) {
+void mutexUnlock(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(SetEvent(*mutex));
+	assertTRUE(SetEvent(*mutex));
 #else
-	assert_true(pthread_mutex_unlock(mutex) == 0);
+	assertTRUE(pthread_mutex_unlock(mutex) == 0);
 #endif
 }
 
-void mutex_Close(Mutex_t* mutex) {
+void mutexClose(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(CloseHandle(*mutex));
+	assertTRUE(CloseHandle(*mutex));
 #else
-	assert_true(pthread_mutex_destroy(mutex) == 0);
+	assertTRUE(pthread_mutex_destroy(mutex) == 0);
 #endif
 }
 
 /* read/write lock */
-BOOL rwlock_Create(RWLock_t* rwlock) {
+BOOL rwlockCreate(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* I don't use SRW Locks because SRW Locks are neither fair nor FIFO. */
 	/*InitializeSRWLock(rwlock);*/
@@ -301,10 +301,10 @@ BOOL rwlock_Create(RWLock_t* rwlock) {
 		return TRUE;
 	} while (0);
 	if (read_ev_ok) {
-		assert_true(CloseHandle(rwlock->__read_ev));
+		assertTRUE(CloseHandle(rwlock->__read_ev));
 	}
 	if (write_ev_ok) {
-		assert_true(CloseHandle(rwlock->__write_ev));
+		assertTRUE(CloseHandle(rwlock->__write_ev));
 	}
 	return FALSE;
 #else
@@ -329,7 +329,7 @@ BOOL rwlock_Create(RWLock_t* rwlock) {
 		}
 	} while (0);
 	if (attr_ok) {
-		assert_true(0 == pthread_rwlockattr_destroy(&attr));
+		assertTRUE(0 == pthread_rwlockattr_destroy(&attr));
 	}
 	#else
 	res = pthread_rwlock_init(rwlock, NULL);
@@ -342,96 +342,66 @@ BOOL rwlock_Create(RWLock_t* rwlock) {
 #endif
 }
 
-void rwlock_LockRead(RWLock_t* rwlock) {
+void rwlockLockRead(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
-	/*
-	if (wait_bool) {
-		AcquireSRWLockShared(rwlock);
-		return TRUE;
-	}
-	return TryAcquireSRWLockShared(rwlock);
-	*/
-	assert_true(WaitForSingleObject(rwlock->__read_ev, INFINITE) == WAIT_OBJECT_0);
-	assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(WaitForSingleObject(rwlock->__read_ev, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
 	if (0 == rwlock->__read_cnt++) {
-		assert_true(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
+		assertTRUE(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
 	}
-	assert_true(SetEvent(rwlock->__wait_ev));
+	assertTRUE(SetEvent(rwlock->__wait_ev));
 #else
-	assert_true(pthread_rwlock_rdlock(rwlock) == 0);
-	/*
-	int res = pthread_rwlock_tryrdlock(rwlock);
-	if (res) {
-		errno = res;
-		return FALSE;
-	}
-	return TRUE;
-	*/
+	assertTRUE(pthread_rwlock_rdlock(rwlock) == 0);
 #endif
 }
 
-void rwlock_LockWrite(RWLock_t* rwlock) {
+void rwlockLockWrite(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
-	/*
-	if (wait_bool) {
-		AcquireSRWLockExclusive(rwlock);
-		return TRUE;
-	}
-	return TryAcquireSRWLockExclusive(rwlock);
-	*/
-	assert_true(ResetEvent(rwlock->__read_ev));
-	assert_true(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(ResetEvent(rwlock->__read_ev));
+	assertTRUE(WaitForSingleObject(rwlock->__write_ev, INFINITE) == WAIT_OBJECT_0);
 	rwlock->__exclusive_lock = TRUE;
 #else
-	assert_true(pthread_rwlock_wrlock(rwlock) == 0);
-	/*
-	int res = pthread_rwlock_trywrlock(rwlock);
-	if (res) {
-		errno = res;
-		return FALSE;
-	}
-	return TRUE;
-	*/
+	assertTRUE(pthread_rwlock_wrlock(rwlock) == 0);
 #endif
 }
 
-void rwlock_Unlock(RWLock_t* rwlock) {
+void rwlockUnlock(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (rwlock->__exclusive_lock) {
 		/*ReleaseSRWLockExclusive(rwlock);*/
 		rwlock->__exclusive_lock = FALSE;
-		assert_true(SetEvent(rwlock->__write_ev));
-		assert_true(SetEvent(rwlock->__read_ev));
+		assertTRUE(SetEvent(rwlock->__write_ev));
+		assertTRUE(SetEvent(rwlock->__read_ev));
 	}
 	else {
 		/*ReleaseSRWLockShared(rwlock);*/
-		assert_true(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
+		assertTRUE(WaitForSingleObject(rwlock->__wait_ev, INFINITE) == WAIT_OBJECT_0);
 		if (0 == --rwlock->__read_cnt) {
-			assert_true(SetEvent(rwlock->__write_ev));
+			assertTRUE(SetEvent(rwlock->__write_ev));
 		}
-		assert_true(SetEvent(rwlock->__wait_ev));
+		assertTRUE(SetEvent(rwlock->__wait_ev));
 	}
 #else
-	assert_true(pthread_rwlock_unlock(rwlock) == 0);
+	assertTRUE(pthread_rwlock_unlock(rwlock) == 0);
 #endif
 }
 
-void rwlock_Close(RWLock_t* rwlock) {
+void rwlockClose(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(CloseHandle(rwlock->__read_ev));
-	assert_true(CloseHandle(rwlock->__write_ev));
-	assert_true(CloseHandle(rwlock->__wait_ev));
+	assertTRUE(CloseHandle(rwlock->__read_ev));
+	assertTRUE(CloseHandle(rwlock->__write_ev));
+	assertTRUE(CloseHandle(rwlock->__wait_ev));
 #else
-	assert_true(pthread_rwlock_destroy(rwlock) == 0);
+	assertTRUE(pthread_rwlock_destroy(rwlock) == 0);
 #endif
 }
 
 /* semaphore */
-SemId_t semaphore_Create(const char* name, unsigned short val) {
+SemId_t semaphoreCreate(const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
 	SemId_t semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
-		assert_true(CloseHandle(semid));
+		assertTRUE(CloseHandle(semid));
 		return NULL;
 	}
 	return semid;
@@ -442,7 +412,7 @@ SemId_t semaphore_Create(const char* name, unsigned short val) {
 #endif
 }
 
-SemId_t semaphore_Open(const char* name) {
+SemId_t semaphoreOpen(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
 #else
@@ -450,7 +420,7 @@ SemId_t semaphore_Open(const char* name) {
 #endif
 }
 
-BOOL semaphore_TryWait(SemId_t id) {
+BOOL semaphoreTryWait(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(id, 0) == WAIT_OBJECT_0;
 #else
@@ -458,31 +428,31 @@ BOOL semaphore_TryWait(SemId_t id) {
 #endif
 }
 
-void semaphore_Wait(SemId_t id) {
+void semaphoreWait(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(WaitForSingleObject(id, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(WaitForSingleObject(id, INFINITE) == WAIT_OBJECT_0);
 #else
-	assert_true(sem_wait(id) == 0);
+	assertTRUE(sem_wait(id) == 0);
 #endif
 }
 
-void semaphore_Post(SemId_t id) {
+void semaphorePost(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(ReleaseSemaphore(id, 1, NULL));
+	assertTRUE(ReleaseSemaphore(id, 1, NULL));
 #else
-	assert_true(sem_post(id) == 0);
+	assertTRUE(sem_post(id) == 0);
 #endif
 }
 
-void semaphore_Close(SemId_t id) {
+void semaphoreClose(SemId_t id) {
 #if defined(_WIN32) || defined(_WIN64)
-	assert_true(CloseHandle(id));
+	assertTRUE(CloseHandle(id));
 #else
-	assert_true(sem_close(id) == 0);
+	assertTRUE(sem_close(id) == 0);
 #endif
 }
 
-BOOL semaphore_Unlink(const char* name) {
+BOOL semaphoreUnlink(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TRUE;
 #else
@@ -499,7 +469,7 @@ BOOL CALLBACK __win32InitOnceCallback(PINIT_ONCE InitOnce, PVOID Parameter, PVOI
 }
 #endif
 
-BOOL initonce_Call(InitOnce_t* once, void(*callback)(void)) {
+BOOL initonceCall(InitOnce_t* once, void(*callback)(void)) {
 #if defined(_WIN32) || defined(_WIN64)
 	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL);
 #else

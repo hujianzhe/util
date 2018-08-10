@@ -80,7 +80,7 @@ private:
 	size_t m_filesize;
 	size_t m_maxfilesize;
 	list_t m_cachelist;
-	CSLock_t m_lock;
+	CriticalSection_t m_lock;
 };
 }
 

@@ -37,9 +37,9 @@ static MYSQL_TIME* tm2mysqltime(const struct tm* tm, MYSQL_TIME* mt) {
 #endif
 
 /* HANDLE */
-int db_HandleType(DBHandle_t* handle) { return handle->type; }
+int dbHandleType(DBHandle_t* handle) { return handle->type; }
 
-DB_RETURN db_InitEnv(int type) {
+DB_RETURN dbInitEnv(int type) {
 	DB_RETURN res = DB_ERROR;
 	switch (type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -59,7 +59,7 @@ DB_RETURN db_InitEnv(int type) {
 	return res;
 }
 
-void db_CleanEnv(int type) {
+void dbCleanEnv(int type) {
 	switch (type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -71,20 +71,20 @@ void db_CleanEnv(int type) {
 	}
 }
 
-DB_RETURN db_AllocThreadLocalData(void) {
+DB_RETURN dbAllocTls(void) {
 	#ifdef DB_ENABLE_MYSQL
 	return mysql_thread_init() ? DB_ERROR : DB_SUCCESS;
 	#endif
 	return DB_SUCCESS;
 }
 
-void db_FreeThreadLocalData(void) {
+void dbFreeTls(void) {
 	#ifdef DB_ENABLE_MYSQL
 	mysql_thread_end();
 	#endif
 }
 
-DBHandle_t* db_CreateHandle(DBHandle_t* handle, int type) {
+DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type) {
 	handle->type = type;
 	switch (type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -108,7 +108,7 @@ DBHandle_t* db_CreateHandle(DBHandle_t* handle, int type) {
 	return handle;
 }
 
-void db_CloseHandle(DBHandle_t* handle) {
+void dbCloseHandle(DBHandle_t* handle) {
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -120,7 +120,7 @@ void db_CloseHandle(DBHandle_t* handle) {
 	}
 }
 
-DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec) {
+DB_RETURN dbSetConnectTimeout(DBHandle_t* handle, int sec) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -138,7 +138,7 @@ DB_RETURN db_SetConnectTimeout(DBHandle_t* handle, int sec) {
     return res;
 }
 
-DBHandle_t* db_Connect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) {
+DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -161,7 +161,7 @@ DBHandle_t* db_Connect(DBHandle_t* handle, const char* ip, unsigned short port, 
 	return DB_SUCCESS == res ? handle : NULL;
 }
 
-DB_RETURN db_PingConnectAlive(DBHandle_t* handle) {
+DB_RETURN dbCheckAlive(DBHandle_t* handle) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -179,7 +179,7 @@ DB_RETURN db_PingConnectAlive(DBHandle_t* handle) {
 	return res;
 }
 
-const char* db_HandleErrorMessage(DBHandle_t* handle) {
+const char* dbHandleErrorMessage(DBHandle_t* handle) {
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -194,7 +194,7 @@ const char* db_HandleErrorMessage(DBHandle_t* handle) {
 }
 
 /* transaction */
-DB_RETURN db_EnableAutoCommit(DBHandle_t* handle, int bool_val) {
+DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -212,7 +212,7 @@ DB_RETURN db_EnableAutoCommit(DBHandle_t* handle, int bool_val) {
 	return res;
 }
 
-DB_RETURN db_Commit(DBHandle_t* handle, int bool_val) {
+DB_RETURN dbCommit(DBHandle_t* handle, int bool_val) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -239,7 +239,7 @@ DB_RETURN db_Commit(DBHandle_t* handle, int bool_val) {
 }
 
 /* SQL execute */
-DBStmt_t* db_AllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
+DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
 	DB_RETURN res = DB_ERROR;
 	stmt->handle = NULL;
 	switch (handle->type) {
@@ -267,7 +267,7 @@ DBStmt_t* db_AllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
 	return DB_SUCCESS == res ? stmt : NULL;
 }
 
-DB_RETURN db_CloseStmt(DBStmt_t* stmt) {
+DB_RETURN dbCloseStmt(DBStmt_t* stmt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -301,7 +301,7 @@ DB_RETURN db_CloseStmt(DBStmt_t* stmt) {
     return res;
 }
 
-const char* db_StmtErrorMessage(DBStmt_t* stmt) {
+const char* dbStmtErrorMessage(DBStmt_t* stmt) {
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -315,7 +315,7 @@ const char* db_StmtErrorMessage(DBStmt_t* stmt) {
 	}
 }
 
-DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt) {
+DB_RETURN dbSQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -371,7 +371,7 @@ DB_RETURN db_SQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, D
 }
 
 /* result set */
-long long db_AutoIncrementValue(DBStmt_t* stmt) {
+long long dbAutoIncrementValue(DBStmt_t* stmt) {
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -384,7 +384,7 @@ long long db_AutoIncrementValue(DBStmt_t* stmt) {
 	}
 }
 
-long long db_AffectedRows(DBStmt_t* stmt) {
+long long dbAffectedRows(DBStmt_t* stmt) {
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -405,7 +405,7 @@ long long db_AffectedRows(DBStmt_t* stmt) {
 	}
 }
 
-short db_GetResult(DBStmt_t* stmt) {
+short dbGetResult(DBStmt_t* stmt) {
 	short result_field_count = -1;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -467,7 +467,7 @@ short db_GetResult(DBStmt_t* stmt) {
     return result_field_count;
 }
 
-DB_RETURN db_FreeResult(DBStmt_t* stmt) {
+DB_RETURN dbFreeResult(DBStmt_t* stmt) {
 	DB_RETURN res = DB_ERROR;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -495,7 +495,7 @@ DB_RETURN db_FreeResult(DBStmt_t* stmt) {
 	return res;
 }
 
-short db_FetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt) {
+short dbFetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt) {
 	short result_field_count = -1;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL

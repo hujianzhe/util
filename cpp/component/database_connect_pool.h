@@ -42,7 +42,7 @@ private:
 	const std::string m_pwd;
 	const std::string m_database;
 
-	CSLock_t m_lock;
+	CriticalSection_t m_lock;
 	std::unordered_set<DBHandle_t*> m_dbhandles;
 	typedef std::unordered_set<DBHandle_t*>::iterator handle_iter;
 };

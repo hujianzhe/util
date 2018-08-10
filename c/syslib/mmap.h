@@ -26,13 +26,15 @@ typedef struct {
 extern "C" {
 #endif
 
-long mmap_Granularity(void);
-BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
-BOOL mmap_Open(MemoryMapping_t* mm, const char* name);
-BOOL mmap_Close(MemoryMapping_t* mm);
-void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
-BOOL mmap_Sync(void* addr, size_t nbytes);
-BOOL mmap_Unmap(void* addr, size_t nbytes);
+long memoryPageSize(void);
+unsigned long long memorySize(void);
+
+BOOL memoryCreateMapping(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
+BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name);
+BOOL memoryCloseMapping(MemoryMapping_t* mm);
+void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
+BOOL memorySyncMapping(void* addr, size_t nbytes);
+BOOL memoryUndoMapping(void* addr, size_t nbytes);
 
 #ifdef	__cplusplus
 }

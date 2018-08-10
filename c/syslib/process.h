@@ -57,33 +57,33 @@ extern "C" {
 #endif
 
 /* process operator */
-BOOL process_Create(Process_t* p_process, const char* path, const char* cmdarg);
-BOOL process_Cancel(Process_t* process);
-size_t process_Id(void);
-BOOL process_TryFreeZombie(Process_t* process, unsigned char* retcode);
-void* process_LoadModule(const char* path);
-void* process_GetModuleSymbolAddress(void* handle, const char* symbol_name);
-BOOL process_UnloadModule(void* handle);
+BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
+BOOL processCancel(Process_t* process);
+size_t processId(void);
+BOOL processTryFreeZombie(Process_t* process, unsigned char* retcode);
+void* processLoadModule(const char* path);
+void* processGetModuleSymbolAddress(void* handle, const char* symbol_name);
+BOOL processUnloadModule(void* handle);
 /* thread operator */
-BOOL thread_Create(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
-BOOL thread_Detach(Thread_t thread);
-BOOL thread_Join(Thread_t thread, unsigned int* retcode);
-void thread_Exit(unsigned int retcode);
+BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+BOOL threadDetach(Thread_t thread);
+BOOL threadJoin(Thread_t thread, unsigned int* retcode);
+void threadExit(unsigned int retcode);
 #if defined(_WIN32) || defined(_WIN64)
-#define	thread_Self()		GetCurrentThread()
-#define	thread_Pause()		SuspendThread(GetCurrentThread())
+#define	threadSelf()		GetCurrentThread()
+#define	threadPause()		SuspendThread(GetCurrentThread())
 #else
-#define	thread_Self()		pthread_self()
-#define	thread_Pause()		pause()
+#define	threadSelf()		pthread_self()
+#define	threadPause()		pause()
 #endif
-void thread_Sleep(unsigned int msec);
-void thread_Yield(void);
-BOOL thread_SetAffinity(Thread_t thread, unsigned int processor_index);
+void threadSleepMillsecond(unsigned int msec);
+void threadYield(void);
+BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);
 /* thread local operator */
-BOOL thread_AllocLocalKey(Tls_t* key);
-BOOL thread_SetLocalValue(Tls_t key, void* value);
-void* thread_GetLocalValue(Tls_t key);
-BOOL thread_FreeLocalKey(Tls_t key);
+BOOL threadAllocLocalKey(Tls_t* key);
+BOOL threadSetLocalValue(Tls_t key, void* value);
+void* threadGetLocalValue(Tls_t key);
+BOOL threadFreeLocalKey(Tls_t key);
 
 #ifdef	__cplusplus
 }

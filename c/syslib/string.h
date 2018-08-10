@@ -26,7 +26,7 @@ char* strlcpy(char* dst, const char* src, size_t size);
 	#define strnicmp(s1, s2, n)		strncasecmp(s1, s2, n)
 #endif
 void strtrim(const char* str, size_t len, char** newstr, size_t* newlen);
-unsigned int strhash(const char* str);
+unsigned int strhash_bkdr(const char* str);
 size_t strlen_utf8(const char* s);
 char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
 size_t strlen_safe(const char* s, size_t maxlen);

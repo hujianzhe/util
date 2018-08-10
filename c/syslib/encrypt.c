@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /* url */
-size_t crypt_url_encode(const char* src, size_t srclen, char* dst) {
+size_t cryptUrlEncode(const char* src, size_t srclen, char* dst) {
 	static const char hex2char[] = "0123456789ABCDEF";
 	size_t i, dstlen;
 	for (dstlen = 0, i = 0; i < srclen; ++i) {
@@ -42,7 +42,7 @@ size_t crypt_url_encode(const char* src, size_t srclen, char* dst) {
 	return dstlen;
 }
 
-size_t crypt_url_decode(const char* src, size_t srclen, char* dst) {
+size_t cryptUrlDecode(const char* src, size_t srclen, char* dst) {
 	size_t i, dstlen;
 	for (dstlen = 0,i = 0; i < srclen; ++i) {
 		char c = src[i];
@@ -79,7 +79,7 @@ size_t crypt_url_decode(const char* src, size_t srclen, char* dst) {
 #if !defined(_WIN32) && !defined(_WIN64)
 static const unsigned char base64map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 #endif
-size_t crypt_base64_encode(const unsigned char* src, size_t srclen, char* dst) {
+size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dstLen;
 	return CryptBinaryToStringA(src, srclen, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, dst, &dstLen) ? dstLen : 0;
@@ -133,7 +133,7 @@ static unsigned char base64byte(char c) {
 	}
 }
 #endif
-size_t crypt_base64_decode(const char* src, size_t srclen, unsigned char* dst) {
+size_t cryptBase64Decode(const char* src, size_t srclen, unsigned char* dst) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD dstLen;
 	return CryptStringToBinaryA(src, srclen, CRYPT_STRING_BASE64, dst, &dstLen, NULL, NULL) ? dstLen : 0;
@@ -199,7 +199,7 @@ static BOOL __win32_crypt_clean(struct __WIN32_CRYPT_CTX* ctx) {
 #endif
 
 /* md5 */
-BOOL crypt_md5_encode(const void* data, size_t len, unsigned char* md5) {
+BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5) {
 #if defined(_WIN32) || defined(_WIN64)
 	__WIN32_CRYPT_CTX ctx;
 	BOOL ok = __win32_crypt_init(&ctx);
@@ -227,7 +227,7 @@ BOOL crypt_md5_encode(const void* data, size_t len, unsigned char* md5) {
 }
 
 /* sha1 */
-BOOL crypt_sha1_encode(const void* data, size_t len, unsigned char* sha1) {
+BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1) {
 #if defined(_WIN32) || defined(_WIN64)
 	__WIN32_CRYPT_CTX ctx;
 	BOOL ok = __win32_crypt_init(&ctx);

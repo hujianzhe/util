@@ -148,7 +148,7 @@ double ntohd(unsigned long long val) {
 }
 #endif
 
-BOOL network_SetupEnv(void) {
+BOOL networkSetupEnv(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	WSADATA data;
 	return WSAStartup(MAKEWORD(2, 2), &data) == 0;
@@ -170,7 +170,7 @@ BOOL network_SetupEnv(void) {
 #endif
 }
 
-BOOL network_CleanEnv(void) {
+BOOL networkCleanEnv(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WSACleanup() == 0 || WSAGetLastError() == WSANOTINITIALISED;
 #else
@@ -180,7 +180,7 @@ BOOL network_CleanEnv(void) {
 #endif
 }
 
-NetworkInterfaceInfo_t* network_InterfaceInfo(void) {
+NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 	int ok = 1;
 	NetworkInterfaceInfo_t* info_head = NULL, *info;
 #if defined(_WIN32) || defined(_WIN64)
@@ -341,8 +341,8 @@ NetworkInterfaceInfo_t* network_InterfaceInfo(void) {
 			/* mtu */
 			if ((probefd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) { ok = 0; break; }
 			strcpy(req.ifr_name, p->ifa_name);
-			if (ioctl(probefd, SIOCGIFMTU, &req)) { assert_true(0 == close(probefd)); ok = 0; break; }
-			assert_true(0 == close(probefd));
+			if (ioctl(probefd, SIOCGIFMTU, &req)) { assertTRUE(0 == close(probefd)); ok = 0; break; }
+			assertTRUE(0 == close(probefd));
 			info->mtu = (unsigned int)(req.ifr_ifru.ifru_mtu);
 		}
 #endif
@@ -368,13 +368,13 @@ NetworkInterfaceInfo_t* network_InterfaceInfo(void) {
 	}
 #endif
 	if (!ok) {
-		network_FreeInterfaceInfo(info_head);
+		networkFreeInterfaceInfo(info_head);
 		return NULL;
 	}
 	return info_head;
 }
 
-void network_FreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
+void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
 	NetworkInterfaceInfo_t* i;
 	if (!info) { return; }
 	i = info;
@@ -392,7 +392,7 @@ void network_FreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
 }
 
 /* SOCKET ADDRESS */
-int IPtype(const struct sockaddr_storage* sa) {
+int sockaddrIPType(const struct sockaddr_storage* sa) {
 	if (AF_INET == sa->ss_family) {
 		unsigned int saddr = ntohl(((const struct sockaddr_in*)sa)->sin_addr.s_addr);
 		if ((saddr >> 31) == 0)
@@ -436,7 +436,7 @@ int IPtype(const struct sockaddr_storage* sa) {
 	}
 }
 
-const char* loopbackIPstring(int family) {
+const char* ipstrGetLoopback(int family) {
 	switch (family) {
 		case AF_INET:
 			return "127.0.0.1";
@@ -447,14 +447,14 @@ const char* loopbackIPstring(int family) {
 	}
 }
 
-BOOL IPstringIsLoopBack(const char* ip) {
+BOOL ipstrIsLoopback(const char* ip) {
 	if (!strcmp(ip, "::1")) {
 		return TRUE;
 	}
 	return strstr(ip, "127.0.0.1") != NULL;
 }
 
-BOOL IPstringIsInner(const char* ip) {
+BOOL ipstrIsInner(const char* ip) {
 	/*
 	* A 10.0.0.0	--	10.255.255.255
 	* B 172.16.0.0	--	172.31.255.255
@@ -469,7 +469,7 @@ BOOL IPstringIsInner(const char* ip) {
 			((unsigned char)addr == 0xac && (unsigned char)(addr >> 8) >= 0x10 && (unsigned char)(addr >> 8) <= 0x1f);
 }
 
-int IPstring2Family(const char* ip) {
+int ipstrFamily(const char* ip) {
 	while (*ip) {
 		if ('.' == *ip)
 			return AF_INET;
@@ -480,16 +480,7 @@ int IPstring2Family(const char* ip) {
 	return AF_UNSPEC;
 }
 
-struct addrinfo* sock_AddrInfoList(const char* host, const char* serv, int ai_socktype) {
-	struct addrinfo* res = NULL;
-	struct addrinfo hinfo = {0};/* some fields must clear zero */
-	hinfo.ai_flags = AI_CANONNAME;
-	hinfo.ai_socktype = ai_socktype;
-	getaddrinfo(host,serv,&hinfo,&res);
-	return res;
-}
-
-BOOL sock_AddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
+BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
 	/* win32 must zero this structure, otherwise report 10049 error. */
 	memset(saddr, 0, sizeof(*saddr));
 	if (af == AF_INET) {/* IPv4 */
@@ -527,7 +518,7 @@ BOOL sock_AddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, 
 	return FALSE;
 }
 
-BOOL sock_AddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
+BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
 	unsigned long len;
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
@@ -573,7 +564,7 @@ BOOL sock_AddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned
 	return FALSE;
 }
 
-BOOL sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
+BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
 		addr_in->sin_port = htons(port);
@@ -589,7 +580,7 @@ BOOL sock_AddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
 	return TRUE;
 }
 
-BOOL sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
+BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	int on = 1;
 	int socklen;
 /*
@@ -611,12 +602,12 @@ BOOL sock_BindSockaddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	return bind(sockfd, (struct sockaddr*)saddr, socklen) == 0;
 }
 
-BOOL sock_GetSockAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
+BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
 	socklen_t slen = sizeof(*saddr);
 	return getsockname(sockfd, (struct sockaddr*)saddr, &slen) == 0;
 }
 
-BOOL sock_GetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
+BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
 	socklen_t slen = sizeof(*saddr);
 	return getpeername(sockfd, (struct sockaddr*)saddr, &slen) == 0;
 }
@@ -628,13 +619,7 @@ static int sock_Family(FD_t sockfd) {
 	return getsockname(sockfd, (struct sockaddr*)&ss, &len) ? -1 : ss.ss_family;
 }
 
-int sock_Type(FD_t sockfd) {
-	int type;
-	socklen_t len = sizeof(type);
-	return getsockopt(sockfd, SOL_SOCKET, SO_TYPE, (char*)&type, &len) ? -1 : type;
-}
-
-int sock_Error(FD_t sockfd) {
+int socketError(FD_t sockfd) {
 	int error;
 	socklen_t len = sizeof(int);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len) == 0) {
@@ -646,7 +631,7 @@ int sock_Error(FD_t sockfd) {
 	return error;
 }
 
-BOOL sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
+BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	int socklen;
 	if (AF_INET == saddr->ss_family)
 		socklen = sizeof(struct sockaddr_in);
@@ -659,7 +644,7 @@ BOOL sock_UdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
 	return connect(sockfd, (struct sockaddr*)saddr, socklen) == 0;
 }
 
-BOOL sock_UdpDisconnect(FD_t sockfd) {
+BOOL socketUdpDisconnect(FD_t sockfd) {
 	int res;
 	struct sockaddr sa = {0};
 	sa.sa_family = AF_UNSPEC;
@@ -667,7 +652,7 @@ BOOL sock_UdpDisconnect(FD_t sockfd) {
 	return (res == 0 || __GetErrorCode() == SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 }
 
-FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
+FD_t socketTcpConnect(const struct sockaddr_storage* addr, int msec) {
 	FD_t sockfd;
 	int res, error, socklen;
 	/* socklen */
@@ -685,7 +670,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 		goto end;
 	/* if set timedout,must set sockfd nonblock */
 	if (msec >= 0)
-		sock_NonBlock(sockfd, 1);
+		socketNonBlock(sockfd, 1);
 	/* try connect */
 	res = connect(sockfd, (struct sockaddr*)addr, socklen);
 	if (!res) {
@@ -696,7 +681,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 				__GetErrorCode() != SOCKET_ERROR_VALUE(EWOULDBLOCK))/* winsock report this error code */
 	{
 		error = __GetErrorCode();
-		sock_Close(sockfd);
+		socketClose(sockfd);
 		__SetErrorCode(error);
 		sockfd = INVALID_SOCKET;
 		goto end;
@@ -714,7 +699,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 		tval.tv_usec = msec % 1000 * 1000;
 		res = select(sockfd + 1, &rset, &wset, NULL, &tval);/* wait tval */
 		if (res == 0) {/* timeout */
-			sock_Close(sockfd);
+			socketClose(sockfd);
 			__SetErrorCode(SOCKET_ERROR_VALUE(ETIMEDOUT));
 			sockfd = INVALID_SOCKET;
 			goto end;
@@ -727,7 +712,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 			if (res < 0)/* solaris */
 				error = errno;
 			if (error) {
-				sock_Close(sockfd);
+				socketClose(sockfd);
 				__SetErrorCode(error);
 				sockfd = INVALID_SOCKET;
 				goto end;
@@ -735,7 +720,7 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 		}
 		else {/* select error,must close socket */
 			error = __GetErrorCode();
-			sock_Close(sockfd);
+			socketClose(sockfd);
 			__SetErrorCode(error);
 			sockfd = INVALID_SOCKET;
 			goto end;
@@ -743,12 +728,12 @@ FD_t sock_TcpConnect(const struct sockaddr_storage* addr, int msec) {
 	}
 	/* socket connect success,then reset block io */
 	if (msec >= 0)
-		sock_NonBlock(sockfd, 0);
+		socketNonBlock(sockfd, 0);
 end:
 	return sockfd;
 }
 
-BOOL sock_IsListened(FD_t sockfd, BOOL* bool_value) {
+BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
 	socklen_t len = sizeof(*bool_value);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len)) {
 		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTSOCK))
@@ -758,7 +743,7 @@ BOOL sock_IsListened(FD_t sockfd, BOOL* bool_value) {
 	return TRUE;
 }
 
-FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
+FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
 	FD_t confd = INVALID_SOCKET;
 	socklen_t slen = sizeof(*from);
 	socklen_t* p_slen = from ? &slen : NULL;
@@ -783,7 +768,7 @@ FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
 				break;
 			}
 			/* avoid block... */
-			if (!sock_NonBlock(listenfd, 1)) {
+			if (!socketNonBlock(listenfd, 1)) {
 				break;
 			}
 			confd = accept(listenfd, (struct sockaddr*)from, p_slen);
@@ -792,7 +777,7 @@ FD_t sock_TcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
 	return confd;
 }
 
-BOOL sock_Pair(int type, FD_t sockfd[2]) {
+BOOL socketPair(int type, FD_t sockfd[2]) {
 #if defined(_WIN32) || defined(_WIN64)
 	socklen_t slen = sizeof(struct sockaddr_in);
 	struct sockaddr_in saddr = { 0 };
@@ -864,33 +849,13 @@ BOOL sock_Pair(int type, FD_t sockfd[2]) {
 #endif
 }
 
-/* SOCKET IO */
-BOOL sock_NonBlock(FD_t sockfd, BOOL bool_val) {
-#if defined(_WIN32) || defined(_WIN64)
-	u_long ctl = bool_val ? 1 : 0;
-	return ioctlsocket(sockfd, FIONBIO, &ctl) == 0;
-#else
-	return ioctl(sockfd, FIONBIO, &bool_val) == 0;
-#endif
-}
-
-int sock_TcpReadableBytes(FD_t sockfd) {
-	/* for udp: there is no a reliable sysapi to get udp next pending dgram size in different platform */
-#if defined(_WIN32) || defined(_WIN64)
-	u_long bytes;
-	return ioctlsocket(sockfd, FIONREAD, &bytes) ? -1 : bytes;
-#else
-	int bytes;
-	return ioctl(sockfd, FIONREAD, &bytes) ? -1 : bytes;
-#endif
-}
-
-int sock_Recv(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
+/* SOCKET */
+int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
 	socklen_t slen = from ? sizeof(*from) : 0;
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
-int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
+int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
 	int socklen;
 	if (to) {
 #if defined(__FreeBSD__) || defined(__APPLE__)
@@ -910,7 +875,7 @@ int sock_Send(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, cons
 	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, socklen);
 }
 
-int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
+int socketReadv(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
 	int slen = saddr ? sizeof(*saddr) : 0;
@@ -925,7 +890,7 @@ int sock_RecvVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, stru
 #endif	
 }
 
-int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
+int socketWritev(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
 	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, (struct sockaddr*)saddr, saddr ? sizeof(*saddr) : 0, NULL, NULL) ? -1 : realbytes;
@@ -955,7 +920,7 @@ int sock_SendVec(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, cons
 #endif
 }
 
-int sock_TcpSendAll(FD_t sockfd, const void* buf, unsigned int nbytes) {
+int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes) {
 	int wn = 0;
 	int res;
 	while (wn < (int)nbytes) {
@@ -968,7 +933,7 @@ int sock_TcpSendAll(FD_t sockfd, const void* buf, unsigned int nbytes) {
 	return nbytes;
 }
 
-int sock_TcpRecvAll(FD_t sockfd, void* buf, unsigned int nbytes) {
+int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes) {
 #ifdef	MSG_WAITALL
 	return recv(sockfd, (char*)buf, nbytes, MSG_WAITALL);
 #else
@@ -985,7 +950,7 @@ int sock_TcpRecvAll(FD_t sockfd, void* buf, unsigned int nbytes) {
 #endif
 }
 
-int sock_TcpCanRecvOOB(FD_t sockfd){
+int socketTcpCanRecvOOB(FD_t sockfd){
 #if defined(_WIN32) || defined(_WIN64)
     u_long ok;
 	return !ioctlsocket(sockfd,SIOCATMARK,&ok) ? ok:-1;
@@ -994,7 +959,7 @@ int sock_TcpCanRecvOOB(FD_t sockfd){
 #endif
 }
 
-BOOL sock_TcpRecvOOB(FD_t sockfd, unsigned char* p_oob) {
+BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* p_oob) {
 	unsigned char c;
 	void* p = p_oob;
 	if (p == NULL) {
@@ -1004,7 +969,7 @@ BOOL sock_TcpRecvOOB(FD_t sockfd, unsigned char* p_oob) {
 }
 
 /* SOCKET Reactor_t */
-int sock_Select(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec) {
+int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec) {
 	int res;
 	struct timeval tval;
 	do {
@@ -1017,7 +982,7 @@ int sock_Select(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec) {
 	return res;
 }
 
-int sock_Poll(struct pollfd* fdarray, unsigned long nfds, int msec) {
+int socketPoll(struct pollfd* fdarray, unsigned long nfds, int msec) {
 	int res;
 	do {
 #if defined(_WIN32) || defined(_WIN64)
@@ -1029,8 +994,28 @@ int sock_Poll(struct pollfd* fdarray, unsigned long nfds, int msec) {
 	return res;
 }
 
-/* SOCKET OPTION */
-BOOL sock_SetSendTimeOut(FD_t sockfd, int msec) {
+
+BOOL socketNonBlock(FD_t sockfd, BOOL bool_val) {
+#if defined(_WIN32) || defined(_WIN64)
+	u_long ctl = bool_val ? 1 : 0;
+	return ioctlsocket(sockfd, FIONBIO, &ctl) == 0;
+#else
+	return ioctl(sockfd, FIONBIO, &bool_val) == 0;
+#endif
+}
+
+int socketTcpReadableBytes(FD_t sockfd) {
+	/* for udp: there is no a reliable sysapi to get udp next pending dgram size in different platform */
+#if defined(_WIN32) || defined(_WIN64)
+	u_long bytes;
+	return ioctlsocket(sockfd, FIONREAD, &bytes) ? -1 : bytes;
+#else
+	int bytes;
+	return ioctl(sockfd, FIONREAD, &bytes) ? -1 : bytes;
+#endif
+}
+
+BOOL socketSetSendTimeout(FD_t sockfd, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, (char*)&msec, sizeof(msec)) == 0;
 #else
@@ -1042,7 +1027,7 @@ BOOL sock_SetSendTimeOut(FD_t sockfd, int msec) {
 #endif
 }
 
-BOOL sock_SetRecvTimeOut(FD_t sockfd, int msec) {
+BOOL socketSetRecvTimeout(FD_t sockfd, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	return setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&msec, sizeof(msec)) == 0;
 #else
@@ -1054,39 +1039,8 @@ BOOL sock_SetRecvTimeOut(FD_t sockfd, int msec) {
 #endif
 }
 
-BOOL sock_SetRecvMininumSize(FD_t sockfd, int size) {
-    /* nio use(eg. select) */
-    return setsockopt(sockfd, SOL_SOCKET, SO_RCVLOWAT, (char*)&size, sizeof(size)) == 0;
-}
-
-BOOL sock_SetSendMininumSize(FD_t sockfd, int size) {
-    /* nio use(eg. select) */
-    return setsockopt(sockfd, SOL_SOCKET, SO_SNDLOWAT, (char*)&size, sizeof(size)) == 0;
-}
-
-int sock_GetSendBufSize(FD_t sockfd) {
-	int res;
-	socklen_t len = sizeof(res);
-	return getsockopt(sockfd, SOL_SOCKET, SO_SNDBUF,(char*)&res, &len) ? -1 : res;
-}
-
-BOOL sock_SetSendBufSize(FD_t sockfd, int size) {
-	return setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, (char*)&size, sizeof(size)) == 0;
-}
-
-int sock_GetRecvBufSize(FD_t sockfd) {
-	int res;
-	socklen_t len = sizeof(res);
-	return getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char*)&res, &len) ? -1 : res;
-}
-
-BOOL sock_SetRecvBufSize(FD_t sockfd, int size) {
-	return setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, (char*)&size, sizeof(size)) == 0;
-}
-
-BOOL sock_SetUniCastTTL(FD_t sockfd, unsigned char ttl) {
+BOOL socketSetUnicastTTL(FD_t sockfd, int family, unsigned char ttl) {
 	int val = ttl;
-	int family = sock_Family(sockfd);
 	if (family == AF_INET)
 		return setsockopt(sockfd, IPPROTO_IP, IP_TTL, (char*)&val, sizeof(val)) == 0;
 	else if (family == AF_INET6)
@@ -1096,8 +1050,7 @@ BOOL sock_SetUniCastTTL(FD_t sockfd, unsigned char ttl) {
 	return FALSE;
 }
 
-BOOL sock_SetMultiCastTTL(FD_t sockfd, int ttl) {
-	int family = sock_Family(sockfd);
+BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl) {
 	if (family == AF_INET) {
 		unsigned char val = ttl > 0xff ? 0xff : ttl;
 		return setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&val, sizeof(val)) == 0;
@@ -1109,47 +1062,7 @@ BOOL sock_SetMultiCastTTL(FD_t sockfd, int ttl) {
 	return FALSE;
 }
 
-BOOL sock_TcpGetMSS(FD_t sockfd, int* mss) {
-	socklen_t len = sizeof(*mss);
-	return getsockopt(sockfd, IPPROTO_TCP, TCP_MAXSEG, (char*)mss, &len) == 0;
-}
-
-BOOL sock_TcpSetMSS(FD_t sockfd, int mss) {
-	return setsockopt(sockfd, IPPROTO_TCP, TCP_MAXSEG, (char*)&mss, sizeof(mss)) == 0;
-}
-
-BOOL sock_TcpNoDelay(FD_t sockfd, BOOL bool_val) {
-	int on = (bool_val != 0);
-	return setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)) == 0;
-}
-
-BOOL sock_TcpEnableProbePeerAlive(FD_t sockfd, BOOL bool_val) {
-	int on = (bool_val != 0);
-	return setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, (char*)&on, sizeof(on)) == 0;
-}
-
-BOOL sock_TcpEnableOOBInLine(FD_t sockfd, BOOL bool_val) {
-	int on = (bool_val != 0);
-	return setsockopt(sockfd, SOL_SOCKET, SO_OOBINLINE, (char*)&on, sizeof(on)) == 0;
-}
-
-BOOL sock_TcpEnableLinger(FD_t sockfd, BOOL bool_val, unsigned int sec) {
-	/* it is used by close()/closesocket(), not shutdown */
-	struct linger sl = {0};
-	sl.l_onoff = bool_val;
-	sl.l_linger = sec;
-	/* if(l_onoff == TRUE && sec == 0)
-			close()/closesocket() will send RST to peer host;
-	*/
-	return setsockopt(sockfd, SOL_SOCKET, SO_LINGER, (char*)&sl, sizeof(sl)) == 0;
-}
-
-BOOL sock_UdpEnableBroadcast(FD_t sockfd, BOOL bool_val) {
-	bool_val = bool_val ? 1:0;
-	return setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (char*)&bool_val, sizeof(bool_val)) == 0;
-}
-
-BOOL sock_UdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
+BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
 	if (grp->ss_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -1166,7 +1079,7 @@ BOOL sock_UdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
 	return FALSE;
 }
 
-BOOL sock_UdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp) {
+BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp) {
 	if (grp->ss_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -1183,8 +1096,7 @@ BOOL sock_UdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp) {
 	return FALSE;
 }
 
-BOOL sock_UdpMcastEnableLoop(FD_t sockfd, BOOL bool_val) {
-	int family = sock_Family(sockfd);
+BOOL socketUdpMcastEnableLoop(FD_t sockfd, int family, BOOL bool_val) {
 	if (family == AF_INET) {
 		unsigned char val = (bool_val != 0);
 		return setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_LOOP, (char*)&val, sizeof(val)) == 0;
@@ -1193,35 +1105,6 @@ BOOL sock_UdpMcastEnableLoop(FD_t sockfd, BOOL bool_val) {
 		bool_val = (bool_val != 0);
 		return setsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, (char*)&bool_val, sizeof(bool_val)) == 0;
 	}
-	else if (family != -1) {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-	}
-	return FALSE;
-}
-
-BOOL sock_UdpMcastGetInterface(FD_t sockfd, struct in_addr* iaddr, unsigned int* ifindex) {
-	int family = sock_Family(sockfd);
-	socklen_t optlen;
-	if (family == AF_INET) {
-		optlen = sizeof(struct in_addr);
-		return getsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)iaddr, &optlen) == 0;
-	}
-	else if (family == AF_INET6) {
-		optlen = sizeof(unsigned int);
-		return getsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, (char*)ifindex, &optlen) == 0;
-	}
-	else if (family != -1) {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-	}
-	return FALSE;
-}
-
-BOOL sock_UdpMcastSetInterface(FD_t sockfd, struct in_addr iaddr, unsigned int ifindex) {
-	int family = sock_Family(sockfd);
-	if (family == AF_INET)
-		return setsockopt(sockfd, IPPROTO_IP, IP_MULTICAST_IF, (char*)&iaddr, sizeof(struct in_addr)) == 0;
-	else if (family == AF_INET6)
-		return setsockopt(sockfd, IPPROTO_IPV6, IPV6_MULTICAST_IF, (char*)&ifindex, sizeof(ifindex)) == 0;
 	else if (family != -1) {
 		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 	}

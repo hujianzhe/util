@@ -10,14 +10,14 @@ DataQueue::DataQueue(void(*deleter)(list_node_t*)) :
 	m_forcewakeup(false),
 	m_deleter(deleter)
 {
-	assert_true(cslock_Create(&m_cslock));
-	assert_true(condition_Create(&m_condition));
+	assertTRUE(criticalsectionCreate(&m_cslock));
+	assertTRUE(conditionvariableCreate(&m_condition));
 	list_init(&m_datalist);
 }
 DataQueue::~DataQueue(void) {
 	_clear();
-	cslock_Close(&m_cslock);
-	condition_Close(&m_condition);
+	criticalsectionClose(&m_cslock);
+	conditionvariableClose(&m_condition);
 }
 
 void DataQueue::push(list_node_t* data) {
@@ -25,15 +25,15 @@ void DataQueue::push(list_node_t* data) {
 		return;
 	}
 
-	cslock_Enter(&m_cslock);
+	criticalsectionEnter(&m_cslock);
 
 	bool is_empty = !m_datalist.head;
 	list_insert_node_back(&m_datalist, m_datalist.tail, data);
 	if (is_empty) {
-		condition_WakeThread(&m_condition);
+		conditionvariableSignal(&m_condition);
 	}
 
-	cslock_Leave(&m_cslock);
+	criticalsectionLeave(&m_cslock);
 }
 
 void DataQueue::push(list_t* list) {
@@ -41,15 +41,15 @@ void DataQueue::push(list_t* list) {
 		return;
 	}
 
-	cslock_Enter(&m_cslock);
+	criticalsectionEnter(&m_cslock);
 
 	bool is_empty = !m_datalist.head;
 	list_merge(&m_datalist, list);
 	if (is_empty) {
-		condition_WakeThread(&m_condition);
+		conditionvariableSignal(&m_condition);
 	}
 
-	cslock_Leave(&m_cslock);
+	criticalsectionLeave(&m_cslock);
 }
 
 list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
@@ -58,13 +58,13 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		return res;
 	}
 
-	cslock_Enter(&m_cslock);
+	criticalsectionEnter(&m_cslock);
 
 	while (!m_datalist.head && !m_forcewakeup) {
-		if (condition_Wait(&m_condition, &m_cslock, msec)) {
+		if (conditionvariableWait(&m_condition, &m_cslock, msec)) {
 			continue;
 		}
-		assert_true(errno_get() == ETIMEDOUT);
+		assertTRUE(errnoGet() == ETIMEDOUT);
 		break;
 	}
 	m_forcewakeup = false;
@@ -84,15 +84,15 @@ list_node_t* DataQueue::pop(int msec, size_t expect_cnt) {
 		}
 	}
 
-	cslock_Leave(&m_cslock);
+	criticalsectionLeave(&m_cslock);
 
 	return res;
 }
 
 void DataQueue::clear(void) {
-	cslock_Enter(&m_cslock);
+	criticalsectionEnter(&m_cslock);
 	_clear();
-	cslock_Leave(&m_cslock);
+	criticalsectionLeave(&m_cslock);
 }
 void DataQueue::_clear(void) {
 	if (m_deleter) {
@@ -107,6 +107,6 @@ void DataQueue::_clear(void) {
 
 void DataQueue::weakup(void) {
 	m_forcewakeup = true;
-	condition_WakeThread(&m_condition);
+	conditionvariableSignal(&m_condition);
 }
 }

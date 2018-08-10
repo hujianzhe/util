@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-void* malloc_align(size_t nbytes, size_t alignment) {
+void* alignMalloc(size_t nbytes, size_t alignment) {
 #if defined(_WIN32) || defined(_WIN64)
 	return alignment ? _aligned_malloc(nbytes, alignment) : NULL;
 #elif	defined(__linux__)
@@ -28,7 +28,7 @@ void* malloc_align(size_t nbytes, size_t alignment) {
 #endif
 }
 
-void free_align(const void* ptr) {
+void alignFree(const void* ptr) {
 #if defined(_WIN32) || defined(_WIN64)
 	_aligned_free((void*)ptr);
 #elif	defined(__linux__)

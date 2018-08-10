@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-int errno_get(void) {
+int errnoGet(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (GetLastError()) {
 		case ERROR_TOO_MANY_OPEN_FILES:
@@ -141,14 +141,14 @@ int errno_get(void) {
 	return errno;
 }
 
-void errno_set(int errnum) {
+void errnoSet(int errnum) {
 #if defined(_WIN32) || defined(_WIN64)
 	SetLastError(errnum);
 #endif
 	errno = errnum;
 }
 
-char* errno_txt(int errnum, char* buf, size_t bufsize) {
+char* errnoText(int errnum, char* buf, size_t bufsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	return strerror_s(buf, bufsize, errnum) ? NULL : buf;
 #else

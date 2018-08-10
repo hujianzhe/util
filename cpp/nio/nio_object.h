@@ -26,7 +26,7 @@ public:
 	void shutdownWaitAck(void);
 
 	bool checkTimeout(void) {
-		return timeout_second >= 0 && gmt_second() - timeout_second > m_lastActiveTime;
+		return timeout_second >= 0 && gmtimeSecond() - timeout_second > m_lastActiveTime;
 	}
 	bool checkValid(void) {
 		return valid && !checkTimeout();

@@ -14,17 +14,48 @@
 extern "C" {
 #endif
 
-long mmap_Granularity(void) {
+long memoryPageSize(void) {
 #if defined(_WIN32) || defined(_WIN64)
-	SYSTEM_INFO sinfo = {0};
-	GetSystemInfo(&sinfo);
-	return sinfo.dwAllocationGranularity;
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	return si.dwPageSize;
 #else
 	return sysconf(_SC_PAGESIZE);
 #endif
 }
 
-BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
+unsigned long long memorySize(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	MEMORYSTATUSEX statex = { 0 };
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) {
+		return statex.ullTotalPhys;
+		//*avail = statex.ullAvailPhys;
+		//return TRUE;
+	}
+	return 0;
+	//return FALSE;
+#elif __linux__
+	unsigned long page_size, total_page;
+	if ((page_size = sysconf(_SC_PAGESIZE)) == -1)
+		return 0;
+	if ((total_page = sysconf(_SC_PHYS_PAGES)) == -1)
+		return 0;
+	//if((free_page = sysconf(_SC_AVPHYS_PAGES)) == -1)
+	//return FALSE;
+	return (unsigned long long)total_page * (unsigned long long)page_size;
+	//*avail = (unsigned long long)free_page * (unsigned long long)page_size;
+	//return TRUE;
+#elif __APPLE__
+	int64_t value;
+	size_t len = sizeof(value);
+	return sysctlbyname("hw.memsize", &value, &len, NULL, 0) != -1 ? value : 0;
+	//*avail = 0;// sorry...
+	//return TRUE;
+#endif
+}
+
+BOOL memoryCreateMapping(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
 	if (fd != INVALID_FD_HANDLE) {
 #if defined(_WIN32) || defined(_WIN64)
 		mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
@@ -38,7 +69,7 @@ BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) 
 #if defined(_WIN32) || defined(_WIN64)
 		HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
 		if (GetLastError() == ERROR_ALREADY_EXISTS) {
-			assert_true(CloseHandle(handle));
+			assertTRUE(CloseHandle(handle));
 			return FALSE;
 		}
 		mm->__handle = handle;
@@ -48,7 +79,7 @@ BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) 
 			return FALSE;
 		}
 		if (ftruncate(fd, nbytes)) {
-			assert_true(close(fd) == 0);
+			assertTRUE(close(fd) == 0);
 			return FALSE;
 		}
 		mm->__isref = 0;
@@ -58,7 +89,7 @@ BOOL mmap_Create(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) 
 	return TRUE;
 }
 
-BOOL mmap_Open(MemoryMapping_t* mm, const char* name) {
+BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return mm->__handle != NULL;
@@ -69,7 +100,7 @@ BOOL mmap_Open(MemoryMapping_t* mm, const char* name) {
 #endif
 }
 
-BOOL mmap_Close(MemoryMapping_t* mm) {
+BOOL memoryCloseMapping(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(mm->__handle);
 #else
@@ -77,7 +108,7 @@ BOOL mmap_Close(MemoryMapping_t* mm) {
 #endif
 }
 
-void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes) {
+void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return MapViewOfFileEx(mm->__handle, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
 #else
@@ -85,7 +116,7 @@ void* mmap_Map(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbyt
 #endif
 }
 
-BOOL mmap_Sync(void* addr, size_t nbytes) {
+BOOL memorySyncMapping(void* addr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FlushViewOfFile(addr, nbytes);
 #else
@@ -93,7 +124,7 @@ BOOL mmap_Sync(void* addr, size_t nbytes) {
 #endif
 }
 
-BOOL mmap_Unmap(void* addr, size_t nbytes) {
+BOOL memoryUndoMapping(void* addr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return UnmapViewOfFile(addr);
 #else

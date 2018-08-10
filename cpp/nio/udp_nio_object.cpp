@@ -18,9 +18,9 @@ int UdpNioObject::read(void) {
 	struct sockaddr_storage saddr;
 	while (1) {
 		unsigned char* buffer = (unsigned char*)alloca(m_frameLengthLimit);
-		res = sock_Recv(fd, buffer, m_frameLengthLimit, 0, &saddr);
+		res = socketRead(fd, buffer, m_frameLengthLimit, 0, &saddr);
 		if (res < 0) {
-			if (errno_get() != EWOULDBLOCK) {
+			if (errnoGet() != EWOULDBLOCK) {
 				valid = false;
 			}
 			break;
@@ -52,7 +52,7 @@ int UdpNioObject::sendv(IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_stora
 		return 0;
 	}
 
-	int res = sock_SendVec(fd, iov, iovcnt, 0, saddr);
+	int res = socketWritev(fd, iov, iovcnt, 0, saddr);
 	if (res < 0) {
 		valid = false;
 		return -1;

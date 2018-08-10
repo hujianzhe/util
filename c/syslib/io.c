@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /* aiocb */
-void aio_Init(struct aiocb* cb, size_t udata) {
+void aioInit(struct aiocb* cb, size_t udata) {
 	memset(cb, 0, sizeof(*cb));
 	cb->aio_lio_opcode = LIO_NOP;
 	cb->aio_fildes = INVALID_FD_HANDLE;
@@ -29,7 +29,7 @@ void aio_Init(struct aiocb* cb, size_t udata) {
 #endif
 }
 
-void aio_SetOffset(struct aiocb* cb, long long offset) {
+void aioSetOffset(struct aiocb* cb, long long offset) {
 	cb->aio_offset = offset;
 #if defined(_WIN32) || defined(_WIN64)
 	if (LIO_READ == cb->aio_lio_opcode) {
@@ -43,7 +43,7 @@ void aio_SetOffset(struct aiocb* cb, long long offset) {
 #endif
 }
 
-BOOL aio_Commit(struct aiocb* cb) {
+BOOL aioCommit(struct aiocb* cb) {
 	if (LIO_READ == cb->aio_lio_opcode) {
 #if defined(_WIN32) || defined(_WIN64)
 		return ReadFileEx((HANDLE)(cb->aio_fildes),
@@ -67,7 +67,7 @@ BOOL aio_Commit(struct aiocb* cb) {
 	return TRUE;
 }
 
-BOOL aio_HasCompleted(const struct aiocb* cb) {
+BOOL aioHasCompleted(const struct aiocb* cb) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (LIO_READ == cb->aio_lio_opcode) {
 		return HasOverlappedIoCompleted(&cb->in.__ol);
@@ -81,7 +81,7 @@ BOOL aio_HasCompleted(const struct aiocb* cb) {
 #endif
 }
 
-BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec) {
+BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD i;
 	DWORD dwCount = nent > MAXIMUM_WAIT_OBJECTS ? MAXIMUM_WAIT_OBJECTS : nent;
@@ -102,7 +102,7 @@ BOOL aio_Suspend(const struct aiocb* const cb_list[], int nent, int msec) {
 #endif
 }
 
-BOOL aio_Cancel(FD_t fd, struct aiocb* cb) {
+BOOL aioCancel(FD_t fd, struct aiocb* cb) {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED* p_ol = NULL;
 	if (LIO_READ == cb->aio_lio_opcode) {
@@ -127,7 +127,7 @@ BOOL aio_Cancel(FD_t fd, struct aiocb* cb) {
 #endif
 }
 
-int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes) {
+int aioResult(struct aiocb* cb, unsigned int* transfer_bytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED* p_ol = NULL;
 	if (LIO_READ == cb->aio_lio_opcode) {
@@ -151,7 +151,7 @@ int aio_Result(struct aiocb* cb, unsigned int* transfer_bytes) {
 }
 
 /* NIO */
-BOOL reactor_Create(Reactor_t* reactor) {
+BOOL reactorCreate(Reactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -179,10 +179,10 @@ BOOL reactor_Create(Reactor_t* reactor) {
 		return TRUE;
 	} while (0);
 	if (nio_ok) {
-		assert_true(0 == close(reactor->__hNio));
+		assertTRUE(0 == close(reactor->__hNio));
 	}
 	if (epfd_ok) {
-		assert_true(0 == close(reactor->__epfd));
+		assertTRUE(0 == close(reactor->__epfd));
 	}
 	return FALSE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
@@ -190,14 +190,14 @@ BOOL reactor_Create(Reactor_t* reactor) {
 #endif
 }
 
-BOOL reactor_Reg(Reactor_t* reactor, FD_t fd) {
+BOOL reactorReg(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio);
 #endif
 	return TRUE;
 }
 
-BOOL reactor_Cancel(Reactor_t* reactor, FD_t fd) {
+BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CancelIoEx((HANDLE)fd, NULL);
 	/*
@@ -220,7 +220,7 @@ BOOL reactor_Cancel(Reactor_t* reactor, FD_t fd) {
 #endif
 }
 
-BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr) {
+BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
 		BOOL res;
@@ -420,7 +420,7 @@ BOOL reactor_Commit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct
 	return FALSE;
 }
 
-int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
+int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG n;
 	return GetQueuedCompletionStatusEx((HANDLE)(reactor->__hNio), e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
@@ -459,7 +459,7 @@ int reactor_Wait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
 #endif
 }
 
-void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol) {
+void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	*p_ol = (void*)(((size_t)(e->lpOverlapped)) & ~1);
 	*p_fd = e->lpCompletionKey;
@@ -492,7 +492,7 @@ void reactor_Result(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol) {
 #endif
 }
 
-BOOL reactor_ConnectCheckSuccess(FD_t sockfd) {
+BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 #if defined(_WIN32) || defined(_WIN64)
 	int sec;
 	int len = sizeof(sec);
@@ -555,7 +555,7 @@ static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CA
 }
 #endif
 
-BOOL reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
+BOOL reactorAccept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
 	FD_t connfd;
 	struct sockaddr_storage saddr;
 #if defined(_WIN32) || defined(_WIN64)
@@ -602,7 +602,7 @@ BOOL reactor_Accept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, siz
 	return FALSE;
 }
 
-BOOL reactor_Close(Reactor_t* reactor) {
+BOOL reactorClose(Reactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle((HANDLE)(reactor->__hNio));
 #else

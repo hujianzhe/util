@@ -84,7 +84,7 @@ void strtrim(const char* str, size_t len, char** newstr, size_t* newlen) {
 	*newlen = end + 1 - str;
 }
 
-unsigned int strhash(const char* str) {
+unsigned int strhash_bkdr(const char* str) {
 	/* BKDR hash */
 	unsigned int seed = 131;
 	unsigned int hash = 0;
