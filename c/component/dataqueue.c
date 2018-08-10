@@ -100,6 +100,8 @@ void dataqueueWeak(DataQueue_t* dq) {
 }
 
 void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
+	criticalsectionEnter(&dq->m_cslock);
+
 	if (deleter) {
 		for (list_node_t* cur = dq->m_datalist.head; cur; ) {
 			list_node_t* next = cur->next;
@@ -108,6 +110,8 @@ void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 		}
 	}
 	list_init(&dq->m_datalist);
+
+	criticalsectionLeave(&dq->m_cslock);
 }
 
 void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
