@@ -94,7 +94,7 @@ list_node_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
 	return res;
 }
 
-void dataqueueWeak(DataQueue_t* dq) {
+void dataqueueWake(DataQueue_t* dq) {
 	dq->m_forcewakeup = 1;
 	conditionvariableSignal(&dq->m_condition);
 }
