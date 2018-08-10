@@ -103,7 +103,8 @@ void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	if (deleter) {
-		for (list_node_t* cur = dq->m_datalist.head; cur; ) {
+		list_node_t* cur;
+		for (cur = dq->m_datalist.head; cur; ) {
 			list_node_t* next = cur->next;
 			deleter(cur);
 			cur = next;
