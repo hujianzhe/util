@@ -6,11 +6,9 @@
 #define	UTIL_C_COMPONMENT_NIOSOCKET_H
 
 #include "../syslib/io.h"
-#include "../syslib/ipc.h"
 #include "../syslib/process.h"
 #include "../syslib/socket.h"
 #include "../syslib/time.h"
-#include "../datastruct/list.h"
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
@@ -53,7 +51,6 @@ typedef struct NioSocket_t {
 	};
 	int (*read)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
 	void (*close)(struct NioSocket_t*);
-	void (*release)(struct NioSocket_t*);
 	// private
 	NioSocketMsg_t m_closemsg;
 	NioSocketMsg_t m_addmsg;
@@ -72,6 +69,7 @@ typedef struct NioSocket_t {
 extern "C" {
 #endif
 
+void niosocketMemoryHook(void*(*p_malloc)(size_t), void(*p_free)(void*));
 NioSocket_t* niosocketCreate(int domain, int socktype, int protocol);
 void niosocketFree(NioSocket_t* s);
 int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
@@ -80,6 +78,7 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
 void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
 void niosocketloopJoin(NioSocketLoop_t* loop);
 void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*));
+void niomsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*));
 
 #ifdef __cplusplus
 }
