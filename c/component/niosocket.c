@@ -418,9 +418,8 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 							if (!reactorCommit(&loop->reactor, s->fd, REACTOR_CONNECT, &s->m_writeOl, &s->connect_saddr))
 								break;
 						}
-						else {
-							if (!reactorsocket_read(s))
-								break;
+						else if (!reactorsocket_read(s)) {
+							break;
 						}
 						hashtable_replace_node(hashtable_insert_node(&loop->sockht, &s->m_hashnode), &s->m_hashnode);
 						reg_ok = 1;
