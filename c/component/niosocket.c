@@ -292,6 +292,7 @@ NioSocket_t* niosocketCreate(int domain, int socktype, int protocol) {
 	s->connect_callback = NULL;
 	s->read = NULL;
 	s->close = NULL;
+	s->release = NULL;
 	s->m_closemsg.type = SOCKET_CLOSE_MESSAGE;
 	s->m_addmsg.type = SOCKET_REG_MESSAGE;
 	s->m_hashnode.key = &s->fd;
@@ -315,6 +316,8 @@ void niosocketFree(NioSocket_t* s) {
 	socketClose(s->fd);
 	free(s->m_readOl);
 	free(s->m_writeOl);
+	if (s->release)
+		s->release(s);
 	free(s);
 }
 
@@ -450,6 +453,27 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 		return NULL;
 	}
 	return loop;
+}
+
+void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
+	size_t i;
+	list_t list;
+	list_init(&list);
+	for (i = 0; i < n; ++i) {
+		list_insert_node_back(&list, list.tail, &s[i]->m_addmsg.m_listnode);
+	}
+	dataqueuePushList(&loop->dq, &list);
+}
+
+void niosocketloopJoin(NioSocketLoop_t* loop) {
+	hashtable_node_t *cur, *next;
+	threadJoin(loop->handle, NULL);
+	reactorClose(&loop->reactor);
+	dataqueueDestroy(&loop->dq, NULL);
+	for (cur = hashtable_first_node(&loop->sockht); cur; cur = next) {
+		next = cur->next;
+		niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+	}
 }
 
 void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*)) {

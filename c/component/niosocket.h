@@ -53,6 +53,7 @@ typedef struct NioSocket_t {
 	};
 	int (*read)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
 	void (*close)(struct NioSocket_t*);
+	void (*release)(struct NioSocket_t*);
 	// private
 	NioSocketMsg_t m_closemsg;
 	NioSocketMsg_t m_addmsg;
@@ -76,6 +77,8 @@ void niosocketFree(NioSocket_t* s);
 int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
 void niosocketShutdown(NioSocket_t* s);
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
+void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
+void niosocketloopJoin(NioSocketLoop_t* loop);
 void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*));
 
 #ifdef __cplusplus
