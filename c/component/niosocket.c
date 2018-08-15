@@ -306,6 +306,8 @@ NioSocket_t* niosocketCreate(int domain, int socktype, int protocol) {
 }
 
 void niosocketFree(NioSocket_t* s) {
+	if (!s)
+		return;
 	if (SOCK_STREAM == s->socktype) {
 		mutexClose(&s->m_outbufMutex);
 		free(s->m_inbuf);
