@@ -27,9 +27,9 @@ typedef struct NioSocketLoop_t {
 } NioSocketLoop_t;
 
 enum {
-	SOCKET_CLOSE_MESSAGE,
-	SOCKET_REG_MESSAGE,
-	SOCKET_USER_MESSAGE
+	NIO_SOCKET_CLOSE_MESSAGE,
+	NIO_SOCKET_REG_MESSAGE,
+	NIO_SOCKET_USER_MESSAGE
 };
 typedef struct NioSocketMsg_t {
 	list_node_t m_listnode;
@@ -43,17 +43,16 @@ typedef struct NioSocket_t {
 	volatile char valid;
 	volatile int timeout_second;
 	NioSocketLoop_t* loop;
-	REACTOR_ACCEPT_CALLBACK accept_callback;
+	void (*accept_callback)(FD_t, struct sockaddr_storage*, void*);
 	void (*connect_callback)(struct NioSocket_t*, int);
 	union {
-		size_t accept_callback_arg;
+		void* accept_callback_arg;
 		struct sockaddr_storage connect_saddr;
 	};
 	int (*read)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
 	void (*close)(struct NioSocket_t*);
 	// private
-	NioSocketMsg_t m_closemsg;
-	NioSocketMsg_t m_addmsg;
+	NioSocketMsg_t m_msg;
 	hashtable_node_t m_hashnode;
 	void* m_readOl;
 	void* m_writeOl;
@@ -70,7 +69,7 @@ extern "C" {
 #endif
 
 void niosocketMemoryHook(void*(*p_malloc)(size_t), void(*p_free)(void*));
-NioSocket_t* niosocketCreate(int domain, int socktype, int protocol);
+NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol);
 void niosocketFree(NioSocket_t* s);
 int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
 void niosocketShutdown(NioSocket_t* s);

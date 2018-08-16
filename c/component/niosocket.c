@@ -272,7 +272,7 @@ void niosocketMemoryHook(void*(*p_malloc)(size_t), void(*p_free)(void*)) {
 	niosocket_free = p_free;
 }
 
-NioSocket_t* niosocketCreate(int domain, int socktype, int protocol) {
+NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
 	NioSocket_t* s = (NioSocket_t*)niosocket_malloc(sizeof(NioSocket_t));
 	if (!s)
 		return NULL;
@@ -282,13 +282,16 @@ NioSocket_t* niosocketCreate(int domain, int socktype, int protocol) {
 			return NULL;
 		}
 	}
-	s->fd = socket(domain, socktype, protocol);
-	if (INVALID_FD_HANDLE == s->fd) {
-		if (SOCK_STREAM == socktype)
-			mutexClose(&s->m_outbufMutex);
-		niosocket_free(s);
-		return NULL;
+	if (INVALID_FD_HANDLE == fd) {
+		fd = socket(domain, socktype, protocol);
+		if (INVALID_FD_HANDLE == fd) {
+			if (SOCK_STREAM == socktype)
+				mutexClose(&s->m_outbufMutex);
+			niosocket_free(s);
+			return NULL;
+		}
 	}
+	s->fd = fd;
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
@@ -299,8 +302,6 @@ NioSocket_t* niosocketCreate(int domain, int socktype, int protocol) {
 	s->connect_callback = NULL;
 	s->read = NULL;
 	s->close = NULL;
-	s->m_closemsg.type = SOCKET_CLOSE_MESSAGE;
-	s->m_addmsg.type = SOCKET_REG_MESSAGE;
 	s->m_hashnode.key = &s->fd;
 	s->m_readOl = NULL;
 	s->m_writeOl = NULL;
@@ -386,17 +387,17 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 			}
 			hashtable_remove_node(&loop->sockht, &s->m_hashnode);
 			s->valid = 0;
-			dataqueuePush(loop->msgdq, &s->m_closemsg.m_listnode);
+			dataqueuePush(loop->msgdq, &s->m_msg.m_listnode);
 		}
 		do {
-			list_t closemsg_list;
+			list_t list;
 			size_t i;
 			size_t cnt = sockht_expire(&loop->sockht, expire_sockets, sizeof(expire_sockets) / sizeof(expire_sockets[0]));
-			list_init(&closemsg_list);
+			list_init(&list);
 			for (i = 0; i < cnt; ++i) {
-				list_insert_node_back(&closemsg_list, closemsg_list.tail, &expire_sockets[i]->m_closemsg.m_listnode);
+				list_insert_node_back(&list, list.tail, &expire_sockets[i]->m_msg.m_listnode);
 			}
-			dataqueuePushList(loop->msgdq, &closemsg_list);
+			dataqueuePushList(loop->msgdq, &list);
 		} while (0);
 		do {
 			list_node_t *cur, *next;
@@ -404,12 +405,12 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 				NioSocketMsg_t* message;
 				next = cur->next;
 				message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
-				if (SOCKET_CLOSE_MESSAGE == message->type) {
-					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
+				if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
+					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 					niosocketFree(s);
 				}
-				else if (SOCKET_REG_MESSAGE == message->type) {
-					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_addmsg);
+				else if (NIO_SOCKET_REG_MESSAGE == message->type) {
+					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 					int reg_ok = 0;
 					do {
 						if (!socketNonBlock(s->fd, TRUE))
@@ -426,6 +427,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						else if (!reactorsocket_read(s)) {
 							break;
 						}
+						message->type = NIO_SOCKET_CLOSE_MESSAGE;
 						hashtable_replace_node(hashtable_insert_node(&loop->sockht, &s->m_hashnode), &s->m_hashnode);
 						reg_ok = 1;
 					} while (0);
@@ -464,7 +466,8 @@ void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
 	list_t list;
 	list_init(&list);
 	for (i = 0; i < n; ++i) {
-		list_insert_node_back(&list, list.tail, &s[i]->m_addmsg.m_listnode);
+		s[i]->m_msg.type = NIO_SOCKET_REG_MESSAGE;
+		list_insert_node_back(&list, list.tail, &s[i]->m_msg.m_listnode);
 	}
 	dataqueuePushList(&loop->dq, &list);
 }
@@ -485,13 +488,13 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 	for (cur = dataqueuePop(dq, max_wait_msec, ~0); cur; cur = next) {
 		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 		next = cur->next;
-		if (SOCKET_CLOSE_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
+		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 			if (s->close)
 				s->close(s);
-			dataqueuePush(&s->loop->dq, &s->m_closemsg.m_listnode);
+			dataqueuePush(&s->loop->dq, &s->m_msg.m_listnode);
 		}
-		else if (SOCKET_USER_MESSAGE == message->type) {
+		else if (NIO_SOCKET_USER_MESSAGE == message->type) {
 			user_msg_callback(message);
 		}
 	}
@@ -502,7 +505,7 @@ void niomsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*)) {
 	for (cur = dataqueuePop(dq, 0, ~0); cur; cur = next) {
 		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 		next = cur->next;
-		if (SOCKET_USER_MESSAGE == message->type)
+		if (NIO_SOCKET_USER_MESSAGE == message->type)
 			deleter(message);
 	}
 }

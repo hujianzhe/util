@@ -77,7 +77,6 @@ typedef struct Reactor_t {
 	FD_t __epfd;
 #endif
 } Reactor_t;
-typedef void (*REACTOR_ACCEPT_CALLBACK) (FD_t, struct sockaddr_storage*, size_t);
 BOOL reactorCreate(Reactor_t* reactor);
 BOOL reactorReg(Reactor_t* reactor, FD_t fd);
 BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
@@ -85,7 +84,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct 
 int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
 void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
 BOOL reactorConnectCheckSuccess(FD_t sockfd);
-BOOL reactorAccept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg);
+BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg);
 BOOL reactorClose(Reactor_t* reactor);
 
 #ifdef	__cplusplus

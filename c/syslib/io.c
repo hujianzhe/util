@@ -518,7 +518,7 @@ BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 }
 
 #if defined(_WIN32) || defined(_WIN64)
-static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
+static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg) {
 	SOCKET* pConnfd = ol ? (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED)) : NULL;
 	if (!pConnfd) {
 		return TRUE;
@@ -542,25 +542,25 @@ static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, REACTOR_ACCEPT_CA
 			closesocket(connfd);
 			break;
 		}
-		if (cbfunc) {
+		if (callback) {
 			slen = sizeof(saddr);
 			if (getpeername(connfd, (struct sockaddr*)&saddr, &slen)) {
 				closesocket(connfd);
 				break;
 			}
-			cbfunc(connfd, &saddr, arg);
+			callback(connfd, &saddr, arg);
 		}
 	} while (0);
 	return *pConnfd != INVALID_SOCKET;
 }
 #endif
 
-BOOL reactorAccept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size_t arg) {
+BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg) {
 	FD_t connfd;
 	struct sockaddr_storage saddr;
 #if defined(_WIN32) || defined(_WIN64)
 	int slen = sizeof(saddr);
-	if (!__win32AcceptPretreatment(listenfd, ol, cbfunc, arg)) {
+	if (!__win32AcceptPretreatment(listenfd, ol, callback, arg)) {
 		return FALSE;
 	}
 #else
@@ -568,8 +568,8 @@ BOOL reactorAccept(FD_t listenfd, void* ol, REACTOR_ACCEPT_CALLBACK cbfunc, size
 #endif
 	while ((connfd = accept(listenfd, (struct sockaddr*)&saddr, &slen)) != INVALID_FD_HANDLE) {
 		slen = sizeof(saddr);
-		if (cbfunc) {
-			cbfunc(connfd, &saddr, arg);
+		if (callback) {
+			callback(connfd, &saddr, arg);
 		}
 	}
 #if defined(_WIN32) || defined(_WIN64)
