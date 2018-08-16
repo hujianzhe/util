@@ -12,10 +12,6 @@
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
-struct NioSocket_t;
-struct NioSocketLoop_t;
-struct NioSocketMsg_t;
-
 typedef struct NioSocketLoop_t {
 	volatile char valid;
 	Thread_t handle;
