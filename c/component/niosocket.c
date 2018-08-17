@@ -75,7 +75,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				}
 
 				while (offset < s->m_inbuflen) {
-					int len = s->read(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr);
+					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr);
 					if (0 == len)
 						break;
 					if (len < 0) {
@@ -112,7 +112,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				break;
 			}
 
-			if (s->read(s, res ? buffer : NULL, res, &saddr) < 0) {
+			if (s->decode_packet(s, res ? buffer : NULL, res, &saddr) < 0) {
 				s->valid = 0;
 				break;
 			}
@@ -197,6 +197,8 @@ int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct soc
 	if (SOCK_STREAM == s->socktype) {
 		int res = 0, sendbytes = -1;
 		size_t nbytes = 0, i;
+		if (s->encode_packet && s->encode_packet(iov, iovcnt) <= 0)
+			return 0;
 		for (i = 0; i < iovcnt; ++i) {
 			nbytes += iobuffer_len(iov + i);
 		}
@@ -247,6 +249,8 @@ int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct soc
 		return sendbytes;
 	}
 	else if (SOCK_DGRAM == s->socktype) {
+		if (s->encode_packet && s->encode_packet(iov, iovcnt) <= 0)
+			return 0;
 		return socketWritev(s->fd, iov, iovcnt, 0, saddr);
 	}
 	return -1;
@@ -298,7 +302,8 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
 	s->loop = NULL;
 	s->accept_callback = NULL;
 	s->connect_callback = NULL;
-	s->read = NULL;
+	s->decode_packet = NULL;
+	s->encode_packet = NULL;
 	s->close = NULL;
 	s->m_hashnode.key = &s->fd;
 	s->m_readOl = NULL;

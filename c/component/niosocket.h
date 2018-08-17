@@ -45,7 +45,8 @@ typedef struct NioSocket_t {
 		void* accept_callback_arg;
 		struct sockaddr_storage connect_saddr;
 	};
-	int (*read)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
+	int (*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
+	int (*encode_packet)(IoBuf_t*, unsigned int);
 	void (*close)(struct NioSocket_t*);
 	// private
 	NioSocketMsg_t m_msg;
