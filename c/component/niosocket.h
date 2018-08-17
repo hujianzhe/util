@@ -2,8 +2,8 @@
 // Created by hujianzhe on 18-8-13.
 //
 
-#ifndef	UTIL_C_COMPONMENT_NIOSOCKET_H
-#define	UTIL_C_COMPONMENT_NIOSOCKET_H
+#ifndef	UTIL_C_COMPONENT_NIOSOCKET_H
+#define	UTIL_C_COMPONENT_NIOSOCKET_H
 
 #include "../syslib/io.h"
 #include "../syslib/process.h"
