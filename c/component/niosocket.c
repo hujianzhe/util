@@ -321,8 +321,11 @@ void niosocketFree(NioSocket_t* s) {
 		return;
 	if (SOCK_STREAM == s->socktype) {
 		mutexClose(&s->m_outbufMutex);
+	}
+	if (s->m_inbuf) {
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
+		s->m_inbuflen = 0;
 	}
 	socketClose(s->fd);
 	free(s->m_readOl);
