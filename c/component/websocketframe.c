@@ -31,7 +31,7 @@ int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, 
 	return e - data + 4;
 }
 
-int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char* response) {
+int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char response[162]) {
 	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	unsigned char sha1_key[CC_SHA1_DIGEST_LENGTH];
 	char base64_key[CC_SHA1_DIGEST_LENGTH * 3];
@@ -42,6 +42,7 @@ int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char* re
 		return 0;
 	if (!cryptBase64Encode(sha1_key, sizeof(sha1_key), base64_key))
 		return 0;
+	response[0] = 0;
 	strcat(response, "HTTP/1.1 101 Switching Protocols\r\n"
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"

@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen);
-int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char* response);
+int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char response[162]);
 int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		unsigned char** data, unsigned long long* datalen, int* is_fin, int* type);
 unsigned int websocketframeHeadLength(unsigned long long datalen);
