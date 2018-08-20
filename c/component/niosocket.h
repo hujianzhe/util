@@ -68,6 +68,7 @@ extern "C" {
 
 NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol,
 	NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*));
+void niosocketFree(NioSocket_t* s);
 int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
 void niosocketShutdown(NioSocket_t* s);
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);

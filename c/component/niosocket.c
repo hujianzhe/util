@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static void niosocket_free(NioSocket_t* s) {
+void niosocketFree(NioSocket_t* s) {
 	if (!s)
 		return;
 	if (SOCK_STREAM == s->socktype) {
@@ -165,9 +165,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 			s->valid = 0;
 		}
 		s->connect_callback(s, errnum);
-		if (errnum)
-			niosocket_free(s);
-		else
+		if (0 == errnum)
 			s->connect_callback = NULL;
 		return;
 	}
@@ -403,7 +401,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 				message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 				if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
-					niosocket_free(s);
+					niosocketFree(s);
 				}
 				else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
@@ -416,7 +414,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						s->loop = loop;
 						s->valid = 1;
 						s->m_lastActiveTime = gmtimeSecond();
-						if (s->connect_callback) {
+						if (SOCK_STREAM == s->socktype && s->connect_callback) {
 							if (!reactorCommit(&loop->reactor, s->fd, REACTOR_CONNECT, &s->m_writeOl, &s->connect_saddr))
 								break;
 						}
@@ -428,7 +426,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						reg_ok = 1;
 					} while (0);
 					if (!reg_ok) {
-						niosocket_free(s);
+						niosocketFree(s);
 					}
 				}
 			}
@@ -475,7 +473,7 @@ void niosocketloopJoin(NioSocketLoop_t* loop) {
 	dataqueueDestroy(&loop->dq, NULL);
 	for (cur = hashtable_first_node(&loop->sockht); cur; cur = next) {
 		next = cur->next;
-		niosocket_free(pod_container_of(cur, NioSocket_t, m_hashnode));
+		niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
 	}
 }
 

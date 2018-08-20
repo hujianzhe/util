@@ -11,7 +11,7 @@ extern "C" {
 
 int lengthfieldframeDecode(unsigned short lengthfieldsize,
 		unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
-int lengthfieldframeEncode(unsigned char* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen);
+int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen);
 
 #ifdef __cplusplus
 }

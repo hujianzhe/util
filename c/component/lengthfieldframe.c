@@ -37,7 +37,7 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 	return lengthfieldsize + *datalen;
 }
 
-int lengthfieldframeEncode(unsigned char* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen) {
+int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen) {
 	switch (lengthfieldsize) {
 		case 2:
 			if (datalen > 0xffff)
