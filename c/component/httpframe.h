@@ -8,9 +8,9 @@
 #include "../datastruct/hashtable.h"
 
 typedef struct HttpFrameHeaderField_t {
+	hashtable_node_t m_hashnode;
 	const char* key;
 	const char* value;
-	hashtable_node_t m_hashnode;
 } HttpFrameHeaderField_t;
 
 typedef struct HttpFrame_t {
