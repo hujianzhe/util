@@ -11,7 +11,24 @@
 extern "C" {
 #endif
 
-static int reactor_socket_check_valid(NioSocket_t* s) {
+static void niosocket_free(NioSocket_t* s) {
+	if (!s)
+		return;
+	if (SOCK_STREAM == s->socktype) {
+		mutexClose(&s->m_outbufMutex);
+	}
+	if (s->m_inbuf) {
+		free(s->m_inbuf);
+		s->m_inbuf = NULL;
+		s->m_inbuflen = 0;
+	}
+	socketClose(s->fd);
+	free(s->m_readOl);
+	free(s->m_writeOl);
+	s->free(s);
+}
+
+static int niosocket_check_valid(NioSocket_t* s) {
 	return s->valid &&
 		!(s->timeout_second >= 0 && gmtimeSecond() - s->timeout_second > s->m_lastActiveTime);
 }
@@ -149,7 +166,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 		}
 		s->connect_callback(s, errnum);
 		if (errnum)
-			niosocketFree(s);
+			niosocket_free(s);
 		else
 			s->connect_callback = NULL;
 		return;
@@ -263,20 +280,13 @@ void niosocketShutdown(NioSocket_t* s) {
 	}
 }
 
-static void *(*niosocket_malloc)(size_t) = malloc;
-static void(*niosocket_free)(void*) = free;
-void niosocketMemoryHook(void*(*p_malloc)(size_t), void(*p_free)(void*)) {
-	niosocket_malloc = p_malloc;
-	niosocket_free = p_free;
-}
-
-NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
-	NioSocket_t* s = (NioSocket_t*)niosocket_malloc(sizeof(NioSocket_t));
+NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*)) {
+	NioSocket_t* s = pmalloc();
 	if (!s)
 		return NULL;
 	if (SOCK_STREAM == socktype) {
 		if (!mutexCreate(&s->m_outbufMutex)) {
-			niosocket_free(s);
+			pfree(s);
 			return NULL;
 		}
 	}
@@ -285,7 +295,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
 		if (INVALID_FD_HANDLE == fd) {
 			if (SOCK_STREAM == socktype)
 				mutexClose(&s->m_outbufMutex);
-			niosocket_free(s);
+			pfree(s);
 			return NULL;
 		}
 	}
@@ -301,6 +311,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
 	s->decode_packet = NULL;
 	s->send_packet = niosocketSendv;
 	s->close = NULL;
+	s->free = pfree;
 	s->m_hashnode.key = &s->fd;
 	s->m_readOl = NULL;
 	s->m_writeOl = NULL;
@@ -310,23 +321,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol) {
 	s->m_inbuflen = 0;
 	list_init(&s->m_outbuflist);
 	return s;
-}
-
-void niosocketFree(NioSocket_t* s) {
-	if (!s)
-		return;
-	if (SOCK_STREAM == s->socktype) {
-		mutexClose(&s->m_outbufMutex);
-	}
-	if (s->m_inbuf) {
-		free(s->m_inbuf);
-		s->m_inbuf = NULL;
-		s->m_inbuflen = 0;
-	}
-	socketClose(s->fd);
-	free(s->m_readOl);
-	free(s->m_writeOl);
-	niosocket_free(s);
 }
 
 static int sockht_keycmp(struct hashtable_node_t* node, void* key) {
@@ -342,7 +336,7 @@ static size_t sockht_expire(hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 		NioSocket_t* s;
 		next = hashtable_next_node(cur);
 		s = pod_container_of(cur, NioSocket_t, m_hashnode);
-		if (reactor_socket_check_valid(s))
+		if (niosocket_check_valid(s))
 			continue;
 		s->valid = 0;
 		if (i < n) {
@@ -384,7 +378,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 					reactor_socket_do_write(s);
 					break;
 			}
-			if (reactor_socket_check_valid(s)) {
+			if (niosocket_check_valid(s)) {
 				continue;
 			}
 			hashtable_remove_node(&loop->sockht, &s->m_hashnode);
@@ -409,7 +403,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 				message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 				if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
-					niosocketFree(s);
+					niosocket_free(s);
 				}
 				else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 					NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
@@ -434,7 +428,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						reg_ok = 1;
 					} while (0);
 					if (!reg_ok) {
-						niosocketFree(s);
+						niosocket_free(s);
 					}
 				}
 			}
@@ -481,7 +475,7 @@ void niosocketloopJoin(NioSocketLoop_t* loop) {
 	dataqueueDestroy(&loop->dq, NULL);
 	for (cur = hashtable_first_node(&loop->sockht); cur; cur = next) {
 		next = cur->next;
-		niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+		niosocket_free(pod_container_of(cur, NioSocket_t, m_hashnode));
 	}
 }
 

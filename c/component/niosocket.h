@@ -45,9 +45,10 @@ typedef struct NioSocket_t {
 		void* accept_callback_arg;
 		struct sockaddr_storage connect_saddr;
 	};
-	int (*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
-	int (*send_packet)(struct NioSocket_t*, IoBuf_t*, unsigned int, struct sockaddr_storage*);
-	void (*close)(struct NioSocket_t*);
+	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
+	int(*send_packet)(struct NioSocket_t*, IoBuf_t*, unsigned int, struct sockaddr_storage*);
+	void(*close)(struct NioSocket_t*);
+	void(*free)(struct NioSocket_t*);
 	// private
 	NioSocketMsg_t m_msg;
 	hashtable_node_t m_hashnode;
@@ -65,9 +66,8 @@ typedef struct NioSocket_t {
 extern "C" {
 #endif
 
-void niosocketMemoryHook(void*(*p_malloc)(size_t), void(*p_free)(void*));
-NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol);
-void niosocketFree(NioSocket_t* s);
+NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol,
+	NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*));
 int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
 void niosocketShutdown(NioSocket_t* s);
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
