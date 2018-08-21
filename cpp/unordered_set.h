@@ -22,7 +22,7 @@ public:
 		key_type k;
 
 		Xnode(void) {
-			key = (void*)&k;
+			key = &k;
 		}
 	} Xnode;
 
@@ -64,7 +64,7 @@ public:
 	typedef iterator	const_iterator;
 
 private:
-	static int keycmp(hashtable_node_t* _n, void* key) {
+	static int keycmp(hashtable_node_t* _n, const void* key) {
 		return ((Xnode*)_n)->k != *(key_type*)key;
 	}
 
@@ -81,7 +81,7 @@ private:
 	static unsigned int __key_hash(size_t n) { return n; }
 	static unsigned int __key_hash(const void* p) { return (unsigned int)(size_t)p; }
 
-	static unsigned int keyhash(void* key) {
+	static unsigned int keyhash(const void* key) {
 		return __key_hash(*(key_type*)key);
 	}
 
@@ -131,7 +131,7 @@ public:
 	}
 
 	size_t size(void) const { return m_size; };
-	bool empty(void) const { return hashtable_first_node((hashtable_t*)&m_table) == NULL; }
+	bool empty(void) const { return hashtable_first_node(&m_table) == NULL; }
 
 	void erase(iterator iter) {
 		--m_size;
@@ -140,7 +140,7 @@ public:
 	}
 
 	size_t erase(const key_type& k) {
-		hashtable_node_t* node = hashtable_search_key(&m_table, (void*)&k);
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
 		if (node) {
 			hashtable_remove_node(&m_table, node);
 			delete (Xnode*)node;
@@ -151,12 +151,12 @@ public:
 	}
 
 	iterator find(const key_type& k) const {
-		hashtable_node_t* node = hashtable_search_key((hashtable_t*)&m_table, (void*)&k);
+		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
 		return iterator(node);
 	}
 
 	pair<iterator, bool> insert(const key_type& k) {
-		hashtable_node_t* n = hashtable_search_key(&m_table, (void*)&k);
+		hashtable_node_t* n = hashtable_search_key(&m_table, &k);
 		if (n) {
 			return pair<iterator, bool>(iterator(n), false);
 		}
@@ -168,7 +168,7 @@ public:
 	}
 
 	iterator begin(void) const {
-		return iterator(hashtable_first_node((hashtable_t*)&m_table));
+		return iterator(hashtable_first_node(&m_table));
 	}
 	iterator end(void) const {
 		return iterator();

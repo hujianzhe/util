@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-struct hashtable_node_t** __get_bucket_list_head(struct hashtable_t* hashtable, void* key) {
+struct hashtable_node_t** __get_bucket_list_head(const struct hashtable_t* hashtable, const void* key) {
 	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
 }
 
-struct hashtable_node_t* __get_node(struct hashtable_node_t** bucket_list_head, void* key) {
+struct hashtable_node_t* __get_node(struct hashtable_node_t** bucket_list_head, const void* key) {
 	if (*bucket_list_head) {
 		struct hashtable_node_t* node;
 		for (node = *bucket_list_head; node; node = node->next) {
@@ -28,8 +28,8 @@ struct hashtable_node_t* __get_node(struct hashtable_node_t** bucket_list_head, 
 
 struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
 		struct hashtable_node_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(struct hashtable_node_t*, void*),
-		unsigned int (*keyhash)(void*))
+		int (*keycmp)(struct hashtable_node_t*, const void*),
+		unsigned int (*keyhash)(const void*))
 {
 	unsigned int i;
 	for (i = 0; i < buckets_size; ++i) {
@@ -61,7 +61,7 @@ struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, st
 
 void hashtable_replace_node(struct hashtable_node_t* old_node, struct hashtable_node_t* new_node) {
 	if (old_node && old_node != new_node) {
-		void* key = new_node->key;
+		const void* key = new_node->key;
 		if (old_node->prev) {
 			old_node->prev->next = new_node;
 		}
@@ -93,11 +93,11 @@ void hashtable_remove_node(struct hashtable_t* hashtable, struct hashtable_node_
 	}
 }
 
-struct hashtable_node_t* hashtable_search_key(struct hashtable_t* hashtable, void* key) {
+struct hashtable_node_t* hashtable_search_key(const struct hashtable_t* hashtable, const void* key) {
 	return __get_node(__get_bucket_list_head(hashtable, key), key);
 }
 
-struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, void* key) {
+struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, const void* key) {
 	struct hashtable_node_t* exist_node = hashtable_search_key(hashtable, key);
 	if (exist_node) {
 		hashtable_remove_node(hashtable, exist_node);
@@ -105,7 +105,7 @@ struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, voi
 	return exist_node;
 }
 
-struct hashtable_node_t* hashtable_first_node(struct hashtable_t* hashtable) {
+struct hashtable_node_t* hashtable_first_node(const struct hashtable_t* hashtable) {
 	unsigned int i;
 	for (i = 0; i < hashtable->buckets_size; ++i) {
 		if (hashtable->buckets[i]) {

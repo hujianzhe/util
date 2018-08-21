@@ -321,11 +321,11 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	return s;
 }
 
-static int sockht_keycmp(struct hashtable_node_t* node, void* key) {
+static int sockht_keycmp(struct hashtable_node_t* node, const void* key) {
 	return pod_container_of(node, NioSocket_t, m_hashnode)->fd != *(FD_t*)key;
 }
 
-static unsigned int sockht_keyhash(void* key) { return *(FD_t*)key; }
+static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
 static size_t sockht_expire(hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 	size_t i = 0;

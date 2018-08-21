@@ -4,18 +4,19 @@
 
 #include "../syslib/string.h"
 #include "httpframe.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static int header_keycmp(struct hashtable_node_t* node, void* key) {
+static int header_keycmp(struct hashtable_node_t* node, const void* key) {
 	const char* sk = *(const char**)key;
 	return strcmp(pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->key, sk);
 }
 
-static unsigned int header_keyhash(void* key) {
+static unsigned int header_keyhash(const void* key) {
 	const char* sk = *(const char**)key;
 	return strhash_bkdr(sk);
 }
@@ -231,6 +232,49 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 	}
 
 	return e - buf + 4;
+}
+
+int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
+	unsigned int chunked_length, frame_length;
+	const char* p;
+	char* e = strnstr(buf, "\r\n", len);
+	if (!e)
+		return 0;
+
+	chunked_length = 0;
+	for (p = buf; p < e; ++p) {
+		if (isdigit(*p)) {
+			chunked_length *= 16;
+			chunked_length += *p - '0';
+		}
+		else if (*p >= 'a' && *p <= 'f') {
+			chunked_length *= 16;
+			chunked_length += *p - 'a' + 10;
+		}
+		else if (*p >= 'A' && *p <= 'F') {
+			chunked_length *= 16;
+			chunked_length += *p - 'A' + 10;
+		}
+		else {
+			return -1;
+		}
+	}
+
+	frame_length = e - buf + 2 + chunked_length + 2;
+	if (frame_length > len)
+		return 0;
+
+	*datalen = chunked_length;
+	if (*datalen)
+		*data = e + 2;
+	else
+		*data = NULL;
+	return frame_length;
+}
+
+void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
+	txtbuf[0] = 0;
+	sprintf(txtbuf, "%x\r\n", datalen);
 }
 
 void httpframeFree(HttpFrame_t* frame) {

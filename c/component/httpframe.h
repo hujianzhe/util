@@ -27,6 +27,8 @@ extern "C" {
 
 const char* httpframeStatusDesc(int status_code);
 int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len);
+int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
+void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
 const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
 void httpframeFree(HttpFrame_t* frame);
 

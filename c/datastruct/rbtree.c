@@ -122,7 +122,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-struct rbtree_t* rbtree_init(struct rbtree_t* root, int(*keycmp)(struct rbtree_node_t*, void*))
+struct rbtree_t* rbtree_init(struct rbtree_t* root, int(*keycmp)(struct rbtree_node_t*, const void*))
 {
 	root->rb_tree_node = (struct rbtree_node_t*)0;
 	root->keycmp = keycmp;
@@ -169,7 +169,7 @@ struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_no
 
 void rbtree_replace_node(struct rbtree_node_t* old_node, struct rbtree_node_t* new_node) {
 	if (old_node && old_node != new_node) {
-		void* key = new_node->key;
+		const void* key = new_node->key;
 		if (old_node->rb_left) {
 			old_node->rb_left->rb_parent = new_node;
 		}
@@ -339,7 +339,7 @@ color:
 		__rb_remove_color(child, parent, root);
 }
 
-struct rbtree_node_t* rbtree_search_key(struct rbtree_t* root, void* key)
+struct rbtree_node_t* rbtree_search_key(const struct rbtree_t* root, const void* key)
 {
 	struct rbtree_node_t *node = root->rb_tree_node;
 	while (node) {
@@ -356,7 +356,7 @@ struct rbtree_node_t* rbtree_search_key(struct rbtree_t* root, void* key)
 	}
 	return node;
 }
-struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, void* key)
+struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, const void* key)
 {
 	struct rbtree_node_t *node = rbtree_search_key(root, key);
 	if (node) {
@@ -368,7 +368,7 @@ struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, void* key)
 /*
  * This function returns the first node (in sort order) of the tree.
  */
-struct rbtree_node_t* rbtree_first_node(struct rbtree_t* root)
+struct rbtree_node_t* rbtree_first_node(const struct rbtree_t* root)
 {
 	struct rbtree_node_t *n;
 
@@ -380,7 +380,7 @@ struct rbtree_node_t* rbtree_first_node(struct rbtree_t* root)
 	return n;
 }
 
-struct rbtree_node_t* rbtree_last_node(struct rbtree_t* root)
+struct rbtree_node_t* rbtree_last_node(const struct rbtree_t* root)
 {
 	struct rbtree_node_t *n;
 
