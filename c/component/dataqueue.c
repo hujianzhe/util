@@ -11,6 +11,7 @@ extern "C" {
 #endif
 
 DataQueue_t* dataqueueInit(DataQueue_t* dq) {
+	dq->m_initok = 0;
 	if (!criticalsectionCreate(&dq->m_cslock)) {
 		return NULL;
 	}
@@ -20,6 +21,7 @@ DataQueue_t* dataqueueInit(DataQueue_t* dq) {
 	}
 	list_init(&dq->m_datalist);
 	dq->m_forcewakeup = 0;
+	dq->m_initok = 1;
 	return dq;
 }
 
@@ -116,9 +118,11 @@ void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 }
 
 void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
-	dataqueueClear(dq, deleter);
-	criticalsectionClose(&dq->m_cslock);
-	conditionvariableClose(&dq->m_condition);
+	if (dq && dq->m_initok) {
+		dataqueueClear(dq, deleter);
+		criticalsectionClose(&dq->m_cslock);
+		conditionvariableClose(&dq->m_condition);
+	}
 }
 
 #ifdef __cplusplus

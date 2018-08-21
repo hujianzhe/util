@@ -476,7 +476,7 @@ void niosocketloopJoin(NioSocketLoop_t* loop) {
 	}
 }
 
-void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*)) {
+void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg) {
 	list_node_t* cur, *next;
 	for (cur = dataqueuePop(dq, max_wait_msec, ~0); cur; cur = next) {
 		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
@@ -488,7 +488,7 @@ void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_cal
 			dataqueuePush(&s->loop->dq, &s->m_msg.m_listnode);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == message->type) {
-			user_msg_callback(message);
+			user_msg_callback(message, arg);
 		}
 	}
 }
@@ -498,7 +498,7 @@ void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*)) {
 	for (cur = dataqueuePop(dq, 0, ~0); cur; cur = next) {
 		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 		next = cur->next;
-		if (NIO_SOCKET_USER_MESSAGE == message->type)
+		if (NIO_SOCKET_USER_MESSAGE == message->type && deleter)
 			deleter(message);
 	}
 }

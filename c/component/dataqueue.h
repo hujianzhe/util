@@ -13,6 +13,7 @@ typedef struct DataQueue_t {
 	ConditionVariable_t m_condition;
 	list_t m_datalist;
 	volatile char m_forcewakeup;
+	char m_initok;
 } DataQueue_t;
 
 #ifdef __cplusplus

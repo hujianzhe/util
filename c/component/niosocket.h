@@ -74,7 +74,7 @@ void niosocketShutdown(NioSocket_t* s);
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
 void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
 void niosocketloopJoin(NioSocketLoop_t* loop);
-void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*));
+void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg);
 void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*));
 
 #ifdef __cplusplus
