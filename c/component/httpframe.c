@@ -4,6 +4,7 @@
 
 #include "../syslib/string.h"
 #include "httpframe.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -266,7 +267,7 @@ int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, un
 
 	*datalen = chunked_length;
 	if (*datalen)
-		*data = e + 2;
+		*data = (unsigned char*)(e + 2);
 	else
 		*data = NULL;
 	return frame_length;
