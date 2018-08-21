@@ -301,7 +301,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->valid = 0;
+	s->valid = 1;
 	s->timeout_second = INFTIM;
 	s->loop = NULL;
 	s->accept_callback = NULL;
@@ -412,7 +412,6 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						if (!reactorReg(&loop->reactor, s->fd))
 							break;
 						s->loop = loop;
-						s->valid = 1;
 						s->m_lastActiveTime = gmtimeSecond();
 						if (SOCK_STREAM == s->socktype && s->connect_callback) {
 							if (!reactorCommit(&loop->reactor, s->fd, REACTOR_CONNECT, &s->m_writeOl, &s->connect_saddr))
