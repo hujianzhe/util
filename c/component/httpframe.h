@@ -16,7 +16,8 @@ typedef struct HttpFrameHeaderField_t {
 typedef struct HttpFrame_t {
 	int status_code;
 	char method[8];
-	char* url;
+	char* uri;
+	const char* query;
 	hashtable_t headers;
 	hashtable_node_t* m_bulks[11];
 } HttpFrame_t;
