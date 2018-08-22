@@ -11,7 +11,7 @@
 
 typedef struct Log_t {
 	char ident[64];
-	char path[256];
+	char rootpath[256], name[64];
 	unsigned char print_stderr;
 	unsigned char print_file;
 	unsigned char async_print_file;

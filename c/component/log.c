@@ -23,14 +23,14 @@ extern "C" {
 #endif
 
 static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
-	char path[256];
+	char fullpath[256];
 	if (log->m_file != INVALID_FD_HANDLE) {
 		fdClose(log->m_file);
 		log->m_file = INVALID_FD_HANDLE;
 	}
 	log->m_filesize = 0;
-	snprintf(path, sizeof(path), "%s.%d-%d-%d.txt", log->path, dt->tm_year, dt->tm_mon, dt->tm_mday);
-	log->m_file = fdOpen(path, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
+	snprintf(fullpath, sizeof(fullpath), "%s%s.%d-%d-%d.txt", log->rootpath, log->name, dt->tm_year, dt->tm_mon, dt->tm_mday);
+	log->m_file = fdOpen(fullpath, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
 	if (log->m_file != INVALID_FD_HANDLE) {
 		log->m_filesize = fdGetSize(log->m_file);
 	}
@@ -122,6 +122,7 @@ Log_t* logInit(Log_t* log) {
 	list_init(&log->m_cachelist);
 	log->m_initok = 1;
 
+	log->rootpath[0] = log->name[0] = log->ident[0] = 0;
 	log->print_stderr = 0;
 	log->print_file = 0;
 	log->async_print_file = 0;
