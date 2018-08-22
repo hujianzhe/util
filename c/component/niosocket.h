@@ -49,7 +49,7 @@ typedef struct NioSocket_t {
 	int(*send_packet)(struct NioSocket_t*, IoBuf_t*, unsigned int, struct sockaddr_storage*);
 	void(*close)(struct NioSocket_t*);
 	void(*free)(struct NioSocket_t*);
-	// private
+/* private */
 	NioSocketMsg_t m_msg;
 	hashtable_node_t m_hashnode;
 	void* m_readOl;
