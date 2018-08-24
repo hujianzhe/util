@@ -494,12 +494,15 @@ void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_cal
 }
 
 void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*)) {
-	list_node_t *cur, *next;
-	for (cur = dataqueuePop(dq, 0, ~0); cur; cur = next) {
-		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
-		next = cur->next;
-		if (NIO_SOCKET_USER_MESSAGE == message->type && deleter)
-			deleter(message);
+	list_node_t *cur = dataqueuePop(dq, 0, ~0);
+	if (deleter) {
+		list_node_t *next;
+		for (; cur; cur = next) {
+			NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+			next = cur->next;
+			if (NIO_SOCKET_USER_MESSAGE == message->type)
+				deleter(message);
+		}
 	}
 }
 

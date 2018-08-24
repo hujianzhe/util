@@ -101,7 +101,7 @@ void dataqueueWake(DataQueue_t* dq) {
 	conditionvariableSignal(&dq->m_condition);
 }
 
-void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
+void dataqueueClean(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	if (deleter) {
@@ -119,7 +119,7 @@ void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 
 void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
 	if (dq && dq->m_initok) {
-		dataqueueClear(dq, deleter);
+		dataqueueClean(dq, deleter);
 		criticalsectionClose(&dq->m_cslock);
 		conditionvariableClose(&dq->m_condition);
 	}

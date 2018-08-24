@@ -25,7 +25,7 @@ void dataqueuePush(DataQueue_t* dq, list_node_t* data);
 void dataqueuePushList(DataQueue_t* dq, list_t* list);
 list_node_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt);
 void dataqueueWake(DataQueue_t* dq);
-void dataqueueClear(DataQueue_t* dq, void(*deleter)(list_node_t*));
+void dataqueueClean(DataQueue_t* dq, void(*deleter)(list_node_t*));
 void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(list_node_t*));
 
 #ifdef __cplusplus
