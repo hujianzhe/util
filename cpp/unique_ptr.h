@@ -108,7 +108,7 @@ bool operator==(const T2* y, const unique_ptr<T1, D>& x) { return x.get() == y; 
 template <class T, class D>
 bool operator==(nullptr_t p, const unique_ptr<T, D>& x) { return x.get() == p; }
 template <class T, class D>
-bool operator==(const unique_ptr<T, D>& x, nullptr_t p, ) { return x.get() == p; }
+bool operator==(const unique_ptr<T, D>& x, nullptr_t p) { return x.get() == p; }
 
 template <class T1, class D1, class T2, class D2>
 bool operator!=(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y) { return x.get() != y.get(); }
