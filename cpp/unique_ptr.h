@@ -9,7 +9,7 @@
 #if __CPP_VERSION >= 2011
 #include <memory>
 #else
-#include <stddef.h>
+#include "nullptr.h"
 namespace std {
 template<typename T>
 struct default_delete {
@@ -99,18 +99,22 @@ private:
 	T* m_ptr;
 	Deleter m_deleter;
 };
-template<class T1, class D1, class T2, class D2>
+template <class T1, class D1, class T2, class D2>
 bool operator==(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y) { return x.get() == y.get(); }
-template<class T1, class D, class T2>
+template <class T1, class D, class T2>
 bool operator==(const unique_ptr<T1, D>& x, const T2* y) { return x.get() == y; }
-template<class T1, class D, class T2>
+template <class T1, class D, class T2>
 bool operator==(const T2* y, const unique_ptr<T1, D>& x) { return x.get() == y; }
-template<class T1, class D1, class T2, class D2>
+template <class T, class D>
+bool operator==(nullptr_t p, const unique_ptr<T, D>& x) { return x.get() == p; }
+template <class T1, class D1, class T2, class D2>
 bool operator!=(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y) { return x.get() != y.get(); }
-template<class T1, class D, class T2>
+template <class T1, class D, class T2>
 bool operator!=(const unique_ptr<T1, D>& x, const T2* y) { return x.get() != y; }
-template<class T1, class D, class T2>
+template <class T1, class D, class T2>
 bool operator!=(const T2* y, const unique_ptr<T1, D>& x) { return x.get() != y; }
+template <class T, class D>
+bool operator!=(nullptr_t p, const unique_ptr<T, D>& x) { return x.get() != p; }
 }
 #endif
 

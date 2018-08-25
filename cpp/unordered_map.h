@@ -10,7 +10,7 @@
 #include <unordered_map>
 #else
 #include "../c/datastruct/hashtable.h"
-#include <stddef.h>
+#include <cstddef>
 #include <utility>
 #include <string>
 namespace std {

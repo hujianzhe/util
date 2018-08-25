@@ -10,7 +10,7 @@
 #include <unordered_set>
 #else
 #include "../c/datastruct/hashtable.h"
-#include <stddef.h>
+#include <cstddef>
 #include <string>
 namespace std {
 template <typename K>
