@@ -32,6 +32,8 @@
 #if __CPP_VERSION >= 2011
 	#undef	STATIC_ASSERT
 	#define	STATIC_ASSERT	static_assert
+#else
+	#define	override
 #endif
 
 #endif
