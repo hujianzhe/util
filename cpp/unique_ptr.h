@@ -24,6 +24,12 @@ template <typename T, typename Deleter = default_delete<T> >
 class unique_ptr {
 public:
 	explicit unique_ptr(T* p = (T*)0) : m_ptr(p) {}
+	unique_ptr(const unique_ptr& p) :
+		m_ptr(p.m_ptr),
+		m_deleter(p.m_deleter)
+	{
+		p.m_ptr = (T*)0;
+	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
 	const T& operator*(void) const { return *m_ptr; }
@@ -53,17 +59,22 @@ public:
 	const Deleter& get_deleter(void) const { return m_deleter; }
 
 private:
-	unique_ptr(const unique_ptr&) {}
 	unique_ptr& operator=(const unique_ptr&) { return *this; }
 
 private:
-	T* m_ptr;
+	mutable T* m_ptr;
 	Deleter m_deleter;
 };
 template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> {
 public:
 	explicit unique_ptr(T* p = (T*)0) : m_ptr(p) {}
+	unique_ptr(const unique_ptr& p) :
+		m_ptr(p.m_ptr),
+		m_deleter(p.m_deleter)
+	{
+		p.m_ptr = (T*)0;
+	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
 
@@ -92,11 +103,10 @@ public:
 	const Deleter& get_deleter(void) const { return m_deleter; }
 
 private:
-	unique_ptr(const unique_ptr&) {}
 	unique_ptr& operator=(const unique_ptr&) { return *this; }
 
 private:
-	T* m_ptr;
+	mutable T* m_ptr;
 	Deleter m_deleter;
 };
 template <class T1, class D1, class T2, class D2>
