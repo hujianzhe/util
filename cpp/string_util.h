@@ -2,8 +2,8 @@
 // Created by hujianzhe on 16-5-2.
 //
 
-#ifndef UTIL_CPP_STRING_H
-#define UTIL_CPP_STRING_H
+#ifndef UTIL_CPP_STRING_UTIL_H
+#define UTIL_CPP_STRING_UTIL_H
 
 #include "../c/syslib/string.h"
 #include <list>

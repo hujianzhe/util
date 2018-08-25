@@ -2,8 +2,8 @@
 // Created by hujianzhe on 18-8-25.
 //
 
-#ifndef UTIL_CPP_MEMORY_H
-#define	UTIL_CPP_MEMORY_H
+#ifndef UTIL_CPP_UNIQUE_PTR_H
+#define	UTIL_CPP_UNIQUE_PTR_H
 
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
