@@ -11,6 +11,11 @@
 namespace std {
 typedef struct nullptr_t {
 	nullptr_t(void) : __p((void*)0) {}
+	nullptr_t(const nullptr_t& p) : __p((void*)0) {}
+	nullptr_t& operator=(const nullptr_t& p) {
+		__p = (void*)0;
+		return *this;
+	}
 
 	template <typename T>
 		operator T*(void) const { return (T*)0; }
