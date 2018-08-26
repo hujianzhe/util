@@ -397,58 +397,72 @@ void rwlockClose(RWLock_t* rwlock) {
 }
 
 /* semaphore */
-SemId_t semaphoreCreate(const char* name, unsigned short val) {
+Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
-	SemId_t semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
+	HANDLE semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
 		assertTRUE(CloseHandle(semid));
 		return NULL;
 	}
-	return semid;
+	*sem = semid;
+	return sem;
 #else
 	/* max init value at last SEM_VALUE_MAX(32767) */
-	return sem_open(name, O_CREAT | O_EXCL, 0666, val);
 	/* mac os x has deprecated sem_init */
+	sem_t* semid = sem_open(name, O_CREAT | O_EXCL, 0666, val);
+	if (SEM_FAILED == semid)
+		return NULL;
+	*sem = semid;
+	return sem;
 #endif
 }
 
-SemId_t semaphoreOpen(const char* name) {
+Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
-	return OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
+	HANDLE handle = OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
+	if (handle != NULL) {
+		*sem = handle;
+		return sem;
+	}
+	return NULL;
 #else
-	return sem_open(name, 0);
+	sem_t* semid = sem_open(name, 0);
+	if (SEM_FAILED == semid)
+		return NULL;
+	*sem = semid;
+	return sem;
 #endif
 }
 
-BOOL semaphoreTryWait(SemId_t id) {
+BOOL semaphoreTryWait(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
-	return WaitForSingleObject(id, 0) == WAIT_OBJECT_0;
+	return WaitForSingleObject(*sem, 0) == WAIT_OBJECT_0;
 #else
-	return sem_trywait(id) == 0;
+	return sem_trywait(*sem) == 0;
 #endif
 }
 
-void semaphoreWait(SemId_t id) {
+void semaphoreWait(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
-	assertTRUE(WaitForSingleObject(id, INFINITE) == WAIT_OBJECT_0);
+	assertTRUE(WaitForSingleObject(*sem, INFINITE) == WAIT_OBJECT_0);
 #else
-	assertTRUE(sem_wait(id) == 0);
+	assertTRUE(sem_wait(*sem) == 0);
 #endif
 }
 
-void semaphorePost(SemId_t id) {
+void semaphorePost(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
-	assertTRUE(ReleaseSemaphore(id, 1, NULL));
+	assertTRUE(ReleaseSemaphore(*sem, 1, NULL));
 #else
-	assertTRUE(sem_post(id) == 0);
+	assertTRUE(sem_post(*sem) == 0);
 #endif
 }
 
-void semaphoreClose(SemId_t id) {
+void semaphoreClose(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
-	assertTRUE(CloseHandle(id));
+	assertTRUE(CloseHandle(*sem));
 #else
-	assertTRUE(sem_close(id) == 0);
+	assertTRUE(sem_close(*sem) == 0);
 #endif
 }
 

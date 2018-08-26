@@ -13,7 +13,7 @@
 	typedef	CRITICAL_SECTION		CriticalSection_t;
 	typedef CONDITION_VARIABLE		ConditionVariable_t;
 	typedef HANDLE 					Mutex_t;
-	typedef HANDLE 					SemId_t;
+	typedef HANDLE 					Semaphore_t;
 	typedef struct RWLock_t {
 		volatile BOOL __exclusive_lock;
 		volatile LONG __read_cnt;
@@ -31,7 +31,7 @@
 	typedef	pthread_mutex_t			CriticalSection_t;
 	typedef pthread_cond_t			ConditionVariable_t;
 	typedef pthread_mutex_t 		Mutex_t;
-	typedef	sem_t* 					SemId_t;
+	typedef	sem_t*					Semaphore_t;
 	typedef pthread_rwlock_t		RWLock_t;
 	typedef pthread_once_t          InitOnce_t;
 	#define INIT_ONCE_STATIC_INIT	PTHREAD_ONCE_INIT
@@ -76,12 +76,12 @@ void rwlockLockWrite(RWLock_t* rwlock);
 void rwlockUnlock(RWLock_t* rwlock);
 void rwlockClose(RWLock_t* rwlock);
 /* semaphore */
-SemId_t semaphoreCreate(const char* name, unsigned short val);
-SemId_t semaphoreOpen(const char* name);
-BOOL semaphoreTryWait(SemId_t id);
-void semaphoreWait(SemId_t id);
-void semaphorePost(SemId_t id);
-void semaphoreClose(SemId_t id);
+Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short val);
+Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name);
+BOOL semaphoreTryWait(Semaphore_t* sem);
+void semaphoreWait(Semaphore_t* sem);
+void semaphorePost(Semaphore_t* sem);
+void semaphoreClose(Semaphore_t* sem);
 BOOL semaphoreUnlink(const char* name);
 /* once call */
 BOOL initonceCall(InitOnce_t* once, void(*callback)(void));
