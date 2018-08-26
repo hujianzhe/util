@@ -10,8 +10,10 @@
 #if	__CPP_VERSION < 2011
 namespace std {
 typedef struct nullptr_t {
+	nullptr_t(void) : __p((void*)0) {}
+
 	template <typename T>
-		operator T*() { return (T*)0; }
+		operator T*(void) const { return (T*)0; }
 private:
 	void* __p;
 } nullptr_t;
