@@ -52,25 +52,25 @@ BOOL pipeCreate(FD_t* r, FD_t* w);
 BOOL pipeNonBlock(FD_t pipefd, BOOL bool_val);
 int pipeReadableBytes(FD_t r);
 /* critical section */
-BOOL criticalsectionCreate(CriticalSection_t* cs);
+CriticalSection_t* criticalsectionCreate(CriticalSection_t* cs);
 BOOL criticalsectionTryEnter(CriticalSection_t* cs);
 void criticalsectionEnter(CriticalSection_t* cs);
 void criticalsectionLeave(CriticalSection_t* cs);
 void criticalsectionClose(CriticalSection_t* cs);
 /* condition */
-BOOL conditionvariableCreate(ConditionVariable_t* condition);
+ConditionVariable_t* conditionvariableCreate(ConditionVariable_t* condition);
 BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs, int msec);
 void conditionvariableSignal(ConditionVariable_t* condition);
 void conditionvariableBroadcast(ConditionVariable_t* condition);
 void conditionvariableClose(ConditionVariable_t* condition);
 /* mutex */
-BOOL mutexCreate(Mutex_t* mutex);
+Mutex_t* mutexCreate(Mutex_t* mutex);
 BOOL mutexTryLock(Mutex_t* mutex);
 void mutexLock(Mutex_t* mutex);
 void mutexUnlock(Mutex_t* mutex);
 void mutexClose(Mutex_t* mutex);
 /* read/write lock */
-BOOL rwlockCreate(RWLock_t* rwlock);
+RWLock_t* rwlockCreate(RWLock_t* rwlock);
 void rwlockLockRead(RWLock_t* rwlock);
 void rwlockLockWrite(RWLock_t* rwlock);
 void rwlockUnlock(RWLock_t* rwlock);
@@ -84,7 +84,7 @@ void semaphorePost(Semaphore_t* sem);
 void semaphoreClose(Semaphore_t* sem);
 BOOL semaphoreUnlink(const char* name);
 /* once call */
-BOOL initonceCall(InitOnce_t* once, void(*callback)(void));
+InitOnce_t* initonceCall(InitOnce_t* once, void(*callback)(void));
 
 #ifdef	__cplusplus
 }

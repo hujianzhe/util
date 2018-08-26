@@ -69,15 +69,15 @@ int pipeReadableBytes(FD_t r) {
 }
 
 /* critical section */
-BOOL criticalsectionCreate(CriticalSection_t* cs) {
+CriticalSection_t* criticalsectionCreate(CriticalSection_t* cs) {
 #if defined(_WIN32) || defined(_WIN64)
 	__try {
 		InitializeCriticalSection(cs);
 	}
 	__except (STATUS_NO_MEMORY) {
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return cs;
 #else
 	int res;
 	int attr_ok = 0;
@@ -99,9 +99,9 @@ BOOL criticalsectionCreate(CriticalSection_t* cs) {
 	}
 	if (res) {
 		errno = res;
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return cs;
 #endif
 }
 
@@ -143,17 +143,17 @@ void criticalsectionClose(CriticalSection_t* cs) {
 }
 
 /* condition */
-BOOL conditionvariableCreate(ConditionVariable_t* condition) {
+ConditionVariable_t* conditionvariableCreate(ConditionVariable_t* condition) {
 #if defined(_WIN32) || defined(_WIN64)
 	InitializeConditionVariable(condition);
-	return TRUE;
+	return condition;
 #else
 	int res = pthread_cond_init(condition, NULL);
 	if (res) {
 		errno = res;
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return condition;
 #endif
 }
 
@@ -218,23 +218,23 @@ void conditionvariableClose(ConditionVariable_t* condition) {
 }
 
 /* mutex */
-BOOL mutexCreate(Mutex_t* mutex) {
+Mutex_t* mutexCreate(Mutex_t* mutex) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* windows mutex will auto release after it's owner thread exit. */
 	/* then...if another thread call WaitForSingleObject for that mutex,it will return WAIT_ABANDONED */
-	HANDLE res = CreateEvent(NULL, FALSE, TRUE, NULL);/* so,I use event. */
-	if (res) {
-		*mutex = res;
-		return TRUE;
+	HANDLE handle = CreateEvent(NULL, FALSE, TRUE, NULL);/* so,I use event. */
+	if (handle != NULL) {
+		*mutex = handle;
+		return mutex;
 	}
-	return FALSE;
+	return NULL;
 #else
 	int res = pthread_mutex_init(mutex, NULL);
 	if (res) {
 		errno = res;
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return mutex;
 #endif
 }
 
@@ -276,7 +276,7 @@ void mutexClose(Mutex_t* mutex) {
 }
 
 /* read/write lock */
-BOOL rwlockCreate(RWLock_t* rwlock) {
+RWLock_t* rwlockCreate(RWLock_t* rwlock) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* I don't use SRW Locks because SRW Locks are neither fair nor FIFO. */
 	/*InitializeSRWLock(rwlock);*/
@@ -298,7 +298,7 @@ BOOL rwlockCreate(RWLock_t* rwlock) {
 		}
 		rwlock->__exclusive_lock = FALSE;
 		rwlock->__read_cnt = 0;
-		return TRUE;
+		return rwlock;
 	} while (0);
 	if (read_ev_ok) {
 		assertTRUE(CloseHandle(rwlock->__read_ev));
@@ -306,7 +306,7 @@ BOOL rwlockCreate(RWLock_t* rwlock) {
 	if (write_ev_ok) {
 		assertTRUE(CloseHandle(rwlock->__write_ev));
 	}
-	return FALSE;
+	return NULL;
 #else
 	int res;
 	#ifdef  __linux__
@@ -336,9 +336,9 @@ BOOL rwlockCreate(RWLock_t* rwlock) {
 	#endif
 	if (res) {
 		errno = res;
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return rwlock;
 #endif
 }
 
@@ -399,13 +399,16 @@ void rwlockClose(RWLock_t* rwlock) {
 /* semaphore */
 Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE semid = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
+	HANDLE handle = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
-		assertTRUE(CloseHandle(semid));
+		assertTRUE(CloseHandle(handle));
 		return NULL;
 	}
-	*sem = semid;
-	return sem;
+	if (handle != NULL) {
+		*sem = handle;
+		return sem;
+	}
+	return NULL;
 #else
 	/* max init value at last SEM_VALUE_MAX(32767) */
 	/* mac os x has deprecated sem_init */
@@ -483,16 +486,16 @@ BOOL CALLBACK __win32InitOnceCallback(PINIT_ONCE InitOnce, PVOID Parameter, PVOI
 }
 #endif
 
-BOOL initonceCall(InitOnce_t* once, void(*callback)(void)) {
+InitOnce_t* initonceCall(InitOnce_t* once, void(*callback)(void)) {
 #if defined(_WIN32) || defined(_WIN64)
-	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL);
+	return InitOnceExecuteOnce(once, __win32InitOnceCallback, callback, NULL) ? once : NULL;
 #else
 	int res = pthread_once(once, callback);
 	if (res) {
 		errno = res;
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return once;
 #endif
 }
 
