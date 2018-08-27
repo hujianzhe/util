@@ -436,6 +436,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 }
 
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) {
+	loop->initok = 0;
 	if (!reactorCreate(&loop->reactor))
 		return NULL;
 	if (!dataqueueInit(&loop->dq)) {
@@ -451,6 +452,7 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 		dataqueueDestroy(&loop->dq, NULL);
 		return NULL;
 	}
+	loop->initok = 1;
 	return loop;
 }
 
@@ -466,13 +468,15 @@ void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
 }
 
 void niosocketloopJoin(NioSocketLoop_t* loop) {
-	hashtable_node_t *cur, *next;
-	threadJoin(loop->handle, NULL);
-	reactorClose(&loop->reactor);
-	dataqueueDestroy(&loop->dq, NULL);
-	for (cur = hashtable_first_node(&loop->sockht); cur; cur = next) {
-		next = cur->next;
-		niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+	if (loop && loop->initok) {
+		hashtable_node_t *cur, *next;
+		threadJoin(loop->handle, NULL);
+		reactorClose(&loop->reactor);
+		dataqueueDestroy(&loop->dq, NULL);
+		for (cur = hashtable_first_node(&loop->sockht); cur; cur = next) {
+			next = cur->next;
+			niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+		}
 	}
 }
 

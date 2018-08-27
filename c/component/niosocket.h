@@ -14,6 +14,7 @@
 
 typedef struct NioSocketLoop_t {
 	volatile char valid;
+	unsigned char initok;
 	Thread_t handle;
 	Reactor_t reactor;
 	DataQueue_t dq;
