@@ -15,12 +15,12 @@
 typedef struct NioSocketLoop_t {
 	volatile char valid;
 	unsigned char initok;
-	Thread_t handle;
-	Reactor_t reactor;
-	DataQueue_t dq;
-	DataQueue_t* msgdq;
-	hashtable_t sockht;
-	hashtable_node_t* sockht_bulks[2048];
+	Thread_t m_handle;
+	Reactor_t m_reactor;
+	DataQueue_t m_dq;
+	DataQueue_t* m_msgdq;
+	hashtable_t m_sockht;
+	hashtable_node_t* m_sockht_bulks[2048];
 } NioSocketLoop_t;
 
 enum {
