@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct WaitSendData {
+	ListNode_t m_listnode;
+	size_t offset;
+	size_t len;
+	unsigned char data[1];
+} WaitSendData;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,6 +21,7 @@ extern "C" {
 void niosocketFree(NioSocket_t* s) {
 	if (!s)
 		return;
+	socketClose(s->fd);
 	if (SOCK_STREAM == s->socktype) {
 		criticalsectionClose(&s->m_outbufLock);
 	}
@@ -22,7 +30,13 @@ void niosocketFree(NioSocket_t* s) {
 		s->m_inbuf = NULL;
 		s->m_inbuflen = 0;
 	}
-	socketClose(s->fd);
+	do {
+		ListNode_t *cur, *next;
+		for (cur = s->m_outbuflist.head; cur; cur = next) {
+			next = cur->next;
+			free(pod_container_of(cur, WaitSendData, m_listnode));
+		}
+	} while (0);
 	free(s->m_readOl);
 	free(s->m_writeOl);
 	s->free(s);
@@ -136,13 +150,6 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 		}
 	}
 }
-
-typedef struct WaitSendData {
-	ListNode_t m_listnode;
-	size_t offset;
-	size_t len;
-	unsigned char data[1];
-} WaitSendData;
 
 static int reactorsocket_write(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
