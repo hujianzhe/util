@@ -106,8 +106,8 @@ void listReverse(struct List_t* list) {
 	struct ListNode_t* cur = list->head;
 	list->tail = cur;
 	while (cur) {
-		list->head = cur;
 		struct ListNode_t* p = cur->next;
+		list->head = cur;
 		cur->next = cur->prev;
 		cur->prev = p;
 		cur = cur->prev;
