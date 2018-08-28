@@ -24,7 +24,7 @@ extern "C" {
 #define A2					0x5
 #define C					0xB
 #define SET3(x, x0, x1, x2)	((x)[0] = (x0), (x)[1] = (x1), (x)[2] = (x2))
-void rand48_seed(Rand48_t* ctx, int seedval) {
+void rand48Seed(Rand48_t* ctx, int seedval) {
 	ctx->x[0] = X0;
 	ctx->x[1] = LOW(seedval);
 	ctx->x[2] = HIGH(seedval);
@@ -50,13 +50,13 @@ int rand48_l(Rand48_t* ctx) {
 	ctx->x[0] = LOW(p[0]);
 	return (((int)(ctx->x[2]) << (N - 1)) + (ctx->x[1] >> 1));
 }
-int rand48_range(Rand48_t* ctx, int start, int end) {
+int rand48Range(Rand48_t* ctx, int start, int end) {
 	/* [start, end) */
 	return rand48_l(ctx) % (end - start) + start;
 }
 
 /* mt19937 */
-void mt19937_seed(RandMT19937_t* ctx, int seedval) {
+void mt19937Seed(RandMT19937_t* ctx, int seedval) {
 	int i;
 	unsigned long long* x = ctx->x;
 	x[0] = seedval;
@@ -83,7 +83,7 @@ unsigned long long mt19937_ull(RandMT19937_t* ctx) {
 	ctx->k = (k + 1) % 312;
 	return y;
 }
-long long mt19937_range(RandMT19937_t* ctx, long long start, long long end) {
+long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) {
 	/* [start, end) */
 	return mt19937_ll(ctx) % (end - start) + start;
 }

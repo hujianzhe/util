@@ -11,10 +11,10 @@
 extern "C" {
 #endif
 
-static void __rb_rotate_left(struct rbtree_node_t *node, struct rbtree_t *root)
+static void __rb_rotate_left(struct RBTreeNode_t *node, struct RBTree_t *root)
 {
-	struct rbtree_node_t *right = node->rb_right;
-	struct rbtree_node_t *parent = node->rb_parent;
+	struct RBTreeNode_t *right = node->rb_right;
+	struct RBTreeNode_t *parent = node->rb_parent;
 
 	if ((node->rb_right = right->rb_left))
 		right->rb_left->rb_parent = node;
@@ -34,10 +34,10 @@ static void __rb_rotate_left(struct rbtree_node_t *node, struct rbtree_t *root)
 	node->rb_parent = right;
 }
 
-static void __rb_rotate_right(struct rbtree_node_t *node, struct rbtree_t *root)
+static void __rb_rotate_right(struct RBTreeNode_t *node, struct RBTree_t *root)
 {
-	struct rbtree_node_t *left = node->rb_left;
-	struct rbtree_node_t *parent = node->rb_parent;
+	struct RBTreeNode_t *left = node->rb_left;
+	struct RBTreeNode_t *parent = node->rb_parent;
 
 	if ((node->rb_left = left->rb_right))
 		left->rb_right->rb_parent = node;
@@ -57,9 +57,9 @@ static void __rb_rotate_right(struct rbtree_node_t *node, struct rbtree_t *root)
 	node->rb_parent = left;
 }
 
-static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
+static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 {
-	struct rbtree_node_t *parent, *gparent;
+	struct RBTreeNode_t *parent, *gparent;
 
 	while ((parent = node->rb_parent) && parent->rb_color == RB_RED)
 	{
@@ -68,7 +68,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 		if (parent == gparent->rb_left)
 		{
 			{
-				register struct rbtree_node_t *uncle = gparent->rb_right;
+				register struct RBTreeNode_t *uncle = gparent->rb_right;
 				if (uncle && uncle->rb_color == RB_RED)
 				{
 					uncle->rb_color = RB_BLACK;
@@ -81,7 +81,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 
 			if (parent->rb_right == node)
 			{
-				register struct rbtree_node_t *tmp;
+				register struct RBTreeNode_t *tmp;
 				__rb_rotate_left(parent, root);
 				tmp = parent;
 				parent = node;
@@ -93,7 +93,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 			__rb_rotate_right(gparent, root);
 		} else {
 			{
-				register struct rbtree_node_t *uncle = gparent->rb_left;
+				register struct RBTreeNode_t *uncle = gparent->rb_left;
 				if (uncle && uncle->rb_color == RB_RED)
 				{
 					uncle->rb_color = RB_BLACK;
@@ -106,7 +106,7 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 
 			if (parent->rb_left == node)
 			{
-				register struct rbtree_node_t *tmp;
+				register struct RBTreeNode_t *tmp;
 				__rb_rotate_right(parent, root);
 				tmp = parent;
 				parent = node;
@@ -122,16 +122,16 @@ static void __rb_insert_color(struct rbtree_node_t *node, struct rbtree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-struct rbtree_t* rbtree_init(struct rbtree_t* root, int(*keycmp)(struct rbtree_node_t*, const void*))
+struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(struct RBTreeNode_t*, const void*))
 {
-	root->rb_tree_node = (struct rbtree_node_t*)0;
+	root->rb_tree_node = (struct RBTreeNode_t*)0;
 	root->keycmp = keycmp;
 	return root;
 }
 
-struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_node_t* node)
+struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node)
 {
-	struct rbtree_node_t* parent = root->rb_tree_node;
+	struct RBTreeNode_t* parent = root->rb_tree_node;
 	while (parent) {
 		int res = root->keycmp(parent, node->key);
 		if (res < 0) {
@@ -153,11 +153,11 @@ struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_no
 			}
 		}
 		else {
-			return (struct rbtree_node_t*)parent;
+			return (struct RBTreeNode_t*)parent;
 		}
 	}
 	node->rb_color = RB_RED;
-	node->rb_left = node->rb_right = (struct rbtree_node_t*)0;
+	node->rb_left = node->rb_right = (struct RBTreeNode_t*)0;
 	node->rb_parent = parent;
 	node->rb_tree = root;
 	if (!parent) {
@@ -167,7 +167,7 @@ struct rbtree_node_t* rbtree_insert_node(struct rbtree_t* root, struct rbtree_no
 	return node;
 }
 
-void rbtree_replace_node(struct rbtree_node_t* old_node, struct rbtree_node_t* new_node) {
+void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) {
 	if (old_node && old_node != new_node) {
 		const void* key = new_node->key;
 		if (old_node->rb_left) {
@@ -192,9 +192,9 @@ void rbtree_replace_node(struct rbtree_node_t* old_node, struct rbtree_node_t* n
 	}
 }
 
-static void __rb_remove_color(struct rbtree_node_t *node, struct rbtree_node_t *parent, struct rbtree_t *root)
+static void __rb_remove_color(struct RBTreeNode_t *node, struct RBTreeNode_t *parent, struct RBTree_t *root)
 {
-	struct rbtree_node_t *other;
+	struct RBTreeNode_t *other;
 
 	while ((!node || node->rb_color == RB_BLACK) && node != root->rb_tree_node)
 	{
@@ -271,9 +271,9 @@ static void __rb_remove_color(struct rbtree_node_t *node, struct rbtree_node_t *
 		node->rb_color = RB_BLACK;
 }
 
-void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node)
+void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node)
 {
-	struct rbtree_node_t *child, *parent;
+	struct RBTreeNode_t *child, *parent;
 	int color;
 
 	if (!node->rb_left)
@@ -282,7 +282,7 @@ void rbtree_remove_node(struct rbtree_t* root, struct rbtree_node_t* node)
 		child = node->rb_left;
 	else
 	{
-		struct rbtree_node_t *old = node, *left;
+		struct RBTreeNode_t *old = node, *left;
 
 		node = node->rb_right;
 		while ((left = node->rb_left))
@@ -339,9 +339,9 @@ color:
 		__rb_remove_color(child, parent, root);
 }
 
-struct rbtree_node_t* rbtree_search_key(const struct rbtree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* key)
 {
-	struct rbtree_node_t *node = root->rb_tree_node;
+	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
 		int res = root->keycmp(node, key);
 		if (res < 0) {
@@ -356,11 +356,11 @@ struct rbtree_node_t* rbtree_search_key(const struct rbtree_t* root, const void*
 	}
 	return node;
 }
-struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const void* key)
 {
-	struct rbtree_node_t *node = rbtree_search_key(root, key);
+	struct RBTreeNode_t *node = rbtreeSearchKey(root, key);
 	if (node) {
-		rbtree_remove_node(root, node);
+		rbtreeRemoveNode(root, node);
 	}
 	return node;
 }
@@ -368,9 +368,9 @@ struct rbtree_node_t* rbtree_remove_key(struct rbtree_t* root, const void* key)
 /*
  * This function returns the first node (in sort order) of the tree.
  */
-struct rbtree_node_t* rbtree_first_node(const struct rbtree_t* root)
+struct RBTreeNode_t* rbtreeFirstNode(const struct RBTree_t* root)
 {
-	struct rbtree_node_t *n;
+	struct RBTreeNode_t *n;
 
 	n = root->rb_tree_node;
 	if (n) {
@@ -380,9 +380,9 @@ struct rbtree_node_t* rbtree_first_node(const struct rbtree_t* root)
 	return n;
 }
 
-struct rbtree_node_t* rbtree_last_node(const struct rbtree_t* root)
+struct RBTreeNode_t* rbtreeLastNode(const struct RBTree_t* root)
 {
-	struct rbtree_node_t *n;
+	struct RBTreeNode_t *n;
 
 	n = root->rb_tree_node;
 	if (n) {
@@ -392,12 +392,12 @@ struct rbtree_node_t* rbtree_last_node(const struct rbtree_t* root)
 	return n;
 }
 
-struct rbtree_node_t* rbtree_next_node(struct rbtree_node_t* node)
+struct RBTreeNode_t* rbtreeNextNode(struct RBTreeNode_t* node)
 {
-	struct rbtree_node_t *parent;
+	struct RBTreeNode_t *parent;
 
 	if (node->rb_parent == node)
-		return (struct rbtree_node_t*)0;
+		return (struct RBTreeNode_t*)0;
 
 	/* If we have a right-hand child, go down and then left as far
 	   as we can. */
@@ -420,12 +420,12 @@ struct rbtree_node_t* rbtree_next_node(struct rbtree_node_t* node)
 	return parent;
 }
 
-struct rbtree_node_t* rbtree_prev_node(struct rbtree_node_t* node)
+struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node)
 {
-	struct rbtree_node_t *parent;
+	struct RBTreeNode_t *parent;
 
 	if (node->rb_parent == node)
-		return (struct rbtree_node_t*)0;
+		return (struct RBTreeNode_t*)0;
 
 	/* If we have a left-hand child, go down and then right as far
 	   as we can. */

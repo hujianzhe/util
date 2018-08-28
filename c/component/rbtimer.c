@@ -7,15 +7,15 @@
 
 typedef struct RBTimerEvList {
 	long long timestamp_msec;
-	rbtree_node_t m_rbtreenode;
-	list_t m_list;
+	RBTreeNode_t m_rbtreenode;
+	List_t m_list;
 } RBTimerEvList;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-static int rbtimer_keycmp(struct rbtree_node_t* node, const void* key) {
+static int rbtimer_keycmp(struct RBTreeNode_t* node, const void* key) {
 	RBTimerEvList* evlist = pod_container_of(node, RBTimerEvList, m_rbtreenode);
 	long long res = *(long long*)key - evlist->timestamp_msec;
 	if (res < 0)
@@ -30,18 +30,18 @@ RBTimer_t* rbtimerInit(RBTimer_t* timer) {
 	timer->m_initok = 0;
 	if (!criticalsectionCreate(&timer->m_lock))
 		return NULL;
-	rbtree_init(&timer->m_rbtree, rbtimer_keycmp);
+	rbtreeInit(&timer->m_rbtree, rbtimer_keycmp);
 	timer->m_initok = 1;
 	return timer;
 }
 
 long long rbtimerMiniumTimestamp(RBTimer_t* timer) {
-	rbtree_node_t* node;
+	RBTreeNode_t* node;
 	long long min_timestamp = -1;
 
 	criticalsectionEnter(&timer->m_lock);
 
-	node = rbtree_first_node(&timer->m_rbtree);
+	node = rbtreeFirstNode(&timer->m_rbtree);
 	if (node) {
 		RBTimerEvList* evlist = pod_container_of(node, RBTimerEvList, m_rbtreenode);
 		min_timestamp = evlist->timestamp_msec;
@@ -55,17 +55,17 @@ long long rbtimerMiniumTimestamp(RBTimer_t* timer) {
 int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	int ok = 0;
 	RBTimerEvList* evlist;
-	rbtree_node_t* exist_node;
+	RBTreeNode_t* exist_node;
 
 	if (!e->callback || e->timestamp_msec < 0)
 		return 1;
 
 	criticalsectionEnter(&timer->m_lock);
 
-	exist_node = rbtree_search_key(&timer->m_rbtree, &e->timestamp_msec);
+	exist_node = rbtreeSearchKey(&timer->m_rbtree, &e->timestamp_msec);
 	if (exist_node) {
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
-		list_insert_node_back(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
+		listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
 		ok = 1;
 	}
 	else {
@@ -73,9 +73,9 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 		if (evlist) {
 			evlist->m_rbtreenode.key = &evlist->timestamp_msec;
 			evlist->timestamp_msec = e->timestamp_msec;
-			list_init(&evlist->m_list);
-			list_insert_node_back(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
-			rbtree_insert_node(&timer->m_rbtree, &evlist->m_rbtreenode);
+			listInit(&evlist->m_list);
+			listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
+			rbtreeInsertNode(&timer->m_rbtree, &evlist->m_rbtreenode);
 			ok = 1;
 		}
 	}
@@ -86,20 +86,20 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 }
 
 void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTimerEvent_t*)) {
-	list_node_t *lcur, *lnext;
-	rbtree_node_t *rbcur, *rbnext;
-	list_t list;
-	list_init(&list);
+	ListNode_t *lcur, *lnext;
+	RBTreeNode_t *rbcur, *rbnext;
+	List_t list;
+	listInit(&list);
 
 	criticalsectionEnter(&timer->m_lock);
 
-	for (rbcur = rbtree_first_node(&timer->m_rbtree); rbcur; rbcur = rbnext) {
+	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
 		if (timestamp_msec > 0 && evlist->timestamp_msec > timestamp_msec)
 			break;
-		rbnext = rbtree_next_node(rbcur);
-		rbtree_remove_node(&timer->m_rbtree, rbcur);
-		list_merge(&list, &evlist->m_list);
+		rbnext = rbtreeNextNode(rbcur);
+		rbtreeRemoveNode(&timer->m_rbtree, rbcur);
+		listMerge(&list, &evlist->m_list);
 		free(evlist);
 	}
 
@@ -116,24 +116,24 @@ void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTi
 }
 
 void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*)) {
-	rbtree_node_t *rbcur, *rbnext;
-	list_t list;
-	list_init(&list);
+	RBTreeNode_t *rbcur, *rbnext;
+	List_t list;
+	listInit(&list);
 
 	criticalsectionEnter(&timer->m_lock);
 
-	for (rbcur = rbtree_first_node(&timer->m_rbtree); rbcur; rbcur = rbnext) {
+	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
-		rbnext = rbtree_next_node(rbcur);
-		list_merge(&list, &evlist->m_list);
+		rbnext = rbtreeNextNode(rbcur);
+		listMerge(&list, &evlist->m_list);
 		free(evlist);
 	}
-	rbtree_init(&timer->m_rbtree, rbtimer_keycmp);
+	rbtreeInit(&timer->m_rbtree, rbtimer_keycmp);
 
 	criticalsectionLeave(&timer->m_lock);
 
 	if (deleter) {
-		list_node_t *cur, *next;
+		ListNode_t *cur, *next;
 		for (cur = list.head; cur; cur = next) {
 			next = cur->next;
 			deleter(pod_container_of(cur, RBTimerEvent_t, m_listnode));

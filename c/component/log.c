@@ -12,7 +12,7 @@
 #include <string.h>
 
 typedef struct CacheBlock {
-	list_node_t m_listnode;
+	ListNode_t m_listnode;
 	struct tm dt;
 	size_t len;
 	char txt[1];
@@ -57,7 +57,7 @@ static void log_write(Log_t* log, const struct tm* dt, const char* content, size
 		criticalsectionEnter(&log->m_lock);
 
 		if (is_async) {
-			list_insert_node_back(&log->m_cachelist, log->m_cachelist.tail, &cache->m_listnode);
+			listInsertNodeBack(&log->m_cachelist, log->m_cachelist.tail, &cache->m_listnode);
 		}
 		else {
 			/* day rotate */
@@ -119,7 +119,7 @@ Log_t* logInit(Log_t* log) {
 	log->m_file = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
 	log->m_maxfilesize = ~0;
-	list_init(&log->m_cachelist);
+	listInit(&log->m_cachelist);
 	log->m_initok = 1;
 
 	log->rootpath[0] = log->name[0] = log->ident[0] = 0;
@@ -133,12 +133,12 @@ Log_t* logInit(Log_t* log) {
 void logFlush(Log_t* log) {
 	char *txt = NULL;
 	size_t txtlen = 0;
-	list_node_t *cur, *next;
+	ListNode_t *cur, *next;
 
 	criticalsectionEnter(&log->m_lock);
 
 	cur = log->m_cachelist.head;
-	list_init(&log->m_cachelist);
+	listInit(&log->m_cachelist);
 
 	criticalsectionLeave(&log->m_lock);
 
@@ -188,12 +188,12 @@ void logFlush(Log_t* log) {
 }
 
 void logClear(Log_t* log) {
-	list_node_t *cur, *next;
+	ListNode_t *cur, *next;
 
 	criticalsectionEnter(&log->m_lock);
 
 	cur = log->m_cachelist.head;
-	list_init(&log->m_cachelist);
+	listInit(&log->m_cachelist);
 
 	criticalsectionLeave(&log->m_lock);
 

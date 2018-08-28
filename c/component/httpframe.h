@@ -8,7 +8,7 @@
 #include "../datastruct/hashtable.h"
 
 typedef struct HttpFrameHeaderField_t {
-	hashtable_node_t m_hashnode;
+	HashtableNode_t m_hashnode;
 	const char* key;
 	const char* value;
 } HttpFrameHeaderField_t;
@@ -18,8 +18,8 @@ typedef struct HttpFrame_t {
 	char method[8];
 	char* uri;
 	const char* query;
-	hashtable_t headers;
-	hashtable_node_t* m_bulks[11];
+	Hashtable_t headers;
+	HashtableNode_t* m_bulks[11];
 } HttpFrame_t;
 
 #ifdef __cplusplus

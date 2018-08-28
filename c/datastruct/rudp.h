@@ -6,7 +6,7 @@
 #define	UTIL_C_RUDP_H
 
 #pragma pack(1)
-struct rudp_hdr {
+struct RudpHdr_t {
 	unsigned char type;
 	unsigned long long seq;
 };
@@ -15,26 +15,26 @@ struct rudp_hdr {
 // inner struct, don't use
 struct rudp_recv_cache {
 	unsigned short len;
-	const struct rudp_hdr* hdr;
+	const struct RudpHdr_t* hdr;
 };
 struct rudp_send_cache {
 	struct rudp_send_cache *prev, *next;
 	long long last_resend_msec;
 	int resend_times;
 	unsigned short len;
-	const struct rudp_hdr* hdr;
+	const struct RudpHdr_t* hdr;
 };
 // outer struct
 #define	RUDP_WND_SIZE	256
-struct rudp_ctx {
+struct RudpCtx_t {
 // public
 	int max_resend_times;
 	int first_resend_interval_msec;
 
 	void* userdata;
-	void(*send_callback)(struct rudp_ctx*, const struct rudp_hdr*, unsigned short);
-	void(*recv_callback)(struct rudp_ctx*, const struct rudp_hdr*, unsigned short);
-	void(*free_callback)(struct rudp_ctx*, const struct rudp_hdr*);
+	void(*send_callback)(struct RudpCtx_t*, const struct RudpHdr_t*, unsigned short);
+	void(*recv_callback)(struct RudpCtx_t*, const struct RudpHdr_t*, unsigned short);
+	void(*free_callback)(struct RudpCtx_t*, const struct RudpHdr_t*);
 
 // private
 	unsigned char ack_seq;
@@ -49,10 +49,10 @@ struct rudp_ctx {
 extern "C" {
 #endif
 
-void rudp_ctx_clean(struct rudp_ctx* ctx);
-void rudp_recv_sort_and_ack(struct rudp_ctx* ctx, long long now_timestamp_msec, const struct rudp_hdr* hdr);
-int rudp_send(struct rudp_ctx* ctx, long long now_timestamp_msec, struct rudp_hdr* hdr, unsigned short len);
-int rudp_check_resend(struct rudp_ctx* ctx, long long now_timestamp_msec, int* next_wait_msec);
+void rudp_ctx_clean(struct RudpCtx_t* ctx);
+void rudp_recv_sort_and_ack(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr);
+int rudp_send(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len);
+int rudp_check_resend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec);
 
 #ifdef	__cplusplus
 }

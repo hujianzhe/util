@@ -8,15 +8,15 @@
 extern "C" {
 #endif
 
-struct list_t* list_init(struct list_t* list) {
-	list->head = list->tail = (struct list_node_t*)0;
+struct List_t* listInit(struct List_t* list) {
+	list->head = list->tail = (struct ListNode_t*)0;
 	return list;
 }
 
-void list_insert_node_front(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node) {
+void listInsertNodeFront(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
 	if (!list->head) {
 		list->head = list->tail = new_node;
-		new_node->prev = new_node->next = (struct list_node_t*)0;
+		new_node->prev = new_node->next = (struct ListNode_t*)0;
 		return;
 	}
 	if (list->head == node) {
@@ -31,10 +31,10 @@ void list_insert_node_front(struct list_t* list, struct list_node_t* node, struc
 	node->prev = new_node;
 }
 
-void list_insert_node_back(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node) {
+void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
 	if (!list->tail) {
 		list->head = list->tail = new_node;
-		new_node->prev = new_node->next = (struct list_node_t*)0;
+		new_node->prev = new_node->next = (struct ListNode_t*)0;
 		return;
 	}
 	if (list->tail == node) {
@@ -49,7 +49,7 @@ void list_insert_node_back(struct list_t* list, struct list_node_t* node, struct
 	node->next = new_node;
 }
 
-void list_remove_node(struct list_t* list, struct list_node_t* node) {
+void listRemoveNode(struct List_t* list, struct ListNode_t* node) {
 	if (list->head == node) {
 		list->head = node->next;
 	}
@@ -65,7 +65,7 @@ void list_remove_node(struct list_t* list, struct list_node_t* node) {
 	}
 }
 
-void list_replace_node(struct list_t* list, struct list_node_t* node, struct list_node_t* new_node) {
+void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
 	if (list->head == node) {
 		list->head = new_node;
 	}
@@ -73,7 +73,7 @@ void list_replace_node(struct list_t* list, struct list_node_t* node, struct lis
 		list->tail = new_node;
 	}
 	if (!node) {
-		new_node->prev = new_node->next = (struct list_node_t*)0;
+		new_node->prev = new_node->next = (struct ListNode_t*)0;
 		return;
 	}
 
@@ -86,7 +86,7 @@ void list_replace_node(struct list_t* list, struct list_node_t* node, struct lis
 	*new_node = *node;
 }
 
-void list_merge(struct list_t* to, struct list_t* from) {
+void listMerge(struct List_t* to, struct List_t* from) {
 	if (!to->head) {
 		to->head = from->head;
 	}
@@ -99,32 +99,32 @@ void list_merge(struct list_t* to, struct list_t* from) {
 	if (from->tail) {
 		to->tail = from->tail;
 	}
-	from->head = from->tail = (struct list_node_t*)0;
+	from->head = from->tail = (struct ListNode_t*)0;
 }
 
-void list_order_reverse(struct list_t* list) {
-	struct list_node_t* cur = list->head;
+void listReverse(struct List_t* list) {
+	struct ListNode_t* cur = list->head;
 	list->tail = cur;
 	while (cur) {
 		list->head = cur;
-		struct list_node_t* p = cur->next;
+		struct ListNode_t* p = cur->next;
 		cur->next = cur->prev;
 		cur->prev = p;
 		cur = cur->prev;
 	}
 }
 
-struct list_t list_split(struct list_t* old_list, struct list_node_t* new_head) {
-	struct list_t new_list;
+struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head) {
+	struct List_t new_list;
 	new_list.head = new_head;
 	new_list.tail = old_list->tail;
 	old_list->tail = new_head->prev;
 	if (new_head->prev) {
-		new_head->prev->next = (struct list_node_t*)0;
-		new_head->prev = (struct list_node_t*)0;
+		new_head->prev->next = (struct ListNode_t*)0;
+		new_head->prev = (struct ListNode_t*)0;
 	}
 	else {
-		old_list->head = (struct list_node_t*)0;
+		old_list->head = (struct ListNode_t*)0;
 	}
 	return new_list;
 }

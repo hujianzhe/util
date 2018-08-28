@@ -19,13 +19,13 @@ DataQueue_t* dataqueueInit(DataQueue_t* dq) {
 		criticalsectionClose(&dq->m_cslock);
 		return NULL;
 	}
-	list_init(&dq->m_datalist);
+	listInit(&dq->m_datalist);
 	dq->m_forcewakeup = 0;
 	dq->m_initok = 1;
 	return dq;
 }
 
-void dataqueuePush(DataQueue_t* dq, list_node_t* data) {
+void dataqueuePush(DataQueue_t* dq, ListNode_t* data) {
 	int is_empty;
 	if (!data) {
 		return;
@@ -34,7 +34,7 @@ void dataqueuePush(DataQueue_t* dq, list_node_t* data) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	is_empty = !dq->m_datalist.head;
-	list_insert_node_back(&dq->m_datalist, dq->m_datalist.tail, data);
+	listInsertNodeBack(&dq->m_datalist, dq->m_datalist.tail, data);
 	if (is_empty) {
 		conditionvariableSignal(&dq->m_condition);
 	}
@@ -42,7 +42,7 @@ void dataqueuePush(DataQueue_t* dq, list_node_t* data) {
 	criticalsectionLeave(&dq->m_cslock);
 }
 
-void dataqueuePushList(DataQueue_t* dq, list_t* list) {
+void dataqueuePushList(DataQueue_t* dq, List_t* list) {
 	int is_empty;
 	if (!list->head || !list->tail) {
 		return;
@@ -51,7 +51,7 @@ void dataqueuePushList(DataQueue_t* dq, list_t* list) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	is_empty = !dq->m_datalist.head;
-	list_merge(&dq->m_datalist, list);
+	listMerge(&dq->m_datalist, list);
 	if (is_empty) {
 		conditionvariableSignal(&dq->m_condition);
 	}
@@ -59,8 +59,8 @@ void dataqueuePushList(DataQueue_t* dq, list_t* list) {
 	criticalsectionLeave(&dq->m_cslock);
 }
 
-list_node_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
-	list_node_t* res = NULL;
+ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
+	ListNode_t* res = NULL;
 	if (0 == expect_cnt) {
 		return res;
 	}
@@ -78,16 +78,16 @@ list_node_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
 
 	res = dq->m_datalist.head;
 	if (~0 == expect_cnt) {
-		list_init(&dq->m_datalist);
+		listInit(&dq->m_datalist);
 	}
 	else {
-		list_node_t *cur;
+		ListNode_t *cur;
 		for (cur = dq->m_datalist.head; cur && --expect_cnt; cur = cur->next);
 		if (0 == expect_cnt && cur && cur->next) {
-			dq->m_datalist = list_split(&dq->m_datalist, cur->next);
+			dq->m_datalist = listSplit(&dq->m_datalist, cur->next);
 		}
 		else {
-			list_init(&dq->m_datalist);
+			listInit(&dq->m_datalist);
 		}
 	}
 
@@ -101,23 +101,23 @@ void dataqueueWake(DataQueue_t* dq) {
 	conditionvariableSignal(&dq->m_condition);
 }
 
-void dataqueueClean(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
+void dataqueueClean(DataQueue_t* dq, void(*deleter)(ListNode_t*)) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	if (deleter) {
-		list_node_t* cur;
+		ListNode_t* cur;
 		for (cur = dq->m_datalist.head; cur; ) {
-			list_node_t* next = cur->next;
+			ListNode_t* next = cur->next;
 			deleter(cur);
 			cur = next;
 		}
 	}
-	list_init(&dq->m_datalist);
+	listInit(&dq->m_datalist);
 
 	criticalsectionLeave(&dq->m_cslock);
 }
 
-void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(list_node_t*)) {
+void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(ListNode_t*)) {
 	if (dq && dq->m_initok) {
 		dataqueueClean(dq, deleter);
 		criticalsectionClose(&dq->m_cslock);

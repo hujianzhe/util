@@ -19,8 +19,8 @@ typedef struct NioSocketLoop_t {
 	Reactor_t m_reactor;
 	DataQueue_t m_dq;
 	DataQueue_t* m_msgdq;
-	hashtable_t m_sockht;
-	hashtable_node_t* m_sockht_bulks[2048];
+	Hashtable_t m_sockht;
+	HashtableNode_t* m_sockht_bulks[2048];
 } NioSocketLoop_t;
 
 enum {
@@ -29,7 +29,7 @@ enum {
 	NIO_SOCKET_REG_MESSAGE
 };
 typedef struct NioSocketMsg_t {
-	list_node_t m_listnode;
+	ListNode_t m_listnode;
 	int type;
 } NioSocketMsg_t;
 typedef struct NioSocket_t {
@@ -47,20 +47,20 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage connect_saddr;
 	};
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
-	int(*send_packet)(struct NioSocket_t*, IoBuf_t*, unsigned int, struct sockaddr_storage*);
+	int(*send_packet)(struct NioSocket_t*, Iobuf_t[], unsigned int, struct sockaddr_storage*);
 	void(*close)(struct NioSocket_t*);
 	void(*free)(struct NioSocket_t*);
 /* private */
 	NioSocketMsg_t m_msg;
-	hashtable_node_t m_hashnode;
+	HashtableNode_t m_hashnode;
 	void* m_readOl;
 	void* m_writeOl;
 	time_t m_lastActiveTime;
 	char m_writeCommit;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
-	Mutex_t m_outbufMutex;
-	list_t m_outbuflist;
+	CriticalSection_t m_outbufLock;
+	List_t m_outbuflist;
 } NioSocket_t;
 
 #ifdef __cplusplus
@@ -70,7 +70,7 @@ extern "C" {
 NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol,
 	NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*));
 void niosocketFree(NioSocket_t* s);
-int niosocketSendv(NioSocket_t* s, IoBuf_t* iov, unsigned int iovcnt, struct sockaddr_storage*);
+int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, struct sockaddr_storage*);
 void niosocketShutdown(NioSocket_t* s);
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
 void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);

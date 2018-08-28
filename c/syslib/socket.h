@@ -139,8 +139,8 @@ FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
 BOOL socketPair(int type, FD_t sockfd[2]);
 int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
 int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
-int socketReadv(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-int socketWritev(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
+int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
+int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
 int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 #define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)

@@ -5,7 +5,7 @@
 #ifndef UTIL_C_DATASTRUCT_VALUE_TYPE_H
 #define	UTIL_C_DATASTRUCT_VALUE_TYPE_H
 
-typedef struct value_t {
+typedef struct Value_t {
 	void(*deleter)(void*);
 	union {
 		long long valueint;
@@ -20,17 +20,17 @@ typedef struct value_t {
 		} valueblob;
 	};
 #ifdef __cplusplus
-	value_t(void) : deleter((void(*)(void*))0) {}
-	~value_t(void) {
+	Value_t(void) : deleter((void(*)(void*))0) {}
+	~Value_t(void) {
 		if (deleter) {
 			deleter(valueobject);
 			deleter = (void(*)(void*))0;
 		}
 	}
 #endif
-} value_t;
+} Value_t;
 
-static void value_deleter(struct value_t* v) {
+static void value_deleter(struct Value_t* v) {
 	if (v->deleter) {
 		v->deleter(v->valueobject);
 		v->deleter = (void(*)(void*))0;

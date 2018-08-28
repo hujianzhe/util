@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-static int header_keycmp(struct hashtable_node_t* node, const void* key) {
+static int header_keycmp(struct HashtableNode_t* node, const void* key) {
 	const char* sk = *(const char**)key;
 	return strcmp(pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->key, sk);
 }
@@ -23,7 +23,7 @@ static unsigned int header_keyhash(const void* key) {
 }
 
 const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {
-	hashtable_node_t* node = hashtable_search_key(&frame->headers, &key);
+	HashtableNode_t* node = hashtableSearchKey(&frame->headers, &key);
 	if (node)
 		return pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value;
 	else
@@ -151,7 +151,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 	frame->status_code = 0;
 	frame->method[0] = 0;
 	frame->query = frame->uri = NULL;
-	hashtable_init(&frame->headers, frame->m_bulks,
+	hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
 
@@ -217,7 +217,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 		h = p + 2;
 		if (keylen && valuelen) {
 			char *p;
-			hashtable_node_t* exist_node;
+			HashtableNode_t* exist_node;
 			HttpFrameHeaderField_t* field;
 
 			field = (HttpFrameHeaderField_t*)malloc(sizeof(HttpFrameHeaderField_t) + keylen + valuelen + 2);
@@ -233,9 +233,9 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 			field->value = p + keylen + 1;
 
 			field->m_hashnode.key = &field->key;
-			exist_node = hashtable_insert_node(&frame->headers, &field->m_hashnode);
+			exist_node = hashtableInsertNode(&frame->headers, &field->m_hashnode);
 			if (exist_node != &field->m_hashnode) {
-				hashtable_replace_node(exist_node, &field->m_hashnode);
+				hashtableReplaceNode(exist_node, &field->m_hashnode);
 				free(pod_container_of(exist_node, HttpFrameHeaderField_t, m_hashnode));
 			}
 		}
@@ -288,12 +288,12 @@ void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
 }
 
 void httpframeFree(HttpFrame_t* frame) {
-	hashtable_node_t *cur, *next;
-	for (cur = hashtable_first_node(&frame->headers); cur; cur = next) {
-		next = hashtable_next_node(cur);
+	HashtableNode_t *cur, *next;
+	for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
+		next = hashtableNextNode(cur);
 		free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
 	}
-	hashtable_init(&frame->headers, frame->m_bulks,
+	hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
 	free(frame->uri);

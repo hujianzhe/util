@@ -5,39 +5,39 @@
 #ifndef	UTIL_C_DATASTRUCT_HASHTABLE_H
 #define	UTIL_C_DATASTRUCT_HASHTABLE_H
 
-struct hashtable_t;
-typedef struct hashtable_node_t {
+struct Hashtable_t;
+typedef struct HashtableNode_t {
 	const void* key;
-	struct hashtable_t* table;
-	struct hashtable_node_t *prev, *next;
+	struct Hashtable_t* table;
+	struct HashtableNode_t *prev, *next;
 	unsigned int bucket_index;
-} hashtable_node_t;
+} HashtableNode_t;
 
-typedef struct hashtable_t {
-	struct hashtable_node_t** buckets;
+typedef struct Hashtable_t {
+	struct HashtableNode_t** buckets;
 	unsigned int buckets_size;
-	int (*keycmp)(struct hashtable_node_t*, const void*);
+	int (*keycmp)(struct HashtableNode_t*, const void*);
 	unsigned int (*keyhash)(const void*);
-} hashtable_t;
+} Hashtable_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-struct hashtable_t* hashtable_init(struct hashtable_t* hashtable,
-		struct hashtable_node_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(struct hashtable_node_t*, const void*),
+struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
+		struct HashtableNode_t** buckets, unsigned int buckets_size,
+		int (*keycmp)(struct HashtableNode_t*, const void*),
 		unsigned int (*keyhash)(const void*));
 
-struct hashtable_node_t* hashtable_insert_node(struct hashtable_t* hashtable, struct hashtable_node_t* node);
-void hashtable_replace_node(struct hashtable_node_t* old_node, struct hashtable_node_t* new_node);
-void hashtable_remove_node(struct hashtable_t* hashtable, struct hashtable_node_t* node);
+struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
+void hashtableReplaceNode(struct HashtableNode_t* old_node, struct HashtableNode_t* new_node);
+void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
 
-struct hashtable_node_t* hashtable_search_key(const struct hashtable_t* hashtable, const void* key);
-struct hashtable_node_t* hashtable_remove_key(struct hashtable_t* hashtable, const void* key);
+struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const void* key);
+struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const void* key);
 
-struct hashtable_node_t* hashtable_first_node(const struct hashtable_t* hashtable);
-struct hashtable_node_t* hashtable_next_node(struct hashtable_node_t* node);
+struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable);
+struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node);
 
 #ifdef	__cplusplus
 }

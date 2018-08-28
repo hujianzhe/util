@@ -875,7 +875,7 @@ int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, co
 	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, socklen);
 }
 
-int socketReadv(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
+int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
 	int slen = saddr ? sizeof(*saddr) : 0;
@@ -890,7 +890,7 @@ int socketReadv(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, struc
 #endif	
 }
 
-int socketWritev(FD_t sockfd, IoBuf_t* iov, unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
+int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
 	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, (struct sockaddr*)saddr, saddr ? sizeof(*saddr) : 0, NULL, NULL) ? -1 : realbytes;

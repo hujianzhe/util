@@ -18,7 +18,7 @@ class unordered_set {
 public:
 	typedef	K			key_type;	
 	typedef	K			value_type;
-	typedef struct Xnode : public hashtable_node_t {
+	typedef struct Xnode : public HashtableNode_t {
 		key_type k;
 
 		Xnode(void) {
@@ -29,7 +29,7 @@ public:
 	class iterator {
 	friend class unordered_set;
 	public:
-		iterator(hashtable_node_t* p = NULL) : x(p) {}
+		iterator(HashtableNode_t* p = NULL) : x(p) {}
 		iterator(const iterator& i) : x(i.x) {}
 		iterator& operator=(const iterator& i) {
 			x = i.x;
@@ -49,22 +49,22 @@ public:
 		}
 
 		iterator& operator++(void) {
-			x = hashtable_next_node(x);
+			x = hashtableNextNode(x);
 			return *this;
 		}
 		iterator operator++(int unused) {
 			iterator it = *this;
-			x = hashtable_next_node(x);
+			x = hashtableNextNode(x);
 			return it;
 		}
 
 	private:
-		hashtable_node_t* x;	
+		HashtableNode_t* x;	
 	};
 	typedef iterator	const_iterator;
 
 private:
-	static int keycmp(hashtable_node_t* _n, const void* key) {
+	static int keycmp(HashtableNode_t* _n, const void* key) {
 		return ((Xnode*)_n)->k != *(key_type*)key;
 	}
 
@@ -89,17 +89,17 @@ public:
 	unordered_set(void) :
 		m_size(0)
 	{
-		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
+		hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 	}
 
 	unordered_set(const unordered_set<K>& m) :
 		m_size(0)
 	{
-		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
+		hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
 			Xnode* xnode = new Xnode();
 			xnode->k = *iter;
-			hashtable_insert_node(&m_table, xnode);
+			hashtableInsertNode(&m_table, xnode);
 			++m_size;
 		}
 	}
@@ -112,7 +112,7 @@ public:
 		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
 			Xnode* xnode = new Xnode();
 			xnode->k = *iter;
-			hashtable_insert_node(&m_table, xnode);
+			hashtableInsertNode(&m_table, xnode);
 			++m_size;
 		}
 		return *this;
@@ -121,28 +121,28 @@ public:
 	~unordered_set(void) { clear(); }
 
 	void clear(void) {
-		hashtable_node_t *cur, *next;
-		for (cur = hashtable_first_node(&m_table); cur; cur = next) {
-			next = hashtable_next_node(cur);
+		HashtableNode_t *cur, *next;
+		for (cur = hashtableFirstNode(&m_table); cur; cur = next) {
+			next = hashtableNextNode(cur);
 			delete ((Xnode*)cur);
 		}
-		hashtable_init(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
+		hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 		m_size = 0;
 	}
 
 	size_t size(void) const { return m_size; };
-	bool empty(void) const { return hashtable_first_node(&m_table) == NULL; }
+	bool empty(void) const { return hashtableFirstNode(&m_table) == NULL; }
 
 	void erase(iterator iter) {
 		--m_size;
-		hashtable_remove_node(&m_table, iter.x);
+		hashtableRemoveNode(&m_table, iter.x);
 		delete (Xnode*)(iter.x);
 	}
 
 	size_t erase(const key_type& k) {
-		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		HashtableNode_t* node = hashtableSearchKey(&m_table, &k);
 		if (node) {
-			hashtable_remove_node(&m_table, node);
+			hashtableRemoveNode(&m_table, node);
 			delete (Xnode*)node;
 			--m_size;
 			return 1;
@@ -151,32 +151,32 @@ public:
 	}
 
 	iterator find(const key_type& k) const {
-		hashtable_node_t* node = hashtable_search_key(&m_table, &k);
+		HashtableNode_t* node = hashtableSearchKey(&m_table, &k);
 		return iterator(node);
 	}
 
 	pair<iterator, bool> insert(const key_type& k) {
-		hashtable_node_t* n = hashtable_search_key(&m_table, &k);
+		HashtableNode_t* n = hashtableSearchKey(&m_table, &k);
 		if (n) {
 			return pair<iterator, bool>(iterator(n), false);
 		}
 		Xnode* xnode = new Xnode();
 		xnode->k = k;
-		hashtable_insert_node(&m_table, xnode);
+		hashtableInsertNode(&m_table, xnode);
 		++m_size;
 		return pair<iterator, bool>(iterator(xnode), true);
 	}
 
 	iterator begin(void) const {
-		return iterator(hashtable_first_node(&m_table));
+		return iterator(hashtableFirstNode(&m_table));
 	}
 	iterator end(void) const {
 		return iterator();
 	}
 
 private:
-	hashtable_t m_table;
-	hashtable_node_t* m_buckets[11];
+	Hashtable_t m_table;
+	HashtableNode_t* m_buckets[11];
 	size_t m_size;
 };
 }

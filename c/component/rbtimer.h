@@ -13,13 +13,13 @@ typedef struct RBTimerEvent_t {
 	long long timestamp_msec;
 	int(*callback)(struct RBTimerEvent_t*, void*);
 	void* arg;
-	list_node_t m_listnode;
+	ListNode_t m_listnode;
 } RBTimerEvent_t;
 
 typedef struct RBTimer_t {
 	char m_initok;
 	CriticalSection_t m_lock;
-	rbtree_t m_rbtree;
+	RBTree_t m_rbtree;
 } RBTimer_t;
 
 #ifdef __cplusplus
