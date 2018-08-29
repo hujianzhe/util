@@ -60,7 +60,8 @@ extern "C" {
 BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
 BOOL processCancel(Process_t* process);
 size_t processId(void);
-BOOL processTryFreeZombie(Process_t* process, unsigned char* retcode);
+BOOL processWait(Process_t* process, unsigned char* retcode);
+BOOL processTryWait(Process_t* process, unsigned char* retcode);
 void* processLoadModule(const char* path);
 void* processGetModuleSymbolAddress(void* handle, const char* symbol_name);
 BOOL processUnloadModule(void* handle);

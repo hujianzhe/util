@@ -114,7 +114,29 @@ size_t processId(void) {
 #endif
 }
 
-BOOL processTryFreeZombie(Process_t* process, unsigned char* retcode) {
+BOOL processWait(Process_t* process, unsigned char* retcode) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD _code;
+	if (WaitForSingleObject(process->handle, INFINITE) == WAIT_OBJECT_0) {
+		if (retcode && GetExitCodeProcess(process->handle, &_code)) {
+			*retcode = (unsigned char)_code;
+		}
+		return CloseHandle(process->handle);
+	}
+	return FALSE;
+#else
+	int status = 0;
+	if (waitpid(process->id, &status, 0) > 0) {
+		if (WIFEXITED(status)) {
+			*retcode = WEXITSTATUS(status);
+			return TRUE;
+		}
+	}
+	return FALSE;
+#endif
+}
+
+BOOL processTryWait(Process_t* process, unsigned char* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _code;
 	if (WaitForSingleObject(process->handle, 0) == WAIT_OBJECT_0) {
