@@ -362,7 +362,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 
 	while (loop->valid) {
 		int delta_msec;
-		long long start_ts_msec = gmtimeMillisecond(), end_ts_msec;
+		long long start_ts_msec = gmtimeMillisecond();
 		int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
 		if (n < 0) {
 			loop->valid = 0;
