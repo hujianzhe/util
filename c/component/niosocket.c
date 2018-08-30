@@ -42,11 +42,6 @@ void niosocketFree(NioSocket_t* s) {
 	s->free(s);
 }
 
-static int niosocket_check_valid(NioSocket_t* s) {
-	return s->valid &&
-		!(s->timeout_second >= 0 && gmtimeSecond() - s->timeout_second > s->m_lastActiveTime);
-}
-
 static int reactorsocket_read(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
 	int opcode;
@@ -117,17 +112,19 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					offset += len;
 				}
 
-				if (offset >= s->m_inbuflen) {
-					free(s->m_inbuf);
-					s->m_inbuf = NULL;
-					s->m_inbuflen = 0;
-				}
-				else {
-					size_t n = offset, start;
-					for (start = 0; offset < s->m_inbuflen; ++start, ++offset) {
-						s->m_inbuf[start] = s->m_inbuf[offset];
+				if (offset) {
+					if (offset >= s->m_inbuflen) {
+						free(s->m_inbuf);
+						s->m_inbuf = NULL;
+						s->m_inbuflen = 0;
 					}
-					s->m_inbuflen -= n;
+					else {
+						size_t n = offset, start;
+						for (start = 0; offset < s->m_inbuflen; ++start, ++offset) {
+							s->m_inbuf[start] = s->m_inbuf[offset];
+						}
+						s->m_inbuflen -= n;
+					}
 				}
 			} while (0);
 		}
@@ -172,7 +169,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 			s->valid = 0;
 		}
 		s->connect_callback(s, errnum);
-		if (0 == errnum)
+		if (s->valid)
 			s->connect_callback = NULL;
 		return;
 	}
@@ -336,14 +333,18 @@ static int sockht_keycmp(struct HashtableNode_t* node, const void* key) {
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
 static size_t sockht_expire(Hashtable_t* ht, NioSocket_t* buf[], size_t n) {
+	time_t now_ts_sec = gmtimeSecond();
 	size_t i = 0;
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(ht); cur; cur = next) {
 		NioSocket_t* s;
 		next = hashtableNextNode(cur);
 		s = pod_container_of(cur, NioSocket_t, m_hashnode);
-		if (niosocket_check_valid(s))
+		if (s->valid && (s->timeout_second < 0 ||
+			now_ts_sec - s->timeout_second < s->m_lastActiveTime))
+		{
 			continue;
+		}
 		s->valid = 0;
 		if (i < n) {
 			hashtableRemoveNode(ht, cur);
@@ -357,50 +358,53 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 	NioEv_t e[4096];
 	NioSocket_t* expire_sockets[512];
 	NioSocketLoop_t* loop = (NioSocketLoop_t*)arg;
+	int wait_msec = 1000;
 
 	while (loop->valid) {
-		int i;
-		int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), 20);
-		if (n < 0)
+		int delta_msec;
+		long long start_ts_msec = gmtimeMillisecond(), end_ts_msec;
+		int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
+		if (n < 0) {
+			loop->valid = 0;
 			break;
-		for (i = 0; i < n; ++i) {
-			HashtableNode_t* find_node;
-			NioSocket_t* s;
-			FD_t fd;
-			int event;
-			void* ol;
-			reactorResult(e + i, &fd, &event, &ol);
-			find_node = hashtableSearchKey(&loop->m_sockht, &fd);
-			if (!find_node)
-				continue;
-			s = pod_container_of(find_node, NioSocket_t, m_hashnode);
-			s->m_lastActiveTime = gmtimeSecond();
-			switch (event) {
-				case REACTOR_READ:
-					reactor_socket_do_read(s);
-					reactorsocket_read(s);
-					break;
-				case REACTOR_WRITE:
-					reactor_socket_do_write(s);
-					break;
-			}
-			if (niosocket_check_valid(s)) {
-				continue;
-			}
-			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-			s->valid = 0;
-			dataqueuePush(loop->m_msgdq, &s->m_msg.m_listnode);
 		}
-		do {
-			List_t list;
-			size_t i;
-			size_t cnt = sockht_expire(&loop->m_sockht, expire_sockets, sizeof(expire_sockets) / sizeof(expire_sockets[0]));
-			listInit(&list);
-			for (i = 0; i < cnt; ++i) {
-				listInsertNodeBack(&list, list.tail, &expire_sockets[i]->m_msg.m_listnode);
+		else if (n > 0) {
+			time_t now_ts_sec = start_ts_msec / 1000;
+			int i;
+			for (i = 0; i < n; ++i) {
+				HashtableNode_t* find_node;
+				NioSocket_t* s;
+				FD_t fd;
+				int event;
+				void* ol;
+				reactorResult(e + i, &fd, &event, &ol);
+				find_node = hashtableSearchKey(&loop->m_sockht, &fd);
+				if (!find_node)
+					continue;
+				s = pod_container_of(find_node, NioSocket_t, m_hashnode);
+				s->m_lastActiveTime = now_ts_sec;
+				switch (event) {
+					case REACTOR_READ:
+						reactor_socket_do_read(s);
+						reactorsocket_read(s);
+						break;
+					case REACTOR_WRITE:
+						reactor_socket_do_write(s);
+						break;
+					default:
+						s->valid = 0;
+				}
+				if (s->valid)
+					continue;
+
+				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
+				if (s->accept_callback || s->connect_callback)
+					niosocketFree(s);
+				else
+					dataqueuePush(loop->m_msgdq, &s->m_msg.m_listnode);
 			}
-			dataqueuePushList(loop->m_msgdq, &list);
-		} while (0);
+		}
+
 		do {
 			ListNode_t *cur, *next;
 			for (cur = dataqueuePop(&loop->m_dq, 0, ~0); cur; cur = next) {
@@ -425,9 +429,9 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, &s->m_writeOl, &s->connect_saddr))
 								break;
 						}
-						else if (!reactorsocket_read(s)) {
+						else if (!reactorsocket_read(s))
 							break;
-						}
+
 						message->type = NIO_SOCKET_CLOSE_MESSAGE;
 						hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 						reg_ok = 1;
@@ -438,6 +442,29 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 				}
 			}
 		} while (0);
+
+		if (n) {
+			delta_msec = gmtimeMillisecond() - start_ts_msec;
+			if (delta_msec < 0)
+				delta_msec = wait_msec;
+		}
+		else
+			delta_msec = wait_msec;
+
+		if (delta_msec >= wait_msec) {
+			List_t list;
+			size_t i;
+			size_t cnt = sockht_expire(&loop->m_sockht, expire_sockets, sizeof(expire_sockets) / sizeof(expire_sockets[0]));
+			listInit(&list);
+			for (i = 0; i < cnt; ++i) {
+				listInsertNodeBack(&list, list.tail, &expire_sockets[i]->m_msg.m_listnode);
+			}
+			dataqueuePushList(loop->m_msgdq, &list);
+
+			wait_msec = 1000;
+		}
+		else
+			wait_msec -= delta_msec;
 	}
 
 	return 0;
