@@ -17,6 +17,8 @@ typedef struct NioSocketLoop_t {
 	unsigned char initok;
 	Thread_t m_handle;
 	Reactor_t m_reactor;
+	FD_t m_socketpair[2];
+	void* m_readOl;
 	DataQueue_t m_dq;
 	DataQueue_t* m_msgdq;
 	Hashtable_t m_sockht;
