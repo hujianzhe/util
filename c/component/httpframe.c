@@ -288,18 +288,20 @@ void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
 }
 
 void httpframeFree(HttpFrame_t* frame) {
-	HashtableNode_t *cur, *next;
-	for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
-		next = hashtableNextNode(cur);
-		free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
-	}
-	hashtableInit(&frame->headers, frame->m_bulks,
+	if (frame) {
+		HashtableNode_t *cur, *next;
+		for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
+			next = hashtableNextNode(cur);
+			free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
+		}
+		hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
-	free(frame->uri);
-	frame->query = frame->uri = NULL;
-	frame->status_code = 0;
-	frame->method[0] = 0;
+		free(frame->uri);
+		frame->query = frame->uri = NULL;
+		frame->status_code = 0;
+		frame->method[0] = 0;
+	}
 }
 
 #ifdef __cplusplus
