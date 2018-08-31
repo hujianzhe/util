@@ -9,14 +9,14 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#ifndef	_WIN32_WINNT
-		/* windows 7 */
-		#define	_WIN32_WINNT		0x0701
+		/* windows 10 */
+		#define	_WIN32_WINNT		0x0A00
 	#endif
 	#ifndef WINVER
 		#define WINVER	_WIN32_WINNT
 	#endif
 	#ifndef	_WIN32_IE
-		#define	_WIN32_IE			0x0700
+		#define	_WIN32_IE			0x0A00
 	#endif
 	#ifndef _CRT_SECURE_NO_WARNINGS
 		#define	_CRT_SECURE_NO_WARNINGS
