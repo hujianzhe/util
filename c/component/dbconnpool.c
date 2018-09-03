@@ -80,7 +80,7 @@ DBHandle_t* dbconnpoolPopHandle(DBConnPool_t* pool) {
 		return dbhandle;
 
 	do {
-		DBConnItem* item = malloc(sizeof(DBConnItem));
+		DBConnItem* item = (DBConnItem*)malloc(sizeof(DBConnItem));
 		if (!item)
 			return NULL;
 
