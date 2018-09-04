@@ -36,9 +36,7 @@ static MYSQL_TIME* tm2mysqltime(const struct tm* tm, MYSQL_TIME* mt) {
 }
 #endif
 
-/* HANDLE */
-int dbHandleType(DBHandle_t* handle) { return handle->type; }
-
+/* env */
 DB_RETURN dbInitEnv(int type) {
 	DB_RETURN res = DB_ERROR;
 	switch (type) {
@@ -84,8 +82,11 @@ void dbFreeTls(void) {
 	#endif
 }
 
+/* handle */
 DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type) {
 	handle->type = type;
+	handle->initok = 0;
+	handle->connectok = 0;
 	switch (type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -105,10 +106,17 @@ DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type) {
 		default:
 			handle = NULL;
 	}
+	if (handle)
+		handle->initok = 1;
 	return handle;
 }
 
 void dbCloseHandle(DBHandle_t* handle) {
+	if (0 == handle->initok)
+		return;
+	handle->initok = 0;
+	handle->connectok = 0;
+
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -120,31 +128,23 @@ void dbCloseHandle(DBHandle_t* handle) {
 	}
 }
 
-DB_RETURN dbSetConnectTimeout(DBHandle_t* handle, int sec) {
+DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname, int timeout_sec) {
 	DB_RETURN res = DB_ERROR;
-	switch (handle->type) {
-		#ifdef DB_ENABLE_MYSQL
-		case DB_TYPE_MYSQL:
-		{
-			if (mysql_options(&handle->mysql.mysql, MYSQL_OPT_CONNECT_TIMEOUT, (const void*)&sec)) {
-				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
-				break;
-			}
-			res = DB_SUCCESS;
-			break;
-		}
-		#endif
-    }
-    return res;
-}
 
-DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* database) {
-	DB_RETURN res = DB_ERROR;
+	if (handle->connectok)
+		return handle;
+
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
-			if (!mysql_real_connect(&handle->mysql.mysql, ip, user, pwd, database, port, NULL, CLIENT_MULTI_STATEMENTS)) {
+			if (timeout_sec > 0) {
+				if (mysql_options(&handle->mysql.mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout_sec)) {
+					handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
+					break;
+				}
+			}
+			if (!mysql_real_connect(&handle->mysql.mysql, ip, user, pwd, dbname, port, NULL, CLIENT_MULTI_STATEMENTS)) {
 				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
 				break;
 			}
@@ -158,7 +158,11 @@ DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, c
 		}
 		#endif
 	}
-	return DB_SUCCESS == res ? handle : NULL;
+	if (DB_SUCCESS == res) {
+		handle->connectok = 1;
+		return handle;
+	}
+	return NULL;
 }
 
 DB_RETURN dbCheckAlive(DBHandle_t* handle) {
@@ -251,7 +255,6 @@ DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
 				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
 				break;
 			}
-			stmt->handle = handle;
 			stmt->mysql.exec_param = NULL;
 			stmt->mysql.exec_param_count = 0;
 			stmt->mysql.result_field_count = 0;
@@ -264,7 +267,11 @@ DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
 		}
 		#endif
 	}
-	return DB_SUCCESS == res ? stmt : NULL;
+	if (DB_SUCCESS == res) {
+		stmt->handle = handle;
+		return stmt;
+	}
+	return NULL;
 }
 
 DB_RETURN dbCloseStmt(DBStmt_t* stmt) {
@@ -277,14 +284,8 @@ DB_RETURN dbCloseStmt(DBStmt_t* stmt) {
 			stmt->mysql.exec_param = NULL;
 			stmt->mysql.exec_param_count = 0;
 
-			free(stmt->mysql.result_field_param);
-			stmt->mysql.result_field_param = NULL;
-			stmt->mysql.result_field_count = 0;
-
-			if (stmt->mysql.result_field_meta) {
-				mysql_free_result(stmt->mysql.result_field_meta);
-				stmt->mysql.result_field_meta = NULL;
-			}
+			if (dbFreeResult(stmt) != DB_SUCCESS)
+				break;
 
 			if (stmt->mysql.stmt && mysql_stmt_close(stmt->mysql.stmt)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
@@ -475,17 +476,17 @@ DB_RETURN dbFreeResult(DBStmt_t* stmt) {
 		{
 			free(stmt->mysql.result_field_param);
 			stmt->mysql.result_field_param = NULL;
-			stmt->mysql.result_field_count = 0;
 
 			if (stmt->mysql.result_field_meta) {
 				mysql_free_result(stmt->mysql.result_field_meta);
 				stmt->mysql.result_field_meta = NULL;
 			}
 
-			if (mysql_stmt_free_result(stmt->mysql.stmt)) {
+			if (stmt->mysql.result_field_count && mysql_stmt_free_result(stmt->mysql.stmt)) {
 				stmt->mysql.error_msg = mysql_stmt_error(stmt->mysql.stmt);
 				break;
 			}
+			stmt->mysql.result_field_count = 0;
 
 			res = DB_SUCCESS;
 			break;

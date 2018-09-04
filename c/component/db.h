@@ -40,6 +40,8 @@ enum {
 /* HANDLE */
 typedef struct DBHandle_t {
 	int type;
+	short initok;
+	short connectok;
 	union {
 		char reserved[1];
 #ifdef DB_ENABLE_MYSQL
@@ -75,16 +77,15 @@ typedef struct DBStmt_t {
 extern "C" {
 #endif
 
-/* HANDLE */
-int dbHandleType(DBHandle_t* handle);
+/* env */
 DB_RETURN dbInitEnv(int type);
 void dbCleanEnv(int type);
 DB_RETURN dbAllocTls(void);
 void dbFreeTls(void);
+/* handle */
 DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type);
 void dbCloseHandle(DBHandle_t* handle);
-DB_RETURN dbSetConnectTimeout(DBHandle_t* handle, int sec);
-DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *database);
+DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *dbname, int timeout_sec);
 DB_RETURN dbCheckAlive(DBHandle_t* handle);
 const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
