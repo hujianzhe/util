@@ -170,18 +170,23 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 				strncpy(frame->method, s, e - s);
 			}
 			else {
-				unsigned int i, query_pos = -1;
+				unsigned int i, query_pos = -1, frag_pos = -1;
 				frame->uri = (char*)malloc(e - s + 1);
 				if (!frame->uri)
 					return -1;
 				for (i = 0; i < e - s; ++i) {
 					frame->uri[i] = s[i];
-					if (-1 == query_pos && '?' == s[i])
+					if ('?' == s[i] && -1 == query_pos)
 						query_pos = i + 1;
+					if ('#' == s[i] && -1 == frag_pos)
+						frag_pos = i + 1;
 				}
 				frame->uri[e - s] = 0;
-				if (query_pos != -1)
+				if (query_pos != -1) {
 					frame->query = frame->uri + query_pos;
+					if (frag_pos != -1)
+						frame->uri[frag_pos - 1] = 0;
+				}
 				else
 					frame->query = frame->uri + (e - s);
 			}
