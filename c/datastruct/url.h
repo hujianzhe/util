@@ -10,18 +10,26 @@ typedef struct URL_t {
 	const char* user;
 	const char* pwd;
 	const char* host;
-	unsigned short port;
 	const char* path;
 	const char* query;
 	const char* fragment;
+
+	unsigned int schemalen;
+	unsigned int userlen;
+	unsigned int pwdlen;
+	unsigned int hostlen;
+	unsigned int pathlen;
+	unsigned int querylen;
+	unsigned int fragmentlen;
+	unsigned short port;
 } URL_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-int urlParsePrepare(URL_t* url, const char* str);
-void urlParse(URL_t* url, void* buf);
+unsigned int urlParsePrepare(URL_t* url, const char* str);
+URL_t* urlParseFinish(URL_t* url, char* buf);
 
 #ifdef	__cplusplus
 }
