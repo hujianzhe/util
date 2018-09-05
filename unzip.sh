@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 FILENAME=$1
 EXT=${FILENAME#*.}
 
