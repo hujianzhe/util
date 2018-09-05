@@ -2,8 +2,8 @@
 // Created by hujianzhe on 16-12-24.
 //
 
-#ifndef UTIL_CPP_JSON_H
-#define UTIL_CPP_JSON_H
+#ifndef UTIL_CPP_COMPONENT_JSON_H
+#define UTIL_CPP_COMPONENT_JSON_H
 
 #include "../../c/component/cJSON.h"
 #include <string.h>
