@@ -7,9 +7,24 @@
 #include <string.h>
 #include <time.h>
 
+enum {
+	DB_TYPE_RESERVED,
+#ifdef DB_ENABLE_MYSQL
+	DB_TYPE_MYSQL,
+#endif
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+static int dbname_to_dbtype(const char* name) {
+#ifdef DB_ENABLE_MYSQL
+	if (!strcmp(name, "mysql"))
+		return DB_TYPE_MYSQL;
+#endif
+	return DB_TYPE_RESERVED;
+}
 
 #ifdef DB_ENABLE_MYSQL
 static enum enum_field_types type_map_to_mysql[] = {
@@ -37,9 +52,9 @@ static MYSQL_TIME* tm2mysqltime(const struct tm* tm, MYSQL_TIME* mt) {
 #endif
 
 /* env */
-DB_RETURN dbInitEnv(int type) {
+DB_RETURN dbInitEnv(const char* dbtype) {
 	DB_RETURN res = DB_ERROR;
-	switch (type) {
+	switch (dbname_to_dbtype(dbtype)) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
@@ -57,8 +72,8 @@ DB_RETURN dbInitEnv(int type) {
 	return res;
 }
 
-void dbCleanEnv(int type) {
-	switch (type) {
+void dbCleanEnv(const char* dbtype) {
+	switch (dbname_to_dbtype(dbtype)) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
@@ -83,11 +98,11 @@ void dbFreeTls(void) {
 }
 
 /* handle */
-DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type) {
-	handle->type = type;
+DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype) {
+	handle->type = dbname_to_dbtype(dbtype);
 	handle->initok = 0;
 	handle->connectok = 0;
-	switch (type) {
+	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
@@ -161,6 +176,39 @@ DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, c
 	if (DB_SUCCESS == res) {
 		handle->connectok = 1;
 		return handle;
+	}
+	return NULL;
+}
+
+DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec) {
+	return dbConnect(handle, url->host, url->port, url->user, url->pwd, url->path + 1, timeout_sec);
+}
+
+DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec) {
+	const char* errmsg;
+	do {
+		char* buf;
+		URL_t url;
+		unsigned int bufsize = urlParsePrepare(&url, str);
+		if (0 == bufsize) {
+			errmsg = "URL format invalid";
+			break;
+		}
+		buf = (char*)malloc(bufsize);
+		if (!buf) {
+			errmsg = "memory not enough";
+			break;
+		}
+		handle = dbConnectURL(handle, urlParseFinish(&url, buf), timeout_sec);
+		free(buf);
+		return handle;
+	} while (0);
+	switch (handle->type) {
+		#ifdef DB_ENABLE_MYSQL
+		case DB_TYPE_MYSQL:
+			handle->mysql.error_msg = errmsg;
+			break;
+		#endif
 	}
 	return NULL;
 }

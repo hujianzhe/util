@@ -33,7 +33,7 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	if ('\0' == *p || p[1] != '/' || p[2] != '/')
 		return 0;
 	schema = str;
-	schemalen = p - str;
+	schemalen = (unsigned int)(p - str);
 	p += 3;
 	str = p;
 	while (*p && *p != '/')
@@ -56,12 +56,12 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 					break;
 			}
 			if (str != p) {
-				userlen = str - user;
+				userlen = (unsigned int)(str - user);
 				pwd = str + 1;
-				pwdlen = p - pwd;
+				pwdlen = (unsigned int)(p - pwd);
 			}
 			else
-				userlen = p - user;
+				userlen = (unsigned int)(p - user);
 			alpha = p;
 			port = (char*)0;
 		}
@@ -73,7 +73,7 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	else
 		host = str;
 	if (port) {
-		hostlen = port - host;
+		hostlen = (unsigned int)(port - host);
 		if (0 == hostlen)
 			return 0;
 		if (path - port > 6)
@@ -89,7 +89,7 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 			port_number = 80;
 	}
 	else {
-		hostlen = path - host;
+		hostlen = (unsigned int)(path - host);
 		if (0 == hostlen)
 			return 0;
 		port_number = 80;
@@ -98,13 +98,13 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	p = path;
 	while (*p && *p != '?' && *p != '#')
 		++p;
-	pathlen = p - path;
+	pathlen = (unsigned int)(p - path);
 
 	if ('?' == *p) {
 		query = ++p;
 		while (*p && *p != '#')
 			++p;
-		querylen = p - query;
+		querylen = (unsigned int)(p - query);
 	}
 	else {
 		query = (char*)0;
@@ -115,7 +115,7 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 		fragment = ++p;
 		while (*p)
 			++p;
-		fragmentlen = p - fragment;
+		fragmentlen = (unsigned int)(p - fragment);
 	}
 	else {
 		fragment = (char*)0;

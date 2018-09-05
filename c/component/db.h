@@ -5,6 +5,8 @@
 #ifndef UTIL_C_COMPONENT_DB_H
 #define UTIL_C_COMPONENT_DB_H
 
+#include "../datastruct/url.h"
+
 #ifdef DB_ENABLE_MYSQL
 	#if defined(_WIN32) || defined(_WIN64)
 		#include <mysql.h>
@@ -20,12 +22,6 @@ typedef enum DB_RETURN {
 	DB_SUCCESS
 } DB_RETURN;
 
-enum {
-	DB_TYPE_RESERVED,
-#ifdef DB_ENABLE_MYSQL
-	DB_TYPE_MYSQL,
-#endif
-};
 enum {
 	DB_FIELD_TYPE_TINY,
 	DB_FIELD_TYPE_SMALLINT,
@@ -78,14 +74,16 @@ extern "C" {
 #endif
 
 /* env */
-DB_RETURN dbInitEnv(int type);
-void dbCleanEnv(int type);
+DB_RETURN dbInitEnv(const char* dbtype);
+void dbCleanEnv(const char* dbtype);
 DB_RETURN dbAllocTls(void);
 void dbFreeTls(void);
 /* handle */
-DBHandle_t* dbCreateHandle(DBHandle_t* handle, int type);
+DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype);
 void dbCloseHandle(DBHandle_t* handle);
 DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *dbname, int timeout_sec);
+DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec);
+DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec);
 DB_RETURN dbCheckAlive(DBHandle_t* handle);
 const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
