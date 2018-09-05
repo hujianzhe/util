@@ -35,7 +35,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_align(alignment)			__declspec(align(alignment))
 	#define	__declspec_dllexport				__declspec(dllexport)
 	#define	__declspec_dllimport				__declspec(dllimport)
-	#define	DLL_CALL							__stdcall
 	#define	__declspec_code_seg(name)			__declspec(code_seg(name))
 	#define	__declspec_data_seg(name)			__pragma(data_seg(name))
 	#define	__declspec_bss_seg(name)			__pragma(bss_seg(name))
@@ -59,7 +58,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
 	#define	__declspec_dllexport
 	#define	__declspec_dllimport
-	#define	DLL_CALL
 	#define	__declspec_code_seg(name)			__attribute__((section(name)))
 	#define	__declspec_data_seg(name)			__attribute__((section(name)))
 	#define	__declspec_bss_seg(name)			__attribute__((section(name)))
