@@ -22,9 +22,6 @@
 		HANDLE handle;
 		DWORD id;
 	} Process_t;
-	#define	__declspec_dllexport	__declspec(dllexport)
-	#define	__declspec_dllimport	__declspec(dllimport)
-	#define	DLL_CALL				__stdcall
 	typedef HANDLE					Thread_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
@@ -43,9 +40,6 @@
 	typedef struct {
 		pid_t id;
 	} Process_t;
-	#define	__declspec_dllexport
-	#define	__declspec_dllimport
-	#define	DLL_CALL
 	typedef pthread_t				Thread_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
