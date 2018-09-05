@@ -18,6 +18,7 @@ fi
 
 rm $OBJECT_FILE 2>/dev/null
 rm $TARGET 2>/dev/null
+find ./ -type f -exec touch {} \;
 $COMPILER -c $MACRO $COMPILE_OPTION $SOURCE_FILE
 if [ "$?" != 0 ];then
 	OBJECT_FILE=`find . -name "*.o"`
