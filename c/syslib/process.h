@@ -56,7 +56,6 @@ BOOL processCancel(Process_t* process);
 size_t processId(void);
 BOOL processWait(Process_t* process, unsigned char* retcode);
 BOOL processTryWait(Process_t* process, unsigned char* retcode);
-void* processLoadModule(const char* path);
 #if	defined(_WIN32) || defined(_WIN64)
 #define	processLoadModule(path)								(path ? (void*)LoadLibraryA(path) : (void*)GetModuleHandleA(NULL))
 #define	processGetModuleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
