@@ -26,12 +26,12 @@ typedef struct RBTimer_t {
 extern "C" {
 #endif
 
-RBTimer_t* rbtimerInit(RBTimer_t* timer);
-long long rbtimerMiniumTimestamp(RBTimer_t* timer);
-int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e);
-void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTimerEvent_t*));
-void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*));
-void rbtimerDestroy(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*));
+UTIL_LIBAPI RBTimer_t* rbtimerInit(RBTimer_t* timer);
+UTIL_LIBAPI long long rbtimerMiniumTimestamp(RBTimer_t* timer);
+UTIL_LIBAPI int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e);
+UTIL_LIBAPI void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTimerEvent_t*));
+UTIL_LIBAPI void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*));
+UTIL_LIBAPI void rbtimerDestroy(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*));
 
 #ifdef __cplusplus
 }

@@ -58,13 +58,13 @@ extern "C" {
 #endif
 
 /* aiocb */
-void aioInit(struct aiocb* cb, size_t udata);
-void aioSetOffset(struct aiocb* cb, long long offset);
-BOOL aioCommit(struct aiocb* cb);
-BOOL aioHasCompleted(const struct aiocb* cb);
-BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
-BOOL aioCancel(FD_t fd, struct aiocb* cb);
-int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
+UTIL_LIBAPI void aioInit(struct aiocb* cb, size_t udata);
+UTIL_LIBAPI void aioSetOffset(struct aiocb* cb, long long offset);
+UTIL_LIBAPI BOOL aioCommit(struct aiocb* cb);
+UTIL_LIBAPI BOOL aioHasCompleted(const struct aiocb* cb);
+UTIL_LIBAPI BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
+UTIL_LIBAPI BOOL aioCancel(FD_t fd, struct aiocb* cb);
+UTIL_LIBAPI int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
 /* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
@@ -77,15 +77,15 @@ typedef struct Reactor_t {
 	FD_t __epfd;
 #endif
 } Reactor_t;
-BOOL reactorCreate(Reactor_t* reactor);
-BOOL reactorReg(Reactor_t* reactor, FD_t fd);
-BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
-BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
-int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
-void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
-BOOL reactorConnectCheckSuccess(FD_t sockfd);
-BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg);
-BOOL reactorClose(Reactor_t* reactor);
+UTIL_LIBAPI BOOL reactorCreate(Reactor_t* reactor);
+UTIL_LIBAPI BOOL reactorReg(Reactor_t* reactor, FD_t fd);
+UTIL_LIBAPI BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
+UTIL_LIBAPI BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
+UTIL_LIBAPI int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+UTIL_LIBAPI void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
+UTIL_LIBAPI BOOL reactorConnectCheckSuccess(FD_t sockfd);
+UTIL_LIBAPI BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg);
+UTIL_LIBAPI BOOL reactorClose(Reactor_t* reactor);
 
 #ifdef	__cplusplus
 }

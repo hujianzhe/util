@@ -27,8 +27,8 @@
 extern "C" {
 #endif
 
-void* alignMalloc(size_t nbytes, size_t alignment);
-void alignFree(const void* p);
+UTIL_LIBAPI void* alignMalloc(size_t nbytes, size_t alignment);
+UTIL_LIBAPI void alignFree(const void* p);
 
 #ifdef	__cplusplus
 }

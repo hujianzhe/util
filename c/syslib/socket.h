@@ -94,8 +94,8 @@ extern "C" {
 
 /* Network */
 #if defined(_WIN32) || defined(_WIN64)
-if_nameindex_t* if_nameindex(void);
-void if_freenameindex(if_nameindex_t* ptr);
+UTIL_LIBAPI if_nameindex_t* if_nameindex(void);
+UTIL_LIBAPI void if_freenameindex(if_nameindex_t* ptr);
 #else
 #if	__linux__
 unsigned long long ntohll(unsigned long long val);
@@ -106,57 +106,57 @@ float ntohf(unsigned int val);
 unsigned long long htond(double val);
 double ntohd(unsigned long long val);
 #endif
-BOOL networkSetupEnv(void);
-BOOL networkCleanEnv(void);
-NetworkInterfaceInfo_t* networkInterfaceInfo(void);
-void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info);
+UTIL_LIBAPI BOOL networkSetupEnv(void);
+UTIL_LIBAPI BOOL networkCleanEnv(void);
+UTIL_LIBAPI NetworkInterfaceInfo_t* networkInterfaceInfo(void);
+UTIL_LIBAPI void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info);
 /* SOCKET ADDRESS */
-int sockaddrIPType(const struct sockaddr_storage* sa);
-const char* ipstrGetLoopback(int family);
-BOOL ipstrIsLoopback(const char* ip);
-BOOL ipstrIsInner(const char* ip);
-int ipstrFamily(const char* ip);
-BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
-BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
-BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
+UTIL_LIBAPI int sockaddrIPType(const struct sockaddr_storage* sa);
+UTIL_LIBAPI const char* ipstrGetLoopback(int family);
+UTIL_LIBAPI BOOL ipstrIsLoopback(const char* ip);
+UTIL_LIBAPI BOOL ipstrIsInner(const char* ip);
+UTIL_LIBAPI int ipstrFamily(const char* ip);
+UTIL_LIBAPI BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
+UTIL_LIBAPI BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
+UTIL_LIBAPI BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
 /* SOCKET */
-BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr);
-BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
-BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
+UTIL_LIBAPI BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr);
+UTIL_LIBAPI BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
+UTIL_LIBAPI BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 #if defined(_WIN32) || defined(_WIN64)
 #define	socketClose(sockfd)	(closesocket((SOCKET)(sockfd)) == 0)
 #else
 #define	socketClose(sockfd)	(close(sockfd) == 0)
 #endif
-int socketError(FD_t sockfd);
-BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
-BOOL socketUdpDisconnect(FD_t sockfd);
-FD_t socketTcpConnect(const struct sockaddr_storage* saddr, int msec);
+UTIL_LIBAPI int socketError(FD_t sockfd);
+UTIL_LIBAPI BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
+UTIL_LIBAPI BOOL socketUdpDisconnect(FD_t sockfd);
+UTIL_LIBAPI FD_t socketTcpConnect(const struct sockaddr_storage* saddr, int msec);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
-BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
-FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
+UTIL_LIBAPI BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
+UTIL_LIBAPI FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from);
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
-BOOL socketPair(int type, FD_t sockfd[2]);
-int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
-int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
-int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
-int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
-int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
+UTIL_LIBAPI BOOL socketPair(int type, FD_t sockfd[2]);
+UTIL_LIBAPI int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
+UTIL_LIBAPI int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
+UTIL_LIBAPI int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
+UTIL_LIBAPI int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
+UTIL_LIBAPI int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
+UTIL_LIBAPI int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 #define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)
-int socketTcpCanRecvOOB(FD_t sockfd);
-BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* oob);
-int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
-int socketPoll(struct pollfd* fdarray, unsigned long nfds, int msec);
-BOOL socketNonBlock(FD_t sockfd, BOOL bool_val);
-int socketTcpReadableBytes(FD_t sockfd);
-BOOL socketSetSendTimeout(FD_t sockfd, int msec);
-BOOL socketSetRecvTimeout(FD_t sockfd, int msec);
-BOOL socketSetUnicastTTL(FD_t sockfd, int family, unsigned char ttl);
-BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl);
-BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
-BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
-BOOL socketUdpMcastEnableLoop(FD_t sockfd, int family, BOOL bool_val);
+UTIL_LIBAPI int socketTcpCanRecvOOB(FD_t sockfd);
+UTIL_LIBAPI BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* oob);
+UTIL_LIBAPI int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
+UTIL_LIBAPI int socketPoll(struct pollfd* fdarray, unsigned long nfds, int msec);
+UTIL_LIBAPI BOOL socketNonBlock(FD_t sockfd, BOOL bool_val);
+UTIL_LIBAPI int socketTcpReadableBytes(FD_t sockfd);
+UTIL_LIBAPI BOOL socketSetSendTimeout(FD_t sockfd, int msec);
+UTIL_LIBAPI BOOL socketSetRecvTimeout(FD_t sockfd, int msec);
+UTIL_LIBAPI BOOL socketSetUnicastTTL(FD_t sockfd, int family, unsigned char ttl);
+UTIL_LIBAPI BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl);
+UTIL_LIBAPI BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
+UTIL_LIBAPI BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
+UTIL_LIBAPI BOOL socketUdpMcastEnableLoop(FD_t sockfd, int family, BOOL bool_val);
 
 #ifdef	__cplusplus
 }

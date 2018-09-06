@@ -26,15 +26,15 @@ typedef struct {
 extern "C" {
 #endif
 
-long memoryPageSize(void);
-unsigned long long memorySize(void);
+UTIL_LIBAPI long memoryPageSize(void);
+UTIL_LIBAPI unsigned long long memorySize(void);
 
-BOOL memoryCreateMapping(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
-BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name);
-BOOL memoryCloseMapping(MemoryMapping_t* mm);
-void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
-BOOL memorySyncMapping(void* addr, size_t nbytes);
-BOOL memoryUndoMapping(void* addr, size_t nbytes);
+UTIL_LIBAPI BOOL memoryCreateMapping(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes);
+UTIL_LIBAPI BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name);
+UTIL_LIBAPI BOOL memoryCloseMapping(MemoryMapping_t* mm);
+UTIL_LIBAPI void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
+UTIL_LIBAPI BOOL memorySyncMapping(void* addr, size_t nbytes);
+UTIL_LIBAPI BOOL memoryUndoMapping(void* addr, size_t nbytes);
 
 #ifdef	__cplusplus
 }

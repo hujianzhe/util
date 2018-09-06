@@ -28,7 +28,6 @@
 	#define	__declspec_tls			__declspec(thread)
 	#pragma comment(lib, "Dbghelp.lib")
 #else
-	#include <dlfcn.h>
 	#include <pthread.h>
 	#include <sys/select.h>
 	#include <sys/time.h>
@@ -51,26 +50,16 @@ extern "C" {
 #endif
 
 /* process operator */
-BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
-BOOL processCancel(Process_t* process);
-size_t processId(void);
-BOOL processWait(Process_t* process, unsigned char* retcode);
-BOOL processTryWait(Process_t* process, unsigned char* retcode);
-/* module */
-#if	defined(_WIN32) || defined(_WIN64)
-#define	moduleLoad(path)							(path ? (void*)LoadLibraryA(path) : (void*)GetModuleHandleA(NULL))
-#define	moduleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
-#define	moduleUnload(module)						(module ? FreeLibrary(module) : TRUE)
-#else
-#define	moduleLoad(path)							dlopen(path, RTLD_NOW)
-#define	moduleSymbolAddress(module, symbol_name)	dlsym(module, symbol_name)
-#define	moduleUnload(module)						(module ? (dlclose(module) == 0) : 1)
-#endif
+UTIL_LIBAPI BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
+UTIL_LIBAPI BOOL processCancel(Process_t* process);
+UTIL_LIBAPI size_t processId(void);
+UTIL_LIBAPI BOOL processWait(Process_t* process, unsigned char* retcode);
+UTIL_LIBAPI BOOL processTryWait(Process_t* process, unsigned char* retcode);
 /* thread operator */
-BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
-BOOL threadDetach(Thread_t thread);
-BOOL threadJoin(Thread_t thread, unsigned int* retcode);
-void threadExit(unsigned int retcode);
+UTIL_LIBAPI BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+UTIL_LIBAPI BOOL threadDetach(Thread_t thread);
+UTIL_LIBAPI BOOL threadJoin(Thread_t thread, unsigned int* retcode);
+UTIL_LIBAPI void threadExit(unsigned int retcode);
 #if defined(_WIN32) || defined(_WIN64)
 #define	threadSelf()		GetCurrentThread()
 #define	threadPause()		SuspendThread(GetCurrentThread())
@@ -78,14 +67,14 @@ void threadExit(unsigned int retcode);
 #define	threadSelf()		pthread_self()
 #define	threadPause()		pause()
 #endif
-void threadSleepMillsecond(unsigned int msec);
-void threadYield(void);
-BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);
+UTIL_LIBAPI void threadSleepMillsecond(unsigned int msec);
+UTIL_LIBAPI void threadYield(void);
+UTIL_LIBAPI BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);
 /* thread local operator */
-BOOL threadAllocLocalKey(Tls_t* key);
-BOOL threadSetLocalValue(Tls_t key, void* value);
-void* threadGetLocalValue(Tls_t key);
-BOOL threadFreeLocalKey(Tls_t key);
+UTIL_LIBAPI BOOL threadAllocLocalKey(Tls_t* key);
+UTIL_LIBAPI BOOL threadSetLocalValue(Tls_t key, void* value);
+UTIL_LIBAPI void* threadGetLocalValue(Tls_t key);
+UTIL_LIBAPI BOOL threadFreeLocalKey(Tls_t key);
 
 #ifdef	__cplusplus
 }

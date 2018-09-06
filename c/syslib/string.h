@@ -13,23 +13,23 @@ extern "C" {
 #endif
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
-char *strnchr(const char* s, const char c, size_t n);
-char *strnstr(const char* s1, const char* s2, size_t n);
-char* strlcpy(char* dst, const char* src, size_t size);
+UTIL_LIBAPI char *strnchr(const char* s, const char c, size_t n);
+UTIL_LIBAPI char *strnstr(const char* s1, const char* s2, size_t n);
+UTIL_LIBAPI char* strlcpy(char* dst, const char* src, size_t size);
 #endif
 #if defined(_WIN32) || defined(_WIN64)
 	#define strcasecmp(s1, s2)		stricmp(s1, s2)
 	#define	strncasecmp(s1, s2, n)	strnicmp(s1, s2, n)
-	char* strndup(const char* s, size_t n);
+	UTIL_LIBAPI char* strndup(const char* s, size_t n);
 #else
 	#define	stricmp(s1, s2)			strcasecmp(s1, s2)
 	#define strnicmp(s1, s2, n)		strncasecmp(s1, s2, n)
 #endif
-void strtrim(const char* str, size_t len, char** newstr, size_t* newlen);
-unsigned int strhash_bkdr(const char* str);
-size_t strlen_utf8(const char* s);
-char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
-size_t strlen_safe(const char* s, size_t maxlen);
+UTIL_LIBAPI void strtrim(const char* str, size_t len, char** newstr, size_t* newlen);
+UTIL_LIBAPI unsigned int strhash_bkdr(const char* str);
+UTIL_LIBAPI size_t strlen_utf8(const char* s);
+UTIL_LIBAPI char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
+UTIL_LIBAPI size_t strlen_safe(const char* s, size_t maxlen);
 
 #ifdef	__cplusplus
 }

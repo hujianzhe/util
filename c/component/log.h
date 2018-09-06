@@ -30,19 +30,19 @@ typedef struct Log_t {
 extern "C" {
 #endif
 
-Log_t* logInit(Log_t* log);
-void logFlush(Log_t* log);
-void logClear(Log_t* log);
-void logDestroy(Log_t* log);
+UTIL_LIBAPI Log_t* logInit(Log_t* log);
+UTIL_LIBAPI void logFlush(Log_t* log);
+UTIL_LIBAPI void logClear(Log_t* log);
+UTIL_LIBAPI void logDestroy(Log_t* log);
 
-void logEmerg(Log_t* log, const char* format, ...);
-void logAlert(Log_t* log, const char* format, ...);
-void logCrit(Log_t* log, const char* format, ...);
-void logErr(Log_t* log, const char* format, ...);
-void logWarning(Log_t* log, const char* format, ...);
-void logNotice(Log_t* log, const char* format, ...);
-void logInfo(Log_t* log, const char* format, ...);
-void logDebug(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logEmerg(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logAlert(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logCrit(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logErr(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logWarning(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logNotice(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logInfo(Log_t* log, const char* format, ...);
+UTIL_LIBAPI void logDebug(Log_t* log, const char* format, ...);
 
 #ifdef	__cplusplus
 }

@@ -5,6 +5,8 @@
 #ifndef	UTIL_C_DATASTRUCT_URL_H
 #define	UTIL_C_DATASTRUCT_URL_H
 
+#include "../compiler_define.h"
+
 typedef struct URL_t {
 	const char* schema;
 	const char* user;
@@ -28,8 +30,8 @@ typedef struct URL_t {
 extern "C" {
 #endif
 
-unsigned int urlParsePrepare(URL_t* url, const char* str);
-URL_t* urlParseFinish(URL_t* url, char* buf);
+UTIL_LIBAPI unsigned int urlParsePrepare(URL_t* url, const char* str);
+UTIL_LIBAPI URL_t* urlParseFinish(URL_t* url, char* buf);
 
 #ifdef	__cplusplus
 }

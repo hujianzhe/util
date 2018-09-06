@@ -40,7 +40,7 @@ enum hdrtype {
 	RUDP_HDR_TYPE_ACK
 };
 
-void rudp_ctx_clean(struct RudpCtx_t* ctx) {
+void rudpCleanCtx(struct RudpCtx_t* ctx) {
 	int i;
 	if (ctx->free_callback) {
 		for (i = 0; i < RUDP_WND_SIZE; ++i) {
@@ -57,7 +57,7 @@ void rudp_ctx_clean(struct RudpCtx_t* ctx) {
 	}
 }
 
-void rudp_recv_sort_and_ack(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr) {
+void rudpRecvSortAndAck(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr) {
 	unsigned long long hdr_seq = ntohll(hdr->seq);
 	switch (hdr->type) {
 		case RUDP_HDR_TYPE_DATA:
@@ -167,7 +167,7 @@ void rudp_recv_sort_and_ack(struct RudpCtx_t* ctx, long long now_timestamp_msec,
 	}
 }
 
-int rudp_send(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len) {
+int rudpSend(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len) {
 	struct rudp_send_cache* cache;
 	int ack_seq = ctx->send_seq % RUDP_WND_SIZE;
 	if (ctx->send_wnd[ack_seq].hdr) {
@@ -201,7 +201,7 @@ int rudp_send(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHd
 	return 0;
 }
 
-int rudp_check_resend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec) {
+int rudpCheckResend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec) {
 	struct rudp_send_cache* cache;
 	*next_wait_msec = -1;
 	for (cache = ctx->send_head; cache; cache = cache->next) {

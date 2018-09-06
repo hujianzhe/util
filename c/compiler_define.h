@@ -33,12 +33,21 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 	#define	embed_asm(exp)						__asm {exp}
 	#define	__declspec_align(alignment)			__declspec(align(alignment))
-	#define	__declspec_dllexport				__declspec(dllexport)
-	#define	__declspec_dllimport				__declspec(dllimport)
 	#define	__declspec_code_seg(name)			__declspec(code_seg(name))
 	#define	__declspec_data_seg(name)			__pragma(data_seg(name))
 	#define	__declspec_bss_seg(name)			__pragma(bss_seg(name))
 	#define	__declspec_const_seg(name)			__pragma(const_seg(name))
+
+	#define	__declspec_dllexport				__declspec(dllexport)
+	#define	__declspec_dllimport				__declspec(dllimport)
+
+	#ifdef	UTIL_LIBAPI_EXPORT
+		#define	UTIL_LIBAPI						__declspec_dllexport
+	#elif	UTIL_LIBAPI_IMPORT
+		#define	UTIL_LIBAPI						__declspec_dllimport
+	#else
+		#define	UTIL_LIBAPI
+	#endif
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
@@ -56,12 +65,14 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 	#define	embed_asm(exp)						asm __volatile__(exp)
 	#define	__declspec_align(alignment)			__attribute__ ((aligned(alignment)))
-	#define	__declspec_dllexport
-	#define	__declspec_dllimport
 	#define	__declspec_code_seg(name)			__attribute__((section(name)))
 	#define	__declspec_data_seg(name)			__attribute__((section(name)))
 	#define	__declspec_bss_seg(name)			__attribute__((section(name)))
 	#define	__declspec_const_seg(name)			__attribute__((section(name)))
+
+	#define	__declspec_dllexport
+	#define	__declspec_dllimport
+	#define	UTIL_LIBAPI
 
 #else
 	#define	__forceinline

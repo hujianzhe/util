@@ -26,12 +26,12 @@ typedef struct HttpFrame_t {
 extern "C" {
 #endif
 
-const char* httpframeStatusDesc(int status_code);
-int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len);
-int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
-void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
-const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
-void httpframeFree(HttpFrame_t* frame);
+UTIL_LIBAPI const char* httpframeStatusDesc(int status_code);
+UTIL_LIBAPI int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len);
+UTIL_LIBAPI int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
+UTIL_LIBAPI void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
+UTIL_LIBAPI const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
+UTIL_LIBAPI void httpframeFree(HttpFrame_t* frame);
 
 #ifdef __cplusplus
 }

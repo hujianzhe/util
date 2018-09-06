@@ -2,8 +2,10 @@
 // Created by hujianzhe
 //
 
-#ifndef	UTIL_C_RUDP_H
-#define	UTIL_C_RUDP_H
+#ifndef	UTIL_C_DATASTRUCT_RUDP_H
+#define	UTIL_C_DATASTRUCT_RUDP_H
+
+#include "../compiler_define.h"
 
 #pragma pack(1)
 struct RudpHdr_t {
@@ -49,10 +51,10 @@ struct RudpCtx_t {
 extern "C" {
 #endif
 
-void rudp_ctx_clean(struct RudpCtx_t* ctx);
-void rudp_recv_sort_and_ack(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr);
-int rudp_send(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len);
-int rudp_check_resend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec);
+UTIL_LIBAPI void rudpCleanCtx(struct RudpCtx_t* ctx);
+UTIL_LIBAPI void rudpRecvSortAndAck(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr);
+UTIL_LIBAPI int rudpSend(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len);
+UTIL_LIBAPI int rudpCheckResend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec);
 
 #ifdef	__cplusplus
 }
