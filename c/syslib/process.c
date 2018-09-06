@@ -158,39 +158,6 @@ BOOL processTryWait(Process_t* process, unsigned char* retcode) {
 #endif
 }
 
-void* processLoadModule(const char* path) {
-#if	defined(_WIN32) || defined(_WIN64)
-	if (path) {
-		char szFullPath[MAX_PATH];
-		return (void*)LoadLibraryA(__win32_path(strcpy(szFullPath, path)));
-	}
-	else {
-		return (void*)GetModuleHandleA(NULL);
-	}
-#else
-	return dlopen(path, RTLD_NOW);
-#endif
-}
-
-void* processGetModuleSymbolAddress(void* handle, const char* symbol_name) {
-#if	defined(_WIN32) || defined(_WIN64)
-	return GetProcAddress(handle, symbol_name);
-#else
-	return dlsym(handle, symbol_name);
-#endif
-}
-
-BOOL processUnloadModule(void* handle) {
-	if (NULL == handle) {
-		return TRUE;
-	}
-#if	defined(_WIN32) || defined(_WIN64)
-	return FreeLibrary(handle);
-#else
-	return dlclose(handle) == 0;
-#endif
-}
-
 /* thread operator */
 BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)

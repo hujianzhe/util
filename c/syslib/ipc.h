@@ -37,9 +37,12 @@
 	#define INIT_ONCE_STATIC_INIT	PTHREAD_ONCE_INIT
 #endif
 #include <signal.h>
+typedef	void(*sighandler_t)(int);
+/*
 #if defined(__FreeBSD__) || defined(__APPLE__)
 	typedef sig_t					sighandler_t;
 #endif
+*/
 
 #ifdef	__cplusplus
 extern "C" {
