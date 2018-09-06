@@ -10,7 +10,7 @@ fi
 SOURCE_FILE=$SOURCE_C_FILE" $SOURCE_CPP_FILE"
 MACRO="-D_REENTRANT"
 COMPILE_OPTION="-Wno-deprecated -Wno-parentheses"
-TARGET="libutil.a"
+TARGET="libutil_static.a"
 
 rm $OBJECT_FILE 2>/dev/null
 rm $TARGET 2>/dev/null

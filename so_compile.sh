@@ -9,7 +9,7 @@ SOURCE_FILE=$SOURCE_C_FILE" $SOURCE_CPP_FILE"
 MACRO="-D_REENTRANT"
 COMPILE_OPTION="-Wno-deprecated -Wno-parentheses"
 DEFAULT_LINK="-lpthread -lm -ldl"
-TARGET="libutil.so"
+TARGET="libutil_dynamic.so"
 if [ `uname` = "Linux" ];then
 	DEFAULT_LINK=$DEFAULT_LINK" -lrt -lcrypto -luuid"
 fi
