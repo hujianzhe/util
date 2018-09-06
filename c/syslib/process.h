@@ -56,14 +56,15 @@ BOOL processCancel(Process_t* process);
 size_t processId(void);
 BOOL processWait(Process_t* process, unsigned char* retcode);
 BOOL processTryWait(Process_t* process, unsigned char* retcode);
+/* module */
 #if	defined(_WIN32) || defined(_WIN64)
-#define	processLoadModule(path)								(path ? (void*)LoadLibraryA(path) : (void*)GetModuleHandleA(NULL))
-#define	processGetModuleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
-#define	processUnloadModule(module)							(module ? FreeLibrary(module) : TRUE)
+#define	moduleLoad(path)							(path ? (void*)LoadLibraryA(path) : (void*)GetModuleHandleA(NULL))
+#define	moduleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
+#define	moduleUnload(module)						(module ? FreeLibrary(module) : TRUE)
 #else
-#define	processLoadModule(path)								dlopen(path, RTLD_NOW)
-#define	processGetModuleSymbolAddress(module, symbol_name)	dlsym(module, symbol_name)
-#define	processUnloadModule(module)							(module ? (dlclose(module) == 0) : 1)
+#define	moduleLoad(path)							dlopen(path, RTLD_NOW)
+#define	moduleSymbolAddress(module, symbol_name)	dlsym(module, symbol_name)
+#define	moduleUnload(module)						(module ? (dlclose(module) == 0) : 1)
 #endif
 /* thread operator */
 BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
