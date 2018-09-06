@@ -1,3 +1,4 @@
 .gitattributes
 *.a
+*.so
 tags
