@@ -23,10 +23,10 @@ unsigned int hashDJB(const char *str) {
 	return hash & 0x7fffffff;
 }
 
-unsigned int hashJenkins(const char* key, unsigned int kenlen) {
+unsigned int hashJenkins(const char* key, unsigned int keylen) {
 	unsigned int i = 0;
 	unsigned int hash = 0;
-	while (i < kenlen) {
+	while (i < keylen) {
 		hash += key[i++];
 		hash += hash << 10;
 		hash ^= hash >> 6;
