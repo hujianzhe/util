@@ -3,6 +3,7 @@
 //
 
 #include "../datastruct/hash.h"
+#include "../syslib/string.h"
 #include "httpframe.h"
 #include <ctype.h>
 #include <stdio.h>
