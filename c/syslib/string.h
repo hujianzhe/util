@@ -25,11 +25,9 @@ UTIL_LIBAPI char* strlcpy(char* dst, const char* src, size_t size);
 	#define	stricmp(s1, s2)			strcasecmp(s1, s2)
 	#define strnicmp(s1, s2, n)		strncasecmp(s1, s2, n)
 #endif
-UTIL_LIBAPI void strtrim(const char* str, size_t len, char** newstr, size_t* newlen);
-UTIL_LIBAPI unsigned int strhash_bkdr(const char* str);
-UTIL_LIBAPI size_t strlen_utf8(const char* s);
-UTIL_LIBAPI char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len);
-UTIL_LIBAPI size_t strlen_safe(const char* s, size_t maxlen);
+UTIL_LIBAPI void strTrim(const char* str, size_t len, char** newstr, size_t* newlen);
+UTIL_LIBAPI size_t strlenUTF8(const char* s);
+UTIL_LIBAPI char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len);
 
 #ifdef	__cplusplus
 }

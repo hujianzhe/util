@@ -2,7 +2,7 @@
 // Created by hujianzhe on 18-8-18.
 //
 
-#include "../syslib/string.h"
+#include "../datastruct/hash.h"
 #include "httpframe.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -19,7 +19,7 @@ static int header_keycmp(struct HashtableNode_t* node, const void* key) {
 
 static unsigned int header_keyhash(const void* key) {
 	const char* sk = *(const char**)key;
-	return strhash_bkdr(sk);
+	return hashBKDR(sk);
 }
 
 const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {

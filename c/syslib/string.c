@@ -66,7 +66,7 @@ char* strndup(const char* s, size_t n) {
 }
 #endif
 
-void strtrim(const char* str, size_t len, char** newstr, size_t* newlen) {
+void strTrim(const char* str, size_t len, char** newstr, size_t* newlen) {
 	const char* end = str + len - 1;
 	while (str < end) {
 		if (*str == ' ' || *str == '\r' || *str == '\n' || *str == '\f' || *str == '\b' || *str == '\t' || *end == '\v')
@@ -84,17 +84,7 @@ void strtrim(const char* str, size_t len, char** newstr, size_t* newlen) {
 	*newlen = end + 1 - str;
 }
 
-unsigned int strhash_bkdr(const char* str) {
-	/* BKDR hash */
-	unsigned int seed = 131;
-	unsigned int hash = 0;
-	while (*str) {
-		hash = hash * seed + (*str++);
-	}
-	return hash & 0x7fffffff;
-}
-
-size_t strlen_utf8(const char* s) {
+size_t strlenUTF8(const char* s) {
 	size_t u8_len = 0;
 	size_t byte_len = strlen(s);
 	size_t i;
@@ -120,7 +110,7 @@ size_t strlen_utf8(const char* s) {
 	return u8_len;
 }
 
-char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
+char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 	size_t i;
 	size_t len = dst_len > src_len ? src_len : dst_len;
 	for (i = 0; i < len; ++i) {
@@ -140,14 +130,6 @@ char* strcopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 		}
 	}
 	return dst;
-}
-
-size_t strlen_safe(const char* s, size_t maxlen) {
-	size_t len = 0;
-	if (s) {
-		for (; *s && len < maxlen; ++len);
-	}
-	return len;
 }
 
 #ifdef	__cplusplus
