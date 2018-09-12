@@ -2,7 +2,7 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_DATASTRUCT_HASH_H
+#ifndef	UTIL_C_DATASTRUCT_HASH_H
 #define	UTIL_C_DATASTRUCT_HASH_H
 
 #include "../compiler_define.h"
