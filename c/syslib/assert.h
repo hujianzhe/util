@@ -12,7 +12,7 @@
 
 #define	assertTRUE(exp)\
 if (!(exp)) {\
-fputs(__FILE__"("MACRO_TOSTRING(__LINE__)"): "#exp"\n", stderr);\
+fputs(__FILE__"("MACRO_TOSTRING(__LINE__)"): "#exp"\r\n", stderr);\
 abort();\
 }
 

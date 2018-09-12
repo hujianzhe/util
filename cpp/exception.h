@@ -9,22 +9,16 @@
 #include <exception>
 #include <stdexcept>
 
-#define	assert_throw(expression) {\
-if (!(expression)) {\
-const char* __exp_str = #expression;\
-char _str[512];\
-snprintf(_str, sizeof(_str), "%s(%d): %s\r\n", __FILE__, __LINE__, __exp_str);\
-throw std::logic_error(_str);\
-}\
+#define	assert_throw(exp)\
+if (!(exp)) {\
+throw std::logic_error(__FILE__"("MACRO_TOSTRING(__LINE__)"): "#exp"\r\n");\
 }
 
-#define	logic_throw(expression, fmt, ...) {\
-if (!(expression)) {\
-const char* __exp_str = #expression;\
+#define	logic_throw(exp, fmt, ...)\
+if (!(exp)) {\
 char _str[512];\
-snprintf(_str, sizeof(_str), "%s(%d): %s\r\n" fmt "\r\n", __FILE__, __LINE__, __exp_str, ##__VA_ARGS__);\
+snprintf(_str, sizeof(_str), __FILE__"("MACRO_TOSTRING(__LINE__)"): %s\r\n" fmt "\r\n", #exp, ##__VA_ARGS__);\
 throw std::logic_error(_str);\
-}\
 }
 
 #endif
