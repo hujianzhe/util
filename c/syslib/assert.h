@@ -12,8 +12,7 @@
 
 #define	assertTRUE(exp)\
 if (!(exp)) {\
-const char* __exp_str = #exp;\
-fprintf(stderr, "%s(%d):%s\n", __FILE__, __LINE__, __exp_str);\
+fputs(__FILE__"("MACRO_TOSTRING(__LINE__)"): "#exp"\n", stderr);\
 abort();\
 }
 
