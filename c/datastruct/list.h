@@ -14,18 +14,6 @@ typedef struct List_t {
 	struct ListNode_t *head, *tail;
 } List_t;
 
-/*
-#define list_node_foreach(start, next, cur, list_node) \
-	for(cur = start = (list_node); \
-		next = cur ? cur->next : cur, cur; \
-		cur = (next != start && next != cur ? next : (struct ListNode_t*)0))
-
-#define	list_node_foreach_except(start, next, cur, list_node) \
-	for(start = list_node, cur = start ? start->next : start; \
-		next = cur ? cur->next : cur, cur != start; \
-		cur = next)
-*/
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
