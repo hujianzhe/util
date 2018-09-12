@@ -24,7 +24,7 @@ unsigned int hashDJB(const char *str) {
 }
 
 unsigned int hashJenkins(const char *key, ptrlen_t keylen) {
-	const char *p
+	const char *p;
 	unsigned int hash = 0;
 	for (p = key; keylen; --keylen, ++p) {
 		hash += *p;
