@@ -5,8 +5,13 @@
 #ifndef UTIL_C_COMPILER_DEFINE_H
 #define	UTIL_C_COMPILER_DEFINE_H
 
+#define	__MACRO_TOSTRING(m)							#m
+#define	__MACRO_JOIN_MACRO(m1, m2)					m1##m2
+
+#define	MACRO_JOIN_MACRO(m1, m2)					__MACRO_JOIN_MACRO(m1, m2)
+#define	MACRO_TOSTRING(m)							__MACRO_TOSTRING(m)
 #ifndef STATIC_ASSERT
-	#define	STATIC_ASSERT(exp,msg)					extern char __STATIC_ASSERT__[(exp) ? 1 : -1]
+	#define	STATIC_ASSERT(exp,msg)					typedef char MACRO_JOIN_MACRO(__static_assert_line, __LINE__)[(exp) ? 1 : -1]
 #endif
 STATIC_ASSERT(sizeof(char) == 1, "");
 STATIC_ASSERT(sizeof(signed char) == 1, "");
