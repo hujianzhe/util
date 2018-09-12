@@ -5,6 +5,8 @@
 #ifndef UTIL_C_DATASTRUCT_VALUE_TYPE_H
 #define	UTIL_C_DATASTRUCT_VALUE_TYPE_H
 
+#include "../compiler_define.h"
+
 typedef struct Value_t {
 	void(*deleter)(void*);
 	union {
@@ -15,8 +17,8 @@ typedef struct Value_t {
 		const char* valuestring_const;
 		char* valuestring;
 		struct {
-			unsigned char* begin;
-			unsigned char* end;
+			unsigned char* ptr;
+			ptrlen_t len;
 		} valueblob;
 	};
 #ifdef __cplusplus

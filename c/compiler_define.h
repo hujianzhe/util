@@ -49,6 +49,13 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 		#define	UTIL_LIBAPI
 	#endif
 
+	#ifdef	_WIN64
+		#define	ptrlen_t	unsigned __int64
+	#elif	_WIN32
+		#define	ptrlen_t	unsigned __int32
+	#endif
+	STATIC_ASSERT(sizeof(ptrlen_t) == sizeof(void*), "");
+
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
 		#ifndef _DEBUG
@@ -73,6 +80,9 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_dllexport
 	#define	__declspec_dllimport
 	#define	UTIL_LIBAPI
+
+	STATIC_ASSERT(sizeof(long) == sizeof(void*), "");
+	typedef	unsigned long	ptrlen_t;
 
 #else
 	#define	__forceinline
