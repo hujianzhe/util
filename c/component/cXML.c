@@ -79,7 +79,7 @@ static void xt_skip_wsc(const char** data) {
 
 static int xt_skip_until(const char** data, const char* what) {
 	for (;;) {
-		char* wsp = what;
+		const char* wsp = what;
 		while (*wsp && *wsp != **data)
 			wsp++;
 
