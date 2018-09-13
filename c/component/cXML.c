@@ -15,7 +15,7 @@ extern "C" {
 static void*(*cXML_malloc)(size_t sz) = malloc;
 static void(*cXML_free)(void* ptr) = free;
 
-void cXML_SetHooks(cXML_Hooks* hooks) {
+void cXML_SetHooks(cXMLHooks_t* hooks) {
 	if (!hooks) { /* Reset hooks */
 		cXML_malloc = malloc;
 		cXML_free = free;
@@ -26,8 +26,8 @@ void cXML_SetHooks(cXML_Hooks* hooks) {
 	cXML_free = (hooks->free_fn) ? hooks->free_fn : free;
 }
 
-cXML_Hooks* cXML_GetHooks(cXML_Hooks* p) {
-	static cXML_Hooks hooks;
+cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* p) {
+	static cXMLHooks_t hooks;
 	if (!p)
 		p = &hooks;
 	p->malloc_fn = cXML_malloc;

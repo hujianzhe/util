@@ -35,13 +35,13 @@ typedef struct cXML_t {
 	int				deep_copy;
 } cXML_t;
 
-typedef struct cXML_Hooks {
+typedef struct cXMLHooks_t {
 	void*(*malloc_fn)(size_t);
 	void(*free_fn)(void*);
-} cXML_Hooks;
+} cXMLHooks_t;
 
-UTIL_LIBAPI void cXML_SetHooks(cXML_Hooks* hooks);
-UTIL_LIBAPI cXML_Hooks* cXML_GetHooks(cXML_Hooks* hooks);
+UTIL_LIBAPI void cXML_SetHooks(cXMLHooks_t* hooks);
+UTIL_LIBAPI cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* hooks);
 
 UTIL_LIBAPI cXML_t* cXML_Detach(cXML_t* node);
 UTIL_LIBAPI void cXML_Delete(cXML_t* node);
