@@ -129,9 +129,10 @@ static void xt_skip_hint(const char** data) {
 
 static cXML_t* xt_create_node(int deep_cpoy) {
 	cXML_t* node = (cXML_t*)cXML_malloc(sizeof(cXML_t));
-	node->tree_parent = NULL;
-	node->tree_child = NULL;
-	node->tree_next = NULL;
+	node->parent = NULL;
+	node->child = NULL;
+	node->left = NULL;
+	node->right = NULL;
 	node->numchild = 0;
 	node->content = NULL;
 	node->name = NULL;
@@ -143,24 +144,37 @@ static cXML_t* xt_create_node(int deep_cpoy) {
 	return node;
 }
 
-void cXML_Delete(cXML_t* root) {
-	if (!root)
-		return;
-	if (root->tree_child)
-		cXML_Delete(root->tree_child);
-	if (root->tree_next)
-		cXML_Delete(root->tree_next);
+cXML_t* cXML_Detach(cXML_t* node) {
+	if (node) {
+		if (node->parent && node->parent->child == node)
+			node->parent->child = node->right;
+		if (node->left)
+			node->left->right = node->right;
+		if (node->right)
+			node->right->left = node->left;
+		node->parent = node->left = node->right = NULL;
+	}
+	return node;
+}
 
-	if (root->deep_copy) {
-		cXML_free(root->name);
-		cXML_free(root->content);
+void cXML_Delete(cXML_t* node) {
+	if (!node)
+		return;
+	if (node->child)
+		cXML_Delete(node->child);
+	if (node->right)
+		cXML_Delete(node->right);
+
+	if (node->deep_copy) {
+		cXML_free(node->name);
+		cXML_free(node->content);
 	}
 
 	do {
 		cXMLAttr_t *cur, *next;
-		for (cur = root->attr; cur; cur = next) {
+		for (cur = node->attr; cur; cur = next) {
 			next = cur->next;
-			if (root->deep_copy) {
+			if (node->deep_copy) {
 				cXML_free(cur->name);
 				cXML_free(cur->value);
 			}
@@ -168,7 +182,7 @@ void cXML_Delete(cXML_t* root) {
 		}
 	} while (0);
 
-	cXML_free(root);
+	cXML_free(node);
 }
 
 static void xt_node_add_attrib(cXML_t* node, cXMLAttr_t* attrib) {
@@ -285,13 +299,15 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 
 			ch = xt_parse_node(deep_copy, &S);
 			if (ch) {
-				ch->tree_parent = node;
+				ch->parent = node;
 				if (C == node)
-					C->tree_child = ch;
-				else
-					C->tree_next = ch;
-				node->numchild++;
+					C->child = ch;
+				else {
+					C->right = ch;
+					ch->left = C;
+				}
 				C = ch;
+				node->numchild++;
 				continue;
 			}
 			else
@@ -313,10 +329,10 @@ fnq:
 }
 
 static void xt_parse_to_string(cXML_t* node) {
-	if (node->tree_child)
-		xt_parse_to_string(node->tree_child);
-	if (node->tree_next)
-		xt_parse_to_string(node->tree_next);
+	if (node->child)
+		xt_parse_to_string(node->child);
+	if (node->right)
+		xt_parse_to_string(node->right);
 
 	if (node->deep_copy) {
 		cXMLAttr_t* attr;
@@ -369,7 +385,7 @@ cXML_t* cXML_ParseDirect(char* data) {
 
 cXML_t* cXML_FirstChild(cXML_t* node, const char* name) {
 	cXML_t* ch;
-	for (ch = node->tree_child; ch; ch = ch->tree_next) {
+	for (ch = node->child; ch; ch = ch->right) {
 		if (0 == strncmp(ch->name, name, ch->szname))
 			break;
 	}
@@ -378,7 +394,7 @@ cXML_t* cXML_FirstChild(cXML_t* node, const char* name) {
 
 cXML_t* cXML_NextChild(cXML_t* node) {
 	cXML_t* ch;
-	for (ch = node->tree_next; ch; ch = ch->tree_next) {
+	for (ch = node->right; ch; ch = ch->right) {
 		if (0 == strncmp(ch->name, node->name, ch->szname))
 			break;
 	}

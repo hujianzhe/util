@@ -21,9 +21,10 @@ typedef struct cXMLAttr_t {
 } cXMLAttr_t;
 
 typedef struct cXML_t {
-	struct cXML_t*	tree_parent;
-	struct cXML_t*	tree_child;
-	struct cXML_t*	tree_next;
+	struct cXML_t*	parent;
+	struct cXML_t*	child;
+	struct cXML_t*	left;
+	struct cXML_t*	right;
 	cXMLAttr_t*		attr;
 	char*			name;
 	char*			content;
@@ -41,7 +42,9 @@ typedef struct cXML_Hooks {
 
 UTIL_LIBAPI void cXML_SetHooks(cXML_Hooks* hooks);
 UTIL_LIBAPI cXML_Hooks* cXML_GetHooks(cXML_Hooks* hooks);
-UTIL_LIBAPI void cXML_Delete(cXML_t* root);
+
+UTIL_LIBAPI cXML_t* cXML_Detach(cXML_t* node);
+UTIL_LIBAPI void cXML_Delete(cXML_t* node);
 
 UTIL_LIBAPI cXML_t* cXML_Parse(const char* data);
 UTIL_LIBAPI cXML_t* cXML_ParseDirect(char* data);
