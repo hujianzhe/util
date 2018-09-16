@@ -157,6 +157,23 @@ cXML_t* cXML_Detach(cXML_t* node) {
 	return node;
 }
 
+static void xt_parse_error_delete(cXML_t* node) {
+	if (!node)
+		return;
+	if (node->child)
+		xt_parse_error_delete(node->child);
+	if (node->right)
+		xt_parse_error_delete(node->right);
+	do {
+		cXMLAttr_t *cur, *next;
+		for (cur = node->attr; cur; cur = next) {
+			next = cur->next;
+			cXML_free(cur);
+		}
+	} while (0);
+	cXML_free(node);
+}
+
 void cXML_Delete(cXML_t* node) {
 	if (!node)
 		return;
@@ -324,7 +341,7 @@ fbe:
 
 	/* free and quit */
 fnq:
-	cXML_Delete(node);
+	xt_parse_error_delete(node);
 	return NULL;
 }
 
@@ -408,6 +425,91 @@ cXMLAttr_t* cXML_Attr(cXML_t* node, const char* name) {
 			break;
 	}
 	return cur;
+}
+
+static size_t xt_get_print_size(cXML_t* node, size_t len) {
+	size_t node_namelen;
+	cXMLAttr_t* attr;
+	if (!node->name)
+		return 0;
+
+	node_namelen = strlen(node->name);
+	len += 1 + node_namelen;
+	for (attr = node->attr; attr; attr = attr->next)
+		len += 1 + strlen(attr->name) + 1 + 1 + strlen(attr->value) + 1;
+	if (node->child || node->content) {
+		len += 1;
+		if (node->child)
+			len = xt_get_print_size(node->child, len);
+		if (node->content)
+			len += strlen(node->content);
+		len += 1 + 1 + node_namelen + 1;
+	}
+	else
+		len += 2;
+
+	if (node->right)
+		len = xt_get_print_size(node->right, len);
+
+	return len;
+}
+
+static size_t xt_print(cXML_t* node, char* buffer) {
+	size_t offset, node_namelen;
+	cXMLAttr_t* attr;
+
+	if (!node->name)
+		return 0;
+
+	node_namelen = strlen(node->name);
+	offset = 0;
+	buffer[offset++] = '<';
+	memcpy(buffer + offset, node->name, node_namelen);
+	offset += node_namelen;
+	for (attr = node->attr; attr; attr = attr->next) {
+		size_t namelen = strlen(attr->name);
+		size_t valuelen = strlen(attr->value);
+		buffer[offset++] = ' ';
+		memcpy(buffer + offset, attr->name, namelen);
+		offset += namelen;
+		buffer[offset++] = '=';
+		buffer[offset++] = '\"';
+		memcpy(buffer + offset, attr->value, valuelen);
+		offset += valuelen;
+		buffer[offset++] = '\"';
+	}
+	if (node->child || node->content) {
+		buffer[offset++] = '>';
+		if (node->child)
+			offset += xt_print(node->child, buffer + offset);
+		if (node->content) {
+			size_t contentlen = strlen(node->content);
+			memcpy(buffer + offset, node->content, contentlen);
+			offset += contentlen;
+		}
+		buffer[offset++] = '<';
+		buffer[offset++] = '/';
+		memcpy(buffer + offset, node->name, node_namelen);
+		offset += node_namelen;
+		buffer[offset++] = '>';
+	}
+	else {
+		buffer[offset++] = '/';
+		buffer[offset++] = '>';
+	}
+
+	if (node->right)
+		offset += xt_print(node->right, buffer + offset);
+
+	buffer[offset] = 0;
+	return offset;
+}
+
+size_t cXML_Print(cXML_t* root, char* buffer) {
+	if (buffer)
+		return xt_print(root, buffer);
+	else
+		return xt_get_print_size(root, 1);
 }
 
 #ifdef  __cplusplus

@@ -51,6 +51,7 @@ UTIL_LIBAPI cXML_t* cXML_ParseDirect(char* data);
 UTIL_LIBAPI cXML_t* cXML_FirstChild(cXML_t* node, const char* name);
 UTIL_LIBAPI cXML_t* cXML_NextChild(cXML_t* node);
 UTIL_LIBAPI cXMLAttr_t* cXML_Attr(cXML_t* node, const char* name);
+UTIL_LIBAPI size_t cXML_Print(cXML_t* root, char* buffer);
 
 #ifdef  __cplusplus
 }
