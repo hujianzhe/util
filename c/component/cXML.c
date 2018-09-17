@@ -339,7 +339,6 @@ fbe:
 		node->content = NULL;
 	return node;
 
-	/* free and quit */
 fnq:
 	xt_parse_error_delete(node);
 	return NULL;
@@ -441,7 +440,7 @@ static size_t xt_get_print_size(cXML_t* node, size_t len) {
 		len += 1;
 		if (node->child)
 			len = xt_get_print_size(node->child, len);
-		if (node->content)
+		else if (node->content)
 			len += strlen(node->content);
 		len += 1 + 1 + node_namelen + 1;
 	}
@@ -482,7 +481,7 @@ static size_t xt_print(cXML_t* node, char* buffer) {
 		buffer[offset++] = '>';
 		if (node->child)
 			offset += xt_print(node->child, buffer + offset);
-		if (node->content) {
+		else if (node->content) {
 			size_t contentlen = strlen(node->content);
 			memcpy(buffer + offset, node->content, contentlen);
 			offset += contentlen;
