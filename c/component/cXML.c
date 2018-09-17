@@ -315,20 +315,18 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 			}
 
 			ch = xt_parse_node(deep_copy, &S);
-			if (ch) {
-				ch->parent = node;
-				if (C == node)
-					C->child = ch;
-				else {
-					C->right = ch;
-					ch->left = C;
-				}
-				C = ch;
-				node->numchild++;
-				continue;
-			}
-			else
+			if (!ch)
 				goto fnq;
+			ch->parent = node;
+			if (C == node)
+				C->child = ch;
+			else {
+				C->right = ch;
+				ch->left = C;
+			}
+			C = ch;
+			node->numchild++;
+			continue;
 		}
 		S++;
 	}
