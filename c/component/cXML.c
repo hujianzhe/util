@@ -214,6 +214,24 @@ static void xt_node_add_attrib(cXML_t* node, cXMLAttr_t* attrib) {
 	node->numattr++;
 }
 
+cXML_t* cXML_AddAttr(cXML_t* node, char* name, char* value) {
+	cXMLAttr_t* attr = (cXMLAttr_t*)malloc(sizeof(cXMLAttr_t));
+	if (attr) {
+		attr->szname = strlen(name);
+		attr->szvalue = strlen(value);
+
+		if (node->deep_copy) {
+			attr->name = xt_strndup(name, attr->szname);
+			attr->value = xt_strndup(value, attr->szvalue);
+		}
+		else {
+			attr->name = name;
+			attr->value = value;
+		}
+	}
+	return node;
+}
+
 static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 	cXML_t* node;
 	cXML_t* C;

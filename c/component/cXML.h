@@ -44,6 +44,7 @@ typedef struct cXMLHooks_t {
 UTIL_LIBAPI void cXML_SetHooks(cXMLHooks_t* hooks);
 UTIL_LIBAPI cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* hooks);
 
+UTIL_LIBAPI cXML_t* cXML_AddAttr(cXML_t* node, char* key, char* value);
 UTIL_LIBAPI cXML_t* cXML_Detach(cXML_t* node);
 UTIL_LIBAPI void cXML_Delete(cXML_t* node);
 
