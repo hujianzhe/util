@@ -26,12 +26,13 @@ typedef struct cXML_t {
 	struct cXML_t*	left;
 	struct cXML_t*	right;
 	cXMLAttr_t*		attr;
+
 	char*			name;
 	char*			content;
 	size_t			szname;
 	size_t			szcontent;
-	int				numattr;
-	int				numchild;
+	unsigned int	numattr;
+	unsigned int	numchild;
 	int				deep_copy;
 } cXML_t;
 
