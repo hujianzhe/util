@@ -470,24 +470,25 @@ cXMLAttr_t* cXML_Attr(cXML_t* node, const char* name) {
 
 static size_t xt_get_print_size(cXML_t* node, size_t len) {
 	size_t node_namelen;
-	cXMLAttr_t* attr;
-	if (!node->name)
-		return 0;
-
-	node_namelen = strlen(node->name);
-	len += 1 + node_namelen;
-	for (attr = node->attr; attr; attr = attr->next)
-		len += 1 + strlen(attr->name) + 1 + 1 + strlen(attr->value) + 1;
-	if (node->child || node->content) {
-		len += 1;
-		if (node->child)
-			len = xt_get_print_size(node->child, len);
-		else if (node->content)
-			len += strlen(node->content);
-		len += 1 + 1 + node_namelen + 1;
+	if (node->name) {
+		node_namelen = strlen(node->name);
+		len += 1 + node_namelen;
 	}
 	else
-		len += 2;
+		node_namelen = 0;
+
+	if (node_namelen) {
+		cXMLAttr_t* attr;
+		for (attr = node->attr; attr; attr = attr->next)
+			len += 1 + strlen(attr->name) + 1 + 1 + strlen(attr->value) + 1;
+		len += 1;
+		len += 1 + 1 + node_namelen + 1;
+	}
+
+	if (node_namelen && node->child)
+		len = xt_get_print_size(node->child, len);
+	else if (node->content)
+		len += strlen(node->content);
 
 	if (node->right)
 		len = xt_get_print_size(node->right, len);
@@ -496,46 +497,47 @@ static size_t xt_get_print_size(cXML_t* node, size_t len) {
 }
 
 static size_t xt_print(cXML_t* node, char* buffer) {
-	size_t offset, node_namelen;
-	cXMLAttr_t* attr;
-
-	if (!node->name)
-		return 0;
-
-	node_namelen = strlen(node->name);
-	offset = 0;
-	buffer[offset++] = '<';
-	memcpy(buffer + offset, node->name, node_namelen);
-	offset += node_namelen;
-	for (attr = node->attr; attr; attr = attr->next) {
-		size_t namelen = strlen(attr->name);
-		size_t valuelen = strlen(attr->value);
-		buffer[offset++] = ' ';
-		memcpy(buffer + offset, attr->name, namelen);
-		offset += namelen;
-		buffer[offset++] = '=';
-		buffer[offset++] = '\"';
-		memcpy(buffer + offset, attr->value, valuelen);
-		offset += valuelen;
-		buffer[offset++] = '\"';
+	size_t node_namelen;
+	size_t offset = 0;
+	if (node->name) {
+		node_namelen = strlen(node->name);
+		buffer[offset++] = '<';
+		memcpy(buffer + offset, node->name, node_namelen);
+		offset += node_namelen;
 	}
-	if (node->child || node->content) {
-		buffer[offset++] = '>';
-		if (node->child)
-			offset += xt_print(node->child, buffer + offset);
-		else if (node->content) {
-			size_t contentlen = strlen(node->content);
-			memcpy(buffer + offset, node->content, contentlen);
-			offset += contentlen;
+	else
+		node_namelen = 0;
+
+	if (node_namelen) {
+		cXMLAttr_t* attr;
+		for (attr = node->attr; attr; attr = attr->next) {
+			size_t namelen = strlen(attr->name);
+			size_t valuelen = strlen(attr->value);
+			buffer[offset++] = ' ';
+			memcpy(buffer + offset, attr->name, namelen);
+			offset += namelen;
+			buffer[offset++] = '=';
+			buffer[offset++] = '\"';
+			memcpy(buffer + offset, attr->value, valuelen);
+			offset += valuelen;
+			buffer[offset++] = '\"';
 		}
+		buffer[offset++] = '>';
+	}
+
+	if (node->child)
+		offset += xt_print(node->child, buffer + offset);
+	else if (node->content) {
+		size_t contentlen = strlen(node->content);
+		memcpy(buffer + offset, node->content, contentlen);
+		offset += contentlen;
+	}
+
+	if (node_namelen) {
 		buffer[offset++] = '<';
 		buffer[offset++] = '/';
 		memcpy(buffer + offset, node->name, node_namelen);
 		offset += node_namelen;
-		buffer[offset++] = '>';
-	}
-	else {
-		buffer[offset++] = '/';
 		buffer[offset++] = '>';
 	}
 
