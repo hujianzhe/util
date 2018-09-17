@@ -127,8 +127,16 @@ static void xt_skip_hint(const char** data) {
 	}
 }
 
-static cXML_t* xt_create_node(int deep_cpoy) {
-	cXML_t* node = (cXML_t*)cXML_malloc(sizeof(cXML_t));
+cXML_t* cXML_Create(cXML_t* node, int deep_cpoy) {
+	if (!node) {
+		node = (cXML_t*)cXML_malloc(sizeof(cXML_t));
+		if (!node)
+			return NULL;
+		node->need_free = 1;
+	}
+	else {
+		node->need_free = 0;
+	}
 	node->parent = NULL;
 	node->child = NULL;
 	node->left = NULL;
@@ -141,6 +149,41 @@ static cXML_t* xt_create_node(int deep_cpoy) {
 	node->szname = 0;
 	node->numattr = 0;
 	node->deep_copy = deep_cpoy;
+	return node;
+}
+
+cXMLAttr_t* cXML_CreateAttr(cXMLAttr_t* attr, int deep_copy) {
+	if (!attr) {
+		attr = (cXMLAttr_t*)cXML_malloc(sizeof(cXMLAttr_t));
+		if (!attr)
+			return NULL;
+		attr->need_free = 1;
+	}
+	else {
+		attr->need_free = 0;
+	}
+	attr->prev = NULL;
+	attr->next = NULL;
+	attr->node = NULL;
+	attr->name = NULL;
+	attr->value = NULL;
+	attr->szname = 0;
+	attr->szvalue = 0;
+	attr->deep_copy = deep_copy;
+	return attr;
+}
+
+cXML_t* cXML_Add(cXML_t* node, cXML_t* item) {
+	cXML_t* ch = node->child;
+	if (ch) {
+		for (; ch->right; ch = ch->right);
+		ch->right = item;
+		item->left = ch;
+	}
+	else {
+		node->child = item;
+	}
+	item->parent = node;
 	return node;
 }
 
@@ -160,18 +203,23 @@ cXML_t* cXML_Detach(cXML_t* node) {
 static void xt_parse_error_delete(cXML_t* node) {
 	if (!node)
 		return;
+
 	if (node->child)
 		xt_parse_error_delete(node->child);
 	if (node->right)
 		xt_parse_error_delete(node->right);
+
 	do {
 		cXMLAttr_t *cur, *next;
 		for (cur = node->attr; cur; cur = next) {
 			next = cur->next;
-			cXML_free(cur);
+			if (cur->need_free)
+				cXML_free(cur);
 		}
 	} while (0);
-	cXML_free(node);
+
+	if (node->need_free)
+		cXML_free(node);
 }
 
 void cXML_Delete(cXML_t* node) {
@@ -191,18 +239,15 @@ void cXML_Delete(cXML_t* node) {
 		cXMLAttr_t *cur, *next;
 		for (cur = node->attr; cur; cur = next) {
 			next = cur->next;
-			if (node->deep_copy) {
-				cXML_free(cur->name);
-				cXML_free(cur->value);
-			}
-			cXML_free(cur);
+			cXML_DeleteAttr(cur);
 		}
 	} while (0);
 
-	cXML_free(node);
+	if (node->need_free)
+		cXML_free(node);
 }
 
-static void xt_node_add_attrib(cXML_t* node, cXMLAttr_t* attrib) {
+cXML_t* cXML_AddAttr(cXML_t* node, cXMLAttr_t* attrib) {
 	attrib->prev = NULL;
 	if (node->attr) {
 		attrib->next = node->attr;
@@ -210,26 +255,33 @@ static void xt_node_add_attrib(cXML_t* node, cXMLAttr_t* attrib) {
 	}
 	else
 		attrib->next = NULL;
+	attrib->node = node;
 	node->attr = attrib;
 	node->numattr++;
+	return node;
 }
 
-cXML_t* cXML_AddAttr(cXML_t* node, char* name, char* value) {
-	cXMLAttr_t* attr = (cXMLAttr_t*)malloc(sizeof(cXMLAttr_t));
-	if (attr) {
-		attr->szname = strlen(name);
-		attr->szvalue = strlen(value);
+cXMLAttr_t* cXML_DetachAttr(cXMLAttr_t* attr) {
+	if (attr->node) {
+		if (attr->node->attr == attr)
+			attr->node->attr = attr->next;
+		attr->node = NULL;
 
-		if (node->deep_copy) {
-			attr->name = xt_strndup(name, attr->szname);
-			attr->value = xt_strndup(value, attr->szvalue);
-		}
-		else {
-			attr->name = name;
-			attr->value = value;
-		}
+		if (attr->prev)
+			attr->prev->next = attr->next;
+		if (attr->next)
+			attr->next->prev = attr->prev;
 	}
-	return node;
+	return attr;
+}
+
+void cXML_DeleteAttr(cXMLAttr_t* attr) {
+	if (attr->deep_copy) {
+		cXML_free(attr->name);
+		cXML_free(attr->value);
+	}
+	if (attr->need_free)
+		cXML_free(attr);
 }
 
 static cXML_t* xt_parse_node(int deep_copy, const char** data) {
@@ -242,7 +294,7 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 	if (*S != '<')
 		return NULL;
 
-	node = xt_create_node(deep_copy);
+	node = cXML_Create(NULL, deep_copy);
 	/* node->header = S; */
 	S++;
 
@@ -256,7 +308,7 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 	/* attributes */
 	xt_skip_ws(&S);
 	while (*S != '>' && *S != '/') {
-		cXMLAttr_t* attrib = (cXMLAttr_t*)cXML_malloc(sizeof(cXMLAttr_t));
+		cXMLAttr_t* attrib = cXML_CreateAttr(NULL, deep_copy);
 		if (!attrib)
 			goto fnq;
 
@@ -286,7 +338,7 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 			xt_skip_ws(&S);
 		}
 
-		xt_node_add_attrib(node, attrib);
+		cXML_AddAttr(node, attrib);
 	}
 
 	if (*S == '/') {
@@ -331,7 +383,7 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 
 				if (content) {
 					if (node->child) {
-						ch = xt_create_node(deep_copy);
+						ch = cXML_Create(NULL, deep_copy);
 						if (!ch)
 							goto fnq;
 						ch->parent = node;
@@ -356,7 +408,7 @@ static cXML_t* xt_parse_node(int deep_copy, const char** data) {
 				break;
 			}
 			else if (content) {
-				ch = xt_create_node(deep_copy);
+				ch = cXML_Create(NULL, deep_copy);
 				if (!ch)
 					goto fnq;
 				ch->parent = node;
@@ -404,29 +456,30 @@ fnq:
 }
 
 static void xt_parse_to_string(cXML_t* node) {
+	cXMLAttr_t* attr;
+
 	if (node->child)
 		xt_parse_to_string(node->child);
 	if (node->right)
 		xt_parse_to_string(node->right);
 
 	if (node->deep_copy) {
-		cXMLAttr_t* attr;
 		node->name = xt_strndup(node->name, node->szname);
 		node->content = xt_strndup(node->content, node->szcontent);
-		for (attr = node->attr; attr; attr = attr->next) {
+	}
+	else {
+		if (node->name)
+			node->name[node->szname] = '\0';
+		if (node->szcontent)
+			node->content[node->szcontent] = '\0';
+	}
+
+	for (attr = node->attr; attr; attr = attr->next) {
+		if (attr->deep_copy) {
 			attr->name = xt_strndup(attr->name, attr->szname);
 			attr->value = xt_strndup(attr->value, attr->szvalue);
 		}
-	}
-	else {
-		cXMLAttr_t* attr;
-		if (node->name)
-			node->name[node->szname] = '\0';
-		/* node->header[node->szheader] = '\0'; */
-		if (node->szcontent)
-			node->content[node->szcontent] = '\0';
-
-		for (attr = node->attr; attr; attr = attr->next) {
+		else {
 			if (attr->szname)
 				attr->name[attr->szname] = '\0';
 			if (attr->szvalue)
@@ -477,7 +530,7 @@ cXML_t* cXML_NextChild(cXML_t* node) {
 	return ch;
 }
 
-cXMLAttr_t* cXML_Attr(cXML_t* node, const char* name) {
+cXMLAttr_t* cXML_GetAttr(cXML_t* node, const char* name) {
 	cXMLAttr_t *cur;
 	for (cur = node->attr; cur; cur = cur->next) {
 		if (strncmp(cur->name, name, cur->szname) == 0)
