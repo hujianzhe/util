@@ -504,11 +504,13 @@ static size_t xt_print(cXML_t* node, char* buffer) {
 	return offset;
 }
 
-size_t cXML_Print(cXML_t* root, char* buffer) {
-	if (buffer)
-		return xt_print(root, buffer);
-	else
-		return xt_get_print_size(root, 1);
+size_t cXML_ByteSize(cXML_t* root) {
+	return xt_get_print_size(root, 1);
+}
+
+char* cXML_Print(cXML_t* root, char* buffer) {
+	xt_print(root, buffer);
+	return buffer;
 }
 
 #ifdef  __cplusplus
