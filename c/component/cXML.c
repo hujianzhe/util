@@ -526,6 +526,7 @@ cXML_t* cXML_ParseFromFile(const char* path) {
 			cXML_free(buffer);
 			break;
 		}
+		buffer[rz] = 0;
 		root = cXML_Parse(buffer, 1);
 		cXML_free(buffer);
 	} while (0);
