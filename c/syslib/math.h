@@ -37,8 +37,10 @@ UTIL_LIBAPI int fequf(float a, float b);
 UTIL_LIBAPI int fequ(double a, double b);
 UTIL_LIBAPI float fsqrtf(float x);
 UTIL_LIBAPI double fsqrt(double x);
-#define	deg2rad(deg)	(M_PI / 180.0 * (deg))
-#define	rad2deg(rad)	((rad) / M_PI * 180.0)
+UTIL_LIBAPI	float* mathEulerAnglesToQuaternion(float e[3], float q[4]);
+UTIL_LIBAPI float* mathQuaternionToEulerAngles(float q[4], float e[3]);
+#define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
+#define	mathRadToDeg(rad)	((rad) / M_PI * 180.0)
 
 #ifdef	__cplusplus
 }
