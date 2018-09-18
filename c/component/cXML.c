@@ -2,6 +2,7 @@
 // Created by hujianzhe
 //
 
+#include <stdio.h>
 #include <string.h>
 #include <malloc.h>
 #include "cXML.h"
@@ -488,27 +489,47 @@ static void xt_parse_to_string(cXML_t* node) {
 	}
 }
 
-cXML_t* cXML_Parse(const char* data) {
+cXML_t* cXML_Parse(const char* data, int deep_copy) {
 	cXML_t* root;
 	const char* S = data;
 	xt_skip_wsc(&S);
 	xt_skip_hint(&S);
 	xt_skip_wsc(&S);
-	root = xt_parse_node(1, &S);
+	root = xt_parse_node(deep_copy, &S);
 	if (root)
 		xt_parse_to_string(root);
 	return root;
 }
 
-cXML_t* cXML_ParseDirect(char* data) {
-	cXML_t* root;
-	const char* S = data;
-	xt_skip_wsc(&S);
-	xt_skip_hint(&S);
-	xt_skip_wsc(&S);
-	root = xt_parse_node(0, &S);
-	if (root)
-		xt_parse_to_string(root);
+cXML_t* cXML_ParseFromFile(const char* path) {
+	cXML_t* root = NULL;
+	FILE* fp = fopen(path, "r");
+	if (!fp)
+		return NULL;
+	do {
+		char* buffer;
+		long fz;
+		size_t rz;
+
+		if (fseek(fp, 0, SEEK_END))
+			break;
+		fz = ftell(fp);
+		if (fz <= 0)
+			break;
+		if (fseek(fp, 0, SEEK_SET))
+			break;
+		buffer = (char*)cXML_malloc(fz + 1);
+		if (!buffer)
+			break;
+		rz = fread(buffer, 1, fz, fp);
+		if (rz > fz) {
+			cXML_free(buffer);
+			break;
+		}
+		root = cXML_Parse(buffer, 1);
+		cXML_free(buffer);
+	} while (0);
+	fclose(fp);
 	return root;
 }
 

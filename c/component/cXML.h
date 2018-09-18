@@ -60,8 +60,8 @@ UTIL_LIBAPI cXML_t* cXML_Add(cXML_t* node, cXML_t* item);
 UTIL_LIBAPI cXML_t* cXML_Detach(cXML_t* node);
 UTIL_LIBAPI void cXML_Delete(cXML_t* node);
 
-UTIL_LIBAPI cXML_t* cXML_Parse(const char* data);
-UTIL_LIBAPI cXML_t* cXML_ParseDirect(char* data);
+UTIL_LIBAPI cXML_t* cXML_Parse(const char* data, int deep_copy);
+UTIL_LIBAPI cXML_t* cXML_ParseFromFile(const char* path);
 UTIL_LIBAPI cXML_t* cXML_FirstChild(cXML_t* node, const char* name);
 UTIL_LIBAPI cXML_t* cXML_NextChild(cXML_t* node);
 UTIL_LIBAPI cXMLAttr_t* cXML_GetAttr(cXML_t* node, const char* name);
