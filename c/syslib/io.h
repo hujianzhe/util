@@ -80,7 +80,9 @@ typedef struct Reactor_t {
 UTIL_LIBAPI BOOL reactorCreate(Reactor_t* reactor);
 UTIL_LIBAPI BOOL reactorReg(Reactor_t* reactor, FD_t fd);
 UTIL_LIBAPI BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
-UTIL_LIBAPI BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr);
+UTIL_LIBAPI void* reactorMallocOverlapped(int opcode);
+UTIL_LIBAPI void reactorFreeOverlapped(void* ol);
+UTIL_LIBAPI BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
 UTIL_LIBAPI int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
 UTIL_LIBAPI void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
 UTIL_LIBAPI BOOL reactorConnectCheckSuccess(FD_t sockfd);

@@ -220,47 +220,67 @@ BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #endif
 }
 
-BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct sockaddr_storage* saddr) {
+void* reactorMallocOverlapped(int opcode) {
+#if defined(_WIN32) || defined(_WIN64)
+	switch (opcode) {
+		case REACTOR_READ:
+		case REACTOR_WRITE:
+		case REACTOR_CONNECT:
+		{
+			return calloc(1, sizeof(OVERLAPPED) + 2);
+		}
+		case REACTOR_ACCEPT:
+		{
+			char* ol = (char*)calloc(1, sizeof(OVERLAPPED) + 2 + sizeof(SOCKET) + (sizeof(struct sockaddr_storage) + 16) * 2);
+			if (ol) {
+				ol[sizeof(OVERLAPPED) + 1] = 1;
+				*(SOCKET*)(ol + sizeof(OVERLAPPED) + 2) = INVALID_SOCKET;
+			}
+			return ol;
+		}
+		default:
+			SetLastError(ERROR_INVALID_PARAMETER);
+			return NULL;
+	}
+#else
+	return (void*)(size_t)-1;
+#endif
+}
+void reactorFreeOverlapped(void* ol) {
+#if defined(_WIN32) || defined(_WIN64)
+	const char* p = (char*)ol;
+	if (p && p[sizeof(OVERLAPPED) + 1]) {
+		SOCKET s = *(SOCKET*)(p + sizeof(OVERLAPPED) + 2);
+		if (INVALID_SOCKET != s)
+			closesocket(s);
+	}
+	free(ol);
+#endif
+}
+
+BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
 		BOOL res;
 		int slen = sizeof(*saddr);
 		DWORD Flags = 0;
 		WSABUF wsabuf = {0};
-		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
-		if (NULL == *p_ol) {
-			return FALSE;
-		}
 		res = !WSARecvFrom((SOCKET)fd,
 							&wsabuf, 1, NULL, &Flags,
 							(struct sockaddr*)saddr, &slen,/* connectionless socket must set this param */
-							(LPWSAOVERLAPPED)*p_ol, NULL) ||
+							(LPWSAOVERLAPPED)ol, NULL) ||
 							WSAGetLastError() == WSA_IO_PENDING;
-		if (!res) {
-			free(*p_ol);
-			*p_ol = NULL;
-			return FALSE;
-		}
-		return TRUE;
+		return res;
 	}
 	else if (REACTOR_WRITE == opcode) {
 		BOOL res;
 		WSABUF wsabuf = {0};
-		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
-		if (NULL == *p_ol) {
-			return FALSE;
-		}
 		res = !WSASendTo((SOCKET)fd,
 							&wsabuf, 1, NULL, 0,
 							(struct sockaddr*)saddr, sizeof(*saddr),
-							(LPWSAOVERLAPPED)(((char*)*p_ol) + 1), NULL) ||
+							(LPWSAOVERLAPPED)(((char*)ol) + 1), NULL) ||
 							WSAGetLastError() == WSA_IO_PENDING;
-		if (!res) {
-			free(*p_ol);
-			*p_ol = NULL;
-			return FALSE;
-		}
-		return TRUE;
+		return res;
 	}
 	else if (REACTOR_ACCEPT == opcode) {
 		BOOL res;
@@ -272,39 +292,30 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct 
 			if (WSAIoctl((SOCKET)fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
 				&GuidAcceptEx, sizeof(GuidAcceptEx),
 				&lpfnAcceptEx, sizeof(lpfnAcceptEx),
-				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnAcceptEx) {
+				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnAcceptEx)
+			{
 				return FALSE;
 			}
 		}
-		if (NULL == *p_ol) {
-			*p_ol = calloc(1, sizeof(OVERLAPPED) + sizeof(SOCKET) + (sizeof(struct sockaddr_storage) + 16) * 2);
-			if (NULL == *p_ol) {
-				return FALSE;
-			}
-			pConnfd = (SOCKET*)(((char*)*p_ol) + sizeof(OVERLAPPED));
+		pConnfd = (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED) + 2);
+		if (INVALID_SOCKET == *pConnfd) {
 			*pConnfd = socket(saddr->ss_family, SOCK_STREAM, 0);
 			if (INVALID_SOCKET == *pConnfd) {
-				free(*p_ol);
-				*p_ol = NULL;
 				return FALSE;
 			}
-		}
-		else {
-			pConnfd = (SOCKET*)(((char*)*p_ol) + sizeof(OVERLAPPED));
 		}
 		res = lpfnAcceptEx((SOCKET)fd, *pConnfd,
 							pConnfd + 1, 0,
 							sizeof(struct sockaddr_storage) + 16,
 							sizeof(struct sockaddr_storage) + 16,
-							NULL, (LPOVERLAPPED)*p_ol) ||
+							NULL, (LPOVERLAPPED)ol) ||
 							WSAGetLastError() == ERROR_IO_PENDING;
 		if (!res) {
 			closesocket(*pConnfd);
-			free(*p_ol);
-			*p_ol = NULL;
-			return FALSE;
+			*pConnfd = INVALID_SOCKET;
 		}
-		return TRUE;
+
+		return res;
 	}
 	else if (REACTOR_CONNECT == opcode) {
 		BOOL res;
@@ -337,21 +348,12 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void** p_ol, struct 
 		if (bind((SOCKET)fd, (struct sockaddr*)&_sa, sizeof(_sa))) {
 			return FALSE;
 		}
-		*p_ol = *p_ol ? *p_ol : calloc(1, sizeof(OVERLAPPED) + 1);
-		if (NULL == *p_ol) {
-			return FALSE;
-		}
 		res = lpfnConnectEx((SOCKET)fd,
 							(struct sockaddr*)saddr, slen,
 							NULL, 0, NULL,
-							(LPWSAOVERLAPPED)(((char*)*p_ol) + 1)) ||
+							(LPWSAOVERLAPPED)(((char*)ol) + 1)) ||
 							WSAGetLastError() == ERROR_IO_PENDING;
-		if (!res) {
-			free(*p_ol);
-			*p_ol = NULL;
-			return FALSE;
-		}
-		return TRUE;
+		return res;
 	}
 	else {
 		SetLastError(ERROR_INVALID_PARAMETER);
@@ -519,10 +521,7 @@ BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 
 #if defined(_WIN32) || defined(_WIN64)
 static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg) {
-	SOCKET* pConnfd = ol ? (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED)) : NULL;
-	if (!pConnfd) {
-		return TRUE;
-	}
+	SOCKET* pConnfd = (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED) + 2);
 	do {
 		SOCKET connfd = *pConnfd;
 		struct sockaddr_storage saddr;

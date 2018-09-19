@@ -21,7 +21,11 @@ extern "C" {
 void niosocketFree(NioSocket_t* s) {
 	if (!s)
 		return;
+
 	socketClose(s->fd);
+	reactorFreeOverlapped(s->m_readOl);
+	reactorFreeOverlapped(s->m_writeOl);
+
 	if (SOCK_STREAM == s->socktype) {
 		criticalsectionClose(&s->m_outbufLock);
 	}
@@ -37,8 +41,7 @@ void niosocketFree(NioSocket_t* s) {
 			free(pod_container_of(cur, WaitSendData, m_listnode));
 		}
 	} while (0);
-	free(s->m_readOl);
-	free(s->m_writeOl);
+
 	s->free(s);
 }
 
@@ -54,7 +57,14 @@ static int reactorsocket_read(NioSocket_t* s) {
 	else {
 		opcode = REACTOR_READ;
 	}
-	if (reactorCommit(&s->loop->m_reactor, s->fd, opcode, &s->m_readOl, &saddr))
+	if (!s->m_readOl) {
+		s->m_readOl = reactorMallocOverlapped(opcode);
+		if (!s->m_readOl) {
+			s->valid = 0;
+			return 0;
+		}
+	}
+	if (reactorCommit(&s->loop->m_reactor, s->fd, opcode, s->m_readOl, &saddr))
 		return 1;
 	s->valid = 0;
 	return 0;
@@ -150,7 +160,14 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 
 static int reactorsocket_write(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
-	if (reactorCommit(&s->loop->m_reactor, s->fd, REACTOR_WRITE, &s->m_writeOl, &saddr))
+	if (!s->m_writeOl) {
+		s->m_writeOl = reactorMallocOverlapped(REACTOR_WRITE);
+		if (!s->m_writeOl) {
+			s->valid = 0;
+			return 0;
+		}
+	}
+	if (reactorCommit(&s->loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeOl, &saddr))
 		return 1;
 	s->valid = 0;
 	return 0;
@@ -383,7 +400,7 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 					struct sockaddr_storage saddr;
 					char c;
 					socketRead(fd, &c, sizeof(c), 0, NULL);
-					reactorCommit(&loop->m_reactor, fd, REACTOR_READ, &loop->m_readOl, &saddr);
+					reactorCommit(&loop->m_reactor, fd, REACTOR_READ, loop->m_readOl, &saddr);
 					continue;
 				}
 				find_node = hashtableSearchKey(&loop->m_sockht, &fd);
@@ -435,7 +452,12 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 						s->loop = loop;
 						s->m_lastActiveTime = gmtimeSecond();
 						if (SOCK_STREAM == s->socktype && s->connect_callback) {
-							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, &s->m_writeOl, &s->connect_saddr))
+							if (!s->m_writeOl) {
+								s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT);
+								if (!s->m_writeOl)
+									break;
+							}
+							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->connect_saddr))
 								break;
 						}
 						else if (!reactorsocket_read(s))
@@ -482,14 +504,21 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) {
 	struct sockaddr_storage saddr;
 	loop->initok = 0;
-	loop->m_readOl = NULL;
 
 	if (!socketPair(SOCK_STREAM, loop->m_socketpair))
 		return NULL;
 	socketShutdown(loop->m_socketpair[0], SHUT_WR);
 	socketShutdown(loop->m_socketpair[1], SHUT_RD);
 
+	loop->m_readOl = reactorMallocOverlapped(REACTOR_READ);
+	if (!loop->m_readOl) {
+		socketClose(loop->m_socketpair[0]);
+		socketClose(loop->m_socketpair[1]);
+		return NULL;
+	}
+
 	if (!reactorCreate(&loop->m_reactor)) {
+		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		return NULL;
@@ -498,8 +527,9 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 	if (!socketNonBlock(loop->m_socketpair[0], TRUE) ||
 		!socketNonBlock(loop->m_socketpair[1], TRUE) ||
 		!reactorReg(&loop->m_reactor, loop->m_socketpair[0]) ||
-		!reactorCommit(&loop->m_reactor, loop->m_socketpair[0], REACTOR_READ, &loop->m_readOl, &saddr))
+		!reactorCommit(&loop->m_reactor, loop->m_socketpair[0], REACTOR_READ, loop->m_readOl, &saddr))
 	{
+		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
@@ -507,10 +537,10 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 	}
 
 	if (!dataqueueInit(&loop->m_dq)) {
+		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
-		free(loop->m_readOl);
 		return NULL;
 	}
 
@@ -520,11 +550,11 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 			sockht_keycmp, sockht_keyhash);
 
 	if (!threadCreate(&loop->m_handle, reactor_socket_loop_entry, loop)) {
+		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
 		dataqueueDestroy(&loop->m_dq, NULL);
-		free(loop->m_readOl);
 		return NULL;
 	}
 	loop->initok = 1;
@@ -548,11 +578,11 @@ void niosocketloopJoin(NioSocketLoop_t* loop) {
 	if (loop && loop->initok) {
 		HashtableNode_t *cur, *next;
 		threadJoin(loop->m_handle, NULL);
+		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
 		dataqueueDestroy(&loop->m_dq, NULL);
-		free(loop->m_readOl);
 		for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
 			next = hashtableNextNode(cur);
 			niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
