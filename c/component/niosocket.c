@@ -507,8 +507,6 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 
 	if (!socketPair(SOCK_STREAM, loop->m_socketpair))
 		return NULL;
-	socketShutdown(loop->m_socketpair[0], SHUT_WR);
-	socketShutdown(loop->m_socketpair[1], SHUT_RD);
 
 	loop->m_readOl = reactorMallocOverlapped(REACTOR_READ);
 	if (!loop->m_readOl) {
