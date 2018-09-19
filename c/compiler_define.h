@@ -46,6 +46,8 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_dllexport					__declspec(dllexport)
 	#define	__declspec_dllimport					__declspec(dllimport)
 
+	#define	__declspec_noinline						__declspec(noinline)
+
 	#ifdef	UTIL_LIBAPI_EXPORT
 		#define	UTIL_LIBAPI							__declspec_dllexport
 	#elif	UTIL_LIBAPI_IMPORT
@@ -69,11 +71,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#else
 		#undef	_DEBUG	/* same as VC */
 	#endif
-	#ifndef	__linux__
-		#define	__forceinline						inline __attribute__((always_inline))
-	#else
-		#define	__forceinline
-	#endif
 
 	#define	embed_asm(exp)							asm __volatile__(exp)
 	#define	__declspec_align(alignment)				__attribute__ ((aligned(alignment)))
@@ -84,13 +81,14 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 	#define	__declspec_dllexport
 	#define	__declspec_dllimport
+	#define	__declspec_noinline						__attribute__ ((noinline))
 	#define	UTIL_LIBAPI
 
 	STATIC_ASSERT(sizeof(long) == sizeof(void*), "");
 	typedef	unsigned long							ptrlen_t;
 
 #else
-	#define	__forceinline
+	#define	__declspec_noinline
 	#error "Unknown Compiler"
 #endif
 
