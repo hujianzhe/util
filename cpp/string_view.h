@@ -180,16 +180,15 @@ template<class T, class traits>
 bool operator>=(basic_string_view<T, traits> lhs, basic_string_view<T, traits> rhs) { return lhs.compare(rhs) >= 0; }
 
 template<class charT, class traits>
-basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits> &os, basic_string_view<charT, traits> &str) { return os << str.to_string(); }
+basic_ostream<charT, traits>& operator<<(basic_ostream<charT, traits> &os, basic_string_view<charT, traits> &str) {
+	return os << str.to_string();
+}
 
 typedef basic_string_view<char> string_view;
 
 template<typename T> struct hash;
 template<> struct hash<string_view> {
-	size_t operator()(string_view str)
-	{
-		return ::hashMurmur2(str.data(), str.size());
-	}
+	size_t operator()(string_view str) { return ::hashMurmur2(str.data(), str.size()); }
 };
 }
 #endif
