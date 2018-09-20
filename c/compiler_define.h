@@ -36,7 +36,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#pragma warning(disable:4819)
 	#pragma warning(disable:4996)
 
-	#define	embed_asm(exp)							__asm {exp}
 	#define	__declspec_align(alignment)				__declspec(align(alignment))
 	#define	__declspec_code_seg(name)				__declspec(code_seg(name))
 	#define	__declspec_data_seg(name)				__pragma(data_seg(name))
@@ -72,7 +71,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 		#undef	_DEBUG	/* same as VC */
 	#endif
 
-	#define	embed_asm(exp)							asm __volatile__(exp)
 	#define	__declspec_align(alignment)				__attribute__ ((aligned(alignment)))
 	#define	__declspec_code_seg(name)				__attribute__((section(name)))
 	#define	__declspec_data_seg(name)				__attribute__((section(name)))
