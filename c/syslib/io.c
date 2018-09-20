@@ -279,7 +279,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 					WSAGetLastError() == WSA_IO_PENDING;
 		}
 		else {
-			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)(((char*)ol) + 1), NULL) || GetLastError() == ERROR_IO_PENDING;
 		}
 	}
 	else if (REACTOR_ACCEPT == opcode) {
