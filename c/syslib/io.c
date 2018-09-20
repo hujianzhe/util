@@ -261,26 +261,26 @@ void reactorFreeOverlapped(void* ol) {
 BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
-		BOOL res;
-		int slen = sizeof(*saddr);
-		DWORD Flags = 0;
-		WSABUF wsabuf = {0};
-		res = !WSARecvFrom((SOCKET)fd,
-							&wsabuf, 1, NULL, &Flags,
-							(struct sockaddr*)saddr, &slen,/* connectionless socket must set this param */
-							(LPWSAOVERLAPPED)ol, NULL) ||
-							WSAGetLastError() == WSA_IO_PENDING;
-		return res;
+		if (saddr) {
+			int slen = sizeof(*saddr);/* connectionless socket must set this param */
+			DWORD Flags = 0;
+			WSABUF wsabuf = { 0 };
+			return !WSARecvFrom((SOCKET)fd, &wsabuf, 1, NULL, &Flags, (struct sockaddr*)saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
+					WSAGetLastError() == WSA_IO_PENDING;
+		}
+		else {
+			return ReadFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+		}
 	}
 	else if (REACTOR_WRITE == opcode) {
-		BOOL res;
-		WSABUF wsabuf = {0};
-		res = !WSASendTo((SOCKET)fd,
-							&wsabuf, 1, NULL, 0,
-							(struct sockaddr*)saddr, sizeof(*saddr),
-							(LPWSAOVERLAPPED)(((char*)ol) + 1), NULL) ||
-							WSAGetLastError() == WSA_IO_PENDING;
-		return res;
+		if (saddr) {
+			WSABUF wsabuf = { 0 };
+			return	!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)(((char*)ol) + 1), NULL) ||
+					WSAGetLastError() == WSA_IO_PENDING;
+		}
+		else {
+			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+		}
 	}
 	else if (REACTOR_ACCEPT == opcode) {
 		BOOL res;
