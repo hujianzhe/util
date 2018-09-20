@@ -33,7 +33,9 @@
 	#undef	STATIC_ASSERT
 	#define	STATIC_ASSERT	static_assert
 #else
+	#define constexpr
 	#define	override
+	#define noexcept
 #endif
 
 #endif
