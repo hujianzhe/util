@@ -23,6 +23,8 @@ UTIL_LIBAPI void mt19937Seed(RandMT19937_t* ctx, int seedval);
 UTIL_LIBAPI unsigned long long mt19937_ull(RandMT19937_t* ctx);
 #define	mt19937_ll(ctx)	((long long)mt19937_ull(ctx))
 UTIL_LIBAPI long long mt19937Range(RandMT19937_t* ctx, long long start, long long end);
+/* random string */
+UTIL_LIBAPI char* randAlphabetNumber(int seedval, char* s, ptrlen_t length);
 
 #ifdef	__cplusplus
 }

@@ -52,7 +52,9 @@ int rand48_l(Rand48_t* ctx) {
 }
 int rand48Range(Rand48_t* ctx, int start, int end) {
 	/* [start, end) */
-	return rand48_l(ctx) % (end - start) + start;
+	if (start >= end)
+		return start;
+	return rand48_ul(ctx) % (end - start) + start;
 }
 
 /* mt19937 */
@@ -85,7 +87,22 @@ unsigned long long mt19937_ull(RandMT19937_t* ctx) {
 }
 long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) {
 	/* [start, end) */
-	return mt19937_ll(ctx) % (end - start) + start;
+	if (start >= end)
+		return start;
+	return mt19937_ull(ctx) % (end - start) + start;
+}
+
+/* random string */
+char* randAlphabetNumber(int seedval, char* s, ptrlen_t length) {
+	static char table[] = "0123456789abcdefghigklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ";
+	ptrlen_t i;
+	RandMT19937_t ctx;
+	mt19937Seed(&ctx, seedval);
+	for (i = 0; i < length; ++i) {
+		long long index = mt19937Range(&ctx, 0, sizeof(table) - 1);
+		s[i] = table[index];
+	}
+	return s;
 }
 
 #ifdef	__cplusplus
