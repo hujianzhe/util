@@ -46,9 +46,9 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_dllimport					__declspec(dllimport)
 
 	#ifdef	DECLSPEC_DLL_EXPORT
-		#define	__declspec_dll							__declspec_dllexport
+		#define	__declspec_dll						__declspec_dllexport
 	#elif	DECLSPEC_DLL_IMPORT
-		#define	__declspec_dll							__declspec_dllimport
+		#define	__declspec_dll						__declspec_dllimport
 	#else
 		#define	__declspec_dll
 	#endif
