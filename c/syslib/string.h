@@ -25,6 +25,7 @@ UTIL_LIBAPI char* strlcpy(char* dst, const char* src, size_t size);
 	#define	stricmp(s1, s2)			strcasecmp(s1, s2)
 	#define strnicmp(s1, s2, n)		strncasecmp(s1, s2, n)
 #endif
+UTIL_LIBAPI char* strSplit(char** s, const char* delim);
 UTIL_LIBAPI void strTrim(const char* str, size_t len, char** newstr, size_t* newlen);
 UTIL_LIBAPI size_t strlenUTF8(const char* s);
 UTIL_LIBAPI char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len);

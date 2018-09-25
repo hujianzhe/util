@@ -66,6 +66,26 @@ char* strndup(const char* s, size_t n) {
 }
 #endif
 
+char* strSplit(char** s, const char* delim) {
+	int has_split = 0;
+	char* ss = *s;
+	char* sp = ss;
+	while (*sp) {
+		const char* p = delim;
+		while (*p && *sp != *p)
+			++p;
+		if (*p) {
+			*sp = '\0';
+			has_split = 1;
+		}
+		else if (has_split)
+			break;
+		++sp;
+	}
+	*s = sp;
+	return ss != sp ? ss : NULL;
+}
+
 void strTrim(const char* str, size_t len, char** newstr, size_t* newlen) {
 	const char* end = str + len - 1;
 	while (str < end) {
