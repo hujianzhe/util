@@ -51,7 +51,7 @@ extern "C" {
 UTIL_LIBAPI void cXML_SetHooks(cXMLHooks_t* hooks);
 UTIL_LIBAPI cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* hooks);
 
-UTIL_LIBAPI cXML_t* cXML_Create(cXML_t* node, int deep_cpoy);
+UTIL_LIBAPI cXML_t* cXML_Create(cXML_t* node, int deep_copy);
 UTIL_LIBAPI cXMLAttr_t* cXML_CreateAttr(cXMLAttr_t* attr, int deep_copy);
 UTIL_LIBAPI cXML_t* cXML_AddAttr(cXML_t* node, cXMLAttr_t* attr);
 UTIL_LIBAPI cXMLAttr_t* cXML_DetachAttr(cXMLAttr_t* attr);

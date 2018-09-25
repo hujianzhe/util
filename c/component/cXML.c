@@ -128,7 +128,7 @@ static void xt_skip_hint(const char** data) {
 	}
 }
 
-cXML_t* cXML_Create(cXML_t* node, int deep_cpoy) {
+cXML_t* cXML_Create(cXML_t* node, int deep_copy) {
 	if (!node) {
 		node = (cXML_t*)cXML_malloc(sizeof(cXML_t));
 		if (!node)
@@ -149,7 +149,7 @@ cXML_t* cXML_Create(cXML_t* node, int deep_cpoy) {
 	node->szcontent = 0;
 	node->szname = 0;
 	node->numattr = 0;
-	node->deep_copy = deep_cpoy;
+	node->deep_copy = deep_copy;
 	return node;
 }
 
