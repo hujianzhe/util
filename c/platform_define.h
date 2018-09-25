@@ -26,6 +26,7 @@
 	#define	_CRT_RAND_S
 	#include <winsock2.h>
 	#include <windows.h>
+	STATIC_ASSERT(sizeof(HANDLE) == sizeof(SOCKET), "");
 	typedef	WSABUF					Iobuf_t;
 	#define	iobufStaticInit(p, n)	{ (ULONG)(n), (char*)(p) }
 	#define	iobufPtr(iobuf)			((iobuf)->buf)
