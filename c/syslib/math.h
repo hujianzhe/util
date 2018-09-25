@@ -33,12 +33,12 @@ typedef double		float64_t;
 extern "C" {
 #endif
 
-UTIL_LIBAPI int fequf(float a, float b);
-UTIL_LIBAPI int fequ(double a, double b);
-UTIL_LIBAPI float fsqrtf(float x);
-UTIL_LIBAPI double fsqrt(double x);
-UTIL_LIBAPI float* mathEulerAnglesToQuaternion(float e[3], float q[4]);
-UTIL_LIBAPI float* mathQuaternionToEulerAngles(float q[4], float e[3]);
+__declspec_dll int fequf(float a, float b);
+__declspec_dll int fequ(double a, double b);
+__declspec_dll float fsqrtf(float x);
+__declspec_dll double fsqrt(double x);
+__declspec_dll float* mathEulerAnglesToQuaternion(float e[3], float q[4]);
+__declspec_dll float* mathQuaternionToEulerAngles(float q[4], float e[3]);
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathRadToDeg(rad)	((rad) / M_PI * 180.0)
 

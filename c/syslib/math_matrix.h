@@ -18,19 +18,19 @@ typedef struct matrix_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI int matrix_size_equal(const matrix_t* m1, const matrix_t* m2);
-UTIL_LIBAPI int matrix_equal(const matrix_t* m1, const matrix_t* m2);
-UTIL_LIBAPI matrix_t* matrix_copy(matrix_t* dst, const matrix_t* src);
-UTIL_LIBAPI matrix_t* matrix_dup(const matrix_t* m);
-UTIL_LIBAPI void matrix_delrow(matrix_t* m, unsigned int row);
-UTIL_LIBAPI void matrix_delcol(matrix_t* m, unsigned int col);
-UTIL_LIBAPI real_t matrix_det(const matrix_t* m);
-UTIL_LIBAPI matrix_t* matrix_identity(matrix_t* mi, const matrix_t* m);
-UTIL_LIBAPI matrix_t* matrix_add(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
-UTIL_LIBAPI matrix_t* matrix_sub(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
-UTIL_LIBAPI matrix_t* matrix_mulnum(matrix_t* m, real_t number);
-UTIL_LIBAPI matrix_t* matrix_divnum(matrix_t* m, real_t number);
-UTIL_LIBAPI matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right);
+__declspec_dll int matrix_size_equal(const matrix_t* m1, const matrix_t* m2);
+__declspec_dll int matrix_equal(const matrix_t* m1, const matrix_t* m2);
+__declspec_dll matrix_t* matrix_copy(matrix_t* dst, const matrix_t* src);
+__declspec_dll matrix_t* matrix_dup(const matrix_t* m);
+__declspec_dll void matrix_delrow(matrix_t* m, unsigned int row);
+__declspec_dll void matrix_delcol(matrix_t* m, unsigned int col);
+__declspec_dll real_t matrix_det(const matrix_t* m);
+__declspec_dll matrix_t* matrix_identity(matrix_t* mi, const matrix_t* m);
+__declspec_dll matrix_t* matrix_add(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
+__declspec_dll matrix_t* matrix_sub(matrix_t* res, const matrix_t* m1, const matrix_t* m2);
+__declspec_dll matrix_t* matrix_mulnum(matrix_t* m, real_t number);
+__declspec_dll matrix_t* matrix_divnum(matrix_t* m, real_t number);
+__declspec_dll matrix_t* matrix_mul(matrix_t* res, const matrix_t* left, const matrix_t* right);
 
 #ifdef	__cplusplus
 }

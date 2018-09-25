@@ -28,11 +28,11 @@
 extern "C" {
 #endif
 
-UTIL_LIBAPI int endianIsLittle(void);
-UTIL_LIBAPI size_t processorCount(void);
-UTIL_LIBAPI char* systemCurrentLoginUsername(char* buffer, size_t nbytes);
-UTIL_LIBAPI char* systemHostname(char* buf, size_t len);
-UTIL_LIBAPI BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
+__declspec_dll int endianIsLittle(void);
+__declspec_dll size_t processorCount(void);
+__declspec_dll char* systemCurrentLoginUsername(char* buffer, size_t nbytes);
+__declspec_dll char* systemHostname(char* buf, size_t len);
+__declspec_dll BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size);
 
 #ifdef	__cplusplus
 }

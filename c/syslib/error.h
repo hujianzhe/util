@@ -12,9 +12,9 @@
 extern "C" {
 #endif
 
-UTIL_LIBAPI int errnoGet(void);
-UTIL_LIBAPI void errnoSet(int errnum);
-UTIL_LIBAPI char* errnoText(int errnum, char* buf, size_t bufsize);
+__declspec_dll int errnoGet(void);
+__declspec_dll void errnoSet(int errnum);
+__declspec_dll char* errnoText(int errnum, char* buf, size_t bufsize);
 
 #ifdef	__cplusplus
 }

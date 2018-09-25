@@ -30,8 +30,8 @@ typedef struct URL_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI unsigned int urlParsePrepare(URL_t* url, const char* str);
-UTIL_LIBAPI URL_t* urlParseFinish(URL_t* url, char* buf);
+__declspec_dll unsigned int urlParsePrepare(URL_t* url, const char* str);
+__declspec_dll URL_t* urlParseFinish(URL_t* url, char* buf);
 
 #ifdef	__cplusplus
 }

@@ -51,10 +51,10 @@ struct RudpCtx_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI void rudpCleanCtx(struct RudpCtx_t* ctx);
-UTIL_LIBAPI void rudpRecvSortAndAck(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr);
-UTIL_LIBAPI int rudpSend(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len);
-UTIL_LIBAPI int rudpCheckResend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec);
+__declspec_dll void rudpCleanCtx(struct RudpCtx_t* ctx);
+__declspec_dll void rudpRecvSortAndAck(struct RudpCtx_t* ctx, long long now_timestamp_msec, const struct RudpHdr_t* hdr);
+__declspec_dll int rudpSend(struct RudpCtx_t* ctx, long long now_timestamp_msec, struct RudpHdr_t* hdr, unsigned short len);
+__declspec_dll int rudpCheckResend(struct RudpCtx_t* ctx, long long now_timestamp_msec, int* next_wait_msec);
 
 #ifdef	__cplusplus
 }

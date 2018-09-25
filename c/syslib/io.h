@@ -58,13 +58,13 @@ extern "C" {
 #endif
 
 /* aiocb */
-UTIL_LIBAPI void aioInit(struct aiocb* cb, size_t udata);
-UTIL_LIBAPI void aioSetOffset(struct aiocb* cb, long long offset);
-UTIL_LIBAPI BOOL aioCommit(struct aiocb* cb);
-UTIL_LIBAPI BOOL aioHasCompleted(const struct aiocb* cb);
-UTIL_LIBAPI BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
-UTIL_LIBAPI BOOL aioCancel(FD_t fd, struct aiocb* cb);
-UTIL_LIBAPI int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
+__declspec_dll void aioInit(struct aiocb* cb, size_t udata);
+__declspec_dll void aioSetOffset(struct aiocb* cb, long long offset);
+__declspec_dll BOOL aioCommit(struct aiocb* cb);
+__declspec_dll BOOL aioHasCompleted(const struct aiocb* cb);
+__declspec_dll BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
+__declspec_dll BOOL aioCancel(FD_t fd, struct aiocb* cb);
+__declspec_dll int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
 /* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
@@ -77,17 +77,17 @@ typedef struct Reactor_t {
 	FD_t __epfd;
 #endif
 } Reactor_t;
-UTIL_LIBAPI BOOL reactorCreate(Reactor_t* reactor);
-UTIL_LIBAPI BOOL reactorReg(Reactor_t* reactor, FD_t fd);
-UTIL_LIBAPI BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
-UTIL_LIBAPI void* reactorMallocOverlapped(int opcode);
-UTIL_LIBAPI void reactorFreeOverlapped(void* ol);
-UTIL_LIBAPI BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
-UTIL_LIBAPI int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
-UTIL_LIBAPI void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
-UTIL_LIBAPI BOOL reactorConnectCheckSuccess(FD_t sockfd);
-UTIL_LIBAPI BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg);
-UTIL_LIBAPI BOOL reactorClose(Reactor_t* reactor);
+__declspec_dll BOOL reactorCreate(Reactor_t* reactor);
+__declspec_dll BOOL reactorReg(Reactor_t* reactor, FD_t fd);
+__declspec_dll BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
+__declspec_dll void* reactorMallocOverlapped(int opcode);
+__declspec_dll void reactorFreeOverlapped(void* ol);
+__declspec_dll BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
+__declspec_dll int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+__declspec_dll void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
+__declspec_dll BOOL reactorConnectCheckSuccess(FD_t sockfd);
+__declspec_dll BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg);
+__declspec_dll BOOL reactorClose(Reactor_t* reactor);
 
 #ifdef	__cplusplus
 }

@@ -18,12 +18,12 @@ enum {
 extern "C" {
 #endif
 
-UTIL_LIBAPI int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen);
-UTIL_LIBAPI int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txtbuf[162]);
-UTIL_LIBAPI int websocketframeDecode(unsigned char* buf, unsigned long long len,
+__declspec_dll int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen);
+__declspec_dll int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txtbuf[162]);
+__declspec_dll int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		unsigned char** data, unsigned long long* datalen, int* is_fin, int* type);
-UTIL_LIBAPI unsigned int websocketframeHeadLength(unsigned long long datalen);
-UTIL_LIBAPI void websocketframeEncode(void* headbuf, int is_fin, int type, unsigned long long datalen);
+__declspec_dll unsigned int websocketframeHeadLength(unsigned long long datalen);
+__declspec_dll void websocketframeEncode(void* headbuf, int is_fin, int type, unsigned long long datalen);
 
 #ifdef __cplusplus
 }

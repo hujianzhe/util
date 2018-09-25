@@ -61,16 +61,16 @@ extern "C" {
 #define	moduleUnload(module)						(module ? (dlclose(module) == 0) : 1)
 #endif
 /* process operator */
-UTIL_LIBAPI BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
-UTIL_LIBAPI BOOL processCancel(Process_t* process);
-UTIL_LIBAPI size_t processId(void);
-UTIL_LIBAPI BOOL processWait(Process_t* process, unsigned char* retcode);
-UTIL_LIBAPI BOOL processTryWait(Process_t* process, unsigned char* retcode);
+__declspec_dll BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
+__declspec_dll BOOL processCancel(Process_t* process);
+__declspec_dll size_t processId(void);
+__declspec_dll BOOL processWait(Process_t* process, unsigned char* retcode);
+__declspec_dll BOOL processTryWait(Process_t* process, unsigned char* retcode);
 /* thread operator */
-UTIL_LIBAPI BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
-UTIL_LIBAPI BOOL threadDetach(Thread_t thread);
-UTIL_LIBAPI BOOL threadJoin(Thread_t thread, unsigned int* retcode);
-UTIL_LIBAPI void threadExit(unsigned int retcode);
+__declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+__declspec_dll BOOL threadDetach(Thread_t thread);
+__declspec_dll BOOL threadJoin(Thread_t thread, unsigned int* retcode);
+__declspec_dll void threadExit(unsigned int retcode);
 #if defined(_WIN32) || defined(_WIN64)
 #define	threadSelf()		GetCurrentThread()
 #define	threadPause()		SuspendThread(GetCurrentThread())
@@ -78,14 +78,14 @@ UTIL_LIBAPI void threadExit(unsigned int retcode);
 #define	threadSelf()		pthread_self()
 #define	threadPause()		pause()
 #endif
-UTIL_LIBAPI void threadSleepMillsecond(unsigned int msec);
-UTIL_LIBAPI void threadYield(void);
-UTIL_LIBAPI BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);
+__declspec_dll void threadSleepMillsecond(unsigned int msec);
+__declspec_dll void threadYield(void);
+__declspec_dll BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);
 /* thread local operator */
-UTIL_LIBAPI BOOL threadAllocLocalKey(Tls_t* key);
-UTIL_LIBAPI BOOL threadSetLocalValue(Tls_t key, void* value);
-UTIL_LIBAPI void* threadGetLocalValue(Tls_t key);
-UTIL_LIBAPI BOOL threadFreeLocalKey(Tls_t key);
+__declspec_dll BOOL threadAllocLocalKey(Tls_t* key);
+__declspec_dll BOOL threadSetLocalValue(Tls_t key, void* value);
+__declspec_dll void* threadGetLocalValue(Tls_t key);
+__declspec_dll BOOL threadFreeLocalKey(Tls_t key);
 
 #ifdef	__cplusplus
 }

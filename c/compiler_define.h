@@ -45,15 +45,15 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_dllexport					__declspec(dllexport)
 	#define	__declspec_dllimport					__declspec(dllimport)
 
-	#define	__declspec_noinline						__declspec(noinline)
-
-	#ifdef	UTIL_LIBAPI_EXPORT
-		#define	UTIL_LIBAPI							__declspec_dllexport
-	#elif	UTIL_LIBAPI_IMPORT
-		#define	UTIL_LIBAPI							__declspec_dllimport
+	#ifdef	DECLSPEC_DLL_EXPORT
+		#define	__declspec_dll							__declspec_dllexport
+	#elif	DECLSPEC_DLL_IMPORT
+		#define	__declspec_dll							__declspec_dllimport
 	#else
-		#define	UTIL_LIBAPI
+		#define	__declspec_dll
 	#endif
+
+	#define	__declspec_noinline						__declspec(noinline)
 
 	#ifdef	_WIN64
 		typedef	unsigned __int64					ptrlen_t;
@@ -79,8 +79,8 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 	#define	__declspec_dllexport
 	#define	__declspec_dllimport
+	#define	__declspec_dll
 	#define	__declspec_noinline						__attribute__ ((noinline))
-	#define	UTIL_LIBAPI
 
 	STATIC_ASSERT(sizeof(long) == sizeof(void*), "");
 	typedef	unsigned long							ptrlen_t;

@@ -21,14 +21,14 @@ extern "C" {
 extern int TIMESTAMP_OFFSET_SECOND;
 
 /* time trasform */
-UTIL_LIBAPI int gmtimeTimezoneOffsetSecond(void);
+__declspec_dll int gmtimeTimezoneOffsetSecond(void);
 #define	gmtimeSecond()	time(NULL)
-UTIL_LIBAPI long long gmtimeMillisecond(void);
-UTIL_LIBAPI char* structtmText(struct tm* datetime, char* buf, size_t len);
-UTIL_LIBAPI struct tm* structtmMake(time_t value, struct tm* datetime);
-UTIL_LIBAPI struct tm* structtmNormal(struct tm* datetime);
-UTIL_LIBAPI struct tm* structtmUnnormal(struct tm* datetime);
-UTIL_LIBAPI int structtmCmp(const struct tm* t1, const struct tm* t2);
+__declspec_dll long long gmtimeMillisecond(void);
+__declspec_dll char* structtmText(struct tm* datetime, char* buf, size_t len);
+__declspec_dll struct tm* structtmMake(time_t value, struct tm* datetime);
+__declspec_dll struct tm* structtmNormal(struct tm* datetime);
+__declspec_dll struct tm* structtmUnnormal(struct tm* datetime);
+__declspec_dll int structtmCmp(const struct tm* t1, const struct tm* t2);
 
 #ifdef	__cplusplus
 }

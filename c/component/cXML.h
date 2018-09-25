@@ -48,25 +48,25 @@ typedef struct cXMLHooks_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI void cXML_SetHooks(cXMLHooks_t* hooks);
-UTIL_LIBAPI cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* hooks);
+__declspec_dll void cXML_SetHooks(cXMLHooks_t* hooks);
+__declspec_dll cXMLHooks_t* cXML_GetHooks(cXMLHooks_t* hooks);
 
-UTIL_LIBAPI cXML_t* cXML_Create(cXML_t* node, int deep_copy);
-UTIL_LIBAPI cXMLAttr_t* cXML_CreateAttr(cXMLAttr_t* attr, int deep_copy);
-UTIL_LIBAPI cXML_t* cXML_AddAttr(cXML_t* node, cXMLAttr_t* attr);
-UTIL_LIBAPI cXMLAttr_t* cXML_DetachAttr(cXMLAttr_t* attr);
-UTIL_LIBAPI void cXML_DeleteAttr(cXMLAttr_t* attr);
-UTIL_LIBAPI cXML_t* cXML_Add(cXML_t* node, cXML_t* item);
-UTIL_LIBAPI cXML_t* cXML_Detach(cXML_t* node);
-UTIL_LIBAPI void cXML_Delete(cXML_t* node);
+__declspec_dll cXML_t* cXML_Create(cXML_t* node, int deep_copy);
+__declspec_dll cXMLAttr_t* cXML_CreateAttr(cXMLAttr_t* attr, int deep_copy);
+__declspec_dll cXML_t* cXML_AddAttr(cXML_t* node, cXMLAttr_t* attr);
+__declspec_dll cXMLAttr_t* cXML_DetachAttr(cXMLAttr_t* attr);
+__declspec_dll void cXML_DeleteAttr(cXMLAttr_t* attr);
+__declspec_dll cXML_t* cXML_Add(cXML_t* node, cXML_t* item);
+__declspec_dll cXML_t* cXML_Detach(cXML_t* node);
+__declspec_dll void cXML_Delete(cXML_t* node);
 
-UTIL_LIBAPI cXML_t* cXML_Parse(const char* data, int deep_copy);
-UTIL_LIBAPI cXML_t* cXML_ParseFromFile(const char* path);
-UTIL_LIBAPI cXML_t* cXML_FirstChild(cXML_t* node, const char* name);
-UTIL_LIBAPI cXML_t* cXML_NextChild(cXML_t* node);
-UTIL_LIBAPI cXMLAttr_t* cXML_GetAttr(cXML_t* node, const char* name);
-UTIL_LIBAPI size_t cXML_ByteSize(cXML_t* root);
-UTIL_LIBAPI char* cXML_Print(cXML_t* root, char* buffer);
+__declspec_dll cXML_t* cXML_Parse(const char* data, int deep_copy);
+__declspec_dll cXML_t* cXML_ParseFromFile(const char* path);
+__declspec_dll cXML_t* cXML_FirstChild(cXML_t* node, const char* name);
+__declspec_dll cXML_t* cXML_NextChild(cXML_t* node);
+__declspec_dll cXMLAttr_t* cXML_GetAttr(cXML_t* node, const char* name);
+__declspec_dll size_t cXML_ByteSize(cXML_t* root);
+__declspec_dll char* cXML_Print(cXML_t* root, char* buffer);
 
 #ifdef  __cplusplus
 }

@@ -75,36 +75,36 @@ extern "C" {
 #endif
 
 /* env */
-UTIL_LIBAPI DB_RETURN dbInitEnv(const char* dbtype);
-UTIL_LIBAPI void dbCleanEnv(const char* dbtype);
-UTIL_LIBAPI DB_RETURN dbAllocTls(void);
-UTIL_LIBAPI void dbFreeTls(void);
+__declspec_dll DB_RETURN dbInitEnv(const char* dbtype);
+__declspec_dll void dbCleanEnv(const char* dbtype);
+__declspec_dll DB_RETURN dbAllocTls(void);
+__declspec_dll void dbFreeTls(void);
 /* handle */
-UTIL_LIBAPI DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype);
-UTIL_LIBAPI void dbCloseHandle(DBHandle_t* handle);
-UTIL_LIBAPI DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *dbname, int timeout_sec);
-UTIL_LIBAPI DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec);
-UTIL_LIBAPI DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec);
-UTIL_LIBAPI DB_RETURN dbCheckAlive(DBHandle_t* handle);
-UTIL_LIBAPI const char* dbHandleErrorMessage(DBHandle_t* handle);
+__declspec_dll DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype);
+__declspec_dll void dbCloseHandle(DBHandle_t* handle);
+__declspec_dll DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *dbname, int timeout_sec);
+__declspec_dll DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec);
+__declspec_dll DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec);
+__declspec_dll DB_RETURN dbCheckAlive(DBHandle_t* handle);
+__declspec_dll const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
-UTIL_LIBAPI DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val);
-UTIL_LIBAPI DB_RETURN dbCommit(DBHandle_t* handle, int bool_val);
+__declspec_dll DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val);
+__declspec_dll DB_RETURN dbCommit(DBHandle_t* handle, int bool_val);
 /* SQL execute */
-UTIL_LIBAPI DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
-UTIL_LIBAPI DB_RETURN dbCloseStmt(DBStmt_t* stmt);
-UTIL_LIBAPI const char* dbStmtErrorMessage(DBStmt_t* stmt);
+__declspec_dll DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
+__declspec_dll DB_RETURN dbCloseStmt(DBStmt_t* stmt);
+__declspec_dll const char* dbStmtErrorMessage(DBStmt_t* stmt);
 typedef struct DBExecuteParam_t {
 	int field_type;
 	const void* buffer;
 	size_t buffer_length;
 } DBExecuteParam_t;
-UTIL_LIBAPI DB_RETURN dbSQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt);
+__declspec_dll DB_RETURN dbSQLPrepareExecute(DBStmt_t* stmt, const char* sql, size_t sqllen, DBExecuteParam_t* param, unsigned short paramcnt);
 /* result set */
-UTIL_LIBAPI long long dbAutoIncrementValue(DBStmt_t* stmt);
-UTIL_LIBAPI long long dbAffectedRows(DBStmt_t* stmt);
-UTIL_LIBAPI short dbGetResult(DBStmt_t* stmt);
-UTIL_LIBAPI DB_RETURN dbFreeResult(DBStmt_t* stmt);
+__declspec_dll long long dbAutoIncrementValue(DBStmt_t* stmt);
+__declspec_dll long long dbAffectedRows(DBStmt_t* stmt);
+__declspec_dll short dbGetResult(DBStmt_t* stmt);
+__declspec_dll DB_RETURN dbFreeResult(DBStmt_t* stmt);
 typedef struct DBResultParam_t {
 	void* buffer;
 	size_t buffer_length;
@@ -113,7 +113,7 @@ typedef struct DBResultParam_t {
 		unsigned long mysql_value_length;
 	};
 } DBResultParam_t;
-UTIL_LIBAPI short dbFetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
+__declspec_dll short dbFetchResult(DBStmt_t* stmt, DBResultParam_t* param, unsigned short paramcnt);
 
 #ifdef __cplusplus
 }

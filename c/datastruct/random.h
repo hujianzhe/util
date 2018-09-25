@@ -13,18 +13,18 @@ extern "C" {
 
 /* linear congruential */
 typedef struct Rand48_t { unsigned int x[3], a[3], c; } Rand48_t;
-UTIL_LIBAPI void rand48Seed(Rand48_t* ctx, int seedval);
-UTIL_LIBAPI int rand48_l(Rand48_t* ctx);
+__declspec_dll void rand48Seed(Rand48_t* ctx, int seedval);
+__declspec_dll int rand48_l(Rand48_t* ctx);
 #define	rand48_ul(ctx)	((unsigned int)rand48_l(ctx))
-UTIL_LIBAPI int rand48Range(Rand48_t* ctx, int start, int end);
+__declspec_dll int rand48Range(Rand48_t* ctx, int start, int end);
 /* mt19937 */
 typedef struct RandMT19937_t { unsigned long long x[312]; int k; } RandMT19937_t;
-UTIL_LIBAPI void mt19937Seed(RandMT19937_t* ctx, int seedval);
-UTIL_LIBAPI unsigned long long mt19937_ull(RandMT19937_t* ctx);
+__declspec_dll void mt19937Seed(RandMT19937_t* ctx, int seedval);
+__declspec_dll unsigned long long mt19937_ull(RandMT19937_t* ctx);
 #define	mt19937_ll(ctx)	((long long)mt19937_ull(ctx))
-UTIL_LIBAPI long long mt19937Range(RandMT19937_t* ctx, long long start, long long end);
+__declspec_dll long long mt19937Range(RandMT19937_t* ctx, long long start, long long end);
 /* random string */
-UTIL_LIBAPI char* randAlphabetNumber(int seedval, char* s, ptrlen_t length);
+__declspec_dll char* randAlphabetNumber(int seedval, char* s, ptrlen_t length);
 
 #ifdef	__cplusplus
 }

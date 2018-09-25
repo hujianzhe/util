@@ -30,19 +30,19 @@ typedef struct Log_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI Log_t* logInit(Log_t* log);
-UTIL_LIBAPI void logFlush(Log_t* log);
-UTIL_LIBAPI void logClear(Log_t* log);
-UTIL_LIBAPI void logDestroy(Log_t* log);
+__declspec_dll Log_t* logInit(Log_t* log);
+__declspec_dll void logFlush(Log_t* log);
+__declspec_dll void logClear(Log_t* log);
+__declspec_dll void logDestroy(Log_t* log);
 
-UTIL_LIBAPI void logEmerg(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logAlert(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logCrit(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logErr(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logWarning(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logNotice(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logInfo(Log_t* log, const char* format, ...);
-UTIL_LIBAPI void logDebug(Log_t* log, const char* format, ...);
+__declspec_dll void logEmerg(Log_t* log, const char* format, ...);
+__declspec_dll void logAlert(Log_t* log, const char* format, ...);
+__declspec_dll void logCrit(Log_t* log, const char* format, ...);
+__declspec_dll void logErr(Log_t* log, const char* format, ...);
+__declspec_dll void logWarning(Log_t* log, const char* format, ...);
+__declspec_dll void logNotice(Log_t* log, const char* format, ...);
+__declspec_dll void logInfo(Log_t* log, const char* format, ...);
+__declspec_dll void logDebug(Log_t* log, const char* format, ...);
 
 #ifdef	__cplusplus
 }

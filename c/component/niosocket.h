@@ -69,16 +69,16 @@ typedef struct NioSocket_t {
 extern "C" {
 #endif
 
-UTIL_LIBAPI NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol,
+__declspec_dll NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol,
 	NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*));
-UTIL_LIBAPI void niosocketFree(NioSocket_t* s);
-UTIL_LIBAPI int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, struct sockaddr_storage*);
-UTIL_LIBAPI void niosocketShutdown(NioSocket_t* s);
-UTIL_LIBAPI NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
-UTIL_LIBAPI void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
-UTIL_LIBAPI void niosocketloopJoin(NioSocketLoop_t* loop);
-UTIL_LIBAPI void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg);
-UTIL_LIBAPI void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*));
+__declspec_dll void niosocketFree(NioSocket_t* s);
+__declspec_dll int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, struct sockaddr_storage*);
+__declspec_dll void niosocketShutdown(NioSocket_t* s);
+__declspec_dll NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
+__declspec_dll void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
+__declspec_dll void niosocketloopJoin(NioSocketLoop_t* loop);
+__declspec_dll void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg);
+__declspec_dll void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*));
 
 #ifdef __cplusplus
 }

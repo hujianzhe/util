@@ -13,22 +13,22 @@ extern "C" {
 #endif
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
-UTIL_LIBAPI char *strnchr(const char* s, const char c, size_t n);
-UTIL_LIBAPI char *strnstr(const char* s1, const char* s2, size_t n);
-UTIL_LIBAPI char* strlcpy(char* dst, const char* src, size_t size);
+__declspec_dll char *strnchr(const char* s, const char c, size_t n);
+__declspec_dll char *strnstr(const char* s1, const char* s2, size_t n);
+__declspec_dll char* strlcpy(char* dst, const char* src, size_t size);
 #endif
 #if defined(_WIN32) || defined(_WIN64)
 	#define strcasecmp(s1, s2)		stricmp(s1, s2)
 	#define	strncasecmp(s1, s2, n)	strnicmp(s1, s2, n)
-	UTIL_LIBAPI char* strndup(const char* s, size_t n);
+	__declspec_dll char* strndup(const char* s, size_t n);
 #else
 	#define	stricmp(s1, s2)			strcasecmp(s1, s2)
 	#define strnicmp(s1, s2, n)		strncasecmp(s1, s2, n)
 #endif
-UTIL_LIBAPI char* strSplit(char** s, const char* delim);
-UTIL_LIBAPI void strTrim(const char* str, size_t len, char** newstr, size_t* newlen);
-UTIL_LIBAPI size_t strlenUTF8(const char* s);
-UTIL_LIBAPI char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len);
+__declspec_dll char* strSplit(char** s, const char* delim);
+__declspec_dll void strTrim(const char* str, size_t len, char** newstr, size_t* newlen);
+__declspec_dll size_t strlenUTF8(const char* s);
+__declspec_dll char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len);
 
 #ifdef	__cplusplus
 }

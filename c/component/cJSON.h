@@ -65,43 +65,43 @@ extern "C"
 #endif
 
 /* Supply malloc, realloc and free functions to cJSON */
-UTIL_LIBAPI void cJSON_SetHooks(cJSON_Hooks* hooks);
-UTIL_LIBAPI cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
+__declspec_dll void cJSON_SetHooks(cJSON_Hooks* hooks);
+__declspec_dll cJSON_Hooks* cJSON_GetHooks(cJSON_Hooks* hooks);
 
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. Call cJSON_Delete when finished. */
-UTIL_LIBAPI cJSON *cJSON_Parse(cJSON *root, const char *value);
+__declspec_dll cJSON *cJSON_Parse(cJSON *root, const char *value);
 /* Parse JSON from a file. */
-UTIL_LIBAPI cJSON *cJSON_ParseFromFile(cJSON *root, const char* path);
+__declspec_dll cJSON *cJSON_ParseFromFile(cJSON *root, const char* path);
 /* Render a cJSON entity to text for transfer/storage without any formatting. Free the char* when finished. */
-UTIL_LIBAPI char  *cJSON_Print(cJSON *item);
+__declspec_dll char  *cJSON_Print(cJSON *item);
 /* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
-UTIL_LIBAPI char  *cJSON_PrintFormatted(cJSON *item);
+__declspec_dll char  *cJSON_PrintFormatted(cJSON *item);
 /* Render a cJSON entity to text using a buffered strategy. prebuffer is a guess at the final size. guessing well reduces reallocation. fmt=0 gives unformatted, =1 gives formatted */
-UTIL_LIBAPI char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
+__declspec_dll char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
 /* Delete a cJSON text */
-UTIL_LIBAPI void cJSON_FreeString(char* s);
+__declspec_dll void cJSON_FreeString(char* s);
 /* Delete a cJSON entity and all subentities. */
-UTIL_LIBAPI void   cJSON_Delete(cJSON *c);
+__declspec_dll void   cJSON_Delete(cJSON *c);
 /* Delete all subentities */
-UTIL_LIBAPI void cJSON_Reset(cJSON *c);
+__declspec_dll void cJSON_Reset(cJSON *c);
 
 /* Returns the number of items in an array (or object). */
-UTIL_LIBAPI int	  cJSON_Size(cJSON *array);
+__declspec_dll int	  cJSON_Size(cJSON *array);
 /* Retrieve item number "item" from array "array". Returns NULL if unsuccessful. */
-UTIL_LIBAPI cJSON *cJSON_Index(cJSON *array,int item);
+__declspec_dll cJSON *cJSON_Index(cJSON *array,int item);
 /* Get item "string" from object. Case insensitive. */
-UTIL_LIBAPI cJSON *cJSON_Field(cJSON *object,const char *string);
+__declspec_dll cJSON *cJSON_Field(cJSON *object,const char *string);
 
 /* These calls create a cJSON item of the appropriate type. */
-UTIL_LIBAPI cJSON *cJSON_NewNull(const char* name);
-UTIL_LIBAPI cJSON *cJSON_NewBool(const char* name, int b);
-UTIL_LIBAPI cJSON *cJSON_NewNumber(const char* name, double num);
-UTIL_LIBAPI cJSON *cJSON_NewString(const char* name, const char *string);
-UTIL_LIBAPI cJSON *cJSON_NewArray(const char* name);
-UTIL_LIBAPI cJSON *cJSON_NewObject(const char* name);
+__declspec_dll cJSON *cJSON_NewNull(const char* name);
+__declspec_dll cJSON *cJSON_NewBool(const char* name, int b);
+__declspec_dll cJSON *cJSON_NewNumber(const char* name, double num);
+__declspec_dll cJSON *cJSON_NewString(const char* name, const char *string);
+__declspec_dll cJSON *cJSON_NewArray(const char* name);
+__declspec_dll cJSON *cJSON_NewObject(const char* name);
 
 /* Append item to the specified array/object. */
-UTIL_LIBAPI cJSON* cJSON_Add(cJSON *array, cJSON *item);
+__declspec_dll cJSON* cJSON_Add(cJSON *array, cJSON *item);
 #define cJSON_AddNewNull(object,name)				cJSON_Add(object, cJSON_NewNull(name))
 #define cJSON_AddNewBool(object,name,b)				cJSON_Add(object, cJSON_NewBool(name,b))
 #define cJSON_AddNewNumber(object,name,n)			cJSON_Add(object, cJSON_NewNumber(name,n))
@@ -110,13 +110,13 @@ UTIL_LIBAPI cJSON* cJSON_Add(cJSON *array, cJSON *item);
 #define	cJSON_AddNewObject(object,name)				cJSON_Add(object, cJSON_NewObject(name))
 
 /* Remove/Detatch items from Arrays/Objects. */
-UTIL_LIBAPI cJSON* cJSON_Detach(cJSON* item);
+__declspec_dll cJSON* cJSON_Detach(cJSON* item);
 #define	cJSON_DetachDelete(item)					cJSON_Delete(cJSON_Detach(item))
 #define	cJSON_DetachReset(item)						cJSON_Reset(cJSON_Detach(item))
 
 /* Duplicate a cJSON item */
-UTIL_LIBAPI cJSON *cJSON_Duplicate(cJSON *item,int recurse);
-UTIL_LIBAPI void cJSON_Minify(char *json);
+__declspec_dll cJSON *cJSON_Duplicate(cJSON *item,int recurse);
+__declspec_dll void cJSON_Minify(char *json);
 
 #ifdef __cplusplus
 }

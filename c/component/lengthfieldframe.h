@@ -9,9 +9,9 @@
 extern "C" {
 #endif
 
-UTIL_LIBAPI int lengthfieldframeDecode(unsigned short lengthfieldsize,
+__declspec_dll int lengthfieldframeDecode(unsigned short lengthfieldsize,
 		unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
-UTIL_LIBAPI int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen);
+__declspec_dll int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen);
 
 #ifdef __cplusplus
 }
