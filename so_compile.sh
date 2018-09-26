@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 SOURCE_C_FILE=`find . -name "*.c"`
 SOURCE_CPP_FILE=`find . -name "*.cpp"`
 if [ $SOURCE_CPP_FILE ];then
