@@ -34,6 +34,7 @@ typedef struct NioSocketMsg_t {
 	ListNode_t m_listnode;
 	int type;
 } NioSocketMsg_t;
+
 typedef struct NioSocket_t {
 	FD_t fd;
 	int domain;
