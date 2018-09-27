@@ -149,10 +149,24 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					s->valid = 0;
 				break;
 			}
-
-			if (s->decode_packet(s, res ? buffer : NULL, res, &saddr) < 0) {
-				s->valid = 0;
-				break;
+			else if (0 == res) {
+				if (s->decode_packet(s, NULL, 0, &saddr) < 0) {
+					s->valid = 0;
+					break;
+				}
+			}
+			else {
+				int offset = 0, len = -1;
+				while (offset < res) {
+					len = s->decode_packet(s, buffer + offset, res - offset, &saddr);
+					if (len < 0) {
+						s->valid = 0;
+						break;
+					}
+					offset += len;
+				}
+				if (len < 0)
+					break;
 			}
 		}
 	}
