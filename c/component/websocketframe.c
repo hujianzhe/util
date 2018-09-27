@@ -14,11 +14,11 @@ extern "C" {
 
 int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen) {
 	char *ks, *ke;
-	const char* e = strnstr(data, "\r\n\r\n", datalen);
+	const char* e = strStr(data, datalen, "\r\n\r\n", -1);
 	if (!e)
 		return 0;
 
-	ks = strnstr(data, "Sec-WebSocket-Key:", e - data);
+	ks = strStr(data, e - data, "Sec-WebSocket-Key:", -1);
 	if (!ks)
 		return -1;
 	for (ks += 18; *ks <= 32; ++ks);

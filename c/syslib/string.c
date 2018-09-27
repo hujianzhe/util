@@ -3,68 +3,45 @@
 //
 
 #include "string.h"
-#include <stdlib.h>
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
-char *strnchr(const char* s, const char c, size_t n) {
-	if (!s) {
-		return NULL;
+size_t strLength(const char* s) {
+	if (!s)
+		return 0;
+	else {
+		const char* p = s;
+		while (*p)
+			++p;
+		return p - s;
 	}
-	while (n && *s && *s != c) {
-		--n;
-		++s;
-	}
-	return n && *s == c ? (char*)s : NULL;
 }
 
-char *strnstr(const char* s1, const char* s2, size_t n) {
-	if (s1 && s2 && n) {
-		size_t s2len = strlen(s2);
-		if (s2len <= n) {
-			const char *end = s1 + n;
-			while (*s1 && (size_t)(end - s1) >= s2len) {
-				const char *bp = s1;
-				const char *sp = s2;
-				do {
-					if (!*sp)
-						return (char *) s1;
-				} while (*bp++ == *sp++);
-				++s1;
-			}
-		}
+char* strChr(const char* s, size_t len, const char c) {
+	while (len && *s && *s != c) {
+		--len;
+		++s;
+	}
+	return len && *s ? (char*)s : NULL;
+}
+
+char* strStr(const char* s1, size_t s1len, const char* s2, size_t s2len) {
+	const char *p1, *p2;
+	size_t i;
+	if (-1 == s2len)
+		for (p2 = s2, s2len = 0; *p2; ++p2, ++s2len);
+	if (-1 == s1len)
+		for (p1 = s1, s1len = 0; *p1; ++p1, ++s1len);
+	for (i = 0; i + s2len <= s1len && s1[i]; ++i) {
+		size_t len;
+		for (p1 = s1 + i, p2 = s2, len = s2len; len && *p2 && *p1 && *p1 == *p2; ++p1, ++p2, --len);
+		if ('\0' == *p2 || 0 == len)
+			return (char*)(s1 + i);
 	}
 	return NULL;
 }
-char* strlcpy(char* dst, const char* src, size_t size) {
-	size_t i;
-	for (i = 0; i < size; ++i) {
-		dst[i] = src[i];
-		if (0 == src[i])
-			return dst;
-	}
-	if (i)
-		dst[i - 1] = 0;
-	return dst;
-}
-#endif
-
-#if defined(_WIN32) || defined(_WIN64)
-char* strndup(const char* s, size_t n) {
-	char* p = (char*)malloc(n + 1);
-	if (p) {
-		size_t i;
-		for (i = 0; i < n; ++i) {
-			p[i] = s[i];
-		}
-		p[n] = 0;
-	}
-	return p;
-}
-#endif
 
 char* strSplit(char** s, const char* delim) {
 	int has_split = 0;
@@ -87,7 +64,12 @@ char* strSplit(char** s, const char* delim) {
 }
 
 void strTrim(const char* str, size_t len, char** newstr, size_t* newlen) {
-	const char* end = str + len - 1;
+	const char* end;
+	if (-1 == len) {
+		const char* p;
+		for (p = str, len = 0; *p; ++p, ++len);
+	}
+	end = str + len;
 	while (str < end) {
 		if (*str == ' ' || *str == '\r' || *str == '\n' || *str == '\f' || *str == '\b' || *str == '\t' || *end == '\v')
 			++str;
@@ -101,12 +83,12 @@ void strTrim(const char* str, size_t len, char** newstr, size_t* newlen) {
 			break;
 	}
 	*newstr = (char*)str;
-	*newlen = end + 1 - str;
+	*newlen = end - str;
 }
 
 size_t strlenUTF8(const char* s) {
 	size_t u8_len = 0;
-	size_t byte_len = strlen(s);
+	size_t byte_len = strLength(s);
 	size_t i;
 	for (i = 0; i < byte_len; ++i) {
 		unsigned char c = s[i];
@@ -133,6 +115,8 @@ size_t strlenUTF8(const char* s) {
 char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 	size_t i;
 	size_t len = dst_len > src_len ? src_len : dst_len;
+	if (-1 == len)
+		return NULL;
 	for (i = 0; i < len; ++i) {
 		dst[i] = src[i];
 		if (0 == dst[i]) {
@@ -150,6 +134,24 @@ char* strCopy(char* dst, size_t dst_len, const char* src, size_t src_len) {
 		}
 	}
 	return dst;
+}
+
+int strCmp(const char* s1, const char* s2, size_t n) {
+	if (0 == n || !s1 || !s2)
+		return 0;
+	if (-1 != n) {
+		while (--n && *s1 && *s1 == *s2) {
+			++s1;
+			++s2;
+		}
+	}
+	else {
+		while (*s1 && *s1 == *s2) {
+			++s1;
+			++s2;
+		}
+	}
+	return *s1 - *s2;
 }
 
 #ifdef	__cplusplus

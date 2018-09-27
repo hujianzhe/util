@@ -156,7 +156,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
 
-	e = strnstr(buf, "\r\n\r\n", len);
+	e = strStr(buf, len, "\r\n\r\n", -1);
 	if (!e)
 		return 0;
 
@@ -253,7 +253,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
 	unsigned int chunked_length, frame_length;
 	const char* p;
-	char* e = strnstr(buf, "\r\n", len);
+	char* e = strStr(buf, len, "\r\n", -1);
 	if (!e)
 		return 0;
 
