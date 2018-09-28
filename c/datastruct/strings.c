@@ -152,7 +152,7 @@ int strCmp(const char* s1, const char* s2, ptrlen_t n) {
 	if (!n || !s1 || !s2)
 		return 0;
 	if (-1 != n) {
-		while (--n && *s1 && *s1 == *s2) {
+		while (n-- && *s1 && *s1 == *s2) {
 			++s1;
 			++s2;
 		}
@@ -164,6 +164,37 @@ int strCmp(const char* s1, const char* s2, ptrlen_t n) {
 		}
 	}
 	return *s1 - *s2;
+}
+
+static int alphabet_ignore_case_delta(const char c) {
+	if (c >= 'a' && c <= 'z')
+		return c - 'a';
+	else if (c >= 'A' && c <= 'Z')
+		return c - 'A';
+	else
+		return c - 'a';
+}
+
+int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n) {
+	if (!n || !s1 || !s2)
+		return 0;
+	if (-1 != n) {
+		while (n-- && *s1) {
+			if (*s1 != *s2 && alphabet_ignore_case_delta(*s1) != alphabet_ignore_case_delta(*s2))
+				return *s1 - *s2;
+			++s1;
+			++s2;
+		}
+	}
+	else {
+		while (*s1) {
+			if (*s1 != *s2 && alphabet_ignore_case_delta(*s1) != alphabet_ignore_case_delta(*s2))
+				return *s1 - *s2;
+			++s1;
+			++s2;
+		}
+	}
+	return 0;
 }
 
 #ifdef	__cplusplus

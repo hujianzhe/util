@@ -19,6 +19,7 @@ __declspec_dll void strTrim(const char* str, ptrlen_t len, char** newstr, ptrlen
 __declspec_dll ptrlen_t strLenUtf8(const char* s);
 __declspec_dll char* strCopy(char* dst, ptrlen_t dst_len, const char* src, ptrlen_t src_len);
 __declspec_dll int strCmp(const char* s1, const char* s2, ptrlen_t n);
+__declspec_dll int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n);
 
 #ifdef	__cplusplus
 }
