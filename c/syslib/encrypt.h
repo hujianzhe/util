@@ -29,7 +29,9 @@ extern "C" {
 
 __declspec_dll size_t cryptUrlEncode(const char* src, size_t srclen, char* dst);
 __declspec_dll size_t cryptUrlDecode(const char* src, size_t srclen, char* dst);
+#define	cryptBase64EncodeLength(len)	(((len) + 2) / 3 * 4)
 __declspec_dll size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst);
+#define	cryptBase64DecodeLength(len)	(((len) + 3) / 4 * 3)
 __declspec_dll size_t cryptBase64Decode(const char* src, size_t srclen, unsigned char* dst);
 __declspec_dll BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5);
 __declspec_dll BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1);
