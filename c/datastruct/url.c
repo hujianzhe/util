@@ -228,6 +228,75 @@ URL_t* urlParseFinish(URL_t* url, char* buf) {
 	return url;
 }
 
+#define char_isdigit(c)		((unsigned int)(((int)(c)) - '0') < 10u)
+#define	char_isalpha(c)		((unsigned int)((((int)(c)) | 0x20) - 'a') < 26u)
+#define char_alphadelta(c)	((((int)(c)) | 0x20) - 'a')
+
+unsigned int urlEncode(const char* src, unsigned int srclen, char* dst) {
+	static const char hex2char[] = "0123456789ABCDEF";
+	unsigned int i, dstlen;
+	for (dstlen = 0, i = 0; i < srclen; ++i) {
+		char c = src[i];
+		if (char_isdigit(c) || char_isalpha(c)) {
+			if (dst) {
+				dst[dstlen] = c;
+			}
+			++dstlen;
+		}
+		else if (c == ' ') {
+			if (dst) {
+				dst[dstlen] = '+';
+			}
+			++dstlen;
+		}
+		else {
+			if (dst) {
+				dst[dstlen] = '%';
+				dst[dstlen + 1] = hex2char[((unsigned char)c) >> 4];
+				dst[dstlen + 2] = hex2char[c & 0xf];
+			}
+			dstlen += 3;
+		}
+	}
+	if (dst) {
+		dst[dstlen] = 0;
+	}
+	return dstlen;
+}
+
+unsigned int urlDecode(const char* src, unsigned int srclen, char* dst) {
+	unsigned int i, dstlen;
+	for (dstlen = 0, i = 0; i < srclen; ++i) {
+		char c = src[i];
+		if (c == '+') {
+			if (dst) {
+				dst[dstlen] = ' ';
+			}
+			++dstlen;
+		}
+		else if (c == '%') {
+			if (dst) {
+				char ch = src[i + 1];
+				char cl = src[i + 2];
+				dst[dstlen] = (char)((char_isdigit(ch) ? ch - '0' : char_alphadelta(ch) - 'A' + 10) << 4);
+				dst[dstlen] |= (char)(char_isdigit(cl) ? cl - '0' : char_alphadelta(cl) - 'A' + 10);
+			}
+			i += 2;
+			++dstlen;
+		}
+		else {
+			if (dst) {
+				dst[dstlen] = c;
+			}
+			++dstlen;
+		}
+	}
+	if (dst) {
+		dst[dstlen] = 0;
+	}
+	return dstlen;
+}
+
 #ifdef	__cplusplus
 }
 #endif

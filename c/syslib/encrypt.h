@@ -27,8 +27,9 @@
 extern "C" {
 #endif
 
-__declspec_dll size_t cryptUrlEncode(const char* src, size_t srclen, char* dst);
-__declspec_dll size_t cryptUrlDecode(const char* src, size_t srclen, char* dst);
+#define	cryptCRC32Init(crc)			(crc = 0xffffffff)
+__declspec_dll unsigned int cryptCRC32Update(unsigned int crc, const unsigned char* data, size_t len);
+#define	cryptCRC32Final(crc)		(crc ^ 0xffffffff)
 #define	cryptBase64EncodeLength(len)	(((len) + 2) / 3 * 4)
 __declspec_dll size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst);
 #define	cryptBase64DecodeLength(len)	(((len) + 3) / 4 * 3)
