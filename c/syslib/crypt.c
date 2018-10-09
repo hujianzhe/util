@@ -2,7 +2,7 @@
 // Created by hujianzhe
 //
 
-#include "encrypt.h"
+#include "crypt.h"
 #include <ctype.h>
 
 #ifdef  __cplusplus
@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 /* crc32 */
-unsigned int cryptCRC32Update(unsigned int crc, const unsigned char* data, size_t len) {
+unsigned int cryptCRC32Update(unsigned int crc, const unsigned char* data, unsigned int len) {
 	static const unsigned int crc_table[256] = {
 		0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419,
 		0x706af48f, 0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4,

@@ -3,7 +3,7 @@
 //
 
 #include "../syslib/alloca.h"
-#include "../syslib/encrypt.h"
+#include "../syslib/crypt.h"
 #include "../syslib/socket.h"
 #include "../syslib/string.h"
 #include "websocketframe.h"

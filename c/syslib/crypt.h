@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef	UTIL_C_SYSLIB_ENCRYPT_H
-#define	UTIL_C_SYSLIB_ENCRYPT_H
+#ifndef	UTIL_C_SYSLIB_CRYPT_H
+#define	UTIL_C_SYSLIB_CRYPT_H
 
 #include "../platform_define.h"
 
@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #define	cryptCRC32Init(crc)			(crc = 0xffffffff)
-__declspec_dll unsigned int cryptCRC32Update(unsigned int crc, const unsigned char* data, size_t len);
+__declspec_dll unsigned int cryptCRC32Update(unsigned int crc, const unsigned char* data, unsigned int len);
 #define	cryptCRC32Final(crc)		(crc ^ 0xffffffff)
 #define	cryptBase64EncodeLength(len)	(((len) + 2) / 3 * 4)
 __declspec_dll size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst);
