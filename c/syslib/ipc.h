@@ -9,7 +9,6 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <process.h>
-	typedef void(*sighandler_t)(int);
 	typedef	CRITICAL_SECTION		CriticalSection_t;
 	typedef CONDITION_VARIABLE		ConditionVariable_t;
 	typedef HANDLE 					Mutex_t;
