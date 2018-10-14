@@ -37,10 +37,16 @@ __declspec_dll int fequf(float a, float b);
 __declspec_dll int fequ(double a, double b);
 __declspec_dll float fsqrtf(float x);
 __declspec_dll double fsqrt(double x);
-__declspec_dll float* mathEulerAnglesToQuaternion(float e[3], float q[4]);
-__declspec_dll float* mathQuaternionToEulerAngles(float q[4], float e[3]);
+__declspec_dll float* mathEulerToQuat(float e[3], float q[4]);
+__declspec_dll float* mathQuatToEuler(float q[4], float e[3]);
+__declspec_dll float* mathUnitAxisRadianToQuat(float unitaxis[3], float radian, float q[4]);
+__declspec_dll float* mathQuatToUnitAxisRadian(float q[4], float* radian, float axis[3]);
+__declspec_dll float* mathQuatMulQuat(float q1[4], float q2[4], float r[4]);
+__declspec_dll float* mathQuatRotateVec3(float q[4], float v[3], float r[3]);
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
-#define	mathRadToDeg(rad)	((rad) / M_PI * 180.0)
+#define	mathRadToDeg(rad)	((rad) * M_1_PI * 180.0)
+#define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))
+#define	mathRadToDeg_f(rad)	(((float)(rad)) * ((float)M_1_PI) * 180.0f)
 
 #ifdef	__cplusplus
 }
