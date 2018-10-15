@@ -35,6 +35,14 @@ double fsqrt(double x) {
 	return x;
 }
 
+float* mathQuatConjugate(float q[4], float r[4]) {
+	r[0] = -q[0];
+	r[1] = -q[1];
+	r[2] = -q[2];
+	r[3] = q[3];
+	return r;
+}
+
 float* mathEulerToQuat(float e[3], float q[4]) {
 	float pitch_x = e[0];
 	float yaw_y = e[1];
@@ -63,20 +71,20 @@ float* mathQuatToEuler(float q[4], float e[3]) {
 	return e;
 }
 
-float* mathUnitAxisRadianToQuat(float unitaxis[3], float radian, float q[4]) {
+float* mathAxisRadianToQuat(float axis[3], float radian, float q[4]) {
 	const float half_rad = radian * 0.5f;
 	const float s = sinf(half_rad);
-	q[0] = unitaxis[0] * s;
-	q[1] = unitaxis[1] * s;
-	q[2] = unitaxis[2] * s;
+	q[0] = axis[0] * s;
+	q[1] = axis[1] * s;
+	q[2] = axis[2] * s;
 	q[3] = cosf(half_rad);
 	return q;
 }
 
-float* mathQuatToUnitAxisRadian(float q[4], float* radian, float axis[3]) {
+float* mathQuatToAxisRadian(float q[4], float* radian, float axis[3]) {
 	const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
 	const float s2 = qx*qx + qy*qy + qz*qz;
-	const float s = 1.0f/sqrtf(s2);
+	const float s = 1.0f / sqrtf(s2);
 	axis[0] = qx * s;
 	axis[1] = qy * s;
 	axis[2] = qz * s;
