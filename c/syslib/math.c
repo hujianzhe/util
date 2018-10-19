@@ -43,24 +43,60 @@ float* mathQuatConjugate(float q[4], float r[4]) {
 	return r;
 }
 
-float* mathEulerToQuat(float e[3], float q[4]) {
+float* mathEulerToQuat(float e[3], float q[4], const char order[3]) {
 	float pitch_x = e[0];
 	float yaw_y = e[1];
 	float roll_z = e[2];
 
-	float cos_roll = cosf(roll_z * 0.5f);
-	float sin_roll = sinf(roll_z * 0.5f);
+	float c1 = cosf(pitch_x * 0.5f);
+	float c2 = cosf(yaw_y * 0.5f);
+	float c3 = cosf(roll_z * 0.5f);
+	float s1 = sinf(pitch_x * 0.5f);
+	float s2 = sinf(yaw_y * 0.5f);
+	float s3 = sinf(roll_z * 0.5f);
 
-	float cos_pitch = cosf(pitch_x * 0.5f);
-	float sin_pitch = sinf(pitch_x * 0.5f);
+	float x, y, z, w;
 
-	float cos_yaw = cosf(yaw_y * 0.5f);
-	float sin_yaw = sinf(yaw_y * 0.5f);
-
-	q[0] = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw;
-	q[1] = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw;
-	q[2] = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw;
-	q[3] = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw;
+	if (order[0] == 'X' && order[1] == 'Y' && order[2] == 'Z') {
+		q[0] = s1 * c2 * c3 + c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 - s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 + s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 - s1 * s2 * s3;
+	}
+	else if (order[0] == 'Y' && order[1] == 'X' && order[2] == 'Z') {
+		q[0] = s1 * c2 * c3 + c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 - s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 - s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 + s1 * s2 * s3;
+	}
+	else if (order[0] == 'Z' && order[1] == 'X' && order[2] == 'Y') {
+		q[0] = s1 * c2 * c3 - c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 + s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 + s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 - s1 * s2 * s3;
+	}
+	else if (order[0] == 'Z' && order[1] == 'Y' && order[2] == 'X') {
+		q[0] = s1 * c2 * c3 - c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 + s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 - s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 + s1 * s2 * s3;
+	}
+	else if (order[0] == 'Y' && order[1] == 'Z' && order[2] == 'X') {
+		q[0] = s1 * c2 * c3 + c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 + s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 - s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 - s1 * s2 * s3;
+	}
+	else if (order[0] == 'X' && order[1] == 'Z' && order[2] == 'Y') {
+		q[0] = s1 * c2 * c3 - c1 * s2 * s3;
+		q[1] = c1 * s2 * c3 - s1 * c2 * s3;
+		q[2] = c1 * c2 * s3 + s1 * s2 * c3;
+		q[3] = c1 * c2 * c3 + s1 * s2 * s3;
+	}
+	else {
+		q[0] = q[1] = q[2] = 0.0f;
+		q[3] = 1.0f;
+	}
 	return q;
 }
 
