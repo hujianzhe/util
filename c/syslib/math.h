@@ -44,6 +44,7 @@ __declspec_dll float* mathAxisRadianToQuat(float axis[3], float radian, float q[
 __declspec_dll float* mathQuatToAxisRadian(float q[4], float* radian, float axis[3]);
 __declspec_dll float* mathQuatMulQuat(float q1[4], float q2[4], float r[4]);
 __declspec_dll float* mathQuatRotateVec3(float q[4], float v[3], float r[3]);
+__declspec_dll int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v);
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathRadToDeg(rad)	((rad) * M_1_PI * 180.0)
 #define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))

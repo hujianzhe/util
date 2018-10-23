@@ -55,8 +55,6 @@ float* mathEulerToQuat(float e[3], float q[4], const char order[3]) {
 	float s2 = sinf(yaw_y * 0.5f);
 	float s3 = sinf(roll_z * 0.5f);
 
-	float x, y, z, w;
-
 	if (order[0] == 'X' && order[1] == 'Y' && order[2] == 'Z') {
 		q[0] = s1 * c2 * c3 + c1 * s2 * s3;
 		q[1] = c1 * s2 * c3 - s1 * c2 * s3;
@@ -149,6 +147,56 @@ float* mathQuatRotateVec3(float q[4], float v[3], float r[3]) {
 	r[1] = vy*qw2 + (qz * vx - qx * vz)*qw + qy*dot2;
 	r[2] = vz*qw2 + (qx * vy - qy * vx)*qw + qz*dot2;
 	return r;
+}
+
+int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v) {
+	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
+	float E1[3] = {
+		v1[0] - v0[0],
+		v1[1] - v0[1],
+		v1[2] - v0[2]
+	};
+	float E2[3] = {
+		v2[0] - v0[0],
+		v2[1] - v0[1],
+		v2[2] - v0[2]
+	};
+	float P[3] = {
+		dir[1]*E2[2] - dir[2]*E2[1],
+		dir[2]*E2[0] - dir[0]*E2[2],
+		dir[0]*E2[1] - dir[1]*E2[0]
+	};
+	float det = E1[0]*P[0] + E1[1]*P[1] + E1[2]*P[2];
+	float invdet;
+	float T[3], Q[3];
+	if (det > 0.0f) {
+		T[0] = origin[0] - v0[0];
+		T[1] = origin[1] - v0[1];
+		T[2] = origin[2] - v0[2];
+	}
+	else {
+		T[0] = v0[0] - origin[0];
+		T[1] = v0[1] - origin[1];
+		T[2] = v0[2] - origin[2];
+		det = -det;
+	}
+	if (det < 0.0001f)
+		return 0;
+	*u = T[0]*P[0] + T[1]*P[1] + T[2]*P[2];
+	if (*u < 0.0f || *u > det)
+		return 0;
+	Q[0] = T[1]*E1[2] - T[2]*E1[1];
+	Q[1] = T[2]*E1[0] - T[0]*E1[2];
+	Q[2] = T[0]*E1[1] - T[1]*E1[0];
+	*v = dir[0]*Q[0] + dir[1]*Q[1] + dir[2]*Q[2];
+	if (*v < 0.0f || *v + *u > det)
+		return 0;
+	*t = E2[0]*Q[0] + E2[1]*Q[1] + E2[2]*Q[2];
+	invdet = 1.0f / det;
+	*t *= invdet;
+	*u *= invdet;
+	*v *= invdet;
+	return 1;
 }
 
 #ifdef	__cplusplus
