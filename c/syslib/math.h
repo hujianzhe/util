@@ -38,13 +38,20 @@ __declspec_dll int fequ(double a, double b);
 __declspec_dll float fsqrtf(float x);
 __declspec_dll double fsqrt(double x);
 
-__declspec_dll float* mathQuatConjugate(float q[4], float r[4]);
-__declspec_dll float* mathEulerToQuat(float e[3], float q[4], const char order[3]);
-__declspec_dll float* mathAxisRadianToQuat(float axis[3], float radian, float q[4]);
-__declspec_dll float* mathQuatToAxisRadian(float q[4], float* radian, float axis[3]);
-__declspec_dll float* mathQuatMulQuat(float q1[4], float q2[4], float r[4]);
-__declspec_dll float* mathQuatRotateVec3(float q[4], float v[3], float r[3]);
+__declspec_dll float mathVec3LenSq(float v[3]);
+__declspec_dll float mathVec3Len(float v[3]);
+__declspec_dll float* mathVec3Normalized(float r[3], float v[3]);
+__declspec_dll float mathVec3Dot(float v1[3], float v2[3]);
+__declspec_dll float mathVec3Radian(float v1[3], float v2[3]);
+__declspec_dll float* mathVec3Cross(float r[3], float v1[3], float v2[3]);
+__declspec_dll float* mathQuatFromEuler(float q[4], float e[3], const char order[3]);
+__declspec_dll float* mathQuatFromAxisRadian(float q[4], float axis[3], float radian);
+__declspec_dll void mathQuatToAxisRadian(float q[4], float axis[3], float* radian);
+__declspec_dll float* mathQuatConjugate(float r[4], float q[4]);
+__declspec_dll float* mathQuatMulQuat(float r[4], float q1[4], float q2[4]);
+__declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
 __declspec_dll int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v);
+__declspec_dll int mathRaycastPlane(float origin[3], float dir[3], float normal[3], float d, float* distance);
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathRadToDeg(rad)	((rad) * M_1_PI * 180.0)
 #define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))
