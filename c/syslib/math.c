@@ -207,31 +207,20 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	float P[3], T[3], Q[3];
 	mathVec3Cross(P, dir, E2);
 	det = mathVec3Dot(E1, P);
-	if (det > 0.0f) {
-		T[0] = origin[0] - v0[0];
-		T[1] = origin[1] - v0[1];
-		T[2] = origin[2] - v0[2];
-	}
-	else {
-		T[0] = v0[0] - origin[0];
-		T[1] = v0[1] - origin[1];
-		T[2] = v0[2] - origin[2];
-		det = -det;
-	}
-	if (det < 0.0001f)
+	if (-0.000001f < det && det < 0.000001f)
 		return 0;
-	*u = mathVec3Dot(T, P);
-	if (*u < 0.0f || *u > det)
+	inv_det = 1.0f / det;
+	T[0] = origin[0] - v0[0];
+	T[1] = origin[1] - v0[1];
+	T[2] = origin[2] - v0[2];
+	*u = mathVec3Dot(T, P) * inv_det;
+	if (*u < 0.0f || *u > 1.0f)
 		return 0;
 	mathVec3Cross(Q, T, E1);
-	*v = mathVec3Dot(dir, Q);
-	if (*v < 0.0f || *v + *u > det)
+	*v = mathVec3Dot(dir, Q) * inv_det;
+	if (*v < 0.0f || *v + *u > 1.0f)
 		return 0;
-	*t = mathVec3Dot(E2, Q);
-	inv_det = 1.0f / det;
-	*t *= inv_det;
-	*u *= inv_det;
-	*v *= inv_det;
+	*t = mathVec3Dot(E2, Q) * inv_det;
 	return 1;
 }
 
