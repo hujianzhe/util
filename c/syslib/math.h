@@ -41,6 +41,7 @@ __declspec_dll double fsqrt(double x);
 __declspec_dll float mathVec3LenSq(float v[3]);
 __declspec_dll float mathVec3Len(float v[3]);
 __declspec_dll float* mathVec3Normalized(float r[3], float v[3]);
+__declspec_dll float* mathVec3Mul(float r[3], float v[3], float n);
 __declspec_dll float mathVec3Dot(float v1[3], float v2[3]);
 __declspec_dll float mathVec3Radian(float v1[3], float v2[3]);
 __declspec_dll float* mathVec3Cross(float r[3], float v1[3], float v2[3]);
