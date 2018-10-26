@@ -231,7 +231,39 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	return *t >= 0.0f;/* return 1 */
 }
 
-int mathRaycastPlane(float origin[3], float dir[3], float normal[3], float d, float* distance) {
+int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t) {
+	float d, dn;
+	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
+	float E1[3] = {
+		v1[0] - v0[0],
+		v1[1] - v0[1],
+		v1[2] - v0[2]
+	};
+	float E2[3] = {
+		v2[0] - v0[0],
+		v2[1] - v0[1],
+		v2[2] - v0[2]
+	};
+	float OV[3] = {
+		v0[0] - origin[0],
+		v0[1] - origin[1],
+		v0[2] - origin[2]
+	};
+	float N[3];
+	mathVec3Normalized(N, mathVec3Cross(N, E1, E2));
+	d = mathVec3Dot(OV, N);
+	if (-1E-7f < d && d < 1E-7f) {
+		*t = 0.0f;
+		return 1;
+	}
+	dn = mathVec3Dot(N, dir);
+	if (-1E-7f < dn && dn < 1E-7f)
+		return 0;
+	*t = mathVec3Dot(N, OV) / dn;
+	return *t > 0.0f;
+}
+
+int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* distance) {
 	float dn = mathVec3Dot(dir, normal);
 	if (-1E-7f < dn && dn < 1E-7f)
 		return 0;
