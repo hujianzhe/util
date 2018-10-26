@@ -228,7 +228,7 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	if (*v < 0.0f || *v + *u > 1.0f)
 		return 0;
 	*t = mathVec3Dot(E2, Q) * inv_det;
-	return 1;
+	return *t >= 0.000001f;/* return 1 */
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float normal[3], float d, float* distance) {
@@ -236,6 +236,34 @@ int mathRaycastPlane(float origin[3], float dir[3], float normal[3], float d, fl
 	if (-1E-7f < dn && dn < 1E-7f)
 		return 0;
 	*distance = (mathVec3Dot(origin, normal) + d) / dn;
+	return 1;
+}
+
+int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* near_, float* far_) {
+	float radius2 = radius * radius;
+	float d, dr2;
+	float v[3] = {
+		center[0] - origin[0],
+		center[1] - origin[1],
+		center[2] - origin[2]
+	};
+	float oc2 = mathVec3LenSq(v);
+	float dir_d = mathVec3Dot(dir, v);
+	if (oc2 >= radius2 && dir_d < 0.0f)
+		return 0;
+	dr2 = oc2 - dir_d * dir_d;
+	if (dr2 >= radius2)
+		return 0;
+
+	d = sqrtf(radius2 - dr2);
+	if (oc2 >= radius) {
+		*near_ = dir_d - d;
+		*far_ = dir_d + d;
+	}
+	else {
+		*near_ = dir_d + d;
+		*far_ = dir_d - d;
+	}
 	return 1;
 }
 
