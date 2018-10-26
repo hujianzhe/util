@@ -228,7 +228,7 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	if (*v < 0.0f || *v + *u > 1.0f)
 		return 0;
 	*t = mathVec3Dot(E2, Q) * inv_det;
-	return *t >= 0.000001f;/* return 1 */
+	return *t >= 0.0f;/* return 1 */
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float normal[3], float d, float* distance) {
