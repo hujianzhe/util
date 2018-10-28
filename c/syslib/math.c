@@ -354,20 +354,32 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float 
 			vertices + i + 1,
 			vertices + i + 2
 		};
-		if (!mathRaycastTriangle(origin, dir, points, &t, &u, &v))
+		if (!mathRaycastTriangle(origin, dir, (float(*)[3])points, &t, &u, &v))
 			continue;
-		/*
 		if (!has_t1) {
 			t1 = t;
 			has_t1 = 1;
 		}
-		if (!has_t2) {
+		else if (!has_t2 && fcmpf(t1, t, 1E-7f)) {
 			t2 = t;
 			has_t2 = 1;
 		}
-		*/
 	}
-	return 0;
+	if (!has_t1) {
+		return 0;
+	}
+	else if (!has_t2) {
+		*near_ = *far_ = t1;
+	}
+	else if (fcmpf(t1, t2, 1E-7f) <= 0) {
+		*near_ = t1;
+		*far_ = t2;
+	}
+	else {
+		*near_ = t2;
+		*far_ = t1;
+	}
+	return 1;
 }
 
 #ifdef	__cplusplus
