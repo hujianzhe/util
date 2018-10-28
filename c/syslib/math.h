@@ -33,14 +33,16 @@ typedef double		float64_t;
 extern "C" {
 #endif
 
-__declspec_dll int fequf(float a, float b);
-__declspec_dll int fequ(double a, double b);
+__declspec_dll int fcmpf(float a, float b, float epsilon);
+__declspec_dll int fcmp(double a, double b, double epsilon);
 __declspec_dll float fsqrtf(float x);
 __declspec_dll double fsqrt(double x);
 
+__declspec_dll int mathVec3IsZero(float v[3]);
 __declspec_dll float mathVec3LenSq(float v[3]);
 __declspec_dll float mathVec3Len(float v[3]);
 __declspec_dll float* mathVec3Normalized(float r[3], float v[3]);
+__declspec_dll float* mathVec3Negate(float r[3], float v[3]);
 __declspec_dll float* mathVec3Mul(float r[3], float v[3], float n);
 __declspec_dll float mathVec3Dot(float v1[3], float v2[3]);
 __declspec_dll float mathVec3Radian(float v1[3], float v2[3]);

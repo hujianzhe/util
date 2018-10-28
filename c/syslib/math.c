@@ -8,13 +8,30 @@
 extern "C" {
 #endif
 
-int fequf(float a, float b) {
+/*
+a == b return 0;
+a > b return 1;
+a < b return -1;
+*/
+int fcmpf(float a, float b, float epsilon) {
 	float v = a - b;
-	return v > -FLT_EPSILON && v < FLT_EPSILON;
+	/* a == b */
+	if (v > -epsilon && v < epsilon)
+		return 0;
+	return v >= epsilon ? 1 : -1;
 }
-int fequ(double a, double b) {
+/*
+a == b return 0;
+a > b return 1;
+a < b return -1;
+*/
+int fcmp(double a, double b, double epsilon) {
+	const double neg_epsilon = -epsilon;
 	double v = a - b;
-	return v > -DBL_EPSILON && v < DBL_EPSILON;
+	/* a == b */
+	if (v > neg_epsilon && v < epsilon)
+		return 0;
+	return v <= neg_epsilon ? -1 : 1;
 }
 
 float fsqrtf(float x) {
@@ -35,6 +52,12 @@ double fsqrt(double x) {
 	return x;
 }
 
+int mathVec3IsZero(float v[3]) {
+	return fcmpf(v[0], 0.0f, 1E-7f) == 0 &&
+		fcmpf(v[1], 0.0f, 1E-7f) == 0 &&
+		fcmpf(v[2], 0.0f, 1E-7f) == 0;
+}
+
 float mathVec3LenSq(float v[3]) {
 	return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 }
@@ -45,12 +68,19 @@ float mathVec3Len(float v[3]) {
 
 float* mathVec3Normalized(float r[3], float v[3]) {
 	float len = mathVec3Len(v);
-	if (len > 1E-7f) {
+	if (fcmpf(len, 0.0f, 1E-7f) > 0) {
 		float inv_len = 1.0f / len;
 		r[0] = v[0] * inv_len;
 		r[1] = v[1] * inv_len;
 		r[2] = v[2] * inv_len;
 	}
+	return r;
+}
+
+float* mathVec3Negate(float r[3], float v[3]) {
+	r[0] = -v[0];
+	r[1] = -v[1];
+	r[2] = -v[2];
 	return r;
 }
 
@@ -214,21 +244,21 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	float P[3], T[3], Q[3];
 	mathVec3Cross(P, dir, E2);
 	det = mathVec3Dot(E1, P);
-	if (-0.000001f < det && det < 0.000001f)
+	if (fcmpf(det, 0.0f, 1E-7f) == 0)
 		return 0;
 	inv_det = 1.0f / det;
 	T[0] = origin[0] - v0[0];
 	T[1] = origin[1] - v0[1];
 	T[2] = origin[2] - v0[2];
 	*u = mathVec3Dot(T, P) * inv_det;
-	if (*u < 0.0f || *u > 1.0f)
+	if (fcmpf(*u, 0.0f, 1E-7f) < 0 || fcmpf(*u, 1.0f, 1E-7f) > 0)
 		return 0;
 	mathVec3Cross(Q, T, E1);
 	*v = mathVec3Dot(dir, Q) * inv_det;
-	if (*v < 0.0f || *v + *u > 1.0f)
+	if (fcmpf(*v, 0.0f, 1E-7f) < 0 || fcmpf(*v + *u, 1.0f, 1E-7f) > 0)
 		return 0;
 	*t = mathVec3Dot(E2, Q) * inv_det;
-	return *t >= 0.0f;/* return 1 */
+	return fcmpf(*t, 0.0f, 1E-7f) >= 0;/* return 1 */
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t) {
@@ -252,20 +282,20 @@ int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float*
 	float N[3];
 	mathVec3Normalized(N, mathVec3Cross(N, E1, E2));
 	d = mathVec3Dot(OV, N);
-	if (-1E-7f < d && d < 1E-7f) {
+	if (fcmpf(d, 0.0f, 1E-7f) == 0) {
 		*t = 0.0f;
 		return 1;
 	}
 	dn = mathVec3Dot(N, dir);
-	if (-1E-7f < dn && dn < 1E-7f)
+	if (fcmpf(dn, 0.0f, 1E-7f) == 0)
 		return 0;
 	*t = mathVec3Dot(N, OV) / dn;
-	return *t > 0.0f;
+	return fcmpf(*t, 0.0f, 1E-7f) > 0;
 }
 
 int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* distance) {
 	float dn = mathVec3Dot(dir, normal);
-	if (-1E-7f < dn && dn < 1E-7f)
+	if (fcmpf(dn, 0.0f, 1E-7f) == 0)
 		return 0;
 	*distance = (mathVec3Dot(origin, normal) + d) / dn;
 	return 1;
@@ -281,20 +311,25 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 	};
 	float oc2 = mathVec3LenSq(v);
 	float dir_d = mathVec3Dot(dir, v);
-	if (oc2 >= radius2 && dir_d < 0.0f)
+	if (fcmpf(oc2, radius2, 1E-7f) == 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0) {
+		*near_ = 0.0f;
+		*far_ = 0.0f;
+		return 1;
+	}
+	else if (fcmpf(oc2, radius2, 1E-7f) > 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0)
 		return 0;
 	dr2 = oc2 - dir_d * dir_d;
-	if (dr2 >= radius2)
+	if (fcmpf(dr2, radius2, 1E-7f) > 0)
 		return 0;
 
 	d = sqrtf(radius2 - dr2);
-	if (oc2 >= radius) {
+	if (fcmpf(oc2, radius2, 1E-7f) >= 0) {
 		*near_ = dir_d - d;
 		*far_ = dir_d + d;
 	}
 	else {
 		*near_ = dir_d + d;
-		*far_ = dir_d - d;
+		*far_ = *near_;
 	}
 	return 1;
 }
