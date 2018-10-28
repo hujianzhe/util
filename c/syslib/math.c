@@ -244,6 +244,7 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	float P[3], T[3], Q[3];
 	mathVec3Cross(P, dir, E2);
 	det = mathVec3Dot(E1, P);
+	/* if raycast_dir parallel to triangle plane, return false */
 	if (fcmpf(det, 0.0f, 1E-7f) == 0)
 		return 0;
 	inv_det = 1.0f / det;
@@ -262,7 +263,6 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t) {
-	float d, dn;
 	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
 	float E1[3] = {
 		v1[0] - v0[0],
@@ -279,18 +279,27 @@ int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float*
 		v0[1] - origin[1],
 		v0[2] - origin[2]
 	};
-	float N[3];
+	float N[3], d, dn;
 	mathVec3Normalized(N, mathVec3Cross(N, E1, E2));
 	d = mathVec3Dot(OV, N);
-	if (fcmpf(d, 0.0f, 1E-7f) == 0) {
+	dn = mathVec3Dot(N, dir);
+	if (fcmpf(dn, 0.0f, 1E-7f) == 0) {
+		/*
+		if (fcmpf(d, 0.0f, 1E-7f) == 0) {
+			*t = INFINITY;
+			return 1;
+		}
+		*/
+		return 0;
+	}
+	else if (fcmpf(d, 0.0f, 1E-7f) == 0) {
 		*t = 0.0f;
 		return 1;
 	}
-	dn = mathVec3Dot(N, dir);
-	if (fcmpf(dn, 0.0f, 1E-7f) == 0)
-		return 0;
-	*t = mathVec3Dot(N, OV) / dn;
-	return fcmpf(*t, 0.0f, 1E-7f) > 0;
+	else {
+		*t = mathVec3Dot(N, OV) / dn;
+		return fcmpf(*t, 0.0f, 1E-7f) > 0;
+	}
 }
 
 int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* t) {
@@ -334,7 +343,30 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 	return 1;
 }
 
-int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3], float quat[4], float* near_, float* far_) {
+int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float indices[], unsigned int indices_len, float* near_, float* far_) {
+	int has_t1 = 0, has_t2 = 0;
+	float t1, t2;
+	unsigned int i;
+	for (i = 0; i < indices_len; i += 3) {
+		float t, u, v;
+		float (*points[3])[3] = {
+			vertices + i,
+			vertices + i + 1,
+			vertices + i + 2
+		};
+		if (!mathRaycastTriangle(origin, dir, points, &t, &u, &v))
+			continue;
+		/*
+		if (!has_t1) {
+			t1 = t;
+			has_t1 = 1;
+		}
+		if (!has_t2) {
+			t2 = t;
+			has_t2 = 1;
+		}
+		*/
+	}
 	return 0;
 }
 
