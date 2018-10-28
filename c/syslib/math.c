@@ -293,12 +293,12 @@ int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float*
 	return fcmpf(*t, 0.0f, 1E-7f) > 0;
 }
 
-int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* distance) {
+int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* t) {
 	float dn = mathVec3Dot(dir, normal);
 	if (fcmpf(dn, 0.0f, 1E-7f) == 0)
 		return 0;
-	*distance = (mathVec3Dot(origin, normal) + d) / dn;
-	return 1;
+	*t = (mathVec3Dot(origin, normal) + d) / dn;
+	return fcmpf(*t, 0.0f, 1E-7f) >= 0;
 }
 
 int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* near_, float* far_) {
@@ -332,6 +332,10 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 		*far_ = *near_;
 	}
 	return 1;
+}
+
+int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3], float quat[4], float* near_, float* far_) {
+	return 0;
 }
 
 #ifdef	__cplusplus
