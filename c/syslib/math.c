@@ -10,8 +10,8 @@ extern "C" {
 
 /*
 a == b return 0;
-a > b return 1;
-a < b return -1;
+a > b return >0;
+a < b return <0;
 */
 int fcmpf(float a, float b, float epsilon) {
 	float v = a - b;
@@ -22,8 +22,8 @@ int fcmpf(float a, float b, float epsilon) {
 }
 /*
 a == b return 0;
-a > b return 1;
-a < b return -1;
+a > b return >0;
+a < b return <0;
 */
 int fcmp(double a, double b, double epsilon) {
 	const double neg_epsilon = -epsilon;
@@ -337,8 +337,8 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 		*far_ = dir_d + d;
 	}
 	else {
-		*near_ = dir_d + d;
-		*far_ = *near_;
+		*near_ = 0.0f;
+		*far_ = dir_d + d;
 	}
 	return 1;
 }
