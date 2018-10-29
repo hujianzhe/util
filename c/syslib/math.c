@@ -368,8 +368,8 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 		*farest = dir_d + d;
 	}
 	else {
-		*nearest = 0.0f;
-		*farest = dir_d + d;
+		//*nearest = 0.0f;
+		*nearest = *farest = dir_d + d;
 	}
 	return 1;
 }
@@ -441,6 +441,7 @@ int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3]
 	if (!has_t1)
 		return 0;
 	else if (!has_t2) {
+		/*
 		float p[3];
 		mathQuatMulVec3(p, quat, origin);
 		if (fcmpf(p[0], min_x, epsilon) < 0 ||
@@ -456,6 +457,8 @@ int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3]
 			*nearest = 0.0f;
 		}
 		*farest = t1;
+		*/
+		*nearest = *farest = t1;
 	}
 	else if (fcmpf(t1, t2, epsilon) <= 0) {
 		*nearest = t1;
