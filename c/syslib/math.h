@@ -58,7 +58,8 @@ __declspec_dll int mathRaycastTriangle(float origin[3], float dir[3], float vert
 __declspec_dll int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t);
 __declspec_dll int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* t);
 __declspec_dll int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest);
-__declspec_dll int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float indices[], unsigned int indices_len, float* nearest, float* farest);
+__declspec_dll int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3], float quat[4], float* nearest, float* farest);
+__declspec_dll int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* nearest, float* farest);
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathRadToDeg(rad)	((rad) * M_1_PI * 180.0)
 #define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))

@@ -349,18 +349,112 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 	return 1;
 }
 
-int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float indices[], unsigned int indices_len, float* nearset, float* farest) {
+int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3], float quat[4], float* nearest, float* farest) {
+	unsigned int i, has_t1 = 0, has_t2 = 0;
+	const float epsilon = 1E-7f;
+	float t1, t2;
+	float min_x = center[0] - half[0];
+	float max_x = center[0] + half[0];
+	float min_y = center[1] - half[1];
+	float max_y = center[1] + half[1];
+	float min_z = center[2] - half[2];
+	float max_z = center[2] + half[2];
+	float vertices[8][3] = {
+		{ center[0] + half[0], center[1] + half[1], center[2] + half[2] },
+		{ center[0] + half[0], center[1] + half[1], center[2] - half[2] },
+		{ center[0] + half[0], center[1] - half[1], center[2] + half[2] },
+		{ center[0] + half[0], center[1] - half[1], center[2] - half[2] },
+		{ center[0] - half[0], center[1] + half[1], center[2] + half[2] },
+		{ center[0] - half[0], center[1] + half[1], center[2] - half[2] },
+		{ center[0] - half[0], center[1] - half[1], center[2] + half[2] },
+		{ center[0] - half[0], center[1] - half[1], center[2] - half[2] }
+	};
+	int indices[] = {
+		0, 1, 2, 3,
+		0, 4, 6, 2,
+		0, 4, 5, 1,
+		7, 6, 5, 4,
+		7, 3, 2, 6,
+		7, 5, 1, 3
+	};
+	for (i = 0; i < 8; ++i) {
+		mathQuatMulVec3(vertices[i], quat, vertices[i]);
+	}
+	for (i = 0; i < sizeof(indices) / sizeof(indices[0]); i += 4) {
+		float t;
+		float v[3][3] = {
+			{ vertices[indices[i]][0], vertices[indices[i]][1], vertices[indices[i]][2] },
+			{ vertices[indices[i+1]][0], vertices[indices[i+1]][1], vertices[indices[i+1]][2] },
+			{ vertices[indices[i+2]][0], vertices[indices[i+2]][1], vertices[indices[i+2]][2] }
+		};
+		if (mathRaycastPlane(origin, dir, v, &t)) {
+			float p[3] = {
+				origin[0] + dir[0] * t,
+				origin[1] + dir[1] * t,
+				origin[2] + dir[2] * t
+			};
+			mathQuatMulVec3(p, quat, p);
+			if (fcmpf(p[0], min_x, epsilon) < 0 ||
+				fcmpf(p[0], max_x, epsilon) > 0 ||
+				fcmpf(p[1], min_y, epsilon) < 0 ||
+				fcmpf(p[1], max_y, epsilon) > 0 ||
+				fcmpf(p[2], min_z, epsilon) < 0 ||
+				fcmpf(p[2], max_z, epsilon) > 0)
+			{
+				continue;
+			}
+			if (!has_t1) {
+				t1 = t;
+				has_t1 = 1;
+			}
+			else if (!has_t2 && fcmpf(t1, t, epsilon)) {
+				t2 = t;
+				has_t2 = 1;
+			}
+		}
+	}
+	if (!has_t1)
+		return 0;
+	else if (!has_t2) {
+		float p[3];
+		mathQuatMulVec3(p, quat, origin);
+		if (fcmpf(p[0], min_x, epsilon) < 0 ||
+			fcmpf(p[0], max_x, epsilon) > 0 ||
+			fcmpf(p[1], min_y, epsilon) < 0 ||
+			fcmpf(p[1], max_y, epsilon) > 0 ||
+			fcmpf(p[2], min_z, epsilon) < 0 ||
+			fcmpf(p[2], max_z, epsilon) > 0)
+		{
+			*nearest = t1;
+		}
+		else {
+			*nearest = 0.0f;
+		}
+		*farest = t1;
+	}
+	else if (fcmpf(t1, t2, epsilon) <= 0) {
+		*nearest = t1;
+		*farest = t2;
+	}
+	else {
+		*nearest = t2;
+		*farest = t1;
+	}
+	return 1;
+}
+
+int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* nearest, float* farest) {
 	int has_t1 = 0, has_t2 = 0;
 	float t1, t2;
 	unsigned int i;
 	for (i = 0; i < indices_len; i += 3) {
 		float t, u, v;
-		float (*points[3])[3] = {
-			vertices + i,
-			vertices + i + 1,
-			vertices + i + 2
+		float points[3][3] = {
+			{ vertices[indices[i]][0], vertices[indices[i]][1], vertices[indices[i]][2] },
+			{ vertices[indices[i+1]][0], vertices[indices[i+1]][1], vertices[indices[i+1]][2] },
+			{ vertices[indices[i+2]][0], vertices[indices[i+2]][1], vertices[indices[i+2]][2] }
 		};
-		if (!mathRaycastTriangle(origin, dir, (float(*)[3])points, &t, &u, &v))
+		if (!mathRaycastTriangle(origin, dir, points, &t, &u, &v))
 			continue;
 		if (!has_t1) {
 			t1 = t;
@@ -375,14 +469,14 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float 
 		return 0;
 	}
 	else if (!has_t2) {
-		*nearset = *farest = t1;
+		*nearest = *farest = t1;
 	}
 	else if (fcmpf(t1, t2, 1E-7f) <= 0) {
-		*nearset = t1;
+		*nearest = t1;
 		*farest = t2;
 	}
 	else {
-		*nearset = t2;
+		*nearest = t2;
 		*farest = t1;
 	}
 	return 1;
