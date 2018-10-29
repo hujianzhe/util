@@ -58,6 +58,12 @@ int mathVec3IsZero(float v[3]) {
 		fcmpf(v[2], 0.0f, 1E-7f) == 0;
 }
 
+int mathVec3EqualVec3(float v1[3], float v2[3]) {
+	return fcmpf(v1[0], v2[0], 1E-7f) == 0 &&
+		fcmpf(v1[1], v2[1], 1E-7f) == 0 &&
+		fcmpf(v1[2], v2[2], 1E-7f) == 0;
+}
+
 float mathVec3LenSq(float v[3]) {
 	return v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
 }
@@ -310,7 +316,7 @@ int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal
 	return fcmpf(*t, 0.0f, 1E-7f) >= 0;
 }
 
-int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* near_, float* far_) {
+int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest) {
 	float radius2 = radius * radius;
 	float d, dr2;
 	float v[3] = {
@@ -321,8 +327,8 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 	float oc2 = mathVec3LenSq(v);
 	float dir_d = mathVec3Dot(dir, v);
 	if (fcmpf(oc2, radius2, 1E-7f) == 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0) {
-		*near_ = 0.0f;
-		*far_ = 0.0f;
+		*nearest = 0.0f;
+		*farest = 0.0f;
 		return 1;
 	}
 	else if (fcmpf(oc2, radius2, 1E-7f) > 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0)
@@ -333,17 +339,17 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 
 	d = sqrtf(radius2 - dr2);
 	if (fcmpf(oc2, radius2, 1E-7f) >= 0) {
-		*near_ = dir_d - d;
-		*far_ = dir_d + d;
+		*nearest = dir_d - d;
+		*farest = dir_d + d;
 	}
 	else {
-		*near_ = 0.0f;
-		*far_ = dir_d + d;
+		*nearest = 0.0f;
+		*farest = dir_d + d;
 	}
 	return 1;
 }
 
-int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float indices[], unsigned int indices_len, float* near_, float* far_) {
+int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float indices[], unsigned int indices_len, float* nearset, float* farest) {
 	int has_t1 = 0, has_t2 = 0;
 	float t1, t2;
 	unsigned int i;
@@ -369,15 +375,15 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], float 
 		return 0;
 	}
 	else if (!has_t2) {
-		*near_ = *far_ = t1;
+		*nearset = *farest = t1;
 	}
 	else if (fcmpf(t1, t2, 1E-7f) <= 0) {
-		*near_ = t1;
-		*far_ = t2;
+		*nearset = t1;
+		*farest = t2;
 	}
 	else {
-		*near_ = t2;
-		*far_ = t1;
+		*nearset = t2;
+		*farest = t1;
 	}
 	return 1;
 }
