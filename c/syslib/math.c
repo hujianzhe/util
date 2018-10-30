@@ -260,9 +260,13 @@ int mathRaycastEdge(float origin[3], float dir[3], float vertices[2][3], float* 
 		float dov1 = mathVec3Dot(dir, OV1);
 		if (fcmpf(dov0, 0.0f, epsilon) < 0 && fcmpf(dov1, 0.0f, epsilon) < 0)
 			return 0;
+		if (fcmpf(dov0, dov1, epsilon) == 0) {
+			*t = dov0;
+			return 1;
+		}
 		p[0] = (origin[0] * v1[0] - origin[0] * v0[0] - v0[0] * dir[0]) / (v1[0] - v0[0] - dir[0]);
 		p[1] = (origin[1] * v1[1] - origin[1] * v0[1] - v0[1] * dir[1]) / (v1[1] - v0[1] - dir[1]);
-		p[0] = (origin[2] * v1[2] - origin[2] * v0[2] - v0[2] * dir[2]) / (v1[2] - v0[2] - dir[2]);
+		p[2] = (origin[2] * v1[2] - origin[2] * v0[2] - v0[2] * dir[2]) / (v1[2] - v0[2] - dir[2]);
 		op[0] = p[0] - origin[0];
 		op[1] = p[1] - origin[1];
 		op[2] = p[2] - origin[2];
@@ -273,6 +277,7 @@ int mathRaycastEdge(float origin[3], float dir[3], float vertices[2][3], float* 
 }
 
 int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v) {
+	const float epsilon = 1E-7f;
 	float det, inv_det;
 	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
 	float E1[3] = {
@@ -289,24 +294,25 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 	mathVec3Cross(P, dir, E2);
 	det = mathVec3Dot(E1, P);
 	/* if raycast_dir parallel to triangle plane, return false */
-	if (fcmpf(det, 0.0f, 1E-7f) == 0)
+	if (fcmpf(det, 0.0f, epsilon) == 0)
 		return 0;
 	inv_det = 1.0f / det;
 	T[0] = origin[0] - v0[0];
 	T[1] = origin[1] - v0[1];
 	T[2] = origin[2] - v0[2];
 	*u = mathVec3Dot(T, P) * inv_det;
-	if (fcmpf(*u, 0.0f, 1E-7f) < 0 || fcmpf(*u, 1.0f, 1E-7f) > 0)
+	if (fcmpf(*u, 0.0f, epsilon) < 0 || fcmpf(*u, 1.0f, epsilon) > 0)
 		return 0;
 	mathVec3Cross(Q, T, E1);
 	*v = mathVec3Dot(dir, Q) * inv_det;
-	if (fcmpf(*v, 0.0f, 1E-7f) < 0 || fcmpf(*v + *u, 1.0f, 1E-7f) > 0)
+	if (fcmpf(*v, 0.0f, epsilon) < 0 || fcmpf(*v + *u, 1.0f, epsilon) > 0)
 		return 0;
 	*t = mathVec3Dot(E2, Q) * inv_det;
-	return fcmpf(*t, 0.0f, 1E-7f) >= 0;/* return 1 */
+	return fcmpf(*t, 0.0f, epsilon) >= 0;/* return 1 */
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t) {
+	const float epsilon = 1E-7f;
 	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
 	float E1[3] = {
 		v1[0] - v0[0],
@@ -327,34 +333,36 @@ int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float*
 	mathVec3Normalized(N, mathVec3Cross(N, E1, E2));
 	d = mathVec3Dot(OV, N);
 	dn = mathVec3Dot(N, dir);
-	if (fcmpf(dn, 0.0f, 1E-7f) == 0) {
+	if (fcmpf(dn, 0.0f, epsilon) == 0) {
 		/*
-		if (fcmpf(d, 0.0f, 1E-7f) == 0) {
+		if (fcmpf(d, 0.0f, epsilon) == 0) {
 			*t = INFINITY;
 			return 1;
 		}
 		*/
 		return 0;
 	}
-	else if (fcmpf(d, 0.0f, 1E-7f) == 0) {
+	else if (fcmpf(d, 0.0f, epsilon) == 0) {
 		*t = 0.0f;
 		return 1;
 	}
 	else {
 		*t = mathVec3Dot(N, OV) / dn;
-		return fcmpf(*t, 0.0f, 1E-7f) > 0;
+		return fcmpf(*t, 0.0f, epsilon) > 0;
 	}
 }
 
 int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* t) {
+	const float epsilon = 1E-7f;
 	float dn = mathVec3Dot(dir, normal);
-	if (fcmpf(dn, 0.0f, 1E-7f) == 0)
+	if (fcmpf(dn, 0.0f, epsilon) == 0)
 		return 0;
 	*t = (mathVec3Dot(origin, normal) + d) / dn;
-	return fcmpf(*t, 0.0f, 1E-7f) >= 0;
+	return fcmpf(*t, 0.0f, epsilon) >= 0;
 }
 
 int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest) {
+	const float epsilon = 1E-7f;
 	float radius2 = radius * radius;
 	float d, dr2;
 	float v[3] = {
@@ -364,19 +372,19 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 	};
 	float oc2 = mathVec3LenSq(v);
 	float dir_d = mathVec3Dot(dir, v);
-	if (fcmpf(oc2, radius2, 1E-7f) == 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0) {
+	if (fcmpf(oc2, radius2, epsilon) == 0 && fcmpf(dir_d, 0.0f, epsilon) <= 0) {
 		*nearest = 0.0f;
 		*farest = 0.0f;
 		return 1;
 	}
-	else if (fcmpf(oc2, radius2, 1E-7f) > 0 && fcmpf(dir_d, 0.0f, 1E-7f) <= 0)
+	else if (fcmpf(oc2, radius2, epsilon) > 0 && fcmpf(dir_d, 0.0f, epsilon) <= 0)
 		return 0;
 	dr2 = oc2 - dir_d * dir_d;
-	if (fcmpf(dr2, radius2, 1E-7f) > 0)
+	if (fcmpf(dr2, radius2, epsilon) > 0)
 		return 0;
 
 	d = sqrtf(radius2 - dr2);
-	if (fcmpf(oc2, radius2, 1E-7f) >= 0) {
+	if (fcmpf(oc2, radius2, epsilon) >= 0) {
 		*nearest = dir_d - d;
 		*farest = dir_d + d;
 	}
@@ -485,6 +493,7 @@ int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3]
 }
 
 int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* nearest, float* farest) {
+	const float epsilon = 1E-7f;
 	int has_t1 = 0, has_t2 = 0;
 	float t1, t2;
 	unsigned int i;
@@ -501,7 +510,7 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int in
 			t1 = t;
 			has_t1 = 1;
 		}
-		else if (!has_t2 && fcmpf(t1, t, 1E-7f)) {
+		else if (!has_t2 && fcmpf(t1, t, epsilon)) {
 			t2 = t;
 			has_t2 = 1;
 		}
@@ -512,7 +521,7 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int in
 	else if (!has_t2) {
 		*nearest = *farest = t1;
 	}
-	else if (fcmpf(t1, t2, 1E-7f) <= 0) {
+	else if (fcmpf(t1, t2, epsilon) <= 0) {
 		*nearest = t1;
 		*farest = t2;
 	}
