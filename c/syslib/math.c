@@ -234,48 +234,6 @@ float* mathQuatMulVec3(float r[3], float q[4], float v[3]) {
 	return r;
 }
 
-int mathRaycastEdge(float origin[3], float dir[3], float vertices[2][3], float* t) {
-	const float epsilon = 1E-7f;
-	float *v0 = vertices[0], *v1 = vertices[1];
-	float E[3] = {
-		v1[0] - v0[0],
-		v1[1] - v0[1],
-		v1[2] - v0[2]
-	};
-	float OV0[3] = {
-		v0[0] - origin[0],
-		v0[1] - origin[1],
-		v0[2] - origin[2]
-	};
-	float N[3];
-	mathVec3Normalized(N, mathVec3Cross(N, E, OV0));
-	if (fcmpf(mathVec3Dot(N, dir), 0.0f, epsilon) == 0) {
-		float p[3], op[3];
-		float OV1[3] = {
-			v1[0] - origin[0],
-			v1[1] - origin[1],
-			v1[2] - origin[2]
-		};
-		float dov0 = mathVec3Dot(dir, OV0);
-		float dov1 = mathVec3Dot(dir, OV1);
-		if (fcmpf(dov0, 0.0f, epsilon) < 0 && fcmpf(dov1, 0.0f, epsilon) < 0)
-			return 0;
-		if (fcmpf(dov0, dov1, epsilon) == 0) {
-			*t = dov0;
-			return 1;
-		}
-		p[0] = (origin[0] * v1[0] - origin[0] * v0[0] - v0[0] * dir[0]) / (v1[0] - v0[0] - dir[0]);
-		p[1] = (origin[1] * v1[1] - origin[1] * v0[1] - v0[1] * dir[1]) / (v1[1] - v0[1] - dir[1]);
-		p[2] = (origin[2] * v1[2] - origin[2] * v0[2] - v0[2] * dir[2]) / (v1[2] - v0[2] - dir[2]);
-		op[0] = p[0] - origin[0];
-		op[1] = p[1] - origin[1];
-		op[2] = p[2] - origin[2];
-		*t = mathVec3Len(op);
-		return 1;
-	}
-	return 0;
-}
-
 int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v) {
 	const float epsilon = 1E-7f;
 	float det, inv_det;
