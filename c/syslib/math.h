@@ -55,7 +55,7 @@ __declspec_dll float* mathQuatConjugate(float r[4], float q[4]);
 __declspec_dll float* mathQuatMulQuat(float r[4], float q1[4], float q2[4]);
 __declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
 __declspec_dll int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v);
-__declspec_dll int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t);
+__declspec_dll int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t, float n[3]);
 __declspec_dll int mathRaycastPlaneByNormalDistance(float origin[3], float dir[3], float normal[3], float d, float* t);
 __declspec_dll int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest);
 __declspec_dll int mathRaycastBox(float origin[3], float dir[3], float center[3], float half[3], float quat[4], float* nearest, float* farest);
