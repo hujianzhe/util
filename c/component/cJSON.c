@@ -591,6 +591,7 @@ static const char *parse_object(cJSON *item,const char *value)
 	
 	item->child=child=cJSON_New_Item();
 	if (!item->child) return 0;
+	child->parent = item;
 	value=skip(parse_string(child,skip(value)));
 	if (!value) return 0;
 	child->string=child->valuestring;child->valuestring=0;
