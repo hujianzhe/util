@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include "cXML.h"
 
 #define WHITESPACE " \t\n\r"
