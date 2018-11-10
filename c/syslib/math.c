@@ -507,6 +507,32 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int in
 	return 1;
 }
 
+int mathSpherecastPlane(float origin[3], float dir[3], float radius, float vertices[3][3], float* t, float n[3], int* is_lay_on_plane) {
+	if (mathRaycastPlane(origin, dir, vertices, t, n, is_lay_on_plane)) {
+		const float epsilon = 1E-7F;
+		float VO[3] = {
+			origin[0] - vertices[0][0],
+			origin[1] - vertices[0][1],
+			origin[2] - vertices[0][2]
+		};
+		float dn = mathVec3Dot(VO, n);
+		if (fcmpf(dn, 0.0f, epsilon) < 0) {
+			dn = -dn;
+		}
+		if (fcmpf(radius, dn, epsilon) > 0) {
+			*is_lay_on_plane = 1;
+		}
+		else if (fcmpf(radius, dn, epsilon) == 0) {
+			*t = 0.0f;
+		}
+		else {
+			*t *= 1.0f - (radius / dn);
+		}
+		return 1;
+	}
+	return 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif
