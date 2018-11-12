@@ -26,12 +26,11 @@ a > b return >0;
 a < b return <0;
 */
 int fcmp(double a, double b, double epsilon) {
-	const double neg_epsilon = -epsilon;
 	double v = a - b;
 	/* a == b */
-	if (v > neg_epsilon && v < epsilon)
+	if (v > -epsilon && v < epsilon)
 		return 0;
-	return v <= neg_epsilon ? -1 : 1;
+	return v >= epsilon ? 1 : -1;
 }
 
 float fsqrtf(float x) {
