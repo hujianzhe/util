@@ -429,7 +429,7 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 						p_n = n02;
 						*t = t02;
 					}
-					if (*t < t12) {
+					if (*t > t12) {
 						p_n = n12;
 						*t = t12;
 					}
