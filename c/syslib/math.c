@@ -233,6 +233,39 @@ float* mathQuatMulVec3(float r[3], float q[4], float v[3]) {
 	return r;
 }
 
+static int mathTrianglePlaneHasPoint(float vertices[3][3], float p[3], float* u, float* v) {
+	const float epsilon = 1E-7f;
+	float *a = vertices[0], *b = vertices[1], *c = vertices[2];
+	float ap[3] = {
+		p[0] - a[0],
+		p[1] - a[1],
+		p[2] - a[2]
+	};
+	float ab[3] = {
+		b[0] - a[0],
+		b[1] - a[1],
+		b[2] - a[2]
+	};
+	float ac[3] = {
+		c[0] - a[0],
+		c[1] - a[1],
+		c[2] - a[2]
+	};
+	float dot_ac_ac = mathVec3Dot(ac, ac);
+	float dot_ac_ab = mathVec3Dot(ac, ab);
+	float dot_ac_ap = mathVec3Dot(ac, ap);
+	float dot_ab_ab = mathVec3Dot(ab, ab);
+	float dot_ab_ap = mathVec3Dot(ab, ap);
+	float tmp = 1.0f / (dot_ac_ac * dot_ab_ab - dot_ac_ab * dot_ac_ab);
+	*u = (dot_ab_ab * dot_ac_ap - dot_ac_ab * dot_ab_ap) * tmp;
+	if (fcmpf(*u, 0.0f, epsilon) < 0 || fcmpf(*u, 1.0f, epsilon) > 0)
+		return 0;
+	*v = (dot_ac_ac * dot_ab_ap - dot_ac_ab * dot_ac_ap) * tmp;
+	if (fcmpf(*v, 0.0f, epsilon) < 0 || fcmpf(*v + *u, 1.0f, epsilon) > 0)
+		return 0;
+	return 1;
+}
+
 int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float* u, float* v, float n[3], int* is_lay_on_plane) {
 	const float epsilon = 1E-7f;
 	float det, inv_det;
@@ -520,6 +553,7 @@ int mathSpherecastPlane(float origin[3], float dir[3], float radius, float verti
 		}
 		if (fcmpf(radius, dn, epsilon) > 0) {
 			*is_lay_on_plane = 1;
+			return 0;
 		}
 		else if (fcmpf(radius, dn, epsilon) == 0) {
 			*t = 0.0f;
