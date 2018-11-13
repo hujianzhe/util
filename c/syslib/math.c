@@ -629,7 +629,7 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int in
 	int has_t1 = 0, has_t2 = 0;
 	float t1, t2, n1[3], n2[3];
 	unsigned int i;
-	for (i = 0; i < indices_len; i += 3) {
+	for (i = 0; (!has_t1 || !has_t2) && i < indices_len; i += 3) {
 		float t, N[3];
 		float points[3][3] = {
 			{ vertices[indices[i]][0], vertices[indices[i]][1], vertices[indices[i]][2] },
