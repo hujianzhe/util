@@ -58,9 +58,9 @@ int mathVec3IsZero(float v[3]) {
 }
 
 int mathVec3EqualVec3(float v1[3], float v2[3]) {
-	return fcmpf(v1[0], v2[0], 1E-7f) == 0 &&
-		fcmpf(v1[1], v2[1], 1E-7f) == 0 &&
-		fcmpf(v1[2], v2[2], 1E-7f) == 0;
+	return fcmpf(v1[0], v2[0], 1E-5f) == 0 &&
+		fcmpf(v1[1], v2[1], 1E-5f) == 0 &&
+		fcmpf(v1[2], v2[2], 1E-5f) == 0;
 }
 
 float mathVec3LenSq(float v[3]) {
@@ -303,6 +303,34 @@ int mathLineSegmentHasPoint(float l1[3], float l2[3], float p[3]) {
 	}
 }
 
+float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]) {
+	float ab[3] = {
+		b1[0] - a1[0],
+		b1[1] - a1[1],
+		b1[2] - a1[2]
+	};
+	float l1[3] = {
+		a2[0] - a1[0],
+		a2[1] - a1[1],
+		a2[2] - a1[2]
+	};
+	float l2[3] = {
+		b2[0] - b1[0],
+		b2[1] - b1[1],
+		b2[2] - b1[1]
+	};
+	float N[3], d;
+	mathVec3Cross(N, l1, l2);
+	if (mathVec3IsZero(N))
+		return 0.0f;
+	else {
+		float d = mathVec3Dot(ab, mathVec3Normalized(N, N));
+		if (d < 0.0f)
+			d = -d;
+		return d;
+	}
+}
+
 int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], float* t, float n[3]) {
 	const float epsilon = 1E-7f;
 	float dot, op[3], dn;
@@ -316,22 +344,21 @@ int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], flo
 		l2[1] - l1[1],
 		l2[2] - l1[2]
 	};
+	mathVec3Cross(n, l1O, l);
+	if (mathVec3IsZero(n)) {
+		*t = 0.0f;
+		n[0] = n[1] = n[2] = 0.0f;
+		return 1;
+	}
+	dot = mathVec3Dot(n, dir);
+	if (fcmpf(dot, 0.0f, epsilon))
+		return 0;
 	mathVec3Normalized(l, l);
 	dot = mathVec3Dot(l1O, l);
 	op[0] = l1[0] + l[0] * dot - origin[0];
 	op[1] = l1[1] + l[1] * dot - origin[1];
 	op[2] = l1[2] + l[2] * dot - origin[2];
 	dn = mathVec3LenSq(op);
-	if (fcmpf(dn, 0.0f, epsilon) <= 0) {
-		*t = 0.0f;
-		dot = mathVec3Dot(l, dir);
-		if (fcmpf(dot, 1.0f, epsilon) == 0 || fcmpf(dot, -1.0f, epsilon) == 0)
-			n[0] = n[1] = n[2] = 0.0f;
-		else {
-			mathVec3Negate(n, mathVec3Normalized(n, n));
-		}
-		return 1;
-	}
 	mathVec3Normalized(n, op);
 	dot = mathVec3Dot(n, dir);/* cos theta */
 	if (fcmpf(dot, 0.0f, epsilon) <= 0)
@@ -360,7 +387,12 @@ int mathRaycastLineSegment(float origin[3], float dir[3], float l1[3], float l2[
 				l1[1] - p[1],
 				l1[2] - p[2]
 			};
-			if (fcmpf(mathVec3Dot(pl1, dir), 0.0f, epsilon) < 0)
+			float pn[3], dot;
+			mathVec3Cross(pn, pl1, dir);
+			if (!mathVec3IsZero(pn))
+				return 0;
+			dot = mathVec3Dot(pl1, dir);
+			if (fcmpf(dot, 0.0f, epsilon) < 0)
 				return 0;
 			else {
 				float pl2[3] = {
@@ -450,21 +482,37 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 			}
 			else {
 				float t01, t02, t12, n01[3], n02[3], n12[3], *p_n;
-				int c0 = mathRaycastLineSegment(origin, dir, vertices[0], vertices[1], &t01, n01);
-				int c1 = mathRaycastLineSegment(origin, dir, vertices[0], vertices[2], &t02, n02);
-				int c2 = mathRaycastLineSegment(origin, dir, vertices[1], vertices[2], &t12, n12);
-				if (c0 || c1 || c2) {
-					if (t01 < t02) {
-						p_n = n01;
-						*t = t01;
+				int c01 = mathRaycastLineSegment(origin, dir, vertices[0], vertices[1], &t01, n01);
+				int c02 = mathRaycastLineSegment(origin, dir, vertices[0], vertices[2], &t02, n02);
+				int c12 = mathRaycastLineSegment(origin, dir, vertices[1], vertices[2], &t12, n12);
+				if (c01 || c02 || c12) {
+					if (c01) {
+						if (c02 && t02 < t01) {
+							*t = t02;
+							p_n = n02;
+						}
+						else {
+							*t = t01;
+							p_n = n01;
+						}
+						if (c12 && t12 < *t) {
+							*t = t12;
+							p_n = n12;
+						}
+					}
+					else if (c02) {
+						if (c12 && t12 < t02) {
+							*t = t12;
+							p_n = n12;
+						}
+						else {
+							*t = t02;
+							p_n = n02;
+						}
 					}
 					else {
-						p_n = n02;
-						*t = t02;
-					}
-					if (*t > t12) {
-						p_n = n12;
 						*t = t12;
+						p_n = n12;
 					}
 					n[0] = p_n[0];
 					n[1] = p_n[1];
