@@ -115,6 +115,19 @@ float* mathVec3Cross(float r[3], float v1[3], float v2[3]) {
 	return r;
 }
 
+
+float* mathQuatNormalized(float r[4], float q[4]) {
+	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
+	if (fcmpf(m, 0.0f, 1E-7f) > 0) {
+		m = 1.0f / sqrtf(m);
+		r[0] = q[0] * m;
+		r[1] = q[1] * m;
+		r[2] = q[2] * m;
+		r[3] = q[3] * m;
+	}
+	return r;
+}
+
 float* mathQuatFromEuler(float q[4], float e[3], const char order[3]) {
 	float pitch_x = e[0];
 	float yaw_y = e[1];
@@ -170,14 +183,34 @@ float* mathQuatFromEuler(float q[4], float e[3], const char order[3]) {
 	return q;
 }
 
-/*
-float* mathQuatToEuler(float q[4], float e[3]) {
-	e[2] = atan2f(2.0f * (q[2]*q[3] + q[0]*q[1]), q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]);
-	e[1] = atan2f(2.0f * (q[1]*q[2] + q[0]*q[3]), q[0]*q[0] + q[1]*q[1] - q[2]*q[2] - q[3]*q[3]);
-	e[0] = asinf(2.0f * (q[0]*q[2] - q[1]*q[3]));
-	return e;
+float* mathQuatFromUnitVec3(float q[4], float from[3], float to[3]) {
+	float v[3];
+	float w = mathVec3Dot(from, to) + 1.0f;
+	if (w < 1E-7f) {
+		float from_abs_x = from[0] > 0.0f ? from[0] : -from[0];
+		float from_abs_z = from[2] > 0.0f ? from[2] : -from[2];
+		if (from_abs_x > from_abs_z) {
+			v[0] = -from[1];
+			v[1] = from[0];
+			v[2] = 0.0f;
+		}
+		else {
+			v[0] = 0.0f;
+			v[1] = -from[2];
+			v[2] = from[1];
+		}
+		w = 0.0f;
+	}
+	else {
+		mathVec3Cross(v, from, to);
+	}
+
+	q[0] = v[0];
+	q[1] = v[1];
+	q[2] = v[2];
+	q[3] = w;
+	return mathQuatNormalized(q, q);
 }
-*/
 
 float* mathQuatFromAxisRadian(float q[4], float axis[3], float radian) {
 	const float half_rad = radian * 0.5f;
