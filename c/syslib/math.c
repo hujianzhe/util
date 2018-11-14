@@ -319,7 +319,7 @@ float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]) {
 		b2[1] - b1[1],
 		b2[2] - b1[1]
 	};
-	float N[3], d;
+	float N[3];
 	mathVec3Cross(N, l1, l2);
 	if (mathVec3IsZero(N))
 		return 0.0f;
