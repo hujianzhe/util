@@ -331,7 +331,82 @@ float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]) {
 	}
 }
 
-int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], float* t) {
+int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], float* t, float p[3]) {
+	float n[3], t0, t1, t2, t3, neg_dir[3];
+	int c0, c1, c2, c3;
+	c0 = mathRaycastLineSegment(ls1[0], dir, ls2[0], ls2[1], &t0, n);
+	c1 = mathRaycastLineSegment(ls1[1], dir, ls2[0], ls2[1], &t1, n);
+	mathVec3Negate(neg_dir, dir);
+	c2 = mathRaycastLineSegment(ls2[0], neg_dir, ls1[0], ls1[1], &t2, n);
+	c3 = mathRaycastLineSegment(ls2[1], neg_dir, ls1[0], ls1[1], &t3, n);
+	if (c0 || c1 || c2 || c3) {
+		float* p_dir, *o;
+		if (c0) {
+			if (c1 && t0 > t1) {
+				*t = t1;
+				o = ls1[1];
+				p_dir = dir;
+			}
+			else {
+				*t = t0;
+				o = ls1[0];
+				p_dir = dir;
+			}
+			if (c2 && *t > t2) {
+				*t = t2;
+				o = ls2[0];
+				p_dir = neg_dir;
+			}
+			if (c3 && *t > t3) {
+				*t = t3;
+				o = ls2[1];
+				p_dir = neg_dir;
+			}
+		}
+		else if (c1) {
+			if (c2 && t1 > t2) {
+				*t = t2;
+				o = ls2[0];
+				p_dir = neg_dir;
+			}
+			else {
+				*t = t1;
+				o = ls1[1];
+				p_dir = dir;
+			}
+			if (c3 && *t > t3) {
+				*t = t3;
+				o = ls2[1];
+				p_dir = neg_dir;
+			}
+		}
+		else if (c2) {
+			if (c3 && t2 > t3) {
+				*t = t3;
+				o = ls2[1];
+				p_dir = neg_dir;
+			}
+			else {
+				*t = t2;
+				o = ls2[0];
+				p_dir = neg_dir;
+			}
+		}
+		else {
+			*t = t3;
+			o = ls2[1];
+			p_dir = neg_dir;
+		}
+		p[0] = o[0];
+		p[1] = o[1];
+		p[2] = o[2];
+		if (fcmpf(*t, 0.0f, 0.000001f) > 0) {
+			p[0] += *t * p_dir[0];
+			p[1] += *t * p_dir[1];
+			p[2] += *t * p_dir[2];
+		}
+		return 1;
+	}
 	return 0;
 }
 
