@@ -58,9 +58,9 @@ int mathVec3IsZero(float v[3]) {
 }
 
 int mathVec3EqualVec3(float v1[3], float v2[3]) {
-	return fcmpf(v1[0], v2[0], 1E-5f) == 0 &&
-		fcmpf(v1[1], v2[1], 1E-5f) == 0 &&
-		fcmpf(v1[2], v2[2], 1E-5f) == 0;
+	return fcmpf(v1[0], v2[0], 0.000001f) == 0 &&
+		fcmpf(v1[1], v2[1], 0.000001f) == 0 &&
+		fcmpf(v1[2], v2[2], 0.000001f) == 0;
 }
 
 float mathVec3LenSq(float v[3]) {
@@ -331,8 +331,12 @@ float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]) {
 	}
 }
 
+int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], float* t) {
+	return 0;
+}
+
 int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], float* t, float n[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	float dot, op[3], dn;
 	float l1O[3] = {
 		origin[0] - l1[0],
@@ -373,7 +377,7 @@ int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], flo
 
 int mathRaycastLineSegment(float origin[3], float dir[3], float l1[3], float l2[3], float *t, float n[3]) {
 	if (mathRaycastLine(origin, dir, l1, l2, t, n)) {
-		const float epsilon = 1E-7f;
+		const float epsilon = 0.000001f;
 		float p[3] = {
 			origin[0] + *t * dir[0],
 			origin[1] + *t * dir[1],
@@ -415,7 +419,7 @@ int mathRaycastLineSegment(float origin[3], float dir[3], float l1[3], float l2[
 }
 
 static int mathTrianglePlaneHasPoint(float vertices[3][3], float p[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	float *a = vertices[0], *b = vertices[1], *c = vertices[2];
 	float ap[3] = {
 		p[0] - a[0],
@@ -449,7 +453,7 @@ static int mathTrianglePlaneHasPoint(float vertices[3][3], float p[3]) {
 }
 
 int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float n[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	float det, inv_det, u, v;
 	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
 	float E1[3] = {
@@ -548,7 +552,7 @@ int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], flo
 }
 
 int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t, float n[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	float *v0 = vertices[0], *v1 = vertices[1], *v2 = vertices[2];
 	float E1[3] = {
 		v1[0] - v0[0],
@@ -587,7 +591,7 @@ int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float*
 }
 
 int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest, float n[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	float radius2 = radius * radius;
 	float d, dr2;
 	float v[3] = {
@@ -617,7 +621,7 @@ int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radi
 }
 
 int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* nearest, float* farest, float n[3]) {
-	const float epsilon = 1E-7f;
+	const float epsilon = 0.000001f;
 	int has_t1 = 0, has_t2 = 0;
 	float t1, t2, n1[3], n2[3];
 	unsigned int i;
@@ -673,7 +677,7 @@ int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int in
 
 int mathSpherecastPlane(float origin[3], float dir[3], float radius, float vertices[3][3], float* t, float n[3]) {
 	if (mathRaycastPlane(origin, dir, vertices, t, n)) {
-		const float epsilon = 1E-7F;
+		const float epsilon = 0.000001f;
 		float VO[3] = {
 			origin[0] - vertices[0][0],
 			origin[1] - vertices[0][1],
