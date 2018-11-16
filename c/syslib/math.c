@@ -713,15 +713,28 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 	};
 	float N[3], ldir[3];
 	mathVec3Normalized(ldir, l1);
-	if (!mathRaycastPlane(ls1[0], ldir, ls2_dir_plane_vertices, t, N)) {
-		mathVec3Negate(ldir, ldir);
-		if (!mathRaycastPlane(ls1[0], ldir, ls2_dir_plane_vertices, t, N))
+	if (mathRaycastPlane(ls1[0], ldir, ls2_dir_plane_vertices, t, N)) {
+		float lp[3], lensq = mathVec3LenSq(l1);
+		if (fcmpf(*t * *t, lensq, epsilon) > 0)
+			return 0;
+		p[0] = ls1[0][0] + *t * ldir[0];
+		p[1] = ls1[0][1] + *t * ldir[1];
+		p[2] = ls1[0][2] + *t * ldir[2];
+
+		lp[0] = ls1[1][0] - p[0];
+		lp[1] = ls1[1][1] - p[1];
+		lp[2] = ls1[1][2] - p[2];
+		if (fcmpf(mathVec3LenSq(lp), lensq, epsilon) > 0)
 			return 0;
 	}
-	if (fcmpf(*t * *t, mathVec3LenSq(l1), epsilon) > 0) {
-		return 0;
+	else if (mathRaycastPlane(ls1[1], ldir, ls2_dir_plane_vertices, t, N)) {
+		p[0] = ls1[1][0] + *t * ldir[0];
+		p[1] = ls1[1][1] + *t * ldir[1];
+		p[2] = ls1[1][2] + *t * ldir[2];
 	}
-	else if (fcmpf(*t, 0.0f, epsilon) == 0) {
+	else
+		return 0;
+	if (fcmpf(*t, 0.0f, epsilon) == 0) {
 		float l2[3] = {
 			ls2[1][0] - ls2[0][0],
 			ls2[1][1] - ls2[0][1],
@@ -807,9 +820,6 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 			return 0;
 		}
 	}
-	p[0] += ls1[0][0] + *t * ldir[0];
-	p[1] += ls1[0][1] + *t * ldir[1];
-	p[2] += ls1[0][2] + *t * ldir[2];
 	if (!mathRaycastLineSegment(p, dir, ls2[0], ls2[1], t, N))
 		return 0;
 	p[0] += *t * dir[0];
