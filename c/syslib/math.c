@@ -810,7 +810,7 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 				p[0] = o[0];
 				p[1] = o[1];
 				p[2] = o[2];
-				if (fcmpf(*t, 0.0f, 0.000001f) > 0) {
+				if (p_dir == dir && fcmpf(*t, 0.0f, 0.000001f) > 0) {
 					p[0] += *t * p_dir[0];
 					p[1] += *t * p_dir[1];
 					p[2] += *t * p_dir[2];
@@ -826,6 +826,10 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 	p[1] += *t * dir[1];
 	p[2] += *t * dir[2];
 	return 1;
+}
+
+int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* t, float p[3]) {
+	return 0;
 }
 
 #ifdef	__cplusplus
