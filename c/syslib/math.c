@@ -52,9 +52,9 @@ double fsqrt(double x) {
 }
 
 int mathVec3IsZero(float v[3]) {
-	return fcmpf(v[0], 0.0f, 1E-7f) == 0 &&
-		fcmpf(v[1], 0.0f, 1E-7f) == 0 &&
-		fcmpf(v[2], 0.0f, 1E-7f) == 0;
+	return fcmpf(v[0], 0.0f, 0.000001f) == 0 &&
+		fcmpf(v[1], 0.0f, 0.000001f) == 0 &&
+		fcmpf(v[2], 0.0f, 0.000001f) == 0;
 }
 
 int mathVec3EqualVec3(float v1[3], float v2[3]) {
@@ -73,7 +73,7 @@ float mathVec3Len(float v[3]) {
 
 float* mathVec3Normalized(float r[3], float v[3]) {
 	float len = mathVec3Len(v);
-	if (fcmpf(len, 0.0f, 1E-7f) > 0) {
+	if (fcmpf(len, 0.0f, 0.000001f) > 0) {
 		float inv_len = 1.0f / len;
 		r[0] = v[0] * inv_len;
 		r[1] = v[1] * inv_len;
@@ -118,7 +118,7 @@ float* mathVec3Cross(float r[3], float v1[3], float v2[3]) {
 
 float* mathQuatNormalized(float r[4], float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
-	if (fcmpf(m, 0.0f, 1E-7f) > 0) {
+	if (fcmpf(m, 0.0f, 0.000001f) > 0) {
 		m = 1.0f / sqrtf(m);
 		r[0] = q[0] * m;
 		r[1] = q[1] * m;
@@ -281,25 +281,25 @@ float mathPointLineDistanceSq(float l1[3], float l2[3], float p[3]) {
 	return mathVec3LenSq(l1p) - dot * dot;
 }
 
-int mathLineSegmentHasPoint(float l1[3], float l2[3], float p[3]) {
-	float pl1[3] = {
-		l1[0] - p[0],
-		l1[1] - p[1],
-		l1[2] - p[2]
+int mathLineSegmentHasPoint(float v1[3], float v2[3], float p[3]) {
+	float pv1[3] = {
+		v1[0] - p[0],
+		v1[1] - p[1],
+		v1[2] - p[2]
 	};
-	if (mathVec3IsZero(pl1))
+	if (mathVec3IsZero(pv1))
 		return 1;
 	else {
-		float pl2[3] = {
-			l2[0] - p[0],
-			l2[1] - p[1],
-			l2[2] - p[2]
+		float pv2[3] = {
+			v2[0] - p[0],
+			v2[1] - p[1],
+			v2[2] - p[2]
 		};
-		if (mathVec3IsZero(pl2))
+		if (mathVec3IsZero(pv2))
 			return 1;
-		mathVec3Normalized(pl1, pl1);
-		mathVec3Normalized(pl2, pl2);
-		return mathVec3EqualVec3(mathVec3Negate(pl1, pl1), pl2);
+		mathVec3Normalized(pv1, pv1);
+		mathVec3Normalized(pv2, pv2);
+		return mathVec3EqualVec3(mathVec3Negate(pv1, pv1), pv2);
 	}
 }
 

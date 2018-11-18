@@ -64,7 +64,7 @@ __declspec_dll float* mathQuatMulQuat(float r[4], float q1[4], float q2[4]);
 __declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
 
 __declspec_dll float mathPointLineDistanceSq(float l1[3], float l2[3], float p[3]);
-__declspec_dll int mathLineSegmentHasPoint(float l1[3], float l2[3], float p[3]);
+__declspec_dll int mathLineSegmentHasPoint(float v1[3], float v2[3], float p[3]);
 __declspec_dll float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]);
 __declspec_dll int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], float* t, float n[3]);
 __declspec_dll int mathRaycastLineSegment(float origin[3], float dir[3], float l1[3], float l2[3], float *t, float n[3]);
