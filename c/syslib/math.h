@@ -66,15 +66,15 @@ __declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
 __declspec_dll float mathPointLineDistanceSq(float l1[3], float l2[3], float p[3]);
 __declspec_dll int mathLineSegmentHasPoint(float v1[3], float v2[3], float p[3]);
 __declspec_dll float mathLineLineDistance(float a1[3], float a2[3], float b1[3], float b2[3]);
-__declspec_dll int mathRaycastLine(float origin[3], float dir[3], float l1[3], float l2[3], float* t, float n[3]);
-__declspec_dll int mathRaycastLineSegment(float origin[3], float dir[3], float l1[3], float l2[3], float *t, float n[3]);
-__declspec_dll int mathRaycastTriangle(float origin[3], float dir[3], float vertices[3][3], float* t, float n[3]);
-__declspec_dll int mathRaycastPlane(float origin[3], float dir[3], float vertices[3][3], float* t, float n[3]);
-__declspec_dll int mathRaycastSphere(float origin[3], float dir[3], float center[3], float radius, float* nearest, float* farest, float n[3]);
-__declspec_dll int mathRaycastConvex(float origin[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* nearest, float* farest, float n[3]);
-__declspec_dll int mathSpherecastPlane(float origin[3], float dir[3], float radius, float vertices[3][3], float* t, float n[3]);
-__declspec_dll int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], float* t, float p[3]);
-__declspec_dll int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* t, float p[3]);
+__declspec_dll int mathRaycastLine(float o[3], float dir[3], float v1[3], float v2[3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathRaycastLineSegment(float o[3], float dir[3], float v1[3], float v2[3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathRaycastTriangle(float o[3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathRaycastSphere(float o[3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
+__declspec_dll int mathRaycastConvex(float o[3], float dir[3], float(*vertices)[3], int indices[], unsigned int indices_len, float* distance, float normal[3], float point[3]);
+__declspec_dll int mathSpherecastPlane(float o[3], float dir[3], float radius, float vertices[3][3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], float* distance, float normal[3], float point[3]);
+__declspec_dll int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
 
 #ifdef	__cplusplus
 }
