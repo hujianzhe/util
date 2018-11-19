@@ -348,6 +348,9 @@ int mathRaycastLine(float o[3], float dir[3], float v1[3], float v2[3], float* d
 	if (mathVec3IsZero(normal)) {
 		*distance = 0.0f;
 		normal[0] = normal[1] = normal[2] = 0.0f;
+		point[0] = o[0];
+		point[1] = o[1];
+		point[2] = o[2];
 		return 1;
 	}
 	dot = mathVec3Dot(normal, dir);
@@ -379,7 +382,7 @@ int mathRaycastLineSegment(float o[3], float dir[3], float v1[3], float v2[3], f
 		const float epsilon = 0.000001f;
 		if (mathLineSegmentHasPoint(v1, v2, point))
 			return 1;
-		else if (mathVec3IsZero(normal)) {
+		if (mathVec3IsZero(normal)) {
 			float pv1[3] = {
 				v1[0] - point[0],
 				v1[1] - point[1],
@@ -592,6 +595,9 @@ int mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], float* dist
 		if (fcmpf(mathVec3Dot(OV, normal), 0.0f, epsilon) == 0) {
 			*distance = 0.0f;
 			normal[0] = normal[1] = normal[2] = 0.0f;
+			point[0] = o[0];
+			point[1] = o[1];
+			point[2] = o[2];
 			return 1;
 		}
 		return 0;
@@ -618,8 +624,14 @@ int mathRaycastSphere(float o[3], float dir[3], float center[3], float radius, f
 	};
 	float oc2 = mathVec3LenSq(v);
 	float dir_d = mathVec3Dot(dir, v);
-	if (fcmpf(oc2, radius2, epsilon) < 0)
-		return 0;
+	if (fcmpf(oc2, radius2, epsilon) < 0) {
+		*distance = 0.0f;
+		normal[0] = normal[1] = normal[2] = 0.0f;
+		point[0] = o[0];
+		point[1] = o[1];
+		point[2] = o[2];
+		return 1;
+	}
 	else if (fcmpf(dir_d, 0.0f, epsilon) <= 0)
 		return 0;
 
@@ -848,9 +860,9 @@ int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radi
 		ls[0][2] - center[2]
 	};
 	float l[3] = {
-		ls[0][0] - ls[1][0],
-		ls[0][1] - ls[1][1],
-		ls[0][2] - ls[1][2]
+		ls[1][0] - ls[0][0],
+		ls[1][1] - ls[0][1],
+		ls[1][2] - ls[0][2]
 	};
 	float N[3], dn;
 	mathVec3Normalized(N, mathVec3Cross(N, l, dir));
@@ -867,32 +879,76 @@ int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radi
 			center[1] + N[1] * dn,
 			center[2] + N[2] * dn
 		};
-		float pl[3] = {
-			ls[0][0] - P[0],
-			ls[0][1] - P[1],
-			ls[0][2] - P[2]
+		float lp[3] = {
+			P[0] - ls[0][0],
+			P[1] - ls[0][1],
+			P[2] - ls[0][2]
 		};
-		float delta_len = sqrtf(radius * radius - dn * dn);
-		float neg_dir[3];
-		mathVec3Negate(neg_dir, dir);
-		dn = mathVec3Dot(pl, neg_dir);
-		if (fcmpf(dn, delta_len, epsilon) <= 0) {
+		float ldir[3], o[3], op[3], cos_theta, delta_len, op_len, len;
+		delta_len = sqrt(radius * radius - dn * dn);
+		mathVec3Normalized(ldir, l);
+		dn = mathVec3Dot(lp, ldir);
+		o[0] = ls[0][0] + ldir[0] * dn;
+		o[1] = ls[0][1] + ldir[1] * dn;
+		o[2] = ls[0][2] + ldir[2] * dn;
+		op[0] = P[0] - o[0];
+		op[1] = P[1] - o[1];
+		op[2] = P[2] - o[2];
+		op_len = mathVec3Len(op);
+		if (fcmpf(op_len, delta_len, epsilon) < 0) {
 			*distance = 0.0f;
 			normal[0] = normal[1] = normal[2] = 0.0f;
-			return 0;
-		}
-		else {
-			*distance = dn - delta_len;
-			point[0] = P[0] + neg_dir[0] * delta_len;
-			point[0] = P[1] + neg_dir[1] * delta_len;
-			point[0] = P[2] + neg_dir[2] * delta_len;
-			normal[0] = P[0] - center[0];
-			normal[1] = P[1] - center[1];
-			normal[2] = P[2] - center[2];
-			mathVec3Normalized(normal, normal);
 			return 1;
 		}
+		mathVec3Normalized(normal, op);
+		cos_theta = mathVec3Dot(normal, dir);
+		len = op_len - delta_len;
+		*distance = len / cos_theta;
+		point[0] = o[0] + normal[0] * len;
+		point[1] = o[1] + normal[1] * len;
+		point[2] = o[2] + normal[2] * len;
+		mathVec3Negate(normal, normal);
+		return 1;
 	}
+}
+
+int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]) {
+	float t0, t1, n0[3], n1[3], p0[3], p1[3];
+	float *p_n, *p_p;
+	int c0, c1;
+	if (mathLinecastSphere(ls, dir, center, radius, distance, normal, point)) {
+		if (!mathVec3IsZero(normal)) {
+			float p[3] = {
+				point[0] - *distance * dir[0],
+				point[1] - *distance * dir[1],
+				point[2] - *distance * dir[2]
+			};
+			return mathLineSegmentHasPoint(ls[0], ls[1], p);
+		}
+	}
+	c0 = mathRaycastSphere(ls[0], dir, center, radius, &t0, n0, p0);
+	c1 = mathRaycastSphere(ls[1], dir, center, radius, &t1, n1, p1);
+	if (c0 || c1) {
+		if (c1 && t0 > t1) {
+			*distance = t1;
+			p_n = n1;
+			p_p = p1;
+		}
+		else {
+			*distance = t0;
+			p_n = p0;
+			p_p = p1;
+		}
+		normal[0] = p_n[0];
+		normal[1] = p_n[1];
+		normal[2] = p_n[2];
+		point[0] = p_p[0];
+		point[1] = p_p[1];
+		point[2] = p_p[2];
+		return 1;
+	}
+	else
+		return 0;
 }
 
 #ifdef	__cplusplus
