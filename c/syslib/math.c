@@ -951,6 +951,30 @@ int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], flo
 		return 0;
 }
 
+int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float r2, float* distance, float normal[3], float point[3]) {
+	const float epsilon = 0.000001f;
+	float dot, dn, r12 = r1 + r2, delta_len;
+	float oo[3] = {
+		o2[0] - o1[0],
+		o2[1] - o1[1],
+		o2[2] - o1[2]
+	};
+	dot = mathVec3Dot(oo, dir);
+	dn = mathVec3LenSq(oo) - dot * dot;
+	delta_len = r12 * r12 - dn;
+	if (fcmpf(delta_len, 0.0f, epsilon) < 0)
+		return 0;
+	*distance = sqrtf(dot - delta_len);
+	normal[0] = o1[0] + *distance * dir[0] - o2[0];
+	normal[1] = o1[1] + *distance * dir[1] - o2[1];
+	normal[2] = o1[2] + *distance * dir[2] - o2[2];
+	mathVec3Normalized(normal, normal);
+	point[0] = o2[0] + normal[0] * r2;
+	point[1] = o2[1] + normal[1] * r2;
+	point[2] = o2[2] + normal[2] * r2;
+	return 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif
