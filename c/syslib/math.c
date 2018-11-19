@@ -371,9 +371,9 @@ int mathRaycastLine(float o[3], float dir[3], float v1[3], float v2[3], float* d
 	else
 		*distance = sqrtf(dn) / dot;
 	mathVec3Negate(normal, normal);
-	point[0] = o[0] + *distance + dir[0];
-	point[1] = o[1] + *distance + dir[1];
-	point[2] = o[2] + *distance + dir[2];
+	point[0] = o[0] + *distance * dir[0];
+	point[1] = o[1] + *distance * dir[1];
+	point[2] = o[2] + *distance * dir[2];
 	return 1;
 }
 
