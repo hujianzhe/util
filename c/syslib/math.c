@@ -223,7 +223,7 @@ float* mathQuatFromAxisRadian(float q[4], float axis[3], float radian) {
 }
 
 void mathQuatToAxisRadian(float q[4], float axis[3], float* radian) {
-	const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+	const float qx = q[0], qy = q[1], qz = q[2], qw = q[3];
 	const float s2 = qx*qx + qy*qy + qz*qz;
 	const float s = 1.0f / sqrtf(s2);
 	axis[0] = qx * s;
