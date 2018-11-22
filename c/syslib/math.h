@@ -77,6 +77,7 @@ __declspec_dll int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3],
 __declspec_dll int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
 __declspec_dll int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
 __declspec_dll int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float r2, float* distance, float normal[3], float point[3]);
+__declspec_dll int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], float* distance, float normal[3], float point[3]);
 
 #ifdef	__cplusplus
 }

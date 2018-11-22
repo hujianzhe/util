@@ -266,6 +266,24 @@ float* mathQuatMulVec3(float r[3], float q[4], float v[3]) {
 	return r;
 }
 
+/*
+	continue collision detection
+*/
+
+static void select_min(int* c, float* distance, float(*n)[3], float(*p)[3], int cnt, float* min_d, float** min_n, float** min_p) {
+	int i, has = 0;
+	for (i = 0; i < cnt; ++i) {
+		if (!c[i])
+			continue;
+		if (!has || *min_d > distance[i]) {
+			*min_d = distance[i];
+			*min_n = n[i];
+			*min_p = p[i];
+			has = 1;
+		}
+	}
+}
+
 float mathPointLineDistanceSq(float l1[3], float l2[3], float p[3]) {
 	float l[3] = {
 		l2[0] - l1[0],
@@ -492,47 +510,15 @@ int mathRaycastTriangle(float o[3], float dir[3], float vertices[3][3], float* d
 				return 1;
 			}
 			else {
-				float t01, t02, t12;
-				float n01[3], n02[3], n12[3], *p_n;
-				float p01[3], p02[3], p12[3], *p_p;
-				int c01 = mathRaycastLineSegment(o, dir, vertices[0], vertices[1], &t01, n01, p01);
-				int c02 = mathRaycastLineSegment(o, dir, vertices[0], vertices[2], &t02, n02, p02);
-				int c12 = mathRaycastLineSegment(o, dir, vertices[1], vertices[2], &t12, n12, p12);
-				if (c01 || c02 || c12) {
-					if (c01) {
-						if (c02 && t02 < t01) {
-							*distance = t02;
-							p_n = n02;
-							p_p = p02;
-						}
-						else {
-							*distance = t01;
-							p_n = n01;
-							p_p = p01;
-						}
-						if (c12 && t12 < *distance) {
-							*distance = t12;
-							p_n = n12;
-							p_p = p12;
-						}
-					}
-					else if (c02) {
-						if (c12 && t12 < t02) {
-							*distance = t12;
-							p_n = n12;
-							p_p = p12;
-						}
-						else {
-							*distance = t02;
-							p_n = n02;
-							p_p = p02;
-						}
-					}
-					else {
-						*distance = t12;
-						p_n = n12;
-						p_p = p12;
-					}
+				float t[3], min_t;
+				float n[3][3], p[3][3], *p_n, *p_p;
+				int c[3];
+				c[0] = mathRaycastLineSegment(o, dir, vertices[0], vertices[1], &t[0], n[0], p[0]);
+				c[1] = mathRaycastLineSegment(o, dir, vertices[0], vertices[2], &t[1], n[1], p[1]);
+				c[2] = mathRaycastLineSegment(o, dir, vertices[1], vertices[2], &t[2], n[2], p[2]);
+				if (c[0] || c[1] || c[2]) {
+					select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+					*distance = min_t;
 					normal[0] = p_n[0];
 					normal[1] = p_n[1];
 					normal[2] = p_n[2];
@@ -770,73 +756,17 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 		return 0;
 	if (0 == fcmpf(*distance, 0.0f, epsilon) && 0 == fcmpf(mathVec3Dot(normal, l1), 0.0f, epsilon)) {
 		float neg_dir[3];
-		float n0[3], n1[3], n2[3], n3[3];
-		float p0[3], p1[3], p2[3], p3[3];
-		float t0, t1, t2, t3;
-		int c0, c1, c2, c3;
-		c0 = mathRaycastLineSegment(ls1[0], dir, ls2[0], ls2[1], &t0, n0, p0);
-		c1 = mathRaycastLineSegment(ls1[1], dir, ls2[0], ls2[1], &t1, n1, p1);
+		float n[4][3], p[4][3], *p_n, *p_p;
+		float t[4], min_t;
+		int c[4];
+		c[0] = mathRaycastLineSegment(ls1[0], dir, ls2[0], ls2[1], &t[0], n[0], p[0]);
+		c[1] = mathRaycastLineSegment(ls1[1], dir, ls2[0], ls2[1], &t[1], n[1], p[1]);
 		mathVec3Negate(neg_dir, dir);
-		c2 = mathRaycastLineSegment(ls2[0], neg_dir, ls1[0], ls1[1], &t2, n2, p2);
-		c3 = mathRaycastLineSegment(ls2[1], neg_dir, ls1[0], ls1[1], &t3, n3, p3);
-		if (c0 || c1 || c2 || c3) {
-			float* p_n, *p_p;
-			if (c0) {
-				if (c1 && t0 > t1) {
-					*distance = t1;
-					p_n = n1;
-					p_p = p1;
-				}
-				else {
-					*distance = t0;
-					p_n = n0;
-					p_p = p0;
-				}
-				if (c2 && *distance > t2) {
-					*distance = t2;
-					p_n = mathVec3Negate(n2, n2);
-					p_p = ls2[0];
-				}
-				if (c3 && *distance > t3) {
-					*distance = t3;
-					p_n = mathVec3Negate(n3, n3);
-					p_p = ls2[1];
-				}
-			}
-			else if (c1) {
-				if (c2 && t1 > t2) {
-					*distance = t2;
-					p_n = mathVec3Negate(n2, n2);
-					p_p = ls2[0];
-				}
-				else {
-					*distance = t1;
-					p_n = n1;
-					p_p = p1;
-				}
-				if (c3 && *distance > t3) {
-					*distance = t3;
-					p_n = mathVec3Negate(n3, n3);
-					p_p = ls2[1];
-				}
-			}
-			else if (c2) {
-				if (c3 && t2 > t3) {
-					*distance = t3;
-					p_n = mathVec3Negate(n3, n3);
-					p_p = ls2[1];
-				}
-				else {
-					*distance = t2;
-					p_n = mathVec3Negate(n2, n2);
-					p_p = ls2[0];
-				}
-			}
-			else {
-				*distance = t3;
-				p_n = mathVec3Negate(n3, n3);
-				p_p = ls2[1];
-			}
+		c[2] = mathRaycastLineSegment(ls2[0], neg_dir, ls1[0], ls1[1], &t[2], n[2], p[2]);
+		c[3] = mathRaycastLineSegment(ls2[1], neg_dir, ls1[0], ls1[1], &t[3], n[3], p[3]);
+		if (c[0] || c[1] || c[2] || c[3]) {
+			select_min(c, &min_t, n, p, 4, &min_t, &p_n, &p_p);
+			*distance = min_t;
 			normal[0] = p_n[0];
 			normal[1] = p_n[1];
 			normal[2] = p_n[2];
@@ -984,6 +914,90 @@ int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float
 	point[1] = o2[1] + normal[1] * r2;
 	point[2] = o2[2] + normal[2] * r2;
 	return 1;
+}
+
+int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], float* distance, float normal[3], float point[3]) {
+	float neg_dir[3];
+	float t[3], min_t;
+	float n[3][3], p[3][3], *p_n, *p_p;
+	int c[3], i;
+	for (i = 0; i < 3; ++i) {
+		c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
+	}
+	if (!c[0] && !c[1] && !c[2]) {
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < 3; ++i) {
+			c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
+		}
+	}
+	if (c[0] || c[1] || c[2]) {
+		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+		*distance = min_t;
+		normal[0] = p_n[0];
+		normal[1] = p_n[1];
+		normal[2] = p_n[2];
+		point[0] = p_p[0];
+		point[1] = p_p[1];
+		point[2] = p_p[2];
+		return 1;
+	}
+	else {
+		float tri1_ls[3][2][3] = {
+			{
+				{ tri1[0][0], tri1[0][1], tri1[0][2] },
+				{ tri1[1][0], tri1[1][1], tri1[1][2] }
+			},
+			{
+				{ tri1[0][0], tri1[0][1], tri1[0][2] },
+				{ tri1[2][0], tri1[2][1], tri1[2][2] }
+			},
+			{
+				{ tri1[1][0], tri1[1][1], tri1[1][2] },
+				{ tri1[2][0], tri1[2][1], tri1[2][2] }
+			}
+		};
+		float tri2_ls[3][2][3] = {
+			{
+				{ tri2[0][0], tri2[0][1], tri2[0][2] },
+				{ tri2[1][0], tri2[1][1], tri2[1][2] }
+			},
+			{
+				{ tri2[0][0], tri2[0][1], tri2[0][2] },
+				{ tri2[2][0], tri2[2][1], tri2[2][2] },
+			},
+			{
+				{ tri2[1][0], tri2[1][1], tri2[1][2] },
+				{ tri2[2][0], tri2[2][1], tri2[2][2] }
+			}
+		};
+		float t[9], min_t;
+		float n[9][3], p[9][3], *p_n, *p_p;
+		int c[9], i, j, ok;
+		for (i = 0; i < 3; ++i) {
+			for (j = 0; j < 3; ++j) {
+				int k = i * 3 + j;
+				c[k] = mathLineSegmentcastLineSegment(tri1_ls[i], dir, tri2_ls[j], &t[k], n[k], p[k]);
+			}
+		}
+		ok = 0;
+		for (i = 0; i < 9; ++i) {
+			if (c[i]) {
+				ok = 1;
+				break;
+			}
+		}
+		if (!ok)
+			return 0;
+		select_min(c, t, n, p, 9, &min_t, &p_n, &p_p);
+		*distance = min_t;
+		normal[0] = p_n[0];
+		normal[1] = p_n[1];
+		normal[2] = p_n[2];
+		point[0] = p_p[0];
+		point[1] = p_p[1];
+		point[2] = p_p[2];
+		return 1;
+	}
 }
 
 #ifdef	__cplusplus
