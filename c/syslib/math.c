@@ -965,7 +965,6 @@ int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], f
 		select_min(c, t, n, p, 9, &min_t, &p_n, &p_p);
 	else {
 		float neg_dir[3];
-		int i;
 		for (i = 0; i < 3; ++i) {
 			c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
 		}
