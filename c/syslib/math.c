@@ -773,9 +773,16 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 		if (c[0] || c[1] || c[2] || c[3]) {
 			select_min(c, &min_t, n, p, 4, &min_t, &p_n, &p_p);
 			*distance = min_t;
-			normal[0] = p_n[0];
-			normal[1] = p_n[1];
-			normal[2] = p_n[2];
+			if (p_n == n[2] || p_n == n[3]) {
+				normal[0] = -p_n[0];
+				normal[1] = -p_n[1];
+				normal[2] = -p_n[2];
+			}
+			else {
+				normal[0] = p_n[0];
+				normal[1] = p_n[1];
+				normal[2] = p_n[2];
+			}
 			point[0] = p_p[0];
 			point[1] = p_p[1];
 			point[2] = p_p[2];
@@ -783,9 +790,7 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 		}
 		return 0;
 	}
-	if (!mathRaycastLineSegment(o, dir, ls2[0], ls2[1], distance, normal, point))
-		return 0;
-	return 1;
+	return mathRaycastLineSegment(o, dir, ls2[0], ls2[1], distance, normal, point);
 }
 
 int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]) {
@@ -849,9 +854,9 @@ int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radi
 }
 
 int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]) {
-	float t0, t1, n0[3], n1[3], p0[3], p1[3];
-	float *p_n, *p_p;
-	int c0, c1;
+	float t[2], min_t;
+	float n[2][3], p[2][3], *p_n, *p_p;
+	int c[2];
 	if (mathLinecastSphere(ls, dir, center, radius, distance, normal, point)) {
 		if (!mathVec3IsZero(normal)) {
 			float p[3] = {
@@ -862,29 +867,19 @@ int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], flo
 			return mathLineSegmentHasPoint(ls[0], ls[1], p);
 		}
 	}
-	c0 = mathRaycastSphere(ls[0], dir, center, radius, &t0, n0, p0);
-	c1 = mathRaycastSphere(ls[1], dir, center, radius, &t1, n1, p1);
-	if (c0 || c1) {
-		if (c1 && t0 > t1) {
-			*distance = t1;
-			p_n = n1;
-			p_p = p1;
-		}
-		else {
-			*distance = t0;
-			p_n = p0;
-			p_p = p1;
-		}
-		normal[0] = p_n[0];
-		normal[1] = p_n[1];
-		normal[2] = p_n[2];
-		point[0] = p_p[0];
-		point[1] = p_p[1];
-		point[2] = p_p[2];
-		return 1;
-	}
-	else
+	c[0] = mathRaycastSphere(ls[0], dir, center, radius, &t[0], n[0], p[0]);
+	c[1] = mathRaycastSphere(ls[1], dir, center, radius, &t[1], n[1], p[1]);
+	if (!c[0] && !c[1])
 		return 0;
+	select_min(c, t, n, p, 2, &min_t, &p_n, &p_p);
+	*distance = min_t;
+	normal[0] = p_n[0];
+	normal[1] = p_n[1];
+	normal[2] = p_n[2];
+	point[0] = p_p[0];
+	point[1] = p_p[1];
+	point[2] = p_p[2];
+	return 1;
 }
 
 int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float r2, float* distance, float normal[3], float point[3]) {
@@ -970,20 +965,22 @@ int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], f
 	if (ok)
 		select_min(c, t, n, p, 9, &min_t, &p_n, &p_p);
 	else {
-		float neg_dir[3];
+		float neg_dir[3], *p_dir = dir;
 		for (i = 0; i < 3; ++i) {
 			c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
 		}
 		if (!c[0] && !c[1] && !c[2]) {
 			mathVec3Negate(neg_dir, dir);
+			p_dir = neg_dir;
 			for (i = 0; i < 3; ++i) {
 				c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
 			}
 		}
-		if (c[0] || c[1] || c[2])
-			select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
-		else
+		if (!c[0] && !c[1] && !c[2])
 			return 0;
+		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+		if (p_dir == neg_dir)
+			mathVec3Negate(p_n, p_n);
 	}
 	*distance = min_t;
 	normal[0] = p_n[0];
@@ -1016,10 +1013,9 @@ int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][
 				{ tri[2][0], tri[2][1], tri[2][2] }
 			}
 		};
-		int i;
 		float t[3], min_t;
 		float n[3][3], p[3][3], *p_n, *p_p;
-		int c[3];
+		int c[3], i;
 		float neg_dir[3];
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < 3; ++i) {
@@ -1029,9 +1025,9 @@ int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][
 			return 0;
 		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
 		*distance = min_t;
-		normal[0] = p_n[0];
-		normal[1] = p_n[1];
-		normal[2] = p_n[2];
+		normal[0] = -p_n[0];
+		normal[1] = -p_n[1];
+		normal[2] = -p_n[2];
 		point[0] = p_p[0];
 		point[1] = p_p[1];
 		point[2] = p_p[2];
