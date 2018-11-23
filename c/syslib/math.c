@@ -443,7 +443,7 @@ int mathRaycastLineSegment(float o[3], float dir[3], float v1[3], float v2[3], f
 	return 0;
 }
 
-static int mathTrianglePlaneHasPoint(float vertices[3][3], float p[3]) {
+int mathTriangleHasPoint(float vertices[3][3], float p[3]) {
 	const float epsilon = 0.000001f;
 	float *a = vertices[0], *b = vertices[1], *c = vertices[2];
 	float ap[3] = {
@@ -461,20 +461,26 @@ static int mathTrianglePlaneHasPoint(float vertices[3][3], float p[3]) {
 		c[1] - a[1],
 		c[2] - a[2]
 	};
-	float u, v;
-	float dot_ac_ac = mathVec3Dot(ac, ac);
-	float dot_ac_ab = mathVec3Dot(ac, ab);
-	float dot_ac_ap = mathVec3Dot(ac, ap);
-	float dot_ab_ab = mathVec3Dot(ab, ab);
-	float dot_ab_ap = mathVec3Dot(ab, ap);
-	float tmp = 1.0f / (dot_ac_ac * dot_ab_ab - dot_ac_ab * dot_ac_ab);
-	u = (dot_ab_ab * dot_ac_ap - dot_ac_ab * dot_ab_ap) * tmp;
-	if (fcmpf(u, 0.0f, epsilon) < 0 || fcmpf(u, 1.0f, epsilon) > 0)
+	float N[3];
+	mathVec3Cross(N, ab, ac);
+	if (fcmpf(mathVec3Dot(N, ap), 0.0f, epsilon))
 		return 0;
-	v = (dot_ac_ac * dot_ab_ap - dot_ac_ab * dot_ac_ap) * tmp;
-	if (fcmpf(v, 0.0f, epsilon) < 0 || fcmpf(v + u, 1.0f, epsilon) > 0)
-		return 0;
-	return 1;
+	else {
+		float u, v;
+		float dot_ac_ac = mathVec3Dot(ac, ac);
+		float dot_ac_ab = mathVec3Dot(ac, ab);
+		float dot_ac_ap = mathVec3Dot(ac, ap);
+		float dot_ab_ab = mathVec3Dot(ab, ab);
+		float dot_ab_ap = mathVec3Dot(ab, ap);
+		float tmp = 1.0f / (dot_ac_ac * dot_ab_ab - dot_ac_ab * dot_ac_ab);
+		u = (dot_ab_ab * dot_ac_ap - dot_ac_ab * dot_ab_ap) * tmp;
+		if (fcmpf(u, 0.0f, epsilon) < 0 || fcmpf(u, 1.0f, epsilon) > 0)
+			return 0;
+		v = (dot_ac_ac * dot_ab_ap - dot_ac_ab * dot_ac_ap) * tmp;
+		if (fcmpf(v, 0.0f, epsilon) < 0 || fcmpf(v + u, 1.0f, epsilon) > 0)
+			return 0;
+		return 1;
+	}
 }
 
 int mathRaycastTriangle(float o[3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]) {
@@ -504,7 +510,7 @@ int mathRaycastTriangle(float o[3], float dir[3], float vertices[3][3], float* d
 		float N[3];
 		mathVec3Normalized(N, mathVec3Cross(N, E1, E2));
 		if (fcmpf(mathVec3Dot(N, VO), 0.0f, epsilon) == 0) {
-			if (mathTrianglePlaneHasPoint(vertices, o)) {
+			if (mathTriangleHasPoint(vertices, o)) {
 				*distance = 0.0f;
 				normal[0] = normal[1] = normal[2] = 0.0f;
 				return 1;
@@ -696,7 +702,7 @@ int mathRaycastConvex(float o[3], float dir[3], float(*vertices)[3], int indices
 	return 1;
 }
 
-int mathSpherecastPlane(float o[3], float dir[3], float radius, float vertices[3][3], float* distance, float normal[3], float point[3]) {
+int mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]) {
 	if (mathRaycastPlane(o, dir, vertices, distance, normal, point)) {
 		const float epsilon = 0.000001f;
 		float VO[3] = {
@@ -987,6 +993,50 @@ int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], f
 	point[1] = p_p[1];
 	point[2] = p_p[2];
 	return 1;
+}
+
+int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], float* distance, float normal[3], float point[3]) {
+	if (mathSpherecastPlane(o, radius, dir, tri, distance, normal, point) &&
+		mathTriangleHasPoint(tri, point))
+	{
+		return 1;
+	}
+	else {
+		float tri_ls[3][2][3] = {
+			{
+				{ tri[0][0], tri[0][1], tri[0][2] },
+				{ tri[1][0], tri[1][1], tri[1][2] }
+			},
+			{
+				{ tri[0][0], tri[0][1], tri[0][2] },
+				{ tri[2][0], tri[2][1], tri[2][2] },
+			},
+			{
+				{ tri[1][0], tri[1][1], tri[1][2] },
+				{ tri[2][0], tri[2][1], tri[2][2] }
+			}
+		};
+		int i;
+		float t[3], min_t;
+		float n[3][3], p[3][3], *p_n, *p_p;
+		int c[3];
+		float neg_dir[3];
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < 3; ++i) {
+			c[i] = mathLineSegmentcastSphere(tri_ls[i], neg_dir, o, radius, &t[i], n[i], p[i]);
+		}
+		if (!c[0] && !c[1] && !c[2])
+			return 0;
+		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+		*distance = min_t;
+		normal[0] = p_n[0];
+		normal[1] = p_n[1];
+		normal[2] = p_n[2];
+		point[0] = p_p[0];
+		point[1] = p_p[1];
+		point[2] = p_p[2];
+		return 1;
+	}
 }
 
 #ifdef	__cplusplus
