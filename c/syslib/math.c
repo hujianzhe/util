@@ -917,87 +917,77 @@ int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float
 }
 
 int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], float* distance, float normal[3], float point[3]) {
-	float neg_dir[3];
-	float t[3], min_t;
-	float n[3][3], p[3][3], *p_n, *p_p;
-	int c[3], i;
+	float tri1_ls[3][2][3] = {
+		{
+			{ tri1[0][0], tri1[0][1], tri1[0][2] },
+			{ tri1[1][0], tri1[1][1], tri1[1][2] }
+		},
+		{
+			{ tri1[0][0], tri1[0][1], tri1[0][2] },
+			{ tri1[2][0], tri1[2][1], tri1[2][2] }
+		},
+		{
+			{ tri1[1][0], tri1[1][1], tri1[1][2] },
+			{ tri1[2][0], tri1[2][1], tri1[2][2] }
+		}
+	};
+	float tri2_ls[3][2][3] = {
+		{
+			{ tri2[0][0], tri2[0][1], tri2[0][2] },
+			{ tri2[1][0], tri2[1][1], tri2[1][2] }
+		},
+		{
+			{ tri2[0][0], tri2[0][1], tri2[0][2] },
+			{ tri2[2][0], tri2[2][1], tri2[2][2] },
+		},
+		{
+			{ tri2[1][0], tri2[1][1], tri2[1][2] },
+			{ tri2[2][0], tri2[2][1], tri2[2][2] }
+		}
+	};
+	float t[9], min_t;
+	float n[9][3], p[9][3], *p_n, *p_p;
+	int c[9], i, j, ok;
 	for (i = 0; i < 3; ++i) {
-		c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
-	}
-	if (!c[0] && !c[1] && !c[2]) {
-		mathVec3Negate(neg_dir, dir);
-		for (i = 0; i < 3; ++i) {
-			c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
+		for (j = 0; j < 3; ++j) {
+			int k = i * 3 + j;
+			c[k] = mathLineSegmentcastLineSegment(tri1_ls[i], dir, tri2_ls[j], &t[k], n[k], p[k]);
 		}
 	}
-	if (c[0] || c[1] || c[2]) {
-		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
-		*distance = min_t;
-		normal[0] = p_n[0];
-		normal[1] = p_n[1];
-		normal[2] = p_n[2];
-		point[0] = p_p[0];
-		point[1] = p_p[1];
-		point[2] = p_p[2];
-		return 1;
+	ok = 0;
+	for (i = 0; i < 9; ++i) {
+		if (c[i]) {
+			ok = 1;
+			break;
+		}
 	}
-	else {
-		float tri1_ls[3][2][3] = {
-			{
-				{ tri1[0][0], tri1[0][1], tri1[0][2] },
-				{ tri1[1][0], tri1[1][1], tri1[1][2] }
-			},
-			{
-				{ tri1[0][0], tri1[0][1], tri1[0][2] },
-				{ tri1[2][0], tri1[2][1], tri1[2][2] }
-			},
-			{
-				{ tri1[1][0], tri1[1][1], tri1[1][2] },
-				{ tri1[2][0], tri1[2][1], tri1[2][2] }
-			}
-		};
-		float tri2_ls[3][2][3] = {
-			{
-				{ tri2[0][0], tri2[0][1], tri2[0][2] },
-				{ tri2[1][0], tri2[1][1], tri2[1][2] }
-			},
-			{
-				{ tri2[0][0], tri2[0][1], tri2[0][2] },
-				{ tri2[2][0], tri2[2][1], tri2[2][2] },
-			},
-			{
-				{ tri2[1][0], tri2[1][1], tri2[1][2] },
-				{ tri2[2][0], tri2[2][1], tri2[2][2] }
-			}
-		};
-		float t[9], min_t;
-		float n[9][3], p[9][3], *p_n, *p_p;
-		int c[9], i, j, ok;
-		for (i = 0; i < 3; ++i) {
-			for (j = 0; j < 3; ++j) {
-				int k = i * 3 + j;
-				c[k] = mathLineSegmentcastLineSegment(tri1_ls[i], dir, tri2_ls[j], &t[k], n[k], p[k]);
-			}
-		}
-		ok = 0;
-		for (i = 0; i < 9; ++i) {
-			if (c[i]) {
-				ok = 1;
-				break;
-			}
-		}
-		if (!ok)
-			return 0;
+	if (ok)
 		select_min(c, t, n, p, 9, &min_t, &p_n, &p_p);
-		*distance = min_t;
-		normal[0] = p_n[0];
-		normal[1] = p_n[1];
-		normal[2] = p_n[2];
-		point[0] = p_p[0];
-		point[1] = p_p[1];
-		point[2] = p_p[2];
-		return 1;
+	else {
+		float neg_dir[3];
+		int i;
+		for (i = 0; i < 3; ++i) {
+			c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
+		}
+		if (!c[0] && !c[1] && !c[2]) {
+			mathVec3Negate(neg_dir, dir);
+			for (i = 0; i < 3; ++i) {
+				c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
+			}
+		}
+		if (c[0] || c[1] || c[2])
+			select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+		else
+			return 0;
 	}
+	*distance = min_t;
+	normal[0] = p_n[0];
+	normal[1] = p_n[1];
+	normal[2] = p_n[2];
+	point[0] = p_p[0];
+	point[1] = p_p[1];
+	point[2] = p_p[2];
+	return 1;
 }
 
 #ifdef	__cplusplus
