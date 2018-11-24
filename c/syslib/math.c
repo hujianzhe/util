@@ -513,6 +513,9 @@ int mathRaycastTriangle(float o[3], float dir[3], float vertices[3][3], float* d
 			if (mathTriangleHasPoint(vertices, o)) {
 				*distance = 0.0f;
 				normal[0] = normal[1] = normal[2] = 0.0f;
+				point[0] = o[0];
+				point[1] = o[1];
+				point[2] = o[2];
 				return 1;
 			}
 			else {
