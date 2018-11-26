@@ -926,26 +926,63 @@ int mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float
 }
 
 int mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]) {
-	float t[3], min_t;
-	float n[3][3], p[3][3], *p_n, *p_p;
-	int c[3], i;
-	for (i = 0; i < 3; ++i) {
-		c[i] = mathRaycastPlane(tri[i], dir, vertices, &t[i], n[i], p[i]);
-		if (!c[i]) {
-			*distance = 0.0f;
-			normal[0] = normal[1] = normal[2] = 0.0f;
-			return 0;
+	int i;
+	const float epsilon = 0.000001f;
+	float v0v1[3] = {
+		vertices[1][0] - vertices[0][0],
+		vertices[1][1] - vertices[0][1],
+		vertices[1][2] - vertices[0][2]
+	};
+	float v0v2[3] = {
+		vertices[2][0] - vertices[0][0],
+		vertices[2][1] - vertices[0][1],
+		vertices[2][2] - vertices[0][2]
+	};
+	float v0tri[3][3] = {
+		{
+			tri[0][0] - vertices[0][0],
+			tri[0][1] - vertices[0][1],
+			tri[0][2] - vertices[0][2]
+		},
+		{
+			tri[1][0] - vertices[0][0],
+			tri[1][1] - vertices[0][1],
+			tri[1][2] - vertices[0][2]
+		},
+		{
+			tri[2][0] - vertices[0][0],
+			tri[2][1] - vertices[0][1],
+			tri[2][2] - vertices[0][2]
 		}
+	};
+	float N[3], dot[3];
+	mathVec3Normalized(N, mathVec3Cross(N, v0v1, v0v2));
+	for (i = 0; i < 3; ++i) {
+		dot[i] = mathVec3Dot(N, v0tri[i]);
 	}
-	if (select_min_result(c, t, n, p, 3, &min_t, &p_n, &p_p) < 0)
-		return 0;
-	*distance = min_t;
-	normal[0] = p_n[0];
-	normal[1] = p_n[1];
-	normal[2] = p_n[2];
-	point[0] = p_p[0];
-	point[1] = p_p[1];
-	point[2] = p_p[2];
+	if ((dot[0] <= epsilon && dot[1] <= epsilon && dot[2] <= epsilon) ||
+		dot[0] >= epsilon && dot[1] >= epsilon && dot[2] >= epsilon)
+	{
+		float t[3], min_t;
+		float n[3][3], p[3][3], *p_n, *p_p;
+		int c[3], i;
+		for (i = 0; i < 3; ++i) {
+			c[i] = mathRaycastPlane(tri[i], dir, vertices, &t[i], n[i], p[i]);
+		}
+		if (select_min_result(c, t, n, p, 3, &min_t, &p_n, &p_p) < 0)
+			return 0;
+		*distance = min_t;
+		normal[0] = p_n[0];
+		normal[1] = p_n[1];
+		normal[2] = p_n[2];
+		point[0] = p_p[0];
+		point[1] = p_p[1];
+		point[2] = p_p[2];
+	}
+	else {
+		*distance = 0.0f;
+		normal[0] = normal[1] = normal[2] = 0.0f;
+	}
 	return 1;
 }
 
@@ -996,6 +1033,11 @@ int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], f
 			mathVec3Negate(neg_dir, dir);
 			for (i = 0; i < 3; ++i) {
 				c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
+				if (!c[i]) {
+					*distance = 0.0f;
+					normal[0] = normal[1] = normal[2] = 0.0f;
+					return 1;
+				}
 			}
 			i = select_min_result(c, t, n, p, 3, &min_t, &p_n, &p_p);
 			if (i < 0)
