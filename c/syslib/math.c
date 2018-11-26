@@ -931,6 +931,11 @@ int mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], f
 	int c[3], i;
 	for (i = 0; i < 3; ++i) {
 		c[i] = mathRaycastPlane(tri[i], dir, vertices, &t[i], n[i], p[i]);
+		if (!c[i]) {
+			*distance = 0.0f;
+			normal[0] = normal[1] = normal[2] = 0.0f;
+			return 0;
+		}
 	}
 	if (select_min_result(c, t, n, p, 3, &min_t, &p_n, &p_p) < 0)
 		return 0;
