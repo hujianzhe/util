@@ -776,19 +776,29 @@ int mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3
 		if (c[0] || c[1] || c[2] || c[3]) {
 			select_min(c, &min_t, n, p, 4, &min_t, &p_n, &p_p);
 			*distance = min_t;
-			if (p_n == n[2] || p_n == n[3]) {
+			if (p_p == p[2] || p_p == p[3]) {
 				normal[0] = -p_n[0];
 				normal[1] = -p_n[1];
 				normal[2] = -p_n[2];
+				if (p_p == p[2]) {
+					point[0] = ls2[0][0];
+					point[1] = ls2[0][1];
+					point[2] = ls2[0][2];
+				}
+				else {
+					point[0] = ls2[1][0];
+					point[1] = ls2[1][1];
+					point[2] = ls2[1][2];
+				}
 			}
 			else {
 				normal[0] = p_n[0];
 				normal[1] = p_n[1];
 				normal[2] = p_n[2];
+				point[0] = p_p[0];
+				point[1] = p_p[1];
+				point[2] = p_p[2];
 			}
-			point[0] = p_p[0];
-			point[1] = p_p[1];
-			point[2] = p_p[2];
 			return 1;
 		}
 		return 0;
@@ -968,22 +978,29 @@ int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], f
 	if (ok)
 		select_min(c, t, n, p, 9, &min_t, &p_n, &p_p);
 	else {
-		float neg_dir[3], *p_dir = dir;
 		for (i = 0; i < 3; ++i) {
 			c[i] = mathRaycastTriangle(tri1[i], dir, tri2, &t[i], n[i], p[i]);
 		}
 		if (!c[0] && !c[1] && !c[2]) {
+			float neg_dir[3];
 			mathVec3Negate(neg_dir, dir);
-			p_dir = neg_dir;
 			for (i = 0; i < 3; ++i) {
 				c[i] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &t[i], n[i], p[i]);
 			}
-		}
-		if (!c[0] && !c[1] && !c[2])
-			return 0;
-		select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
-		if (p_dir == neg_dir)
+			if (!c[0] && !c[1] && !c[2])
+				return 0;
+			select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
 			mathVec3Negate(p_n, p_n);
+			if (p_p == p[0])
+				p_p = tri2[0];
+			else if (p_p == p[1])
+				p_p = tri2[1];
+			else
+				p_p = tri2[2];
+		}
+		else {
+			select_min(c, t, n, p, 3, &min_t, &p_n, &p_p);
+		}
 	}
 	*distance = min_t;
 	normal[0] = p_n[0];
@@ -1031,9 +1048,9 @@ int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][
 		normal[0] = -p_n[0];
 		normal[1] = -p_n[1];
 		normal[2] = -p_n[2];
-		point[0] = p_p[0];
-		point[1] = p_p[1];
-		point[2] = p_p[2];
+		point[0] = p_p[0] - min_t * neg_dir[0];
+		point[1] = p_p[1] - min_t * neg_dir[1];
+		point[2] = p_p[2] - min_t * neg_dir[2];
 		return 1;
 	}
 }
