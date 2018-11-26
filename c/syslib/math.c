@@ -703,6 +703,70 @@ int mathRaycastConvex(float o[3], float dir[3], float(*vertices)[3], int indices
 	return 1;
 }
 
+int mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]) {
+	const float epsilon = 0.000001f;
+	float v0v1[3] = {
+		vertices[1][0] - vertices[0][0],
+		vertices[1][1] - vertices[0][1],
+		vertices[1][2] - vertices[0][2]
+	};
+	float v0v2[3] = {
+		vertices[2][0] - vertices[0][0],
+		vertices[2][1] - vertices[0][1],
+		vertices[2][2] - vertices[0][2]
+	};
+	float v0ls0[3] = {
+		ls[0][0] - vertices[0][0],
+		ls[0][1] - vertices[0][1],
+		ls[0][2] - vertices[0][2],
+	};
+	float v0ls1[3] = {
+		ls[1][0] - vertices[0][0],
+		ls[1][1] - vertices[0][1],
+		ls[1][2] - vertices[0][2],
+	};
+	float dot_v0ls0, dot_v0ls1, dn;
+	mathVec3Normalized(normal, mathVec3Cross(normal, v0v1, v0v2));
+	dot_v0ls0 = mathVec3Dot(normal, v0ls0);
+	dot_v0ls1 = mathVec3Dot(normal, v0ls1);
+	dn = mathVec3Dot(normal, dir);
+	if (fcmpf(dn, 0.0f, epsilon) == 0 && fcmpf(dot_v0ls0 * dot_v0ls1, 0.0f, epsilon) > 0)
+		return 0;
+	else {
+		float d0, d1, inv_dn = 1.0f / dn, *o;
+		mathVec3Negate(v0ls0, v0ls0);
+		mathVec3Negate(v0ls1, v0ls1);
+		d0 = mathVec3Dot(normal, v0ls0) * inv_dn;
+		d1 = mathVec3Dot(normal, v0ls1) * inv_dn;
+		if (fcmpf(d0, 0.0f, epsilon) < 0 && fcmpf(d1, 0.0f, epsilon) < 0)
+			return 0;
+		if (fcmpf(d0, d1, epsilon) < 0) {
+			if (fcmpf(d0, 0.0f, epsilon) >= 0) {
+				*distance = d0;
+				o = ls[0];
+			}
+			else {
+				*distance = d1;
+				o = ls[1];
+			}
+		}
+		else {
+			if (fcmpf(d1, 0.0f, epsilon) >= 0) {
+				*distance = d1;
+				o = ls[1];
+			}
+			else {
+				*distance = d0;
+				o = ls[0];
+			}
+		}
+		point[0] = o[0] + *distance + dir[0];
+		point[1] = o[1] + *distance + dir[1];
+		point[2] = o[2] + *distance + dir[2];
+		return 1;
+	}
+}
+
 int mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]) {
 	if (mathRaycastPlane(o, dir, vertices, distance, normal, point)) {
 		const float epsilon = 0.000001f;
