@@ -594,7 +594,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 		result->distance = 0.0f;
 		result->hit_line = 0;
 		mathVec3Copy(result->hit_point, ls[0]);
-		mathVec3AddScalar(result->hit_point, ldir, -ddir);
+		mathVec3AddScalar(result->hit_point, ldir, ddir);
 		return result;
 	}
 	else {
@@ -696,16 +696,20 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				if (c0 && c1)
 					break;
 				if (mathRaycastLineSegment(ls2[0], neg_dir, ls1, &results[2])) {
-					if (!p_result || p_result->distance > results[2].distance)
+					if (!p_result || p_result->distance > results[2].distance) {
 						p_result = &results[2];
+						mathVec3Copy(p_result->hit_point, ls2[0]);
+					}
 					if (is_parallel) {
 						p_result->hit_line = 1;
 						break;
 					}
 				}
 				if (mathRaycastLineSegment(ls2[1], neg_dir, ls1, &results[3])) {
-					if (!p_result || p_result->distance > results[3].distance)
+					if (!p_result || p_result->distance > results[3].distance) {
 						p_result = &results[3];
+						mathVec3Copy(p_result->hit_point, ls2[1]);
+					}
 					if (is_parallel) {
 						p_result->hit_line = 1;
 						break;
