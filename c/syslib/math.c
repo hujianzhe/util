@@ -57,7 +57,7 @@ int mathVec3IsZero(float v[3]) {
 		fcmpf(v[2], 0.0f, 0.000001f) == 0;
 }
 
-int mathVec3EqualVec3(float v1[3], float v2[3]) {
+int mathVec3Equal(float v1[3], float v2[3]) {
 	return fcmpf(v1[0], v2[0], 0.000001f) == 0 &&
 		fcmpf(v1[1], v2[1], 0.000001f) == 0 &&
 		fcmpf(v1[2], v2[2], 0.000001f) == 0;
@@ -388,7 +388,7 @@ int mathLineParallelLine(float ls1[2][3], float ls2[2][3]) {
 }
 
 float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float* np) {
-	float pls0[3], pls1[3], d0, d1;
+	float pls0[3], pls1[3];
 	mathVec3Sub(pls0, ls[0], p);
 	mathVec3Sub(pls1, ls[1], p);
 	if (mathVec3LenSq(pls0) > mathVec3LenSq(pls1))
@@ -569,7 +569,7 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 	result->hit_line = 0;
 	mathVec3Copy(result->hit_point, o);
 	mathVec3AddScalar(result->hit_point, dir, result->distance);
-	return 1;
+	return result;
 }
 
 CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
@@ -641,7 +641,100 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 }
 
 CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result) {
-	
+	float N[3];
+	mathPlaneNormalByVertices2(ls1, dir, N);
+	if (mathVec3IsZero(N)) {
+		CCTResult_t results[2], *p_result;
+		if (!mathRaycastLineSegment(ls1[0], dir, ls2, &results[0]))
+			return NULL;
+		if (!mathRaycastLineSegment(ls1[1], dir, ls2, &results[1]))
+			return NULL;
+		p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
+		copy_result(result, p_result);
+		return result;
+	}
+	else {
+		const float epsilon = 0.000001f;
+		float ls_plane[3][3], neg_dir[3];
+		mathVec3Copy(ls_plane[0], ls1[0]);
+		mathVec3Copy(ls_plane[1], ls1[1]);
+		mathVec3Add(ls_plane[2], ls1[0], dir);
+		if (!mathLineSegmentcastPlane(ls2, dir, ls_plane, result))
+			return NULL;
+		mathVec3Negate(neg_dir, dir);
+		if (result->hit_line) {
+			int is_parallel, dot;
+			float lsdir1[3], lsdir2[3], test_n[3];
+			CCTResult_t results[4], *p_result = NULL;
+
+			mathVec3Sub(lsdir1, ls1[1], ls1[0]);
+			mathVec3Sub(lsdir2, ls2[1], ls2[0]);
+			mathVec3Cross(test_n, lsdir1, lsdir2);
+			is_parallel = mathVec3IsZero(test_n);
+			dot = mathVec3Dot(lsdir1, lsdir2);
+			do {
+				int c0 = 0, c1 = 0;
+				if (mathRaycastLineSegment(ls1[0], dir, ls2, &results[0])) {
+					c0 = 1;
+					if (!p_result)
+						p_result = &results[0];
+					if (is_parallel) {
+						if (!mathVec3Equal(results[0].hit_point, ls2[0]) && !mathVec3Equal(results[0].hit_point, ls2[1]))
+							p_result->hit_line = 1;
+						else if (mathVec3Equal(results[0].hit_point, ls2[0]) && dot > 0)
+							p_result->hit_line = 1;
+						else if (mathVec3Equal(results[0].hit_point, ls2[1]) && dot < 0)
+							p_result->hit_line = 1;
+						break;
+					}
+				}
+				if (mathRaycastLineSegment(ls1[1], dir, ls2, &results[1])) {
+					c1 = 1;
+					if (!p_result || p_result->distance > results[1].distance)
+						p_result = &results[1];
+					if (is_parallel) {
+						if (!(mathVec3Equal(results[1].hit_point, ls2[0]) && dot > 0) &&
+							!(mathVec3Equal(results[1].hit_point, ls2[1]) && dot < 0))
+						{
+							p_result->hit_line = 1;
+						}
+						break;
+					}
+				}
+				if (c0 && c1)
+					break;
+				if (mathRaycastLineSegment(ls2[0], dir, ls1, &results[2])) {
+					if (!p_result || p_result->distance > results[2].distance)
+						p_result = &results[2];
+					if (is_parallel) {
+						p_result->hit_line = 1;
+						break;
+					}
+				}
+				if (mathRaycastLineSegment(ls2[1], dir, ls1, &results[3])) {
+					if (!p_result || p_result->distance > results[3].distance)
+						p_result = &results[3];
+					if (is_parallel) {
+						p_result->hit_line = 1;
+						break;
+					}
+				}
+			} while (0);
+			if (p_result) {
+				copy_result(result, p_result);
+				return result;
+			}
+			return NULL;
+		}
+		else {
+			float hit_point[3];
+			mathVec3Copy(hit_point, result->hit_point);
+			if (!mathRaycastLineSegment(hit_point, neg_dir, ls1, result))
+				return NULL;
+			mathVec3Copy(result->hit_point, hit_point);
+			return result;
+		}
+	}
 }
 
 CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
@@ -701,7 +794,7 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 }
 
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir, float vertices[3][3], CCTResult_t* result) {
-	
+	return NULL;
 }
 /*
 int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]) {

@@ -44,7 +44,7 @@ __declspec_dll double fsqrt(double x);
 #define	mathRadToDeg_f(rad)	(((float)(rad)) * ((float)M_1_PI) * 180.0f)
 
 __declspec_dll int mathVec3IsZero(float v[3]);
-__declspec_dll int mathVec3EqualVec3(float v1[3], float v2[3]);
+__declspec_dll int mathVec3Equal(float v1[3], float v2[3]);
 __declspec_dll float* mathVec3Copy(float r[3], float v[3]);
 __declspec_dll float mathVec3LenSq(float v[3]);
 __declspec_dll float mathVec3Len(float v[3]);
