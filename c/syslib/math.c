@@ -3,6 +3,7 @@
 //
 
 #include "math.h"
+#include <stddef.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -703,7 +704,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				}
 				if (c0 && c1)
 					break;
-				if (mathRaycastLineSegment(ls2[0], dir, ls1, &results[2])) {
+				if (mathRaycastLineSegment(ls2[0], neg_dir, ls1, &results[2])) {
 					if (!p_result || p_result->distance > results[2].distance)
 						p_result = &results[2];
 					if (is_parallel) {
@@ -711,7 +712,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 						break;
 					}
 				}
-				if (mathRaycastLineSegment(ls2[1], dir, ls1, &results[3])) {
+				if (mathRaycastLineSegment(ls2[1], neg_dir, ls1, &results[3])) {
 					if (!p_result || p_result->distance > results[3].distance)
 						p_result = &results[3];
 					if (is_parallel) {
