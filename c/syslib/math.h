@@ -28,6 +28,9 @@ typedef double		float64_t;
 	#define	REAL_MAX					FLT_MAX
 	#define	REAL_MATH_FUNC(fn)			fn##f
 #endif
+#ifndef CCT_EPSILON
+	#define	CCT_EPSILON					1E-5f
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
