@@ -342,6 +342,11 @@ float* mathPlaneNormalByVertices2(float vertices[2][3], float v[3], float normal
 	return mathVec3Normalized(normal, normal);
 }
 
+float* mathPlaneNormalByLine2(float ls1[2][3], float ls2[2][3], float normal[3]) {
+	float ls1v[3];
+	return mathPlaneNormalByVertices2(ls2, mathVec3Sub(ls1v, ls1[1], ls1[0]), normal);
+}
+
 void mathPointProjectionLine(float p[3], float ls[2][3], float np[3], float* distance) {
 	float v0v1[3], v0p[3], pp[3];
 	mathVec3Sub(v0v1, ls[1], ls[0]);
@@ -372,6 +377,14 @@ void mathPointProjectionPlane(float p[3], float plane_v[3], float plane_normal[3
 float mathPointPointDistanceSq(float p1[3], float p2[3]) {
 	float v[3];
 	return mathVec3LenSq(mathVec3Sub(v, p1, p2));
+}
+
+int mathLineParallelLine(float ls1[2][3], float ls2[2][3]) {
+	float v1[3], v2[3], n[3];
+	mathVec3Sub(v1, ls1[1], ls1[0]);
+	mathVec3Sub(v2, ls2[1], ls2[0]);
+	mathVec3Cross(n, v1, v2);
+	return mathVec3IsZero(n);
 }
 
 float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float* np) {
@@ -628,48 +641,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 }
 
 CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result) {
-	float ls2_dir_plane_vertices[3][3] = {
-		{ ls2[0][0] + dir[0], ls2[0][1] + dir[1], ls2[0][2] + dir[2] },
-		{ ls2[0][0], ls2[0][1], ls2[0][2] },
-		{ ls2[1][0], ls2[1][1], ls2[1][2] }
-	};
-	if (!mathLineSegmentcastPlane(ls1, dir, ls2_dir_plane_vertices, result))
-		return NULL;
-	if (result->hit_line) {
-		float neg_dir[3];
-		CCTResult_t results[4], *p_result = NULL;
-		if (mathRaycastLineSegment(ls1[0], dir, ls2, &results[0]) &&
-			(!p_result || p_result->distance > results[0].distance))
-		{
-			p_result = &results[0];
-		}
-		if (mathRaycastLineSegment(ls1[1], dir, ls2, &results[1]) &&
-			(!p_result || p_result->distance > results[1].distance))
-		{
-			p_result = &results[1];
-		}
-		mathVec3Negate(neg_dir, dir);
-		if (mathRaycastLineSegment(ls2[0], neg_dir, ls1, &results[2]) &&
-			(!p_result || p_result->distance > results[2].distance))
-		{
-			p_result = &results[2];
-			mathVec3AddScalar(p_result->hit_point, dir, result->distance);
-		}
-		if (mathRaycastLineSegment(ls2[1], neg_dir, ls1, &results[3]) &&
-			(!p_result || p_result->distance > results[3].distance))
-		{
-			p_result = &results[3];
-			mathVec3AddScalar(p_result->hit_point, dir, result->distance);
-		}
-		if (p_result) {
-			copy_result(result, p_result);
-			return result;
-		}
-		return NULL;
-	}
-	else {
-		return mathRaycastLineSegment(result->hit_point, dir, ls2, result);
-	}
+	
 }
 
 CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
