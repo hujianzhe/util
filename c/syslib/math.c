@@ -343,11 +343,6 @@ float* mathPlaneNormalByVertices2(float vertices[2][3], float v[3], float normal
 	return mathVec3Normalized(normal, normal);
 }
 
-float* mathPlaneNormalByLine2(float ls1[2][3], float ls2[2][3], float normal[3]) {
-	float ls1v[3];
-	return mathPlaneNormalByVertices2(ls2, mathVec3Sub(ls1v, ls1[1], ls1[0]), normal);
-}
-
 void mathPointProjectionLine(float p[3], float ls[2][3], float np[3], float* distance) {
 	float v0v1[3], v0p[3], pp[3];
 	mathVec3Sub(v0v1, ls[1], ls[0]);
