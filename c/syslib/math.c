@@ -694,7 +694,36 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 			mathVec3Sub(lsdir2, ls2[1], ls2[0]);
 			mathVec3Cross(test_n, lsdir1, lsdir2);
 			is_parallel = mathVec3IsZero(test_n);
-			dot = mathVec3Dot(lsdir1, lsdir2);
+
+			if (is_parallel) {
+				dot = mathVec3Dot(lsdir1, lsdir2);
+			}
+			else {
+				float p[3], op[3], d, cos_theta;
+				mathPointProjectionLine(ls1[0], ls2, p, &d);
+				if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
+					result->distance = 0.0f;
+					result->hit_line = 0;
+					mathVec3Copy(result->hit_point, ls1[0]);
+					return result;
+				}
+				mathVec3Normalized(op, mathVec3Sub(op, p, ls1[0]));
+				mathVec3Normalized(lsdir1, lsdir1);
+				cos_theta = mathVec3Dot(lsdir1, op);
+				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) < 0) {
+					cos_theta = mathVec3Dot(lsdir1, op);
+				}
+				d /= cos_theta;
+				mathVec3Copy(p, ls1[0]);
+				mathVec3AddScalar(p, lsdir1, d);
+				if (mathLineSegmentHasPoint(ls1, p)) {
+					result->distance = 0.0f;
+					result->hit_line = 0;
+					mathVec3Copy(result->hit_point, p);
+					return result;
+				}
+			}
+
 			do {
 				int c0 = 0, c1 = 0;
 				if (mathRaycastLineSegment(ls1[0], dir, ls2, &results[0])) {
