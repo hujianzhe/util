@@ -467,9 +467,9 @@ int mathTriangleHasPoint(float tri[3][3], float p[3]) {
 }
 
 CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-	float N[3], p[3], d, lsdir[3];
-	mathPointProjectionLine(o, ls, p, &d);
-	if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
+	float N[3], p[3], dl, dp, lsdir[3];
+	mathPointProjectionLine(o, ls, p, &dl);
+	if (fcmpf(dl, 0.0f, CCT_EPSILON) == 0) {
 		result->distance = 0.0f;
 		result->hit_line = 0;
 		mathVec3Copy(result->hit_point, o);
@@ -483,8 +483,8 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
-	mathPointProjectionPlane(o, ls[0], N, NULL, &d);
-	if (fcmpf(d, 0.0f, CCT_EPSILON))
+	mathPointProjectionPlane(o, ls[0], N, NULL, &dp);
+	if (fcmpf(dp, 0.0f, CCT_EPSILON))
 		return NULL;
 	else {
 		float op[3], cos_theta;
@@ -492,7 +492,7 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 		cos_theta = mathVec3Dot(dir, op);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
 			return NULL;
-		result->distance = d / cos_theta;
+		result->distance = dl / cos_theta;
 		result->hit_line = 0;
 		mathVec3Copy(result->hit_point, o);
 		mathVec3AddScalar(result->hit_point, dir, result->distance);
@@ -711,7 +711,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				mathVec3Normalized(lsdir1, lsdir1);
 				cos_theta = mathVec3Dot(lsdir1, op);
 				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) < 0) {
-					cos_theta = mathVec3Dot(lsdir1, op);
+					cos_theta = mathVec3Dot(mathVec3Negate(lsdir1, lsdir1), op);
 				}
 				d /= cos_theta;
 				mathVec3Copy(p, ls1[0]);
