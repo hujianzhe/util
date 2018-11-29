@@ -383,7 +383,43 @@ int mathLineParallelLine(float ls1[2][3], float ls2[2][3]) {
 	return mathVec3IsZero(n);
 }
 
-float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float* np) {
+int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float np[3]) {
+	float E1[3], E2[3], N[3], t1, t2;
+	mathVec3Sub(E1, ls1[1], ls1[0]);
+	mathVec3Sub(E2, ls2[0], ls1[0]);
+	mathVec3Cross(N, E1, E2);
+	if (mathVec3IsZero(N)) {
+		mathVec3Sub(E2, ls2[1], ls1[0]);
+		mathVec3Cross(N, E1, E2);
+		if (mathVec3IsZero(N))
+			return 0;
+	}
+	mathVec3Sub(E2, ls2[1], ls2[0]);
+	if (fcmpf(mathVec3Dot(N, E2), 0.0f, CCT_EPSILON))
+		return 0;
+	else {
+		int cmp;
+		float p[3], op[3], d, cos_theta;
+		mathPointProjectionLine(ls1[0], ls2, p, &d);
+		if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
+			mathVec3Copy(np, p);
+		}
+		mathVec3Normalized(op, mathVec3Sub(op, p, ls1[0]));
+		mathVec3Normalized(E1, E1);
+		cos_theta = mathVec3Dot(E1, op);
+		cmp = fcmpf(cos_theta, 0.0f, CCT_EPSILON);
+		if (0 == cmp)
+			return 0;
+		else if (cmp < 0)
+			cos_theta = mathVec3Dot(mathVec3Negate(E1, E1), op);
+		d /= cos_theta;
+		mathVec3Copy(np, ls1[0]);
+		mathVec3AddScalar(np, E1, d);
+		return 1;
+	}
+}
+
+float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float np[3]) {
 	float pls0[3], pls1[3];
 	mathVec3Sub(pls0, ls[0], p);
 	mathVec3Sub(pls1, ls[1], p);
