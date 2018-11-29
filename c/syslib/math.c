@@ -384,7 +384,7 @@ int mathLineParallelLine(float ls1[2][3], float ls2[2][3]) {
 }
 
 int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float np[3]) {
-	float E1[3], E2[3], N[3], t1, t2;
+	float E1[3], E2[3], N[3];
 	mathVec3Sub(E1, ls1[1], ls1[0]);
 	mathVec3Sub(E2, ls2[0], ls1[0]);
 	mathVec3Cross(N, E1, E2);
