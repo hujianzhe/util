@@ -336,13 +336,6 @@ float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]) {
 	return mathVec3Normalized(normal, normal);
 }
 
-float* mathPlaneNormalByVertices2(float vertices[2][3], float v[3], float normal[3]) {
-	float v0v1[3];
-	mathVec3Sub(v0v1, vertices[1], vertices[0]);
-	mathVec3Cross(normal, v, v0v1);
-	return mathVec3Normalized(normal, normal);
-}
-
 void mathPointProjectionLine(float p[3], float ls[2][3], float np[3], float* distance) {
 	float v0v1[3], v0p[3], pp[3];
 	mathVec3Sub(v0v1, ls[1], ls[0]);
@@ -474,11 +467,7 @@ int mathTriangleHasPoint(float tri[3][3], float p[3]) {
 }
 
 CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-	float N[3], p[3], d;
-	mathPlaneNormalByVertices2(ls, dir, N);
-	mathPointProjectionPlane(o, ls[0], N, NULL, &d);
-	if (fcmpf(d, 0.0f, CCT_EPSILON))
-		return NULL;
+	float N[3], p[3], d, lsdir[3];
 	mathPointProjectionLine(o, ls, p, &d);
 	if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
 		result->distance = 0.0f;
@@ -486,6 +475,17 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
+	mathVec3Sub(lsdir, ls[1], ls[0]);
+	mathVec3Cross(N, lsdir, dir);
+	if (mathVec3IsZero(N)) {
+		result->distance = 0.0f;
+		result->hit_line = 0;
+		mathVec3Copy(result->hit_point, o);
+		return result;
+	}
+	mathPointProjectionPlane(o, ls[0], N, NULL, &d);
+	if (fcmpf(d, 0.0f, CCT_EPSILON))
+		return NULL;
 	else {
 		float op[3], cos_theta;
 		mathVec3Normalized(op, mathVec3Sub(op, p, o));
@@ -665,8 +665,9 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 }
 
 CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result) {
-	float N[3];
-	mathPlaneNormalByVertices2(ls1, dir, N);
+	float N[3], lsdir1[3];
+	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
+	mathVec3Cross(N, lsdir1, dir);
 	if (mathVec3IsZero(N)) {
 		CCTResult_t results[2], *p_result;
 		if (!mathRaycastLineSegment(ls1[0], dir, ls2, &results[0]))
@@ -687,10 +688,9 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 		mathVec3Negate(neg_dir, dir);
 		if (result->hit_line) {
 			int is_parallel, dot;
-			float lsdir1[3], lsdir2[3], test_n[3];
+			float lsdir2[3], test_n[3];
 			CCTResult_t results[4], *p_result = NULL;
 
-			mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 			mathVec3Sub(lsdir2, ls2[1], ls2[0]);
 			mathVec3Cross(test_n, lsdir1, lsdir2);
 			is_parallel = mathVec3IsZero(test_n);
