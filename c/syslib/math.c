@@ -847,9 +847,33 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 	}
 }
 
-CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir, float vertices[3][3], CCTResult_t* result) {
+CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
+	CCTResult_t results[3], *p_result = NULL;
+	int i;
+	for (i = 0; i < 3; ++i) {
+		float ls[2][3];
+		mathVec3Copy(ls[0], tri[i % 3]);
+		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
+		if (mathLineSegmentcastPlane(ls, dir, vertices, &results[i])) {
+			if (fcmpf(results[i].distance, 0.0f, CCT_EPSILON) == 0 && results[i].hit_line) {
+				p_result = &results[i];
+				break;
+			}
+			if (!p_result || p_result->distance > results[i].distance)
+				p_result = &results[i];
+		}
+	}
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
 	return NULL;
 }
+
+CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result) {
+	return NULL;
+}
+
 /*
 int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]) {
 	const float epsilon = 0.000001f;
