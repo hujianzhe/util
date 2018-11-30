@@ -633,33 +633,41 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 		float cos_theta = mathVec3Dot(N, dir);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 			return NULL;
-		if (cmp[0] > 0) {
-			if (d[0] < d[1]) {
-				min_d = d[0];
-				p = ls[0];
-			}
-			else {
-				min_d = d[1];
-				p = ls[1];
-			}
+		else if (fcmpf(d[0], d[1], CCT_EPSILON) == 0) {
+			min_d = d[0];
+			result->hit_line = 1;
 		}
 		else {
-			if (d[0] < d[1]) {
-				min_d = d[1];
-				p = ls[1];
+			result->hit_line = 0;
+			if (cmp[0] > 0) {
+				if (d[0] < d[1]) {
+					min_d = d[0];
+					p = ls[0];
+				}
+				else {
+					min_d = d[1];
+					p = ls[1];
+				}
 			}
 			else {
-				min_d = d[0];
-				p = ls[0];
+				if (d[0] < d[1]) {
+					min_d = d[1];
+					p = ls[1];
+				}
+				else {
+					min_d = d[0];
+					p = ls[0];
+				}
 			}
 		}
 		min_d /= cos_theta;
 		if (fcmpf(min_d, 0.0f, CCT_EPSILON) < 0)
 			return NULL;
 		result->distance = min_d;
-		result->hit_line = 0;
-		mathVec3Copy(result->hit_point, p);
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
+		if (0 == result->hit_line) {
+			mathVec3Copy(result->hit_point, p);
+			mathVec3AddScalar(result->hit_point, dir, result->distance);
+		}
 		return result;
 	}
 }
@@ -793,6 +801,45 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 	}
 }
 
+CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
+	CCTResult_t results[3], *p_result = NULL;
+	int i;
+	for (i = 0; i < 3; ++i) {
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri[i % 3]);
+		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
+		if (mathLineSegmentcastLineSegment(ls, dir, edge, &results[i])) {
+			if (!p_result)
+				p_result = &results[i];
+			else {
+				int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
+				if (0 == cmp) {
+					if (results[i].hit_line || (0 == p_result->hit_line && !mathVec3Equal(p_result->hit_point, results[i].hit_point)))
+						p_result->hit_line = 1;
+					break;
+				}
+				else if (cmp > 0)
+					p_result = &results[i];
+			}
+		}
+	}
+	if (!p_result) {
+		if (mathLineSegmentcastPlane(ls, dir, tri, &results[0])) {
+			if (results[0].hit_line) {
+				if (mathTriangleHasPoint(tri, ls[0]) || mathTriangleHasPoint(tri, ls[1]))
+					p_result = &results[0];
+			}
+			else if (mathTriangleHasPoint(tri, results[0].hit_point))
+				p_result = &results[0];
+		}
+	}
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
+	return NULL;
+}
+
 CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
 	float N[3], dn, d, cos_theta;
 	mathPlaneNormalByVertices3(vertices, N);
@@ -855,12 +902,15 @@ CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices
 		mathVec3Copy(ls[0], tri[i % 3]);
 		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
 		if (mathLineSegmentcastPlane(ls, dir, vertices, &results[i])) {
-			if (fcmpf(results[i].distance, 0.0f, CCT_EPSILON) == 0 && results[i].hit_line) {
+			if (!p_result)
 				p_result = &results[i];
-				break;
+			else {
+				int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
+				if (0 == cmp)
+					p_result->hit_line = 1;
+				else if (cmp > 0)
+					p_result = &results[i];
 			}
-			if (!p_result || p_result->distance > results[i].distance)
-				p_result = &results[i];
 		}
 	}
 	if (p_result) {
@@ -915,6 +965,45 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 		copy_result(result, p_result);
 		return result;
 	}
+	return NULL;
+}
+
+/*
+	     7+------+6			0 = ---
+	     /|     /|			1 = +--
+	    / |    / |			2 = ++-
+	   / 4+---/--+5			3 = -+-
+	 3+------+2 /    y   z	4 = --+
+	  | /    | /     |  /	5 = +-+
+	  |/     |/      |/		6 = +++
+	 0+------+1      *---x	7 = -++
+*/
+static int Box_Edge_Indices[] = {
+	0, 1,	1, 2,	2, 3,	3, 0,
+	7, 6,	6, 5,	5, 4,	4, 7,
+	1, 5,	6, 2,
+	3, 7,	4, 0
+};
+static int Box_Triangle_Vertice_indices[] = {
+	0, 1, 2,	2, 3, 0,
+	7, 6, 5,	5, 4, 7,
+	1, 5, 6,	6, 2, 1,
+	3, 7, 4,	4, 0, 3,
+	3, 7, 6,	6, 2, 3,
+	0, 4, 5,	5, 1, 0
+};
+static void AABBVertices(float o[3], float half[3], float v[8][3]) {
+	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
+	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
+	v[2][0] = o[0] + half[0], v[2][1] = o[1] + half[1], v[2][2] = o[2] - half[2];
+	v[3][0] = o[0] - half[0], v[3][1] = o[1] + half[1], v[3][2] = o[2] - half[2];
+	v[4][0] = o[0] - half[0], v[4][1] = o[1] - half[1], v[4][2] = o[2] + half[2];
+	v[5][0] = o[0] + half[0], v[5][1] = o[1] - half[1], v[5][2] = o[2] + half[2];
+	v[6][0] = o[0] + half[0], v[6][1] = o[1] + half[1], v[6][2] = o[2] + half[2];
+	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
+}
+
+CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result) {
 	return NULL;
 }
 
