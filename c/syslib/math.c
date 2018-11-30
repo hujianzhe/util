@@ -871,6 +871,50 @@ CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices
 }
 
 CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result) {
+	float neg_dir[3];
+	CCTResult_t results[15], *p_results[15], *p_result = NULL;
+	int i, k = 0;
+	for (i = 0; i < 3; ++i) {
+		int j;
+		float ls1[2][3];
+		mathVec3Copy(ls1[0], tri1[i % 3]);
+		mathVec3Copy(ls1[1], tri1[(i + 1) % 3]);
+		for (j = 0; j < 3; ++j, ++k) {
+			float ls2[2][3];
+			mathVec3Copy(ls2[0], tri2[j % 3]);
+			mathVec3Copy(ls2[1], tri2[(j + 1) % 3]);
+			p_results[k] = mathLineSegmentcastLineSegment(ls1, dir, ls2, &results[k]);
+		}
+	}
+	for (i = 0; i < 3; ++i, ++k) {
+		p_results[k] = mathRaycastTriangle(tri1[i], dir, tri2, &results[k]);
+	}
+	mathVec3Negate(neg_dir, dir);
+	for (i = 0; i < 3; ++i, ++k) {
+		p_results[k] = mathRaycastTriangle(tri2[i], neg_dir, tri1, &results[k]);
+		if (p_results[k]) {
+			mathVec3Copy(p_results[k]->hit_point, tri2[i]);
+		}
+	}
+	for (i = 0; i < 15; ++i) {
+		if (!p_results[i])
+			continue;
+		if (!p_result) {
+			p_result = p_results[i];
+			continue;
+		}
+		else {
+			int cmp = fcmpf(p_result->distance, p_results[i]->distance, CCT_EPSILON);
+			if (0 == cmp)
+				p_result->hit_line = 1;
+			else if (cmp < 0)
+				p_result = p_results[i];
+		}
+	}
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
 	return NULL;
 }
 
