@@ -921,6 +921,7 @@ CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices
 }
 
 CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result) {
+	/*
 	float neg_dir[3];
 	CCTResult_t results[15], *p_results[15], *p_result = NULL;
 	int i, k = 0;
@@ -965,6 +966,7 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 		copy_result(result, p_result);
 		return result;
 	}
+	*/
 	return NULL;
 }
 
