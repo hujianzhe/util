@@ -974,6 +974,9 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 			(!p_result || p_result->distance > results[i].distance))
 		{
 			p_result = &results[i];
+			if (results[i].hit_point_cnt > 0) {
+				mathVec3AddScalar(results[i].hit_point, dir, results[i].distance);
+			}
 		}
 	}
 	if (p_result) {
