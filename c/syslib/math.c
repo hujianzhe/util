@@ -806,8 +806,21 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 }
 
 CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
-	CCTResult_t results[4], *p_result = NULL;
+	CCTResult_t results[4], *p_result;
 	int i;
+	if (!mathLineSegmentcastPlane(ls, dir, tri, &results[3]))
+		return NULL;
+	else if (results[3].hit_point_cnt < 0) {
+		if (!mathTriangleHasPoint(tri, ls[0], NULL, NULL) &&
+			!mathTriangleHasPoint(tri, ls[1], NULL, NULL))
+		{
+			return NULL;
+		}
+	}
+	else if (!mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL))
+		return NULL;
+	p_result = &results[3];
+
 	for (i = 0; i < 3; ++i) {
 		float edge[2][3];
 		mathVec3Copy(edge[0], tri[i % 3]);
@@ -847,22 +860,8 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 			}
 		}
 	}
-	if (mathLineSegmentcastPlane(ls, dir, tri, &results[3])) {
-		if (results[3].hit_point_cnt < 0) {
-			if (mathTriangleHasPoint(tri, ls[0], NULL, NULL) ||
-				mathTriangleHasPoint(tri, ls[1], NULL, NULL))
-			{
-				p_result = &results[3];
-			}
-		}
-		else if (mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL))
-			p_result = &results[3];
-	}
-	if (p_result) {
-		copy_result(result, p_result);
-		return result;
-	}
-	return NULL;
+	copy_result(result, p_result);
+	return result;
 }
 
 CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
