@@ -100,8 +100,6 @@ __declspec_dll CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float 
 /*
 __declspec_dll int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
 __declspec_dll int mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
-__declspec_dll int mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], float* distance, float normal[3], float point[3]);
-__declspec_dll int mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], float* distance, float normal[3], float point[3]);
 __declspec_dll int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], float* distance, float normal[3], float point[3]);
 */
 
