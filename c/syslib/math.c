@@ -811,11 +811,15 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 	if (!mathLineSegmentcastPlane(ls, dir, tri, &results[3]))
 		return NULL;
 	else if (results[3].hit_point_cnt < 0) {
-		if (!mathTriangleHasPoint(tri, ls[0], NULL, NULL) &&
-			!mathTriangleHasPoint(tri, ls[1], NULL, NULL))
-		{
-			return NULL;
+		for (i = 0; i < 2; ++i) {
+			float test_p[3];
+			mathVec3Copy(test_p, ls[i]);
+			mathVec3AddScalar(test_p, dir, results[3].distance);
+			if (mathTriangleHasPoint(tri, test_p, NULL, NULL))
+				break;
 		}
+		if (2 == i)
+			return NULL;
 	}
 	else if (!mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL))
 		return NULL;
