@@ -322,8 +322,8 @@ static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	if (dst == src)
 		return;
 	dst->distance = src->distance;
-	dst->hit_line = src->hit_line;
-	if (0 == src->hit_line) {
+	dst->hit_point_cnt = src->hit_point_cnt;
+	if (1 == src->hit_point_cnt) {
 		mathVec3Copy(dst->hit_point, src->hit_point);
 	}
 }
@@ -475,7 +475,7 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 	mathPointProjectionLine(o, ls, p, &dl);
 	if (fcmpf(dl, 0.0f, CCT_EPSILON) == 0) {
 		result->distance = 0.0f;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
@@ -483,7 +483,7 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 	mathVec3Cross(N, lsdir, dir);
 	if (mathVec3IsZero(N)) {
 		result->distance = 0.0f;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
@@ -497,7 +497,7 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
 			return NULL;
 		result->distance = dl / cos_theta;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		mathVec3AddScalar(result->hit_point, dir, result->distance);
 		return result;
@@ -516,7 +516,7 @@ CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CC
 			if (fcmpf(d, 0.0f, CCT_EPSILON) < 0 || fcmpf(d * d, mathVec3LenSq(ov), CCT_EPSILON))
 				return NULL;
 			result->distance = d;
-			result->hit_line = 0;
+			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, v);
 			return result;
 		}
@@ -530,7 +530,7 @@ CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], CC
 	mathPointProjectionPlane(o, vertices[0], N, NULL, &d);
 	if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
 		result->distance = 0.0f;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
@@ -541,7 +541,7 @@ CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], CC
 	if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
 		return NULL;
 	result->distance = d;
-	result->hit_line = 0;
+	result->hit_point_cnt = 1;
 	mathVec3Copy(result->hit_point, o);
 	mathVec3AddScalar(result->hit_point, dir, d);
 	return result;
@@ -582,7 +582,7 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 	dir_d = mathVec3Dot(dir, oc);
 	if (fcmpf(oc2, radius2, CCT_EPSILON) < 0) {
 		result->distance = 0.0f;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
@@ -595,7 +595,7 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 
 	d = sqrtf(radius2 - dr2);
 	result->distance = dir_d - d;
-	result->hit_line = 0;
+	result->hit_point_cnt = 1;
 	mathVec3Copy(result->hit_point, o);
 	mathVec3AddScalar(result->hit_point, dir, result->distance);
 	return result;
@@ -612,11 +612,11 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 	if (0 == cmp[0] || 0 == cmp[1]) {
 		result->distance = 0.0f;
 		if (cmp[0] + cmp[1]) {
-			result->hit_line = 0;
+			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, cmp[0] ? ls[1] : ls[0]);
 		}
 		else {
-			result->hit_line = 1;
+			result->hit_point_cnt = -1;
 		}
 		return result;
 	}
@@ -627,7 +627,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 		cos_theta = mathVec3Dot(N, ldir);
 		ddir = d[0] / cos_theta;
 		result->distance = 0.0f;
-		result->hit_line = 0;
+		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, ls[0]);
 		mathVec3AddScalar(result->hit_point, ldir, ddir);
 		return result;
@@ -639,10 +639,10 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 			return NULL;
 		else if (fcmpf(d[0], d[1], CCT_EPSILON) == 0) {
 			min_d = d[0];
-			result->hit_line = 1;
+			result->hit_point_cnt = -1;
 		}
 		else {
-			result->hit_line = 0;
+			result->hit_point_cnt = 1;
 			if (cmp[0] > 0) {
 				if (d[0] < d[1]) {
 					min_d = d[0];
@@ -668,7 +668,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 		if (fcmpf(min_d, 0.0f, CCT_EPSILON) < 0)
 			return NULL;
 		result->distance = min_d;
-		if (0 == result->hit_line) {
+		if (1 == result->hit_point_cnt) {
 			mathVec3Copy(result->hit_point, p);
 			mathVec3AddScalar(result->hit_point, dir, result->distance);
 		}
@@ -698,7 +698,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 		if (!mathLineSegmentcastPlane(ls2, dir, ls_plane, result))
 			return NULL;
 		mathVec3Negate(neg_dir, dir);
-		if (result->hit_line) {
+		if (result->hit_point_cnt < 0) {
 			int is_parallel, dot;
 			float lsdir2[3], test_n[3];
 			CCTResult_t results[4], *p_result = NULL;
@@ -715,7 +715,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				mathPointProjectionLine(ls1[0], ls2, p, &d);
 				if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
 					result->distance = 0.0f;
-					result->hit_line = 0;
+					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, ls1[0]);
 					return result;
 				}
@@ -730,7 +730,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				mathVec3AddScalar(p, lsdir1, d);
 				if (mathLineSegmentHasPoint(ls1, p)) {
 					result->distance = 0.0f;
-					result->hit_line = 0;
+					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, p);
 					return result;
 				}
@@ -744,11 +744,11 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 						p_result = &results[0];
 					if (is_parallel) {
 						if (!mathVec3Equal(results[0].hit_point, ls2[0]) && !mathVec3Equal(results[0].hit_point, ls2[1]))
-							p_result->hit_line = 1;
+							p_result->hit_point_cnt = -1;
 						else if (mathVec3Equal(results[0].hit_point, ls2[0]) && dot > 0)
-							p_result->hit_line = 1;
+							p_result->hit_point_cnt = -1;
 						else if (mathVec3Equal(results[0].hit_point, ls2[1]) && dot < 0)
-							p_result->hit_line = 1;
+							p_result->hit_point_cnt = -1;
 						break;
 					}
 				}
@@ -760,7 +760,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 						if (!(mathVec3Equal(results[1].hit_point, ls2[0]) && dot > 0) &&
 							!(mathVec3Equal(results[1].hit_point, ls2[1]) && dot < 0))
 						{
-							p_result->hit_line = 1;
+							p_result->hit_point_cnt = -1;
 						}
 						break;
 					}
@@ -773,7 +773,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 						mathVec3Copy(p_result->hit_point, ls2[0]);
 					}
 					if (is_parallel) {
-						p_result->hit_line = 1;
+						p_result->hit_point_cnt = -1;
 						break;
 					}
 				}
@@ -783,7 +783,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 						mathVec3Copy(p_result->hit_point, ls2[1]);
 					}
 					if (is_parallel) {
-						p_result->hit_line = 1;
+						p_result->hit_point_cnt = -1;
 						break;
 					}
 				}
@@ -814,7 +814,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
 		if (mathLineSegmentcastLineSegment(ls, dir, edge, &results[i])) {
 			if (!p_result) {
-				if (!results[i].hit_line) {
+				if (1 == results[i].hit_point_cnt) {
 					int j;
 					for (j = 0; j < 2; ++j) {
 						float test_p[3], u, v;
@@ -824,7 +824,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 							fcmpf(u, 0.0f, CCT_EPSILON) > 0 &&
 							fcmpf(v, 0.0f, CCT_EPSILON) > 0)
 						{
-							results[i].hit_line = 1;
+							results[i].hit_point_cnt = -1;
 							break;
 						}
 					}
@@ -834,8 +834,12 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 			else {
 				int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
 				if (0 == cmp) {
-					if (results[i].hit_line || (0 == p_result->hit_line && !mathVec3Equal(p_result->hit_point, results[i].hit_point)))
-						p_result->hit_line = 1;
+					if (results[i].hit_point_cnt < 0 ||
+						p_result->hit_point_cnt < 0 ||
+						!mathVec3Equal(p_result->hit_point, results[i].hit_point))
+					{
+						p_result->hit_point_cnt = -1;
+					}
 					break;
 				}
 				else if (cmp > 0)
@@ -845,7 +849,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 	}
 	if (!p_result) {
 		if (mathLineSegmentcastPlane(ls, dir, tri, &results[0])) {
-			if (results[0].hit_line) {
+			if (results[0].hit_point_cnt < 0) {
 				if (mathTriangleHasPoint(tri, ls[0], NULL, NULL) ||
 					mathTriangleHasPoint(tri, ls[1], NULL, NULL))
 				{
@@ -869,7 +873,7 @@ CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float v
 	mathPointProjectionPlane(o, vertices[0], N, NULL, &dn);
 	if (fcmpf(dn * dn, radius * radius, CCT_EPSILON) < 0) {
 		result->distance = 0.0f;
-		result->hit_line = 1;
+		result->hit_point_cnt = -1;
 		return NULL;
 	}
 	cos_theta = mathVec3Dot(N, dir);
@@ -880,7 +884,7 @@ CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float v
 		return NULL;
 	d -= radius / dn * d;
 	result->distance = d;
-	result->hit_line = 0;
+	result->hit_point_cnt = 1;
 	mathVec3Copy(result->hit_point, o);
 	mathVec3AddScalar(result->hit_point, dir, d);
 	if (fcmpf(dn, 0.0f, CCT_EPSILON) < 0)
@@ -896,7 +900,7 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 	mathVec3Sub(o1o2, o2, o1);
 	if (fcmpf(mathVec3LenSq(o1o2), r12 * r12, CCT_EPSILON) < 0) {
 		result->distance = 0.0f;
-		result->hit_line = 1;
+		result->hit_point_cnt = -1;
 		return result;
 	}
 	else {
@@ -909,7 +913,7 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 			if (fcmpf(delta_len, 0.0f, CCT_EPSILON) < 0)
 				return NULL;
 			result->distance = dot - sqrtf(delta_len);
-			result->hit_line = 0;
+			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, o1);
 			mathVec3AddScalar(result->hit_point, dir, result->distance);
 			return result;
@@ -929,8 +933,14 @@ CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices
 				p_result = &results[i];
 			else {
 				int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
-				if (0 == cmp)
-					p_result->hit_line = 1;
+				if (0 == cmp) {
+					if (results[i].hit_point_cnt < 0 ||
+						p_result->hit_point_cnt < 0 ||
+						!mathVec3Equal(p_result->hit_point, results[i].hit_point))
+					{
+						p_result->hit_point_cnt = -1;
+					}
+				}
 				else if (cmp > 0)
 					p_result = &results[i];
 			}

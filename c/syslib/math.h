@@ -81,7 +81,7 @@ __declspec_dll int mathLineSegmentHasPoint(float ls[2][3], float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v);
 typedef struct CCTResult_t {
 	float distance;
-	int hit_line;
+	int hit_point_cnt;
 	float hit_point[3];
 } CCTResult_t;
 __declspec_dll CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result);
