@@ -1005,7 +1005,7 @@ static int Box_Edge_Indices[] = {
 	1, 5,	6, 2,
 	3, 7,	4, 0
 };
-static int Box_Triangle_Vertice_indices[] = {
+static int Box_Triangle_Vertice_Indices[] = {
 	0, 1, 2,	2, 3, 0,
 	7, 6, 5,	5, 4, 7,
 	1, 5, 6,	6, 2, 1,
