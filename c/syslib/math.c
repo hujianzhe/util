@@ -922,6 +922,11 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 	}
 }
 
+CCTResult_t* mathSpherecastLinesegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
+
+	return NULL;
+}
+
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
