@@ -77,7 +77,7 @@ __declspec_dll void mathPointProjectionPlane(float p[3], float plane_v[3], float
 __declspec_dll float mathPointPointDistanceSq(float p1[3], float p2[3]);
 __declspec_dll int mathLineParallelLine(float ls1[2][3], float ls2[2][3]);
 __declspec_dll int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float np[3]);
-__declspec_dll float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float np[3]);
+__declspec_dll float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3]);
 __declspec_dll int mathLineSegmentHasPoint(float ls[2][3], float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v);
 typedef struct CCTResult_t {

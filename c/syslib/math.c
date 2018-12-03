@@ -418,14 +418,11 @@ int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float np[3]) {
 	}
 }
 
-float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3], float np[3]) {
+float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3]) {
 	float pls0[3], pls1[3];
 	mathVec3Sub(pls0, ls[0], p);
 	mathVec3Sub(pls1, ls[1], p);
-	if (mathVec3LenSq(pls0) > mathVec3LenSq(pls1))
-		return mathVec3Copy(np, ls[1]);
-	else
-		return mathVec3Copy(np, ls[0]);
+	return mathVec3LenSq(pls0) > mathVec3LenSq(pls1) ? ls[1] : ls[0];
 }
 
 int mathLineSegmentHasPoint(float ls[2][3], float p[3]) {
@@ -515,8 +512,8 @@ CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CC
 		if (mathLineSegmentHasPoint(ls, result->hit_point))
 			return result;
 		else if (fcmpf(result->distance, 0.0f, CCT_EPSILON) <= 0) {
-			float v[3], ov[3], d;
-			mathPointLineSegmentNearestVertice(o, ls, v);
+			float ov[3], d;
+			float* v = mathPointLineSegmentNearestVertice(o, ls);
 			mathVec3Sub(ov, v, o);
 			d = mathVec3Dot(ov, dir);
 			if (fcmpf(d, 0.0f, CCT_EPSILON) < 0 || fcmpf(d * d, mathVec3LenSq(ov), CCT_EPSILON))
