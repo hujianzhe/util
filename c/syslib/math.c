@@ -1043,34 +1043,34 @@ CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o
 		return result;
 	}
 	else {
-		CCTResult_t results[12], *p_result = NULL;
-		int i, k;
+		CCTResult_t *p_result = NULL;
+		int i;
 		float v1[8][3], v2[8][3];
 		AABBVertices(o1, half1, v1);
 		AABBVertices(o2, half2, v2);
-		for (k = 0, i = 0; i < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); ++k) {
-			float tri1[3][3], tri2[3][3];
+		for (i = 0; i < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); i += 3) {
 			int j;
-			for (j = 0; j < 3; ++j) {
-				mathVec3Copy(tri1[j], v1[j + i]);
-				mathVec3Copy(tri2[j], v2[j + i]);
+			float tri1[3][3];
+			mathVec3Copy(tri1[0], v1[Box_Triangle_Vertice_Indices[i]]);
+			mathVec3Copy(tri1[1], v1[Box_Triangle_Vertice_Indices[i + 1]]);
+			mathVec3Copy(tri1[2], v1[Box_Triangle_Vertice_Indices[i + 2]]);
+			for (j = 0; j < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); j += 3) {
+				CCTResult_t result_temp;
+				float tri2[3][3];
+				mathVec3Copy(tri2[0], v2[Box_Triangle_Vertice_Indices[j]]);
+				mathVec3Copy(tri2[1], v2[Box_Triangle_Vertice_Indices[j + 1]]);
+				mathVec3Copy(tri2[2], v2[Box_Triangle_Vertice_Indices[j + 2]]);
+
+				if (!mathTrianglecastTriangle(tri1, dir, tri2, &result_temp))
+					continue;
+
+				if (!p_result || p_result->distance > result_temp.distance) {
+					p_result = result;
+					copy_result(p_result, &result_temp);
+				}
 			}
-			if (mathTrianglecastTriangle(tri1, dir, tri2, &results[k])) {
-				if (!p_result || p_result->distance > results[k].distance)
-					p_result = &results[k];
-				if (0 == i % 6)
-					i += 6;
-				else
-					i += 3;
-			}
-			else
-				i += 3;
 		}
-		if (p_result) {
-			copy_result(result, p_result);
-			return result;
-		}
-		return NULL;
+		return p_result;
 	}
 }
 
