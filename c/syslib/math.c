@@ -1024,8 +1024,54 @@ static void AABBVertices(float o[3], float half[3], float v[8][3]) {
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
 }
 
+static int AABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]) {
+	/*
+	!(o2[0] - half2[0] > o1[0] + half1[0] || o1[0] - half1[0] > o2[0] + half2[0] ||
+	o2[1] - half2[1] > o1[1] + half1[1] || o1[1] - half1[1] > o2[1] + half2[1] ||
+	o2[2] - half2[2] > o1[2] + half1[2] || o1[2] - half1[2] > o2[2] + half2[2]);
+	*/
+	
+	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
+		o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
+		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
+}
+
 CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result) {
-	return NULL;
+	if (AABBIntersectAABB(o1, half1, o2, half2)) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
+		return result;
+	}
+	else {
+		CCTResult_t results[12], *p_result = NULL;
+		int i, k;
+		float v1[8][3], v2[8][3];
+		AABBVertices(o1, half1, v1);
+		AABBVertices(o2, half2, v2);
+		for (k = 0, i = 0; i < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); ++k) {
+			float tri1[3][3], tri2[3][3];
+			int j;
+			for (j = 0; j < 3; ++j) {
+				mathVec3Copy(tri1[j], v1[j + i]);
+				mathVec3Copy(tri2[j], v2[j + i]);
+			}
+			if (mathTrianglecastTriangle(tri1, dir, tri2, &results[k])) {
+				if (!p_result || p_result->distance > results[k].distance)
+					p_result = &results[k];
+				if (0 == i % 6)
+					i += 6;
+				else
+					i += 3;
+			}
+			else
+				i += 3;
+		}
+		if (p_result) {
+			copy_result(result, p_result);
+			return result;
+		}
+		return NULL;
+	}
 }
 
 /*
