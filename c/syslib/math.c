@@ -267,6 +267,12 @@ void mathQuatToAxisRadian(float q[4], float axis[3], float* radian) {
 	*radian = atan2f(s2*s, qw) * 2.0f;
 }
 
+float* mathQuatIdentity(float q[4]) {
+	q[0] = q[1] = q[2] = 0.0f;
+	q[3] = 1.0f;
+	return q;
+}
+
 /* r = -q */
 float* mathQuatConjugate(float r[4], float q[4]) {
 	r[0] = -q[0];
@@ -1029,7 +1035,7 @@ static void AABBVertices(float o[3], float half[3], float v[8][3]) {
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
 }
 
-static int AABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]) {
+int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]) {
 	/*
 	!(o2[0] - half2[0] > o1[0] + half1[0] || o1[0] - half1[0] > o2[0] + half2[0] ||
 	o2[1] - half2[1] > o1[1] + half1[1] || o1[1] - half1[1] > o2[1] + half2[1] ||
@@ -1042,7 +1048,7 @@ static int AABBIntersectAABB(float o1[3], float half1[3], float o2[3], float hal
 }
 
 CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result) {
-	if (AABBIntersectAABB(o1, half1, o2, half2)) {
+	if (mathAABBIntersectAABB(o1, half1, o2, half2)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
 		return result;

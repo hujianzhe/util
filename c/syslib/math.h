@@ -66,6 +66,7 @@ __declspec_dll float* mathQuatFromEuler(float q[4], float e[3], const char order
 __declspec_dll float* mathQuatFromUnitVec3(float q[4], float from[3], float to[3]);
 __declspec_dll float* mathQuatFromAxisRadian(float q[4], float axis[3], float radian);
 __declspec_dll void mathQuatToAxisRadian(float q[4], float axis[3], float* radian);
+__declspec_dll float* mathQuatIdentity(float q[4]);
 __declspec_dll float* mathQuatConjugate(float r[4], float q[4]);
 __declspec_dll float* mathQuatMulQuat(float r[4], float q1[4], float q2[4]);
 __declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
@@ -97,6 +98,7 @@ __declspec_dll CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float di
 __declspec_dll CCTResult_t* mathSpherecastLinesegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result);
+__declspec_dll int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]);
 __declspec_dll CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result);
 /*
 __declspec_dll int mathLinecastSphere(float ls[2][3], float dir[3], float center[3], float radius, float* distance, float normal[3], float point[3]);
