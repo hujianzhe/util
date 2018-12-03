@@ -833,38 +833,18 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 		mathVec3Copy(edge[0], tri[i % 3]);
 		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
 		if (mathLineSegmentcastLineSegment(ls, dir, edge, &results[i])) {
-			if (!p_result) {
-				if (1 == results[i].hit_point_cnt) {
-					int j;
-					for (j = 0; j < 2; ++j) {
-						float test_p[3], u, v;
-						mathVec3Copy(test_p, ls[j]);
-						mathVec3AddScalar(test_p, dir, results[i].distance);
-						if (mathTriangleHasPoint(tri, test_p, &u, &v) &&
-							fcmpf(u, 0.0f, CCT_EPSILON) > 0 &&
-							fcmpf(v, 0.0f, CCT_EPSILON) > 0)
-						{
-							results[i].hit_point_cnt = -1;
-							break;
-						}
-					}
+			int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
+			if (0 == cmp) {
+				if (results[i].hit_point_cnt < 0 ||
+					p_result->hit_point_cnt < 0 ||
+					!mathVec3Equal(p_result->hit_point, results[i].hit_point))
+				{
+					p_result->hit_point_cnt = -1;
 				}
+				break;
+			}
+			else if (cmp > 0)
 				p_result = &results[i];
-			}
-			else {
-				int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
-				if (0 == cmp) {
-					if (results[i].hit_point_cnt < 0 ||
-						p_result->hit_point_cnt < 0 ||
-						!mathVec3Equal(p_result->hit_point, results[i].hit_point))
-					{
-						p_result->hit_point_cnt = -1;
-					}
-					break;
-				}
-				else if (cmp > 0)
-					p_result = &results[i];
-			}
 		}
 	}
 	copy_result(result, p_result);
