@@ -993,7 +993,7 @@ static int Box_Edge_Indices[] = {
 	1, 5,	6, 2,
 	3, 7,	4, 0
 };
-static int Box_Triangle_Vertice_Indices[] = {
+static int Box_Triangle_Vertices_Indices[] = {
 	0, 1, 2,	2, 3, 0,
 	7, 6, 5,	5, 4, 7,
 	1, 5, 6,	6, 2, 1,
@@ -1020,8 +1020,8 @@ int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[
 	*/
 	
 	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
-		o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
-		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
+			o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
+			o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
 CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result) {
@@ -1036,18 +1036,18 @@ CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o
 		float v1[8][3], v2[8][3];
 		AABBVertices(o1, half1, v1);
 		AABBVertices(o2, half2, v2);
-		for (i = 0; i < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); i += 3) {
+		for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 3) {
 			int j;
 			float tri1[3][3];
-			mathVec3Copy(tri1[0], v1[Box_Triangle_Vertice_Indices[i]]);
-			mathVec3Copy(tri1[1], v1[Box_Triangle_Vertice_Indices[i + 1]]);
-			mathVec3Copy(tri1[2], v1[Box_Triangle_Vertice_Indices[i + 2]]);
-			for (j = 0; j < sizeof(Box_Triangle_Vertice_Indices) / sizeof(Box_Triangle_Vertice_Indices[0]); j += 3) {
+			mathVec3Copy(tri1[0], v1[Box_Triangle_Vertices_Indices[i]]);
+			mathVec3Copy(tri1[1], v1[Box_Triangle_Vertices_Indices[i + 1]]);
+			mathVec3Copy(tri1[2], v1[Box_Triangle_Vertices_Indices[i + 2]]);
+			for (j = 0; j < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); j += 3) {
 				CCTResult_t result_temp;
 				float tri2[3][3];
-				mathVec3Copy(tri2[0], v2[Box_Triangle_Vertice_Indices[j]]);
-				mathVec3Copy(tri2[1], v2[Box_Triangle_Vertice_Indices[j + 1]]);
-				mathVec3Copy(tri2[2], v2[Box_Triangle_Vertice_Indices[j + 2]]);
+				mathVec3Copy(tri2[0], v2[Box_Triangle_Vertices_Indices[j]]);
+				mathVec3Copy(tri2[1], v2[Box_Triangle_Vertices_Indices[j + 1]]);
+				mathVec3Copy(tri2[2], v2[Box_Triangle_Vertices_Indices[j + 2]]);
 
 				if (!mathTrianglecastTriangle(tri1, dir, tri2, &result_temp))
 					continue;
