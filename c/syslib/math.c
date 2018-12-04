@@ -34,6 +34,7 @@ int fcmp(double a, double b, double epsilon) {
 	return v >= epsilon ? 1 : -1;
 }
 
+/*
 float fsqrtf(float x) {
 	float xhalf = 0.5f * x;
 	int i = *(int*)&x;
@@ -51,6 +52,7 @@ double fsqrt(double x) {
 	x = x * (1.5 - xhalf * x * x);
 	return x;
 }
+*/
 
 int mathVec3IsZero(float v[3]) {
 	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&
@@ -919,8 +921,8 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 				return NULL;
 			if (ls_has_projection_point) {
 				float cos_theta, distance, p[3], new_ls[2][3];
-				lpnp_d = fsqrtf(lpnp_d);
-				delta_d = fsqrtf(delta_d);
+				lpnp_d = sqrtf(lpnp_d);
+				delta_d = sqrtf(delta_d);
 				mathVec3Normalized(lpnp, lpnp);
 				cos_theta = mathVec3Dot(lpnp, dir);
 				distance = (lpnp_d - delta_d) / cos_theta;
