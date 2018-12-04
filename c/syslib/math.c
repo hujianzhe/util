@@ -684,13 +684,20 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 	mathVec3Cross(N, lsdir1, dir);
 	if (mathVec3IsZero(N)) {
+		int c0, c1;
 		CCTResult_t results[2], *p_result;
-		if (!mathRaycastLineSegment(ls1[0], dir, ls2, &results[0]))
+		c0 = (mathRaycastLineSegment(ls1[0], dir, ls2, &results[0]) != NULL);
+		c1 = (mathRaycastLineSegment(ls1[1], dir, ls2, &results[1]) != NULL);
+		if (!c0 && !c1)
 			return NULL;
-		if (!mathRaycastLineSegment(ls1[1], dir, ls2, &results[1]))
-			return NULL;
-		p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
-		copy_result(result, p_result);
+		else if (c0 && c1) {
+			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
+			copy_result(result, p_result);
+		}
+		else {
+			result->distance = 0.0f;
+			result->hit_point_cnt = -1;
+		}
 		return result;
 	}
 	else {
@@ -851,65 +858,6 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 	return result;
 }
 
-CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
-	float N[3], dn, d, cos_theta;
-	mathPlaneNormalByVertices3(vertices, N);
-	mathPointProjectionPlane(o, vertices[0], N, NULL, &dn);
-	if (fcmpf(dn * dn, radius * radius, CCT_EPSILON) < 0) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return NULL;
-	}
-	cos_theta = mathVec3Dot(N, dir);
-	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
-		return NULL;
-	d = dn / cos_theta;
-	if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
-		return NULL;
-	d -= radius / dn * d;
-	result->distance = d;
-	result->hit_point_cnt = 1;
-	mathVec3Copy(result->hit_point, o);
-	mathVec3AddScalar(result->hit_point, dir, d);
-	if (fcmpf(dn, 0.0f, CCT_EPSILON) < 0)
-		mathVec3AddScalar(result->hit_point, N, -radius);
-	else
-		mathVec3AddScalar(result->hit_point, N, radius);
-	return result;
-}
-
-CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float r2, CCTResult_t* result) {
-	float r12 = r1 + r2;
-	float o1o2[3];
-	mathVec3Sub(o1o2, o2, o1);
-	if (fcmpf(mathVec3LenSq(o1o2), r12 * r12, CCT_EPSILON) < 0) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else {
-		float dot = mathVec3Dot(o1o2, dir);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) <= 0)
-			return NULL;
-		else {
-			float dn = mathVec3LenSq(o1o2) - dot * dot;
-			float delta_len = r12 * r12 - dn;
-			if (fcmpf(delta_len, 0.0f, CCT_EPSILON) < 0)
-				return NULL;
-			result->distance = dot - sqrtf(delta_len);
-			result->hit_point_cnt = 1;
-			mathVec3Copy(result->hit_point, o1);
-			mathVec3AddScalar(result->hit_point, dir, result->distance);
-			return result;
-		}
-	}
-}
-
-CCTResult_t* mathSpherecastLinesegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-
-	return NULL;
-}
-
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
@@ -1060,6 +1008,98 @@ CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o
 		}
 		return p_result;
 	}
+}
+
+CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
+	float N[3], dn, d, cos_theta;
+	mathPlaneNormalByVertices3(vertices, N);
+	mathPointProjectionPlane(o, vertices[0], N, NULL, &dn);
+	if (fcmpf(dn * dn, radius * radius, CCT_EPSILON) < 0) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
+		return NULL;
+	}
+	cos_theta = mathVec3Dot(N, dir);
+	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
+		return NULL;
+	d = dn / cos_theta;
+	if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
+		return NULL;
+	d -= radius / dn * d;
+	result->distance = d;
+	result->hit_point_cnt = 1;
+	mathVec3Copy(result->hit_point, o);
+	mathVec3AddScalar(result->hit_point, dir, d);
+	if (fcmpf(dn, 0.0f, CCT_EPSILON) < 0)
+		mathVec3AddScalar(result->hit_point, N, -radius);
+	else
+		mathVec3AddScalar(result->hit_point, N, radius);
+	return result;
+}
+
+CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[3], float r2, CCTResult_t* result) {
+	float r12 = r1 + r2;
+	float o1o2[3];
+	mathVec3Sub(o1o2, o2, o1);
+	if (fcmpf(mathVec3LenSq(o1o2), r12 * r12, CCT_EPSILON) < 0) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
+		return result;
+	}
+	else {
+		float dot = mathVec3Dot(o1o2, dir);
+		if (fcmpf(dot, 0.0f, CCT_EPSILON) <= 0)
+			return NULL;
+		else {
+			float dn = mathVec3LenSq(o1o2) - dot * dot;
+			float delta_len = r12 * r12 - dn;
+			if (fcmpf(delta_len, 0.0f, CCT_EPSILON) < 0)
+				return NULL;
+			result->distance = dot - sqrtf(delta_len);
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, o1);
+			mathVec3AddScalar(result->hit_point, dir, result->distance);
+			return result;
+		}
+	}
+}
+
+CCTResult_t* mathSpherecastLinesegment(float o[3], float radius, float dir[3], float ls[2][3], CCTResult_t* result) {
+	float ls_dir_plane[3][3], N[3];
+	mathVec3Copy(ls_dir_plane[0], ls[0]);
+	mathVec3Copy(ls_dir_plane[1], ls[1]);
+	mathVec3Add(ls_dir_plane[2], ls[1], dir);
+	mathPlaneNormalByVertices3(ls_dir_plane, N);
+	if (mathVec3IsZero(N)) {
+		int c0, c1;
+		CCTResult_t results[2], *p_result;
+		float neg_dir[3];
+		mathVec3Negate(neg_dir, dir);
+		c0 = (mathRaycastSphere(ls[0], neg_dir, o, radius, &results[0]) != NULL);
+		c1 = (mathRaycastSphere(ls[1], neg_dir, o, radius, &results[1]) != NULL);
+		if (!c0 && !c1)
+			return NULL;
+		else if (c0 && c1) {
+			if (results[0].distance < results[1].distance) {
+				p_result = &results[0];
+				mathVec3Copy(p_result->hit_point, ls[0]);
+			}
+			else {
+				p_result = &results[1];
+				mathVec3Copy(p_result->hit_point, ls[1]);
+			}
+			copy_result(result, p_result);
+		}
+		else {
+			result->distance = 0.0f;
+			result->hit_point_cnt = -1;
+		}
+		return result;
+	}
+	else {
+	
+	}
+	return NULL;
 }
 
 /*
