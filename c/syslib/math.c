@@ -865,8 +865,11 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 				p_result = &results[i];
 		}
 	}
-	copy_result(result, p_result);
-	return result;
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
+	return NULL;
 }
 
 CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
