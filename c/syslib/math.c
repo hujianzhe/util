@@ -30,6 +30,32 @@ int fcmp(double a, double b, double epsilon) {
 	return v >= epsilon ? 1 : -1;
 }
 
+float fsqrtf(float x) {
+	float xhalf = 0.5f * x;
+	int i = *(int*)&x;
+	i = 0x5f3759df - (i >> 1);
+	x = *(float*)&i;
+	x = x * (1.5f - xhalf * x * x);
+	x = x * (1.5f - xhalf * x * x);
+	x = x * (1.5f - xhalf * x * x);
+	return x;
+}
+
+double fsqrt(double x) {
+	double xhalf = 0.5 * x;
+	long long i = *(long long*)&x;
+	i = 0x5fe6ec85e7de30da - (i >> 1);
+	x = *(double*)&i;
+	x = x * (1.5 - xhalf * x * x);
+	x = x * (1.5f - xhalf * x * x);
+	x = x * (1.5f - xhalf * x * x);
+	return x;
+}
+
+/*
+	vec3 and quat
+*/
+
 int mathVec3IsZero(float v[3]) {
 	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&
 			fcmpf(v[1], 0.0f, CCT_EPSILON) == 0 &&
