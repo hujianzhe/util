@@ -822,30 +822,35 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 }
 
 CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
-	CCTResult_t results[4], *p_result;
 	int i;
-	if (!mathLineSegmentcastPlane(ls, dir, tri, &results[3]))
+	CCTResult_t results[3], *p_result = NULL;
+	if (!mathLineSegmentcastPlane(ls, dir, tri, result))
 		return NULL;
-	else if (results[3].hit_point_cnt < 0) {
+	else if (result->hit_point_cnt < 0) {
+		int c[2];
 		for (i = 0; i < 2; ++i) {
 			float test_p[3];
 			mathVec3Copy(test_p, ls[i]);
-			mathVec3AddScalar(test_p, dir, results[3].distance);
-			if (mathTriangleHasPoint(tri, test_p, NULL, NULL))
-				break;
+			mathVec3AddScalar(test_p, dir, result->distance);
+			c[i] = mathTriangleHasPoint(tri, test_p, NULL, NULL);
 		}
-		if (2 == i)
+		if (!c[0] && c[1])
 			return NULL;
+		else if (c[0] && c[1])
+			return result;
 	}
-	else if (!mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL))
-		return NULL;
-	p_result = &results[3];
+	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+		return result;
 
 	for (i = 0; i < 3; ++i) {
 		float edge[2][3];
 		mathVec3Copy(edge[0], tri[i % 3]);
 		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
-		if (mathLineSegmentcastLineSegment(ls, dir, edge, &results[i])) {
+		if (!mathLineSegmentcastLineSegment(ls, dir, edge, &results[i]))
+			continue;
+		if (!p_result)
+			p_result = &results[i];
+		else {
 			int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
 			if (0 == cmp) {
 				if (results[i].hit_point_cnt < 0 ||
@@ -1162,49 +1167,33 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 	}
 }
 
-/*
-int mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], float* distance, float normal[3], float point[3]) {
-	if (mathSpherecastPlane(o, radius, dir, tri, distance, normal, point) &&
-		mathTriangleHasPoint(tri, point))
-	{
-		return 1;
-	}
+CCTResult_t* mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], CCTResult_t* result) {
+	if (!mathSpherecastPlane(o, radius, dir, tri, result))
+		return NULL;
+	if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+		return result;
 	else {
-		float tri_ls[3][2][3] = {
-			{
-				{ tri[0][0], tri[0][1], tri[0][2] },
-				{ tri[1][0], tri[1][1], tri[1][2] }
-			},
-			{
-				{ tri[0][0], tri[0][1], tri[0][2] },
-				{ tri[2][0], tri[2][1], tri[2][2] },
-			},
-			{
-				{ tri[1][0], tri[1][1], tri[1][2] },
-				{ tri[2][0], tri[2][1], tri[2][2] }
-			}
-		};
-		float t[3], min_t;
-		float n[3][3], p[3][3], *p_n, *p_p;
-		int c[3], i;
+		CCTResult_t* p_result = NULL;
+		int i;
 		float neg_dir[3];
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < 3; ++i) {
-			c[i] = mathLineSegmentcastSphere(tri_ls[i], neg_dir, o, radius, &t[i], n[i], p[i]);
+			CCTResult_t result_temp;
+			float ls[2][3];
+			mathVec3Copy(ls[0], tri[i % 3]);
+			mathVec3Copy(ls[1], tri[(i + 1) % 3]);
+			if (mathLineSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
+				(!p_result || p_result->distance > result_temp.distance))
+			{
+				copy_result(result, &result_temp);
+				p_result = result;
+			}
 		}
-		if (select_min_result(c, t, n, p, 3, &min_t, &p_n, &p_p) < 0)
-			return 0;
-		*distance = min_t;
-		normal[0] = -p_n[0];
-		normal[1] = -p_n[1];
-		normal[2] = -p_n[2];
-		point[0] = p_p[0] - min_t * neg_dir[0];
-		point[1] = p_p[1] - min_t * neg_dir[1];
-		point[2] = p_p[2] - min_t * neg_dir[2];
-		return 1;
+		if (p_result)
+			mathVec3AddScalar(p_result->hit_point, dir, p_result->distance);
+		return p_result;
 	}
 }
-*/
 
 #ifdef	__cplusplus
 }
