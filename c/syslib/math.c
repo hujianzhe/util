@@ -30,7 +30,7 @@ int fcmp(double a, double b, double epsilon) {
 	return v >= epsilon ? 1 : -1;
 }
 
-float fsqrtf(float x) {
+float finvsqrtf(float x) {
 	float xhalf = 0.5f * x;
 	int i = *(int*)&x;
 	i = 0x5f3759df - (i >> 1);
@@ -40,17 +40,19 @@ float fsqrtf(float x) {
 	x = x * (1.5f - xhalf * x * x);
 	return x;
 }
+float fsqrtf(float x) { return 1.0f / finvsqrtf(x); }
 
-double fsqrt(double x) {
+double finvsqrt(double x) {
 	double xhalf = 0.5 * x;
 	long long i = *(long long*)&x;
 	i = 0x5fe6ec85e7de30da - (i >> 1);
 	x = *(double*)&i;
 	x = x * (1.5 - xhalf * x * x);
-	x = x * (1.5f - xhalf * x * x);
-	x = x * (1.5f - xhalf * x * x);
+	x = x * (1.5 - xhalf * x * x);
+	x = x * (1.5 - xhalf * x * x);
 	return x;
 }
+double fsqrt(double x) { return 1.0 / finvsqrt(x); }
 
 /*
 	vec3 and quat
