@@ -10,9 +10,7 @@ extern "C" {
 #endif
 
 /*
-a == b return 0;
-a > b return >0;
-a < b return <0;
+a == b return =0, a > b return >0, a < b return <0;
 */
 int fcmpf(float a, float b, float epsilon) {
 	float v = a - b;
@@ -22,9 +20,7 @@ int fcmpf(float a, float b, float epsilon) {
 	return v >= epsilon ? 1 : -1;
 }
 /*
-a == b return 0;
-a > b return >0;
-a < b return <0;
+a == b return 0, a > b return >0, a < b return <0;
 */
 int fcmp(double a, double b, double epsilon) {
 	double v = a - b;
@@ -33,26 +29,6 @@ int fcmp(double a, double b, double epsilon) {
 		return 0;
 	return v >= epsilon ? 1 : -1;
 }
-
-/*
-float fsqrtf(float x) {
-	float xhalf = 0.5f * x;
-	int i = *(int*)&x;
-	i = 0x5f3759df - (i >> 1);
-	x = *(float*)&i;
-	x = x * (1.5f - xhalf * x * x);
-	return x;
-}
-
-double fsqrt(double x) {
-	double xhalf = 0.5 * x;
-	long long i = *(long long*)&x;
-	i = 0x5fe6ec85e7de30da - (i >> 1);
-	x = *(double*)&i;
-	x = x * (1.5 - xhalf * x * x);
-	return x;
-}
-*/
 
 int mathVec3IsZero(float v[3]) {
 	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&
@@ -928,7 +904,7 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 				distance = (lpnp_d - delta_d) / cos_theta;
 				mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, (lpnp_d - delta_d));
 				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, distance);
-				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[1]), dir, distance);
+				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, distance);
 				if (mathLineSegmentHasPoint(new_ls, p)) {
 					result->distance = distance;
 					result->hit_point_cnt = 1;

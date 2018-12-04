@@ -38,10 +38,6 @@ extern "C" {
 
 __declspec_dll int fcmpf(float a, float b, float epsilon);
 __declspec_dll int fcmp(double a, double b, double epsilon);
-/*
-__declspec_dll float fsqrtf(float x);
-__declspec_dll double fsqrt(double x);
-*/
 
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathRadToDeg(rad)	((rad) * M_1_PI * 180.0)
