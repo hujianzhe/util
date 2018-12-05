@@ -1078,6 +1078,27 @@ int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[
 			o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
+CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertices[3][3], CCTResult_t* result) {
+	CCTResult_t* p_result = NULL;
+	float v[8][3];
+	int i;
+	AABBVertices(o, half, v);
+	for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 3) {
+		CCTResult_t result_temp;
+		float tri[3][3];
+		mathVec3Copy(tri[0], v[Box_Triangle_Vertices_Indices[i]]);
+		mathVec3Copy(tri[1], v[Box_Triangle_Vertices_Indices[i + 1]]);
+		mathVec3Copy(tri[2], v[Box_Triangle_Vertices_Indices[i + 2]]);
+		if (mathTrianglecastPlane(tri, dir, vertices, &result_temp) &&
+			(!p_result || p_result->distance > result_temp.distance))
+		{
+			copy_result(result, &result_temp);
+			p_result = result;
+		}
+	}
+	return p_result;
+}
+
 CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result) {
 	if (mathAABBIntersectAABB(o1, half1, o2, half2)) {
 		result->distance = 0.0f;
@@ -1123,7 +1144,7 @@ CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float v
 	if (fcmpf(dn * dn, radius * radius, CCT_EPSILON) < 0) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
-		return NULL;
+		return result;
 	}
 	cos_theta = mathVec3Dot(N, dir);
 	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
