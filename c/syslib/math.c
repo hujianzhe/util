@@ -744,7 +744,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				d /= cos_theta;
 				mathVec3Copy(p, ls1[0]);
 				mathVec3AddScalar(p, lsdir1, d);
-				if (mathLineSegmentHasPoint(ls1, p)) {
+				if (mathLineSegmentHasPoint(ls1, p) && mathLineSegmentHasPoint(ls2, p)) {
 					result->distance = 0.0f;
 					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, p);
