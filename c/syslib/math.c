@@ -1138,7 +1138,7 @@ CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o
 }
 
 CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
-	float N[3], dn, d, cos_theta;
+	float N[3], dn, dn_abs, d, cos_theta;
 	mathPlaneNormalByVertices3(vertices, N);
 	mathPointProjectionPlane(o, vertices[0], N, NULL, &dn);
 	if (fcmpf(dn * dn, radius * radius, CCT_EPSILON) < 0) {
@@ -1152,7 +1152,8 @@ CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float v
 	d = dn / cos_theta;
 	if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
 		return NULL;
-	d -= radius / dn * d;
+	dn_abs = fcmpf(dn, 0.0f, CCT_EPSILON) > 0 ? dn : -dn;
+	d -= radius / dn_abs * d;
 	result->distance = d;
 	result->hit_point_cnt = 1;
 	mathVec3Copy(result->hit_point, o);
