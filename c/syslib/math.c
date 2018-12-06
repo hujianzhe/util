@@ -1214,16 +1214,18 @@ CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3]
 	mathVec3Copy(tri[2], vertices[indices[2]]);
 	if (!mathSpherecastPlane(o, radius, dir, tri, result))
 		return NULL;
+	else if (result->hit_point_cnt > 0 && mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+		return result;
 	else {
 		float neg_dir[3];
 		CCTResult_t *p_result;
 		int i = 3;
 		while (i < indicescnt) {
-			if (result->hit_point_cnt > 0 && mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
-				return result;
 			mathVec3Copy(tri[0], vertices[indices[i++]]);
 			mathVec3Copy(tri[1], vertices[indices[i++]]);
 			mathVec3Copy(tri[2], vertices[indices[i++]]);
+			if (result->hit_point_cnt > 0 && mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+				return result;
 		}
 		mathVec3Negate(neg_dir, dir);
 		p_result = NULL;
@@ -1249,25 +1251,6 @@ CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3]
 }
 
 CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float center[3], float half[3], CCTResult_t* result) {
-	CCTResult_t* p_result = NULL;
-	int i;
-	float v[8][3];
-	AABBVertices(center, half, v);
-	for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 3) {
-		CCTResult_t result_temp;
-		float tri[3][3];
-		mathVec3Copy(tri[0], v[Box_Triangle_Vertices_Indices[i]]);
-		mathVec3Copy(tri[1], v[Box_Triangle_Vertices_Indices[i + 1]]);
-		mathVec3Copy(tri[2], v[Box_Triangle_Vertices_Indices[i + 2]]);
-		if (mathSpherecastTriangle(o, radius, dir, tri, &result_temp) &&
-			(!p_result || p_result->distance > result_temp.distance))
-		{
-			copy_result(result, &result_temp);
-			p_result = result;
-		}
-	}
-	return p_result;
-	/*
 	CCTResult_t *p_result = NULL;
 	int i;
 	float v[8][3];
@@ -1282,7 +1265,6 @@ CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float ce
 		}
 	}
 	return p_result;
-	*/
 }
 
 #ifdef	__cplusplus
