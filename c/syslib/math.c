@@ -1220,6 +1220,45 @@ CCTResult_t* mathSpherecastTriangle(float o[3], float radius, float dir[3], floa
 	}
 }
 
+CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3], float vertices[][3], int indices[], int indicescnt, CCTResult_t* result) {
+	float tri[3][3];
+	mathVec3Copy(tri[0], vertices[indices[0]]);
+	mathVec3Copy(tri[1], vertices[indices[1]]);
+	mathVec3Copy(tri[2], vertices[indices[2]]);
+	if (!mathSpherecastPlane(o, radius, dir, tri, result))
+		return NULL;
+	else {
+		float neg_dir[3];
+		CCTResult_t *p_result;
+		int i = 3;
+		while (i < indicescnt) {
+			if (result->hit_point_cnt > 0 && mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+				return result;
+			mathVec3Copy(tri[0], vertices[indices[i++]]);
+			mathVec3Copy(tri[1], vertices[indices[i++]]);
+			mathVec3Copy(tri[2], vertices[indices[i++]]);
+		}
+		mathVec3Negate(neg_dir, dir);
+		p_result = NULL;
+		for (i = 0; i < indicescnt; i += 3) {
+			int j;
+			for (j = 0; j < 3; ++j) {
+				CCTResult_t result_temp;
+				float ls[2][3];
+				mathVec3Copy(ls[0], vertices[indices[j % 3 + i]]);
+				mathVec3Copy(ls[1], vertices[indices[(j + 1) % 3 + i]]);
+				if (mathLineSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
+					(!p_result || p_result->distance > result_temp.distance))
+				{
+					copy_result(result, &result_temp);
+					p_result = result;
+				}
+			}
+		}
+		return p_result;
+	}
+}
+
 CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float center[3], float half[3], CCTResult_t* result) {
 	CCTResult_t* p_result = NULL;
 	int i;
