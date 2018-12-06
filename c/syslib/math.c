@@ -317,19 +317,6 @@ float* mathQuatMulVec3(float r[3], float q[4], float v[3]) {
 	continue collision detection
 */
 
-static CCTResult_t* select_min_result(CCTResult_t** results, int cnt) {
-	CCTResult_t* result = NULL;
-	int i;
-	for (i = 0; i < cnt; ++i) {
-		if (!results[i])
-			continue;
-		if (!result || result->distance > results[i]->distance) {
-			result = results[i];
-		}
-	}
-	return result;
-}
-
 static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	if (dst == src)
 		return;
@@ -1255,6 +1242,8 @@ CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3]
 				}
 			}
 		}
+		if (p_result)
+			mathVec3AddScalar(p_result->hit_point, dir, p_result->distance);
 		return p_result;
 	}
 }
@@ -1278,6 +1267,22 @@ CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float ce
 		}
 	}
 	return p_result;
+	/*
+	CCTResult_t *p_result = NULL;
+	int i;
+	float v[8][3];
+	AABBVertices(center, half, v);
+	for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6) {
+		CCTResult_t result_temp;
+		if (mathSpherecastTrianglesPlane(o, radius, dir, v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
+			(!p_result || p_result->distance > result_temp.distance))
+		{
+			copy_result(result, &result_temp);
+			p_result = result;
+		}
+	}
+	return p_result;
+	*/
 }
 
 #ifdef	__cplusplus
