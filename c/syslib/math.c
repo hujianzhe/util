@@ -829,8 +829,10 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 			mathVec3AddScalar(test_p, dir, result->distance);
 			c[i] = mathTriangleHasPoint(tri, test_p, NULL, NULL);
 		}
-		if (!c[0] && !c[1])
-			return NULL;
+		if (!c[0] && !c[1]) {
+			if (fcmpf(result->distance, 0.0f, CCT_EPSILON))
+				return NULL;
+		}
 		else if (c[0] && c[1])
 			return result;
 	}
