@@ -1184,6 +1184,7 @@ CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float dir[3], float o2[
 			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, o1);
 			mathVec3AddScalar(result->hit_point, dir, result->distance);
+			mathVec3AddScalar(result->hit_point, mathVec3Normalized(o1o2, o1o2), r1);
 			return result;
 		}
 	}
