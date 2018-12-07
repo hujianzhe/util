@@ -466,6 +466,14 @@ int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v) {
 	}
 }
 
+float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
+	float v0[3], v1[3], v2[3];
+	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
+	mathVec3MultiplyScalar(v1, tri[1], u);
+	mathVec3MultiplyScalar(v2, tri[2], v);
+	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
+}
+
 CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
 	float N[3], p[3], dl, dp, lsdir[3];
 	mathPointProjectionLine(o, ls, p, &dl);

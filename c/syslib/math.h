@@ -82,6 +82,7 @@ __declspec_dll int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float
 __declspec_dll float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3]);
 __declspec_dll int mathLineSegmentHasPoint(float ls[2][3], float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v);
+__declspec_dll float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;
