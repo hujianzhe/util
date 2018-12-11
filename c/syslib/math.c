@@ -1274,6 +1274,81 @@ CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float ce
 	return p_result;
 }
 
+CCTResult_t* mathCylindercastPlane(float p0[3], float p1[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
+	float dn0, dn1, N[3], pn0[3], pn1[3];
+	mathPlaneNormalByVertices3(vertices, N);
+	mathPointProjectionPlane(p0, vertices[0], N, pn0, &dn0);
+	mathPointProjectionPlane(p1, vertices[0], N, pn1, &dn1);
+	if (fcmpf(dn0 * dn1, 0.0f, CCT_EPSILON) <= 0) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
+		return result;
+	}
+	else {
+		float p0p1[3], p0p1_lensq, d, cos_theta, pn[3], *p;
+		float delta_d = dn1 - dn0;
+		mathVec3Sub(p0p1, p1, p0);
+		p0p1_lensq = mathVec3LenSq(p0p1);
+		cos_theta = sqrtf((p0p1_lensq - delta_d * delta_d) / p0p1_lensq);
+		result->hit_point_cnt = fcmpf(cos_theta, 1.0f, CCT_EPSILON) ? 1 : -1;
+		if (fcmpf(dn0, 0.0f, CCT_EPSILON) < 0) {
+			if (dn0 < dn1) {
+				d = dn1;
+				p = p1;
+				mathVec3Sub(pn, pn1, p1);
+			}
+			else {
+				d = dn0;
+				p = p0;
+				mathVec3Sub(pn, pn0, p0);
+			}
+			d += radius * cos_theta;
+			if (fcmpf(d, 0.0f, CCT_EPSILON) > 0) {
+				result->distance = 0.0f;
+				result->hit_point_cnt = -1;
+				return result;
+			}
+		}
+		else {
+			if (dn0 < dn1) {
+				d = dn0;
+				p = p0;
+				mathVec3Sub(pn, pn0, p0);
+			}
+			else {
+				d = dn1;
+				p = p1;
+				mathVec3Sub(pn, pn1, p1);
+			}
+			d -= radius * cos_theta;
+			if (fcmpf(d, 0.0f, CCT_EPSILON) < 0) {
+				result->distance = 0.0f;
+				result->hit_point_cnt = -1;
+				return result;
+			}
+		}
+		cos_theta = mathVec3Dot(N, dir);
+		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
+			return NULL;
+		d /= cos_theta;
+		if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
+			return NULL;
+		result->distance = d;
+		if (result->hit_point_cnt > 0) {
+			float q[4], v[3];
+			mathVec3Cross(N, p0p1, N);
+			mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
+			mathQuatMulVec3(v, q, p0p1);
+			if (fcmpf(mathVec3Dot(v, pn), 0.0f, CCT_EPSILON) < 0)
+				mathVec3Negate(v, v);
+			mathVec3Copy(result->hit_point, p);
+			mathVec3AddScalar(result->hit_point, v, radius);
+			mathVec3AddScalar(result->hit_point, dir, d);
+		}
+		return result;
+	}
+}
+
 #ifdef	__cplusplus
 }
 #endif
