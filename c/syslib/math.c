@@ -528,17 +528,16 @@ CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CC
 	return NULL;
 }
 
-CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], CCTResult_t* result) {
-	float N[3], d, cos_theta;
-	mathPlaneNormalByVertices3(vertices, N);
-	mathPointProjectionPlane(o, vertices[0], N, NULL, &d);
+CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
+	float d, cos_theta;
+	mathPointProjectionPlane(o, vertice, normal, NULL, &d);
 	if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
-	cos_theta = mathVec3Dot(dir, N);
+	cos_theta = mathVec3Dot(dir, normal);
 	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 		return NULL;
 	d /= cos_theta;
@@ -552,7 +551,8 @@ CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertices[3][3], CC
 }
 
 CCTResult_t* mathRaycastTriangle(float o[3], float dir[3], float tri[3][3], CCTResult_t* result) {
-	if (mathRaycastPlane(o, dir, tri, result)) {
+	float N[3];
+	if (mathRaycastPlane(o, dir, tri[0], mathPlaneNormalByVertices3(tri, N), result)) {
 		if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
 			return result;
 		else if (fcmpf(result->distance, 0.0f, CCT_EPSILON) == 0) {
@@ -603,6 +603,10 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 	mathVec3Copy(result->hit_point, o);
 	mathVec3AddScalar(result->hit_point, dir, result->distance);
 	return result;
+}
+
+CCTResult_t* mathRaycastCircle(float o[3], float dir[3], float center[3], float normal[3], float radius, CCTResult_t* result) {
+	return NULL;
 }
 
 CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
