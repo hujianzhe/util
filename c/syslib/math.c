@@ -54,6 +54,25 @@ double finvsqrt(double x) {
 }
 double fsqrt(double x) { return 1.0 / finvsqrt(x); }
 
+int mathQuadraticEquation(float a, float b, float c, float r[2]) {
+	int cmp;
+	float delta;
+	if (fcmpf(a, 0.0f, CCT_EPSILON) == 0)
+		return 0;
+	delta = b * b - 4.0f * a * c;
+	cmp = fcmpf(delta, 0.0f, CCT_EPSILON);
+	if (cmp < 0)
+		return 0;
+	else if (0 == cmp)
+		r[0] = r[1] = -b / a * 0.5f;
+	else {
+		float sqrt_delta = sqrtf(delta);
+		r[0] = (-b + sqrt_delta) / a * 0.5f;
+		r[1] = (-b - sqrt_delta) / a * 0.5f;
+	}
+	return 1;
+}
+
 /*
 	vec3 and quat
 */

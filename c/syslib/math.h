@@ -48,6 +48,8 @@ __declspec_dll double fsqrt(double x);
 #define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))
 #define	mathRadToDeg_f(rad)	(((float)(rad)) * ((float)M_1_PI) * 180.0f)
 
+__declspec_dll int mathQuadraticEquation(float a, float b, float c, float r[2]);
+
 __declspec_dll int mathVec3IsZero(float v[3]);
 __declspec_dll int mathVec3Equal(float v1[3], float v2[3]);
 __declspec_dll float* mathVec3Copy(float r[3], float v[3]);
