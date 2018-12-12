@@ -598,7 +598,7 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 		return NULL;
 
 	dr2 = oc2 - dir_d * dir_d;
-	if (fcmpf(dr2, radius2, CCT_EPSILON) >= 0)
+	if (fcmpf(dr2, radius2, CCT_EPSILON) > 0)
 		return NULL;
 
 	d = sqrtf(radius2 - dr2);
@@ -614,19 +614,18 @@ CCTResult_t* mathRaycastCircle(float o[3], float dir[3], float center[3], float 
 		if (mathCircleHasPoint(center, radius, normal, result->hit_point))
 			return result;
 		else if (fcmpf(result->distance, 0.0f, CCT_EPSILON) == 0) {
-			float ls[2][3], dn, oc[3], dot;
+			float dn_sq, oc[3], dot, radius_sq;
 			if (fcmpf(mathVec3Dot(normal, dir), 0.0f, CCT_EPSILON))
-				return NULL;
-			mathVec3Copy(ls[0], o);
-			mathVec3Add(ls[1], mathVec3Copy(ls[1], o), dir);
-			mathPointProjectionLine(center, ls, NULL, &dn);
-			if (fcmpf(dn, radius, CCT_EPSILON) >= 0)
 				return NULL;
 			mathVec3Sub(oc, center, o);
 			dot = mathVec3Dot(oc, dir);
 			if (fcmpf(dot, 0.0f, CCT_EPSILON) <= 0)
 				return NULL;
-			result->distance = dot - sqrtf(radius * radius - dn * dn);
+			dn_sq = mathVec3LenSq(oc) - dot * dot;
+			radius_sq = radius * radius;
+			if (fcmpf(dn_sq, radius_sq, CCT_EPSILON) > 0)
+				return NULL;
+			result->distance = dot - sqrt(radius_sq - dn_sq);
 			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, o);
 			mathVec3AddScalar(result->hit_point, dir, result->distance);
