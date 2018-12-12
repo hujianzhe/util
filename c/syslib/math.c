@@ -493,12 +493,8 @@ CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult
 	}
 	mathVec3Sub(lsdir, ls[1], ls[0]);
 	mathVec3Cross(N, lsdir, dir);
-	if (mathVec3IsZero(N)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
-		mathVec3Copy(result->hit_point, o);
-		return result;
-	}
+	if (mathVec3IsZero(N))
+		return NULL;
 	mathPointProjectionPlane(o, ls[0], N, NULL, &dp);
 	if (fcmpf(dp, 0.0f, CCT_EPSILON))
 		return NULL;
