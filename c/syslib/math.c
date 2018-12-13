@@ -175,11 +175,12 @@ float* mathVec3Cross(float r[3], float v1[3], float v2[3]) {
 	return r;
 }
 
-float* mathCoordinateSystemTransform(float v[3], float new_axies[3][3], float new_v[3]) {
-	float new_x = mathVec3Dot(v, new_axies[0]);
-	float new_y = mathVec3Dot(v, new_axies[1]);
-	float new_z = mathVec3Dot(v, new_axies[2]);
-	new_v[0] = new_x, new_v[1] = new_y, new_v[2] = new_z;
+float* mathCoordinateSystemTransform(float v[3], float new_origin[3], float new_axies[3][3], float new_v[3]) {
+	float t[3];
+	mathVec3Sub(t, v, new_origin);
+	new_v[0] = mathVec3Dot(t, new_axies[0]);
+	new_v[1] = mathVec3Dot(t, new_axies[1]);
+	new_v[2] = mathVec3Dot(t, new_axies[2]);
 	return new_v;
 }
 
