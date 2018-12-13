@@ -65,6 +65,8 @@ __declspec_dll float mathVec3Dot(float v1[3], float v2[3]);
 __declspec_dll float mathVec3Radian(float v1[3], float v2[3]);
 __declspec_dll float* mathVec3Cross(float r[3], float v1[3], float v2[3]);
 
+__declspec_dll float* mathCoordinateSystemTransform(float v[3], float new_axies[3][3], float new_v[3]);
+
 __declspec_dll float* mathQuatNormalized(float r[4], float q[4]);
 __declspec_dll float* mathQuatFromEuler(float q[4], float e[3], const char order[3]);
 __declspec_dll float* mathQuatFromUnitVec3(float q[4], float from[3], float to[3]);

@@ -175,6 +175,13 @@ float* mathVec3Cross(float r[3], float v1[3], float v2[3]) {
 	return r;
 }
 
+float* mathCoordinateSystemTransform(float v[3], float new_axies[3][3], float new_v[3]) {
+	float new_x = mathVec3Dot(v, new_axies[0]);
+	float new_y = mathVec3Dot(v, new_axies[1]);
+	float new_z = mathVec3Dot(v, new_axies[2]);
+	new_v[0] = new_x, new_v[1] = new_y, new_v[2] = new_z;
+	return new_v;
+}
 
 float* mathQuatNormalized(float r[4], float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
