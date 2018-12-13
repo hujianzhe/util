@@ -670,8 +670,8 @@ CCTResult_t* mathRaycastCircle(float o[3], float dir[3], float center[3], float 
 CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1[3], float radius, CCTResult_t* result) {
 	int rcnt;
 	CCTResult_t results[2], *p_result;
-	float new_axies[3][3], p0p1len;
-	float new_o[3], new_dir[3], new_p[3], new_z_normal[3];
+	float new_axies[3][3], p0p1len, dot;
+	float new_o[3], new_dir[3], new_p[3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
 	float A, B, C, r[2];
 	mathVec3Sub(new_axies[2], p1, p0);
 	p0p1len = mathVec3Len(new_axies[2]);
@@ -683,13 +683,21 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1
 	mathVec3Normalized(new_axies[0], new_axies[0]);
 	mathCoordinateSystemTransform(o, p0, new_axies, new_o);
 	mathCoordinateSystemTransform(dir, NULL, new_axies, new_dir);
+	dot = mathVec3Dot(new_o, z_axies_normal);
+	if (new_o[2] > -CCT_EPSILON && new_o[2] < p0p1len + CCT_EPSILON &&
+		fcmpf(mathVec3LenSq(new_o) - dot * dot, radius * radius, CCT_EPSILON) <= 0)
+	{
+		result->distance = 0.0f;
+		result->hit_point_cnt = 1;
+		mathVec3Copy(result->hit_point, o);
+		return result;
+	}
+
 	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
 	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
 	rcnt = mathQuadraticEquation(A, B, C, r);
-	if (0 == rcnt)
-		return NULL;
-	else if (2 == rcnt) {
+	if (2 == rcnt) {
 		int has_zero = 0;
 		float z;
 		if (fcmpf(r[0], 0.0f, CCT_EPSILON) < 0)
@@ -719,9 +727,9 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1
 			return result;
 		}
 	}
-	else {
+	else if (1 == rcnt) {
 		float z = new_o[2] + new_dir[2] * r[0];
-		if (z > -CCT_EPSILON || z < p0p1len + CCT_EPSILON) {
+		if (z > -CCT_EPSILON && z < p0p1len + CCT_EPSILON) {
 			result->distance = r[0];
 			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, o);
@@ -732,17 +740,14 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1
 	new_p[0] = 0.0f;
 	new_p[1] = 0.0f;
 	new_p[2] = p0p1len;
-	new_z_normal[0] = 0.0f;
-	new_z_normal[1] = 0.0f;
-	new_z_normal[2] = 1.0f;
 	p_result = NULL;
-	if (mathRaycastCircle(new_o, new_dir, new_p, radius, new_z_normal, &results[0]) &&
+	if (mathRaycastCircle(new_o, new_dir, new_p, radius, z_axies_normal, &results[0]) &&
 		(!p_result || p_result->distance > results[0].distance))
 	{
 		p_result = &results[0];
 	}
 	new_p[2] = 0.0f;
-	if (mathRaycastCircle(new_o, new_dir, new_p, radius, new_z_normal, &results[1]) &&
+	if (mathRaycastCircle(new_o, new_dir, new_p, radius, z_axies_normal, &results[1]) &&
 		(!p_result || p_result->distance > results[1].distance))
 	{
 		p_result = &results[1];
