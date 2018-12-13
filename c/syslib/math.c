@@ -177,7 +177,10 @@ float* mathVec3Cross(float r[3], float v1[3], float v2[3]) {
 
 float* mathCoordinateSystemTransform(float v[3], float new_origin[3], float new_axies[3][3], float new_v[3]) {
 	float t[3];
-	mathVec3Sub(t, v, new_origin);
+	if (new_origin)/* if v is normal vector, this field must be NULL */
+		mathVec3Sub(t, v, new_origin);
+	else
+		mathVec3Copy(t, v);
 	new_v[0] = mathVec3Dot(t, new_axies[0]);
 	new_v[1] = mathVec3Dot(t, new_axies[1]);
 	new_v[2] = mathVec3Dot(t, new_axies[2]);
