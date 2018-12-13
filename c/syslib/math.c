@@ -186,8 +186,6 @@ float* mathCoordinateSystemTransform(float v[3], float new_origin[3], float new_
 	new_v[0] = mathVec3Dot(t, new_axies[0]);
 	new_v[1] = mathVec3Dot(t, new_axies[1]);
 	new_v[2] = mathVec3Dot(t, new_axies[2]);
-	if (!new_origin)
-		mathVec3Normalized(new_v, new_v);
 	return new_v;
 }
 
