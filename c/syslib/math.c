@@ -689,16 +689,27 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1
 	rcnt = mathQuadraticEquation(A, B, C, r);
 	if (0 == rcnt)
 		return NULL;
-	if (fcmpf(r[0], 0.0f, CCT_EPSILON) < 0 || fcmpf(r[1], 0.0f, CCT_EPSILON) < 0)
-		return NULL;
-	if (2 == rcnt) {
+	else if (2 == rcnt) {
+		int has_zero = 0;
 		float z;
-		z = new_o[2] + new_dir[2] * r[0];
-		if (z <= -CCT_EPSILON || z >= p0p1len + CCT_EPSILON)
+		if (fcmpf(r[0], 0.0f, CCT_EPSILON) < 0)
 			--rcnt;
-		z = new_o[2] + new_dir[2] * r[1];
-		if (z <= -CCT_EPSILON || z >= p0p1len + CCT_EPSILON)
+		else {
+			z = new_o[2] + new_dir[2] * r[0];
+			if (z <= -CCT_EPSILON || z >= p0p1len + CCT_EPSILON)
+				--rcnt;
+		}
+
+		if (fcmpf(r[1], 0.0f, CCT_EPSILON) < 0)
 			--rcnt;
+		else {
+			z = new_o[2] + new_dir[2] * r[1];
+			if (z <= -CCT_EPSILON || z >= p0p1len + CCT_EPSILON)
+				--rcnt;
+		}
+
+		if (0 == rcnt)
+			return NULL;
 		if (2 == rcnt) {
 			float t = r[0] < r[1] ? r[0] : r[1];
 			result->distance = t;
