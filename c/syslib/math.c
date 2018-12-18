@@ -1119,7 +1119,7 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 		return NULL;
 	else if (result->hit_point_cnt < 0) {
 		float new_ls[2][3], lp[3], lpc[3], lpclen;
-		int c[2], cmp;
+		int c[2], cmp, new_ls_has_projection_point;
 		for (i = 0; i < 2; ++i) {
 			mathVec3Copy(new_ls[i], ls[i]);
 			mathVec3AddScalar(new_ls[i], dir, result->distance);
@@ -1128,12 +1128,13 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 		if (c[0] && c[1])
 			return result;
 		mathPointProjectionLine(center, new_ls, lp, NULL);
+		new_ls_has_projection_point = mathLineSegmentHasPoint(new_ls, lp);
 		mathVec3Sub(lpc, center, lp);
 		lpclen = mathVec3LenSq(lpc);
 		cmp = fcmpf(lpclen, radius * radius, CCT_EPSILON);
-		if (cmp < 0)
+		if (cmp < 0 && new_ls_has_projection_point)
 			return result;
-		if (0 == cmp) {
+		if (0 == cmp && new_ls_has_projection_point) {
 			result->hit_point_cnt = 1;
 			mathVec3Copy(result->hit_point, lp);
 			return result;
@@ -1141,38 +1142,38 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 		if (fcmpf(result->distance, 0.0f, CCT_EPSILON))
 			return NULL;
 		else {
-			float d, p[3];
-			float cos_theta = mathVec3Dot(lpc, dir);
-			if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
-				return NULL;
-			d = sqrtf(lpclen) - radius;
-			mathVec3Normalized(lpc, lpc);
-			mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
-			cos_theta = mathVec3Dot(lpc, dir);
-			d /= cos_theta;
-			mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
-			mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
-			if (mathLineSegmentHasPoint(new_ls, p)) {
-				result->distance = d;
-				result->hit_point_cnt = 1;
-				mathVec3Copy(result->hit_point, p);
-				return result;
-			}
-			else {
-				CCTResult_t results[2], *p_result = NULL;
-				for (i = 0; i < 2; ++i) {
-					if (mathRaycastCircle(ls[i], dir, center, radius, normal, &results[i]) &&
-						(!p_result || p_result->distance > results[i].distance))
-					{
-						p_result = &results[i];
-					}
-				}
-				if (p_result) {
-					copy_result(result, p_result);
+			CCTResult_t results[2], *p_result = NULL;
+			if (cmp > 0) {
+				float d, p[3];
+				float cos_theta = mathVec3Dot(lpc, dir);
+				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+					return NULL;
+				d = sqrtf(lpclen) - radius;
+				mathVec3Normalized(lpc, lpc);
+				mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
+				cos_theta = mathVec3Dot(lpc, dir);
+				d /= cos_theta;
+				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
+				if (mathLineSegmentHasPoint(new_ls, p)) {
+					result->distance = d;
+					result->hit_point_cnt = 1;
+					mathVec3Copy(result->hit_point, p);
 					return result;
 				}
-				return NULL;
 			}
+			for (i = 0; i < 2; ++i) {
+				if (mathRaycastCircle(ls[i], dir, center, radius, normal, &results[i]) &&
+					(!p_result || p_result->distance > results[i].distance))
+				{
+					p_result = &results[i];
+				}
+			}
+			if (p_result) {
+				copy_result(result, p_result);
+				return result;
+			}
+			return NULL;
 		}
 	}
 	else if (mathCircleHasPoint(center, radius, normal, result->hit_point))
