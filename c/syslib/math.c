@@ -1170,6 +1170,10 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 				}
 			}
 			if (p_result) {
+				float hc[3];
+				mathVec3Sub(hc, p_result->hit_point, center);
+				if (fcmpf(mathVec3LenSq(hc), radius * radius, CCT_EPSILON) < 0)
+					p_result->hit_point_cnt = -1;
 				copy_result(result, p_result);
 				return result;
 			}
