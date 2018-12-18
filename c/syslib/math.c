@@ -1114,7 +1114,74 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 }
 
 CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
-	// TODO
+	int i;
+	if (!mathLineSegmentcastPlane(ls, dir, center, normal, result))
+		return NULL;
+	else if (result->hit_point_cnt < 0) {
+		float new_ls[2][3], lp[3], lpc[3], lpclen;
+		int c[2], cmp;
+		for (i = 0; i < 2; ++i) {
+			mathVec3Copy(new_ls[i], ls[i]);
+			mathVec3AddScalar(new_ls[i], dir, result->distance);
+			c[i] = mathCircleHasPoint(center, radius, normal, new_ls[i]);
+		}
+		if (c[0] && c[1])
+			return result;
+		mathPointProjectionLine(center, new_ls, lp, NULL);
+		mathVec3Sub(lpc, center, lp);
+		lpclen = mathVec3LenSq(lpc);
+		cmp = fcmpf(lpclen, radius * radius, CCT_EPSILON);
+		if (cmp < 0)
+			return result;
+		if (0 == cmp) {
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, lp);
+			return result;
+		}
+		if (fcmpf(result->distance, 0.0f, CCT_EPSILON))
+			return NULL;
+		else {
+			float d, p[3];
+			float cos_theta = mathVec3Dot(lpc, dir);
+			if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+				return NULL;
+			d = sqrtf(lpclen) - radius;
+			mathVec3Normalized(lpc, lpc);
+			mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
+			cos_theta = mathVec3Dot(lpc, dir);
+			d /= cos_theta;
+			mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+			mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
+			if (mathLineSegmentHasPoint(new_ls, p)) {
+				result->distance = d;
+				result->hit_point_cnt = 1;
+				mathVec3Copy(result->hit_point, p);
+				return result;
+			}
+			else {
+				CCTResult_t results[2], *p_result = NULL;
+				for (i = 0; i < 2; ++i) {
+					if (mathRaycastCircle(ls[i], dir, center, radius, normal, &results[i]) &&
+						(!p_result || p_result->distance > results[i].distance))
+					{
+						p_result = &results[i];
+					}
+				}
+				if (p_result) {
+					copy_result(result, p_result);
+					return result;
+				}
+				return NULL;
+			}
+		}
+	}
+	else if (mathCircleHasPoint(center, radius, normal, result->hit_point))
+		return result;
+	else if (0 == fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
+		float hit_point[3];
+		mathVec3Copy(hit_point, result->hit_point);
+		return mathRaycastCircle(hit_point, dir, center, radius, normal, result) ? result : NULL;
+	}
 	return NULL;
 }
 
