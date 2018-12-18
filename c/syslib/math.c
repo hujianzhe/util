@@ -763,12 +763,11 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1
 	}
 }
 
-CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
+CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	int cmp[2];
-	float N[3], d[2];
-	mathPlaneNormalByVertices3(vertices, N);
-	mathPointProjectionPlane(ls[0], vertices[0], N, NULL, &d[0]);
-	mathPointProjectionPlane(ls[1], vertices[0], N, NULL, &d[1]);
+	float d[2];
+	mathPointProjectionPlane(ls[0], vertice, normal, NULL, &d[0]);
+	mathPointProjectionPlane(ls[1], vertice, normal, NULL, &d[1]);
 	cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
 	cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
 	if (0 == cmp[0] || 0 == cmp[1]) {
@@ -786,7 +785,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 		float ldir[3], cos_theta, ddir;
 		mathVec3Sub(ldir, ls[1], ls[0]);
 		mathVec3Normalized(ldir, ldir);
-		cos_theta = mathVec3Dot(N, ldir);
+		cos_theta = mathVec3Dot(normal, ldir);
 		ddir = d[0] / cos_theta;
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
@@ -796,7 +795,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 	}
 	else {
 		float min_d, *p;
-		float cos_theta = mathVec3Dot(N, dir);
+		float cos_theta = mathVec3Dot(normal, dir);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 			return NULL;
 		else if (fcmpf(d[0], d[1], CCT_EPSILON) == 0) {
@@ -860,11 +859,8 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 		return result;
 	}
 	else {
-		float ls_plane[3][3], neg_dir[3];
-		mathVec3Copy(ls_plane[0], ls1[0]);
-		mathVec3Copy(ls_plane[1], ls1[1]);
-		mathVec3Add(ls_plane[2], ls1[0], dir);
-		if (!mathLineSegmentcastPlane(ls2, dir, ls_plane, result))
+		float neg_dir[3];
+		if (!mathLineSegmentcastPlane(ls2, dir, ls1[0], N, result))
 			return NULL;
 		mathVec3Negate(neg_dir, dir);
 		if (result->hit_point_cnt < 0) {
@@ -977,7 +973,9 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
 	int i;
 	CCTResult_t results[3], *p_result = NULL;
-	if (!mathLineSegmentcastPlane(ls, dir, tri, result))
+	float N[3];
+	mathPlaneNormalByVertices3(tri, N);
+	if (!mathLineSegmentcastPlane(ls, dir, tri[0], N, result))
 		return NULL;
 	else if (result->hit_point_cnt < 0) {
 		int c[2];
@@ -1115,14 +1113,19 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 	}
 }
 
-CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertices[3][3], CCTResult_t* result) {
+CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
+	// TODO
+	return NULL;
+}
+
+CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
 	for (i = 0; i < 3; ++i) {
 		float ls[2][3];
 		mathVec3Copy(ls[0], tri[i % 3]);
 		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
-		if (mathLineSegmentcastPlane(ls, dir, vertices, &results[i])) {
+		if (mathLineSegmentcastPlane(ls, dir, vertice, normal, &results[i])) {
 			if (!p_result)
 				p_result = &results[i];
 			else {
@@ -1229,7 +1232,7 @@ int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[
 			o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
-CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertices[3][3], CCTResult_t* result) {
+CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	CCTResult_t* p_result = NULL;
 	float v[8][3];
 	int i;
@@ -1240,7 +1243,7 @@ CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float ve
 		mathVec3Copy(tri[0], v[Box_Triangle_Vertices_Indices[i]]);
 		mathVec3Copy(tri[1], v[Box_Triangle_Vertices_Indices[i + 1]]);
 		mathVec3Copy(tri[2], v[Box_Triangle_Vertices_Indices[i + 2]]);
-		if (mathTrianglecastPlane(tri, dir, vertices, &result_temp) &&
+		if (mathTrianglecastPlane(tri, dir, vertice, normal, &result_temp) &&
 			(!p_result || p_result->distance > result_temp.distance))
 		{
 			copy_result(result, &result_temp);
