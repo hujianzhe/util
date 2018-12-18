@@ -1190,6 +1190,90 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 	return NULL;
 }
 
+CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3], float dir[3], float vertice[3], float p_normal[3], CCTResult_t* result) {
+	float N[3], cos_theta;
+	mathVec3Cross(N, c_normal, p_normal);
+	if (mathVec3IsZero(N)) {
+		float d;
+		mathPointProjectionPlane(center, vertice, p_normal, NULL, &d);
+		if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = -1;
+			return result;
+		}
+		cos_theta = mathVec3Dot(p_normal, dir);
+		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
+			return NULL;
+		d /= cos_theta;
+		if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
+			return NULL;
+		result->distance = d;
+		result->hit_point_cnt = -1;
+		return result;
+	}
+	else {
+		int cmp[2];
+		float q[4], v[3], p[2][3], d[2], min_d, *min_p, cos_theta;
+		mathVec3Copy(v, c_normal);
+		mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
+		mathQuatMulVec3(v, q, v);
+		mathVec3AddScalar(mathVec3Copy(p[0], center), v, radius);
+		mathPointProjectionPlane(p[0], vertice, p_normal, NULL, &d[0]);
+		cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
+		if (0 == cmp[0]) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, p[0]);
+			return result;
+		}
+		mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
+		mathPointProjectionPlane(p[1], vertice, p_normal, NULL, &d[1]);
+		cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
+		if (0 == cmp[1]) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, p[1]);
+			return result;
+		}
+		if (cmp[0] * cmp[1] < 0) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = -1;
+			return result;
+		}
+		else if (cmp[0] < 0) {
+			if (d[0] < d[1]) {
+				min_d = d[1];
+				min_p = p[1];
+			}
+			else {
+				min_d = d[0];
+				min_p = p[0];
+			}
+		}
+		else {
+			if (d[0] < d[1]) {
+				min_d = d[0];
+				min_p = p[0];
+			}
+			else {
+				min_d = d[1];
+				min_p = p[1];
+			}
+		}
+		cos_theta = mathVec3Dot(dir, p_normal);
+		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
+			return NULL;
+		min_d /= cos_theta;
+		if (fcmpf(min_d, 0.0f, CCT_EPSILON) < 0)
+			return NULL;
+		result->distance = min_d;
+		result->hit_point_cnt = 1;
+		mathVec3Copy(result->hit_point, min_p);
+		mathVec3AddScalar(result->hit_point, dir, min_d);
+		return result;
+	}
+}
+
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
