@@ -1123,83 +1123,6 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 	}
 }
 
-CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
-	int i;
-	if (!mathLineSegmentcastPlane(ls, dir, center, normal, result))
-		return NULL;
-	else if (result->hit_point_cnt < 0) {
-		float new_ls[2][3], lp[3], lpc[3], lpclen;
-		int c[2], cmp, new_ls_has_projection_point;
-		for (i = 0; i < 2; ++i) {
-			mathVec3Copy(new_ls[i], ls[i]);
-			mathVec3AddScalar(new_ls[i], dir, result->distance);
-			c[i] = mathCircleHasPoint(center, radius, normal, new_ls[i]);
-		}
-		if (c[0] && c[1])
-			return result;
-		mathPointProjectionLine(center, new_ls, lp, NULL);
-		new_ls_has_projection_point = mathLineSegmentHasPoint(new_ls, lp);
-		mathVec3Sub(lpc, center, lp);
-		lpclen = mathVec3LenSq(lpc);
-		cmp = fcmpf(lpclen, radius * radius, CCT_EPSILON);
-		if (cmp < 0 && new_ls_has_projection_point)
-			return result;
-		if (0 == cmp && new_ls_has_projection_point) {
-			result->hit_point_cnt = 1;
-			mathVec3Copy(result->hit_point, lp);
-			return result;
-		}
-		if (fcmpf(result->distance, 0.0f, CCT_EPSILON))
-			return NULL;
-		else {
-			CCTResult_t results[2], *p_result = NULL;
-			if (cmp > 0) {
-				float d, p[3];
-				float cos_theta = mathVec3Dot(lpc, dir);
-				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
-					return NULL;
-				d = sqrtf(lpclen) - radius;
-				mathVec3Normalized(lpc, lpc);
-				mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
-				cos_theta = mathVec3Dot(lpc, dir);
-				d /= cos_theta;
-				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
-				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
-				if (mathLineSegmentHasPoint(new_ls, p)) {
-					result->distance = d;
-					result->hit_point_cnt = 1;
-					mathVec3Copy(result->hit_point, p);
-					return result;
-				}
-			}
-			for (i = 0; i < 2; ++i) {
-				if (mathRaycastCircle(ls[i], dir, center, radius, normal, &results[i]) &&
-					(!p_result || p_result->distance > results[i].distance))
-				{
-					p_result = &results[i];
-				}
-			}
-			if (p_result) {
-				float hc[3];
-				mathVec3Sub(hc, p_result->hit_point, center);
-				if (fcmpf(mathVec3LenSq(hc), radius * radius, CCT_EPSILON) < 0)
-					p_result->hit_point_cnt = -1;
-				copy_result(result, p_result);
-				return result;
-			}
-			return NULL;
-		}
-	}
-	else if (mathCircleHasPoint(center, radius, normal, result->hit_point))
-		return result;
-	else if (0 == fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
-		float hit_point[3];
-		mathVec3Copy(hit_point, result->hit_point);
-		return mathRaycastCircle(hit_point, dir, center, radius, normal, result) ? result : NULL;
-	}
-	return NULL;
-}
-
 CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3], float dir[3], float vertice[3], float p_normal[3], CCTResult_t* result) {
 	float N[3], cos_theta;
 	mathVec3Cross(N, c_normal, p_normal);
@@ -1280,10 +1203,6 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 	}
 }
 
-CCTResult_t* mathCirclecastCircle(float c1[3], float r1, float n1[3], float dir[3], float c2[3], float r2, float n2[3], CCTResult_t* result) {
-	return NULL;
-}
-
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
@@ -1344,37 +1263,6 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 			}
 		}
 	}
-	if (p_result) {
-		copy_result(result, p_result);
-		return result;
-	}
-	return NULL;
-}
-
-CCTResult_t* mathTrianglecastCircle(float tri[3][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
-	float neg_dir[3], tri_normal[3];
-	CCTResult_t results[4], *p_result = NULL;
-	int i;
-	for (i = 0; i < 3; ++i) {
-		float ls[2][3];
-		mathVec3Copy(ls[0], tri[i % 3]);
-		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
-		if (mathLineSegmentcastCircle(ls, dir, center, radius, normal, &results[i]) &&
-			(!p_result || p_result->distance > results[i].distance))
-		{
-			p_result = &results[i];
-		}
-	}
-	do {
-		mathVec3Negate(neg_dir, dir);
-		mathPlaneNormalByVertices3(tri, tri_normal);
-		if (!mathCirclecastPlane(center, radius, normal, neg_dir, tri[0], tri_normal, &results[3]))
-			break;
-		if (results[3].hit_point_cnt > 0 && mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL)) {
-			if (!p_result || p_result->distance > results[3].distance)
-				p_result = &results[3];
-		}
-	} while (0);
 	if (p_result) {
 		copy_result(result, p_result);
 		return result;
