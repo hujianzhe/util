@@ -1052,7 +1052,7 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 		int ls_has_projection_point, i;
 
 		mathPointProjectionPlane(center, ls[0], N, np, &nd);
-		if (fcmpf(nd * nd, radius_sq, CCT_EPSILON) >= 0)
+		if (fcmpf(nd * nd, radius_sq, CCT_EPSILON) > 0)
 			return NULL;
 
 		mathPointProjectionLine(np, ls, lp, NULL);
