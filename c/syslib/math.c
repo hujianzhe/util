@@ -630,7 +630,7 @@ CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float 
 	mathVec3Sub(oc, center, o);
 	oc2 = mathVec3LenSq(oc);
 	dir_d = mathVec3Dot(dir, oc);
-	if (fcmpf(oc2, radius2, CCT_EPSILON) < 0) {
+	if (fcmpf(oc2, radius2, CCT_EPSILON) <= 0) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
