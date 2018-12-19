@@ -1032,11 +1032,9 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 }
 
 CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
-	float ls_dir_plane[3][3], N[3];
-	mathVec3Copy(ls_dir_plane[0], ls[0]);
-	mathVec3Copy(ls_dir_plane[1], ls[1]);
-	mathVec3Add(ls_dir_plane[2], ls[1], dir);
-	mathPlaneNormalByVertices3(ls_dir_plane, N);
+	float lsdir[3], N[3];
+	mathVec3Sub(lsdir, ls[1], ls[0]);
+	mathVec3Cross(N, lsdir, dir);
 	if (mathVec3IsZero(N)) {
 		int c0, c1;
 		CCTResult_t results[2], *p_result;
@@ -1061,6 +1059,7 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 		CCTResult_t results[2], *p_result = NULL;
 		int ls_has_projection_point, i;
 
+		mathVec3Normalized(N, N);
 		mathPointProjectionPlane(center, ls[0], N, np, &nd);
 		if (fcmpf(nd * nd, radius_sq, CCT_EPSILON) > 0)
 			return NULL;
@@ -1146,7 +1145,7 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 	}
 	else {
 		int cmp[2];
-		float q[4], v[3], p[2][3], d[2], min_d, *min_p, cos_theta;
+		float p[2][3], d[2], min_d, *min_p, cos_theta;
 		mathCircleProjectPlane(center, radius, c_normal, p_normal, p);
 		mathPointProjectionPlane(p[0], vertice, p_normal, NULL, &d[0]);
 		cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
