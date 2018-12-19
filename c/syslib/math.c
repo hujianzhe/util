@@ -499,11 +499,18 @@ int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v) {
 }
 
 int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]) {
+	int cmp;
 	float op[3];
 	mathVec3Sub(op, p, o);
 	if (fcmpf(mathVec3Dot(op, normal), 0.0f, CCT_EPSILON))
 		return 0;
-	return fcmpf(mathVec3LenSq(op), radius * radius, CCT_EPSILON) <= 0;
+	cmp = fcmpf(mathVec3LenSq(op), radius * radius, CCT_EPSILON);
+	if (cmp > 0)
+		return 0;
+	if (0 == cmp)
+		return 1;
+	else
+		return 2;
 }
 
 void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], float p_normal[3], float p[2][3]) {
@@ -514,6 +521,48 @@ void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], fl
 	mathQuatMulVec3(v, q, v);
 	mathVec3AddScalar(mathVec3Copy(p[0], center), v, radius);
 	mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
+}
+
+int mathSphereHasPoint(float o[3], float radius, float p[3]) {
+	float op[3];
+	int cmp = fcmpf(mathVec3LenSq(mathVec3Sub(op, p, o)), radius * radius, CCT_EPSILON);
+	if (cmp > 0)
+		return 0;
+	if (0 == cmp)
+		return 1;
+	else
+		return 2;
+}
+
+int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]) {
+	int c[2];
+	c[0] = mathSphereHasPoint(o, radius, ls[0]);
+	c[1] = mathSphereHasPoint(o, radius, ls[1]);
+	if (0 == c[0] + c[1]) {
+		float pl[3], plo[3];
+		mathPointProjectionLine(o, ls, pl, NULL);
+		if (!mathLineSegmentHasPoint(ls, pl))
+			return 0;
+		mathVec3Sub(plo, o, pl);
+		c[0] = fcmpf(mathVec3LenSq(plo), radius * radius, CCT_EPSILON);
+		if (c[0] < 0)
+			return 2;
+		if (0 == c[0]) {
+			if (pointcut)
+				mathVec3Copy(pointcut, pl);
+			return 1;
+		}
+		return 0;
+	}
+	else if (c[0] + c[1] >= 2)
+		return 2;
+	if (pointcut) {
+		if (c[0])
+			mathVec3Copy(pointcut, ls[0]);
+		else
+			mathVec3Copy(pointcut, ls[1]);
+	}
+	return 1;
 }
 
 float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
@@ -1032,93 +1081,75 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 }
 
 CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
-	float lsdir[3], N[3];
-	mathVec3Sub(lsdir, ls[1], ls[0]);
-	mathVec3Cross(N, lsdir, dir);
-	if (mathVec3IsZero(N)) {
-		int c0, c1;
-		CCTResult_t results[2], *p_result;
-		c0 = (mathRaycastSphere(ls[0], dir, center, radius, &results[0]) != NULL);
-		c1 = (mathRaycastSphere(ls[1], dir, center, radius, &results[1]) != NULL);
-		if (!c0 && !c1)
-			return NULL;
-		else if (c0 && c1) {
-			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
-			copy_result(result, p_result);
-		}
-		else {
-			result->distance = 0.0f;
-			result->hit_point_cnt = -1;
-		}
+	int c = mathSphereHasLineSegment(center, radius, ls, result->hit_point);
+	if (1 == c) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = 1;
+		return result;
+	}
+	else if (2 == c) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
 		return result;
 	}
 	else {
-		float lpnp[3], delta_d, lpnp_d;
-		float radius_sq = radius * radius;
-		float np[3], nd, lp[3];
-		CCTResult_t results[2], *p_result = NULL;
-		int ls_has_projection_point, i;
-
-		mathVec3Normalized(N, N);
-		mathPointProjectionPlane(center, ls[0], N, np, &nd);
-		if (fcmpf(nd * nd, radius_sq, CCT_EPSILON) > 0)
-			return NULL;
-
-		mathPointProjectionLine(np, ls, lp, NULL);
-		ls_has_projection_point = mathLineSegmentHasPoint(ls, lp);
-		mathVec3Sub(lpnp, np, lp);
-		delta_d = radius_sq - nd * nd;
-		lpnp_d = mathVec3LenSq(lpnp);
-		if (fcmpf(delta_d, lpnp_d, CCT_EPSILON) > 0) {
-			int i;
-			if (ls_has_projection_point) {
-				result->distance = 0.0f;
-				result->hit_point_cnt = -1;
-				return result;
-			}
-			for (i = 0; i < 2; ++i) {
-				float cls[3];
-				mathVec3Sub(cls, center, ls[i]);
-				if (fcmpf(mathVec3LenSq(cls), radius_sq, CCT_EPSILON) < 0) {
-					result->distance = 0.0f;
-					result->hit_point_cnt = -1;
-					return result;
-				}
-			}
+		float lsdir[3], N[3];
+		mathVec3Sub(lsdir, ls[1], ls[0]);
+		mathVec3Cross(N, lsdir, dir);
+		if (mathVec3IsZero(N)) {
+			CCTResult_t results[2], *p_result;
+			if (!mathRaycastSphere(ls[0], dir, center, radius, &results[0]))
+				return NULL;
+			if (!mathRaycastSphere(ls[1], dir, center, radius, &results[1]))
+				return NULL;
+			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
+			copy_result(result, p_result);
+			return result;
 		}
 		else {
-			if (fcmpf(mathVec3Dot(lpnp, dir), 0.0f, CCT_EPSILON) <= 0)
+			CCTResult_t results[2], *p_result;
+			int i;
+			float np[3], lp[3], npd, cos_theta;
+			mathVec3Normalized(N, N);
+			mathPointProjectionPlane(center, ls[0], N, np, &npd);
+			if (fcmpf(npd * npd, radius * radius, CCT_EPSILON) > 0)
 				return NULL;
-			if (ls_has_projection_point) {
-				float cos_theta, distance, p[3], new_ls[2][3];
-				lpnp_d = sqrtf(lpnp_d);
-				delta_d = sqrtf(delta_d);
+			mathPointProjectionLine(np, ls, lp, NULL);
+			if (mathLineSegmentHasPoint(ls, lp)) {
+				float delta_len, lpnplen, lpnp[3], p[3], d, new_ls[2][3];
+				mathVec3Sub(lpnp, np, lp);
+				lpnplen = mathVec3Len(lpnp);
 				mathVec3Normalized(lpnp, lpnp);
+				delta_len = sqrtf(radius * radius - npd * npd);
+				d = lpnplen - delta_len;
+				mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, d);
 				cos_theta = mathVec3Dot(lpnp, dir);
-				distance = (lpnp_d - delta_d) / cos_theta;
-				mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, (lpnp_d - delta_d));
-				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, distance);
-				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, distance);
+				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+					return NULL;
+				d /= cos_theta;
+				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
 				if (mathLineSegmentHasPoint(new_ls, p)) {
-					result->distance = distance;
+					result->distance = d;
 					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, p);
 					return result;
 				}
 			}
-		}
-		for (i = 0; i < 2; ++i) {
-			if (mathRaycastSphere(ls[i], dir, center, radius, &results[i]) &&
-				(!p_result || p_result->distance > results[i].distance))
-			{
-				p_result = &results[i];
+			p_result = NULL;
+			for (i = 0; i < 2; ++i) {
+				if (mathRaycastSphere(ls[i], dir, center, radius, &results[i]) &&
+					(!p_result || p_result->distance > results[i].distance))
+				{
+					p_result = &results[i];
+				}
 			}
+			if (p_result) {
+				copy_result(result, p_result);
+				return result;
+			}
+			return NULL;
 		}
-		if (p_result) {
-			copy_result(result, p_result);
-			return result;
-		}
-		return NULL;
 	}
 }
 

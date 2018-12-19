@@ -89,6 +89,8 @@ __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u,
 __declspec_dll float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]);
 __declspec_dll int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]);
 __declspec_dll void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], float p_normal[3], float p[2][3]);
+__declspec_dll int mathSphereHasPoint(float o[3], float radius, float p[3]);
+__declspec_dll int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;
