@@ -88,6 +88,7 @@ __declspec_dll int mathLineSegmentHasPoint(float ls[2][3], float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v);
 __declspec_dll float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]);
 __declspec_dll int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]);
+__declspec_dll void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], float p_normal[3], float p[2][3]);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;
@@ -106,8 +107,10 @@ __declspec_dll CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float di
 __declspec_dll CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3], float dir[3], float vertice[3], float p_normal[3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathCirclecastCircle(float c1[3], float r1, float n1[3], float dir[3], float c2[3], float r2, float n2[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathTrianglecastCircle(float tri[3][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result);
 __declspec_dll int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]);
 __declspec_dll CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result);

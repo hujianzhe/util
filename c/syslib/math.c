@@ -506,6 +506,16 @@ int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]) {
 	return fcmpf(mathVec3LenSq(op), radius * radius, CCT_EPSILON) <= 0;
 }
 
+void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], float p_normal[3], float p[2][3]) {
+	float N[3], q[4], v[3];
+	mathVec3Cross(N, c_normal, p_normal);
+	mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
+	mathVec3Copy(v, c_normal);
+	mathQuatMulVec3(v, q, v);
+	mathVec3AddScalar(mathVec3Copy(p[0], center), v, radius);
+	mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
+}
+
 float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
 	float v0[3], v1[3], v2[3];
 	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
@@ -1214,10 +1224,7 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 	else {
 		int cmp[2];
 		float q[4], v[3], p[2][3], d[2], min_d, *min_p, cos_theta;
-		mathVec3Copy(v, c_normal);
-		mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
-		mathQuatMulVec3(v, q, v);
-		mathVec3AddScalar(mathVec3Copy(p[0], center), v, radius);
+		mathCircleProjectPlane(center, radius, c_normal, p_normal, p);
 		mathPointProjectionPlane(p[0], vertice, p_normal, NULL, &d[0]);
 		cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
 		if (0 == cmp[0]) {
@@ -1226,7 +1233,6 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 			mathVec3Copy(result->hit_point, p[0]);
 			return result;
 		}
-		mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
 		mathPointProjectionPlane(p[1], vertice, p_normal, NULL, &d[1]);
 		cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
 		if (0 == cmp[1]) {
@@ -1272,6 +1278,10 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 		mathVec3AddScalar(result->hit_point, dir, min_d);
 		return result;
 	}
+}
+
+CCTResult_t* mathCirclecastCircle(float c1[3], float r1, float n1[3], float dir[3], float c2[3], float r2, float n2[3], CCTResult_t* result) {
+	return NULL;
 }
 
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
@@ -1334,6 +1344,37 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 			}
 		}
 	}
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
+	return NULL;
+}
+
+CCTResult_t* mathTrianglecastCircle(float tri[3][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
+	float neg_dir[3], tri_normal[3];
+	CCTResult_t results[4], *p_result = NULL;
+	int i;
+	for (i = 0; i < 3; ++i) {
+		float ls[2][3];
+		mathVec3Copy(ls[0], tri[i % 3]);
+		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
+		if (mathLineSegmentcastCircle(ls, dir, center, radius, normal, &results[i]) &&
+			(!p_result || p_result->distance > results[i].distance))
+		{
+			p_result = &results[i];
+		}
+	}
+	do {
+		mathVec3Negate(neg_dir, dir);
+		mathPlaneNormalByVertices3(tri, tri_normal);
+		if (!mathCirclecastPlane(center, radius, normal, neg_dir, tri[0], tri_normal, &results[3]))
+			break;
+		if (results[3].hit_point_cnt > 0 && mathTriangleHasPoint(tri, results[3].hit_point, NULL, NULL)) {
+			if (!p_result || p_result->distance > results[3].distance)
+				p_result = &results[3];
+		}
+	} while (0);
 	if (p_result) {
 		copy_result(result, p_result);
 		return result;
