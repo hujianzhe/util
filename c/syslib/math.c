@@ -523,7 +523,7 @@ void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], fl
 	mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
 }
 
-int mathCircleIntersectPlane(float o[3], float r, float circle_normal[3], float circle_project_point[2][3], float plane_vertice[3], float plane_normal[3], float p[2][3]) {
+int mathCircleIntersectPlane(float circle_project_point[2][3], float r, float circle_normal[3], float plane_vertice[3], float plane_normal[3], float p[2][3]) {
 	float d[2];
 	int i, cmp[2];
 	for (i = 0; i < 2; ++i) {
@@ -532,14 +532,14 @@ int mathCircleIntersectPlane(float o[3], float r, float circle_normal[3], float 
 	}
 	if (cmp[0] * cmp[1] > 0)
 		return 0;
-	else if (0 == cmp[0] + cmp[1])
+	else if (0 == cmp[0] && 0 == cmp[1])
 		return -1;
 	else if (0 == cmp[0]) {
 		mathVec3Copy(p[0], circle_project_point[0]);
 		return 1;
 	}
 	else if (0 == cmp[1]) {
-		mathVec3Copy(p[1], circle_project_point[1]);
+		mathVec3Copy(p[0], circle_project_point[1]);
 		return 1;
 	}
 	else {
@@ -1273,24 +1273,16 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 	else {
 		int i;
 		CCTResult_t results[2], *p_result;
-		float N[3], lsdir[3], p[2][3], d, lp[3], lpc[3], q[4];
+		float N[3], lsdir[3], p[2][3];
 		mathVec3Sub(lsdir, ls[1], ls[0]);
 		mathVec3Cross(N, dir, lsdir);
 		if (mathVec3IsZero(N))
 			return NULL;
+
 		mathVec3Normalized(N, N);
 		mathCircleProjectPlane(center, radius, normal, N, p);
-		mathVec3Sub(lsdir, p[1], p[0]);
-		mathVec3Normalized(lsdir, lsdir);
-		mathPointProjectionPlane(p[0], ls[0], N, NULL, &d);
-		d /= mathVec3Dot(N, lsdir);
-		mathVec3AddScalar(mathVec3Copy(lp, p[0]), lsdir, d);
-		mathQuatFromAxisRadian(q, normal, (float)M_PI * 0.5f);
-		mathQuatMulVec3(lsdir, q, lsdir);
-		mathVec3Sub(lpc, center, lp);
-		d = sqrtf(radius * radius - mathVec3LenSq(lpc));
-		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, d);
-		mathVec3AddScalar(mathVec3Copy(p[1], lp), mathVec3Negate(lsdir, lsdir), d);
+		if (mathCircleIntersectPlane(p, radius, normal, ls[0], N, p) < 2)
+			return NULL;
 
 		p_result = NULL;
 		mathVec3Negate(lsdir, dir);
