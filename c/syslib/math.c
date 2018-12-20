@@ -1271,7 +1271,7 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 	else if (mathCircleHasPoint(center, radius, normal, result->hit_point))
 		return result;
 	else {
-		int i;
+		int i, cnt;
 		CCTResult_t results[2], *p_result;
 		float N[3], lsdir[3], p[2][3];
 		mathVec3Sub(lsdir, ls[1], ls[0]);
@@ -1281,12 +1281,13 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 
 		mathVec3Normalized(N, N);
 		mathCircleProjectPlane(center, radius, normal, N, p);
-		if (mathCircleIntersectPlane(p, radius, normal, ls[0], N, p) < 2)
+		cnt = mathCircleIntersectPlane(p, radius, normal, ls[0], N, p);
+		if (cnt < 1)
 			return NULL;
 
 		p_result = NULL;
 		mathVec3Negate(lsdir, dir);
-		for (i = 0; i < 2; ++i) {
+		for (i = 0; i < cnt; ++i) {
 			if (mathRaycastLineSegment(p[i], lsdir, ls, &results[i]) &&
 				(!p_result || p_result->distance > results[i].distance))
 			{
