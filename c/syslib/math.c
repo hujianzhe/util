@@ -523,6 +523,40 @@ void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], fl
 	mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
 }
 
+int mathCircleIntersectPlane(float o[3], float r, float circle_normal[3], float circle_project_point[2][3], float plane_vertice[3], float plane_normal[3], float p[2][3]) {
+	float d[2];
+	int i, cmp[2];
+	for (i = 0; i < 2; ++i) {
+		mathPointProjectionPlane(circle_project_point[i], plane_vertice, plane_normal, NULL, &d[i]);
+		cmp[i] = fcmpf(d[i], 0.0f, CCT_EPSILON);
+	}
+	if (cmp[0] * cmp[1] > 0)
+		return 0;
+	else if (0 == cmp[0] + cmp[1])
+		return -1;
+	else if (0 == cmp[0]) {
+		mathVec3Copy(p[0], circle_project_point[0]);
+		return 1;
+	}
+	else if (0 == cmp[1]) {
+		mathVec3Copy(p[1], circle_project_point[1]);
+		return 1;
+	}
+	else {
+		float lsdir[3], q[4], lp[3], cos_theta, distance = d[0];
+		mathVec3Sub(lsdir, circle_project_point[1], circle_project_point[0]);
+		mathVec3Normalized(lsdir, lsdir);
+		distance /= mathVec3Dot(plane_normal, lsdir);
+		mathVec3AddScalar(mathVec3Copy(lp, circle_project_point[0]), lsdir, distance);
+		mathQuatFromAxisRadian(q, circle_normal, (float)M_PI * 0.5f);
+		mathQuatMulVec3(lsdir, q, lsdir);
+		distance = sqrtf((radius * radius - (distance - radius) * (distance - radius)));
+		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, distance);
+		mathVec3AddScalar(mathVec3Copy(p[1], lp), mathVec3Negate(lsdir, lsdir), distance);
+		return 2;
+	}
+}
+
 int mathSphereHasPoint(float o[3], float radius, float p[3]) {
 	float op[3];
 	int cmp = fcmpf(mathVec3LenSq(mathVec3Sub(op, p, o)), radius * radius, CCT_EPSILON);
