@@ -550,7 +550,7 @@ int mathCircleIntersectPlane(float o[3], float r, float circle_normal[3], float 
 		mathVec3AddScalar(mathVec3Copy(lp, circle_project_point[0]), lsdir, distance);
 		mathQuatFromAxisRadian(q, circle_normal, (float)M_PI * 0.5f);
 		mathQuatMulVec3(lsdir, q, lsdir);
-		distance = sqrtf((radius * radius - (distance - radius) * (distance - radius)));
+		distance = sqrtf((r * r - (distance - r) * (distance - r)));
 		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, distance);
 		mathVec3AddScalar(mathVec3Copy(p[1], lp), mathVec3Negate(lsdir, lsdir), distance);
 		return 2;
