@@ -543,7 +543,7 @@ int mathCircleIntersectPlane(float circle_project_point[2][3], float r, float ci
 		return 1;
 	}
 	else {
-		float lsdir[3], q[4], lp[3], cos_theta, distance = d[0];
+		float lsdir[3], q[4], lp[3], distance = d[0];
 		mathVec3Sub(lsdir, circle_project_point[1], circle_project_point[0]);
 		mathVec3Normalized(lsdir, lsdir);
 		distance /= mathVec3Dot(plane_normal, lsdir);
