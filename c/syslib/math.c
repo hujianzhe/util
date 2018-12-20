@@ -1153,6 +1153,129 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 	}
 }
 
+CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
+	if (!mathLineSegmentcastPlane(ls, dir, center, normal, result))
+		return NULL;
+	else if (result->hit_point_cnt < 0) {
+		int c[2], i;
+		float new_ls[2][3];
+		for (i = 0; i < 2; ++i) {
+			mathVec3AddScalar(mathVec3Copy(new_ls[i], ls[i]), dir, result->distance);
+			c[i] = mathCircleHasPoint(center, radius, normal, new_ls[i]);
+		}
+		if (c[0] + c[1] >= 2) {
+			result->hit_point_cnt = -1;
+			return result;
+		}
+		else if (c[0]) {
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, new_ls[0]);
+			return result;
+		}
+		else if (c[1]) {
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, new_ls[1]);
+			return result;
+		}
+		else if (fcmpf(result->distance, 0.0f, CCT_EPSILON))
+			return NULL;
+		else {
+			CCTResult_t results[2], *p_result;
+			float lp[3];
+			mathPointProjectionLine(center, ls, lp, NULL);
+			if (mathLineSegmentHasPoint(ls, lp)) {
+				float lpc[3], lpclen, cos_theta, d, p[3];
+				mathVec3Sub(lpc, center, lp);
+				lpclen = mathVec3LenSq(lpc);
+				c[0] = fcmpf(lpclen, radius * radius, CCT_EPSILON);
+				if (0 == c[0]) {
+					result->distance = 0.0f;
+					result->hit_point_cnt = 1;
+					mathVec3Copy(result->hit_point, lp);
+					return result;
+				}
+				else if (c[0] < 0) {
+					result->distance = 0.0f;
+					result->hit_point_cnt = -1;
+					return result;
+				}
+				cos_theta = mathVec3Dot(lpc, normal);
+				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON))
+					return NULL;
+				cos_theta = mathVec3Dot(dir, lpc);
+				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+					return NULL;
+				mathVec3Normalized(lpc, lpc);
+				cos_theta = mathVec3Dot(dir, lpc);
+				d = sqrtf(lpclen) - radius;
+				mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
+				d /= cos_theta;
+				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
+				if (mathLineSegmentHasPoint(new_ls, p)) {
+					result->distance = d;
+					result->hit_point_cnt = 1;
+					mathVec3Copy(result->hit_point, p);
+					return result;
+				}
+			}
+			p_result = NULL;
+			for (i = 0; i < 2; ++i) {
+				if (mathRaycastCircle(ls[i], dir, center, radius, normal, &results[i]) &&
+					(!p_result || p_result->distance > results[i].distance))
+				{
+					p_result = &results[i];
+				}
+			}
+			if (p_result) {
+				copy_result(result, p_result);
+				return result;
+			}
+			return NULL;
+		}
+	}
+	else if (mathCircleHasPoint(center, radius, normal, result->hit_point))
+		return result;
+	else {
+		int i;
+		CCTResult_t results[2], *p_result;
+		float N[3], lsdir[3], p[2][3], d, lp[3], lpc[3], q[4];
+		mathVec3Sub(lsdir, ls[1], ls[0]);
+		mathVec3Cross(N, dir, lsdir);
+		if (mathVec3IsZero(N))
+			return NULL;
+		mathVec3Normalized(N, N);
+		mathCircleProjectPlane(center, radius, normal, N, p);
+		mathVec3Sub(lsdir, p[1], p[0]);
+		mathVec3Normalized(lsdir, lsdir);
+		mathPointProjectionPlane(p[0], ls[0], N, NULL, &d);
+		d /= mathVec3Dot(N, lsdir);
+		mathVec3AddScalar(mathVec3Copy(lp, p[0]), lsdir, d);
+		mathQuatFromAxisRadian(q, normal, (float)M_PI * 0.5f);
+		mathQuatMulVec3(lsdir, q, lsdir);
+		mathVec3Sub(lpc, center, lp);
+		d = sqrtf(radius * radius - mathVec3LenSq(lpc));
+		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, d);
+		mathVec3AddScalar(mathVec3Copy(p[1], lp), mathVec3Negate(lsdir, lsdir), d);
+
+		p_result = NULL;
+		mathVec3Negate(lsdir, dir);
+		for (i = 0; i < 2; ++i) {
+			if (mathRaycastLineSegment(p[i], lsdir, ls, &results[i]) &&
+				(!p_result || p_result->distance > results[i].distance))
+			{
+				p_result = &results[i];
+				mathVec3Copy(p_result->hit_point, p[i]);
+			}
+		}
+		if (p_result) {
+			copy_result(result, p_result);
+			return result;
+		}
+		return NULL;
+	}
+}
+
 CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3], float dir[3], float vertice[3], float p_normal[3], CCTResult_t* result) {
 	float N[3], cos_theta;
 	mathVec3Cross(N, c_normal, p_normal);

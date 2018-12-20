@@ -107,6 +107,7 @@ __declspec_dll CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3
 __declspec_dll CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result);
+__declspec_dll CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3], float dir[3], float vertice[3], float p_normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result);
