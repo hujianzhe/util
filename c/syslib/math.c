@@ -1386,7 +1386,6 @@ CCTResult_t* mathCirclecastPlane(float center[3], float radius, float c_normal[3
 CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[3], float o2[3], float r2, float n2[3], CCTResult_t* result) {
 	float cos_theta = mathVec3Dot(n1, n2);
 	if (fcmpf(cos_theta, 1.0f, CCT_EPSILON) && fcmpf(cos_theta, -1.0f, CCT_EPSILON)) {
-		
 	}
 	else {
 		int cmp;
@@ -1394,7 +1393,7 @@ CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[
 		mathPointProjectionPlane(o1, o2, n2, NULL, &d);
 		cos_theta = mathVec3Dot(n2, dir);
 		if (fcmpf(d, 0.0f, CCT_EPSILON)) {
-			float new_o1[3], float new_o1o2[3];
+			float new_o1[3], new_o1o2[3];
 			if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 				return NULL;
 			d /= cos_theta;
