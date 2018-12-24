@@ -13,3 +13,5 @@ C++部分实现了部分C++11的库以兼容C++98,包括nullptr,std::unique_ptr,
 编译需注意:
 
 linux下需要安装一下uuid,openssl.
+
+作者QQ：976784480
