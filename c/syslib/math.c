@@ -498,6 +498,14 @@ int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v) {
 	}
 }
 
+float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
+	float v0[3], v1[3], v2[3];
+	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
+	mathVec3MultiplyScalar(v1, tri[1], u);
+	mathVec3MultiplyScalar(v2, tri[2], v);
+	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
+}
+
 int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]) {
 	int cmp;
 	float op[3];
@@ -572,11 +580,18 @@ int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float poi
 	int c[2];
 	c[0] = mathSphereHasPoint(o, radius, ls[0]);
 	c[1] = mathSphereHasPoint(o, radius, ls[1]);
-	if (0 == c[0] + c[1]) {
+	if (c[0] + c[1] >= 2)
+		return 2;
+	else {
 		float pl[3], plo[3];
 		mathPointProjectionLine(o, ls, pl, NULL);
-		if (!mathLineSegmentHasPoint(ls, pl))
-			return 0;
+		if (!mathLineSegmentHasPoint(ls, pl)) {
+			if (c[0] && pointcut)
+				mathVec3Copy(pointcut, ls[0]);
+			else if (c[1] && pointcut)
+				mathVec3Copy(pointcut, ls[1]);
+			return c[0] + c[1];
+		}
 		mathVec3Sub(plo, o, pl);
 		c[0] = fcmpf(mathVec3LenSq(plo), radius * radius, CCT_EPSILON);
 		if (c[0] < 0)
@@ -588,23 +603,26 @@ int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float poi
 		}
 		return 0;
 	}
-	else if (c[0] + c[1] >= 2)
-		return 2;
-	if (pointcut) {
-		if (c[0])
-			mathVec3Copy(pointcut, ls[0]);
-		else
-			mathVec3Copy(pointcut, ls[1]);
-	}
-	return 1;
 }
 
-float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
-	float v0[3], v1[3], v2[3];
-	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
-	mathVec3MultiplyScalar(v1, tri[1], u);
-	mathVec3MultiplyScalar(v2, tri[2], v);
-	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
+int mathCylinderHasPoint(float p0[3], float p1[3], float radius, float p[3]) {
+	float ls[2][3], lp[3];
+	mathVec3Copy(ls[0], p0);
+	mathVec3Copy(ls[1], p1);
+	mathPointProjectionLine(p, ls, lp, NULL);
+	if (mathLineSegmentHasPoint(ls, lp)) {
+		int cmp;
+		float plp[3];
+		mathVec3Sub(plp, lp, p);
+		cmp = fcmpf(mathVec3LenSq(plp), radius * radius, CCT_EPSILON);
+		if (cmp > 0)
+			return 0;
+		if (cmp < 0)
+			return 2;
+		else
+			return 1;
+	}
+	return 0;
 }
 
 CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
