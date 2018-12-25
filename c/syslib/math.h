@@ -98,7 +98,6 @@ typedef struct CCTResult_t {
 	int hit_point_cnt;
 	float hit_point[3];
 } CCTResult_t;
-__declspec_dll CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastTriangle(float o[3], float dir[3], float tri[3][3], CCTResult_t* result);

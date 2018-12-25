@@ -622,54 +622,50 @@ int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 	return 0;
 }
 
-CCTResult_t* mathRaycastLine(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-	float N[3], p[3], dl, dp, lsdir[3];
-	mathPointProjectionLine(o, ls, p, &dl);
-	if (fcmpf(dl, 0.0f, CCT_EPSILON) == 0) {
+CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
+	if (mathLineSegmentHasPoint(ls, o)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
 		return result;
 	}
-	mathVec3Sub(lsdir, ls[1], ls[0]);
-	mathVec3Cross(N, lsdir, dir);
-	if (mathVec3IsZero(N))
-		return NULL;
-	mathPointProjectionPlane(o, ls[0], N, NULL, &dp);
-	if (fcmpf(dp, 0.0f, CCT_EPSILON))
-		return NULL;
 	else {
-		float op[3], cos_theta;
-		mathVec3Normalized(op, mathVec3Sub(op, p, o));
-		cos_theta = mathVec3Dot(dir, op);
-		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
-			return NULL;
-		result->distance = dl / cos_theta;
-		result->hit_point_cnt = 1;
-		mathVec3Copy(result->hit_point, o);
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-		return result;
-	}
-}
-
-CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-	if (mathRaycastLine(o, dir, ls, result)) {
-		if (mathLineSegmentHasPoint(ls, result->hit_point))
-			return result;
-		else if (fcmpf(result->distance, 0.0f, CCT_EPSILON) <= 0) {
-			float ov[3], d;
-			float* v = mathPointLineSegmentNearestVertice(o, ls);
-			mathVec3Sub(ov, v, o);
-			d = mathVec3Dot(ov, dir);
-			if (fcmpf(d, 0.0f, CCT_EPSILON) < 0 || fcmpf(d * d, mathVec3LenSq(ov), CCT_EPSILON))
+		float pl[3], pld;
+		mathPointProjectionLine(o, ls, pl, &pld);
+		if (fcmpf(pld, 0.0f, CCT_EPSILON)) {
+			float opl[3], cos_theta, d;
+			mathVec3Sub(opl, pl, o);
+			d = mathVec3Len(opl);
+			mathVec3Normalized(opl, opl);
+			cos_theta = mathVec3Dot(opl, dir);
+			if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
 				return NULL;
+			d /= cos_theta;
 			result->distance = d;
 			result->hit_point_cnt = 1;
-			mathVec3Copy(result->hit_point, v);
+			mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d);
+			return mathLineSegmentHasPoint(ls, result->hit_point) ? result : NULL;
+		}
+		else {
+			float ols[3], d[2];
+			mathVec3Sub(ols, ls[0], o);
+			d[0] = mathVec3Dot(ols, dir);
+			if (fcmpf(d[0], 0.0f, CCT_EPSILON) < 0 || fcmpf(d[0] * d[0], mathVec3LenSq(ols), CCT_EPSILON))
+				return NULL;
+			mathVec3Sub(ols, ls[1], o);
+			d[1] = mathVec3Dot(ols, dir);
+			if (d[0] < d[1]) {
+				result->distance = d[0];
+				mathVec3Copy(result->hit_point, ls[0]);
+			}
+			else {
+				result->distance = d[1];
+				mathVec3Copy(result->hit_point, ls[1]);
+			}
+			result->hit_point_cnt = 1;
 			return result;
 		}
 	}
-	return NULL;
 }
 
 CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
