@@ -522,11 +522,10 @@ int mathCircleHasPoint(float o[3], float radius, float normal[3], float p[3]) {
 }
 
 void mathCircleProjectPlane(float center[3], float radius, float c_normal[3], float p_normal[3], float p[2][3]) {
-	float N[3], q[4], v[3];
-	mathVec3Cross(N, c_normal, p_normal);
-	mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
-	mathVec3Copy(v, c_normal);
-	mathQuatMulVec3(v, q, v);
+	float v[3];
+	mathVec3Cross(v, c_normal, p_normal);
+	mathVec3Cross(v, v, c_normal);
+	mathVec3Normalized(v, v);
 	mathVec3AddScalar(mathVec3Copy(p[0], center), v, radius);
 	mathVec3AddScalar(mathVec3Copy(p[1], center), mathVec3Negate(v, v), radius);
 }
