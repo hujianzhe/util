@@ -92,7 +92,7 @@ __declspec_dll void mathCircleProjectPlane(float center[3], float radius, float 
 __declspec_dll int mathCircleIntersectPlane(float circle_project_point[2][3], float r, float circle_normal[3], float plane_vertice[3], float plane_normal[3], float p[2][3]);
 __declspec_dll int mathSphereHasPoint(float o[3], float radius, float p[3]);
 __declspec_dll int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]);
-__declspec_dll int mathCylinderHasPoint(float p0[3], float p1[3], float radius, float p[3]);
+__declspec_dll int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;
@@ -122,7 +122,7 @@ __declspec_dll CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float di
 __declspec_dll CCTResult_t* mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3], float vertices[][3], int indices[], int indicescnt, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float center[3], float half[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCylindercastPlane(float p0[3], float p1[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result);
 
 #ifdef	__cplusplus
 }

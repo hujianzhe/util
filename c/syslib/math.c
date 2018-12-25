@@ -605,12 +605,10 @@ int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float poi
 	}
 }
 
-int mathCylinderHasPoint(float p0[3], float p1[3], float radius, float p[3]) {
-	float ls[2][3], lp[3];
-	mathVec3Copy(ls[0], p0);
-	mathVec3Copy(ls[1], p1);
-	mathPointProjectionLine(p, ls, lp, NULL);
-	if (mathLineSegmentHasPoint(ls, lp)) {
+int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
+	float lp[3];
+	mathPointProjectionLine(p, cp, lp, NULL);
+	if (mathLineSegmentHasPoint(cp, lp)) {
 		int cmp;
 		float plp[3];
 		mathVec3Sub(plp, lp, p);
@@ -1805,33 +1803,33 @@ CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float ce
 	return p_result;
 }
 
-CCTResult_t* mathCylindercastPlane(float p0[3], float p1[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
+CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
 	float dn0, dn1, N[3], pn0[3], pn1[3];
 	mathPlaneNormalByVertices3(vertices, N);
-	mathPointProjectionPlane(p0, vertices[0], N, pn0, &dn0);
-	mathPointProjectionPlane(p1, vertices[0], N, pn1, &dn1);
+	mathPointProjectionPlane(p[0], vertices[0], N, pn0, &dn0);
+	mathPointProjectionPlane(p[1], vertices[0], N, pn1, &dn1);
 	if (fcmpf(dn0 * dn1, 0.0f, CCT_EPSILON) <= 0) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
 		return result;
 	}
 	else {
-		float p0p1[3], p0p1_lensq, d, cos_theta, pn[3], *p;
+		float p0p1[3], p0p1_lensq, d, cos_theta, pn[3], *hp;
 		float delta_d = dn1 - dn0;
-		mathVec3Sub(p0p1, p1, p0);
+		mathVec3Sub(p0p1, p[1], p[0]);
 		p0p1_lensq = mathVec3LenSq(p0p1);
 		cos_theta = sqrtf((p0p1_lensq - delta_d * delta_d) / p0p1_lensq);
 		result->hit_point_cnt = fcmpf(cos_theta, 1.0f, CCT_EPSILON) ? 1 : -1;
 		if (fcmpf(dn0, 0.0f, CCT_EPSILON) < 0) {
 			if (dn0 < dn1) {
 				d = dn1;
-				p = p1;
-				mathVec3Sub(pn, pn1, p1);
+				hp = p[1];
+				mathVec3Sub(pn, pn1, p[1]);
 			}
 			else {
 				d = dn0;
-				p = p0;
-				mathVec3Sub(pn, pn0, p0);
+				hp = p[0];
+				mathVec3Sub(pn, pn0, p[0]);
 			}
 			d += radius * cos_theta;
 			if (fcmpf(d, 0.0f, CCT_EPSILON) > 0) {
@@ -1843,13 +1841,13 @@ CCTResult_t* mathCylindercastPlane(float p0[3], float p1[3], float radius, float
 		else {
 			if (dn0 < dn1) {
 				d = dn0;
-				p = p0;
-				mathVec3Sub(pn, pn0, p0);
+				hp = p[0];
+				mathVec3Sub(pn, pn0, p[0]);
 			}
 			else {
 				d = dn1;
-				p = p1;
-				mathVec3Sub(pn, pn1, p1);
+				hp = p[1];
+				mathVec3Sub(pn, pn1, p[1]);
 			}
 			d -= radius * cos_theta;
 			if (fcmpf(d, 0.0f, CCT_EPSILON) < 0) {
@@ -1872,7 +1870,7 @@ CCTResult_t* mathCylindercastPlane(float p0[3], float p1[3], float radius, float
 			mathQuatMulVec3(v, q, p0p1);
 			if (fcmpf(mathVec3Dot(v, pn), 0.0f, CCT_EPSILON) < 0)
 				mathVec3Negate(v, v);
-			mathVec3Copy(result->hit_point, p);
+			mathVec3Copy(result->hit_point, hp);
 			mathVec3AddScalar(result->hit_point, v, radius);
 			mathVec3AddScalar(result->hit_point, dir, d);
 		}
