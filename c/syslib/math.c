@@ -394,62 +394,6 @@ void mathPointProjectionPlane(float p[3], float plane_v[3], float plane_normal[3
 	}
 }
 
-float mathPointPointDistanceSq(float p1[3], float p2[3]) {
-	float v[3];
-	return mathVec3LenSq(mathVec3Sub(v, p1, p2));
-}
-
-int mathLineParallelLine(float ls1[2][3], float ls2[2][3]) {
-	float v1[3], v2[3], n[3];
-	mathVec3Sub(v1, ls1[1], ls1[0]);
-	mathVec3Sub(v2, ls2[1], ls2[0]);
-	mathVec3Cross(n, v1, v2);
-	return mathVec3IsZero(n);
-}
-
-int mathLineIntersectLine(float ls1[2][3], float ls2[2][3], float np[3]) {
-	float E1[3], E2[3], N[3];
-	mathVec3Sub(E1, ls1[1], ls1[0]);
-	mathVec3Sub(E2, ls2[0], ls1[0]);
-	mathVec3Cross(N, E1, E2);
-	if (mathVec3IsZero(N)) {
-		mathVec3Sub(E2, ls2[1], ls1[0]);
-		mathVec3Cross(N, E1, E2);
-		if (mathVec3IsZero(N))
-			return 0;
-	}
-	mathVec3Sub(E2, ls2[1], ls2[0]);
-	if (fcmpf(mathVec3Dot(N, E2), 0.0f, CCT_EPSILON))
-		return 0;
-	else {
-		int cmp;
-		float p[3], op[3], d, cos_theta;
-		mathPointProjectionLine(ls1[0], ls2, p, &d);
-		if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
-			mathVec3Copy(np, p);
-		}
-		mathVec3Normalized(op, mathVec3Sub(op, p, ls1[0]));
-		mathVec3Normalized(E1, E1);
-		cos_theta = mathVec3Dot(E1, op);
-		cmp = fcmpf(cos_theta, 0.0f, CCT_EPSILON);
-		if (0 == cmp)
-			return 0;
-		else if (cmp < 0)
-			cos_theta = mathVec3Dot(mathVec3Negate(E1, E1), op);
-		d /= cos_theta;
-		mathVec3Copy(np, ls1[0]);
-		mathVec3AddScalar(np, E1, d);
-		return 1;
-	}
-}
-
-float* mathPointLineSegmentNearestVertice(float p[3], float ls[2][3]) {
-	float pls0[3], pls1[3];
-	mathVec3Sub(pls0, ls[0], p);
-	mathVec3Sub(pls1, ls[1], p);
-	return mathVec3LenSq(pls0) > mathVec3LenSq(pls1) ? ls[1] : ls[0];
-}
-
 int mathLineSegmentHasPoint(float ls[2][3], float p[3]) {
 	float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
