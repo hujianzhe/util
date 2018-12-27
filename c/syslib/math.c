@@ -586,8 +586,16 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
 	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
 	rcnt = mathQuadraticEquation(A, B, C, r);
-	for (i = 0; i < rcnt; ++i) {
-		mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), dir, r[i]);
+	if (0 == rcnt) {
+		float plp[3], plpp[3];
+		mathPointProjectionLine(ls_vertice, cp, plp, NULL);
+		mathVec3Sub(plpp, ls_vertice, plp);
+		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
+	}
+	else {
+		for (i = 0; i < rcnt; ++i) {
+			mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), dir, r[i]);
+		}
 	}
 	return rcnt;
 }
