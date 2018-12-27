@@ -566,6 +566,32 @@ int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 	return 0;
 }
 
+int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float dir[3], float p[2][3]) {
+	float *p0 = cp[0], *p1 = cp[1];
+	float new_o[3], new_dir[3], p0p1len;
+	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
+	float A, B, C, r[2];
+	int i, rcnt;
+	mathVec3Sub(new_axies[2], p1, p0);
+	p0p1len = mathVec3Len(new_axies[2]);
+	mathVec3Normalized(new_axies[2], new_axies[2]);
+	new_axies[1][0] = 0.0f;
+	new_axies[1][1] = new_axies[2][2];
+	new_axies[1][2] = new_axies[2][1];
+	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
+	mathVec3Normalized(new_axies[0], new_axies[0]);
+	mathCoordinateSystemTransform(ls_vertice, p0, new_axies, new_o);
+	mathCoordinateSystemTransform(dir, NULL, new_axies, new_dir);
+	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
+	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
+	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
+	rcnt = mathQuadraticEquation(A, B, C, r);
+	for (i = 0; i < rcnt; ++i) {
+		mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), dir, r[i]);
+	}
+	return rcnt;
+}
+
 int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[4][3]) {
 	float axis[3], cos_theta;
 	mathVec3Sub(axis, cp[1], cp[0]);
@@ -753,7 +779,8 @@ CCTResult_t* mathRaycastCircle(float o[3], float dir[3], float center[3], float 
 	return NULL;
 }
 
-CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float p0[3], float p1[3], float radius, CCTResult_t* result) {
+CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float cp[2][3], float radius, CCTResult_t* result) {
+	float *p0 = cp[0], *p1 = cp[1];
 	float new_axies[3][3], p0p1len, dot;
 	float new_o[3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
 	mathVec3Sub(new_axies[2], p1, p0);
