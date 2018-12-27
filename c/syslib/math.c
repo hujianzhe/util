@@ -494,13 +494,13 @@ int mathCircleIntersectPlane(float circle_project_point[2][3], float r, float ci
 		return 1;
 	}
 	else {
-		float lsdir[3], q[4], lp[3], distance = d[0];
+		float lsdir[3], lp[3], distance = d[0];
 		mathVec3Sub(lsdir, circle_project_point[1], circle_project_point[0]);
 		mathVec3Normalized(lsdir, lsdir);
 		distance /= mathVec3Dot(plane_normal, lsdir);
 		mathVec3AddScalar(mathVec3Copy(lp, circle_project_point[0]), lsdir, distance);
-		mathQuatFromAxisRadian(q, circle_normal, (float)M_PI * 0.5f);
-		mathQuatMulVec3(lsdir, q, lsdir);
+		mathVec3Cross(lsdir, circle_normal, lsdir);
+		mathVec3Normalized(lsdir, lsdir);
 		distance = sqrtf((r * r - (distance - r) * (distance - r)));
 		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, distance);
 		mathVec3AddScalar(mathVec3Copy(p[1], lp), mathVec3Negate(lsdir, lsdir), distance);
@@ -563,6 +563,10 @@ int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 		else
 			return 1;
 	}
+	return 0;
+}
+
+int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[2][3]) {
 	return 0;
 }
 
