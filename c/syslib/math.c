@@ -1808,6 +1808,7 @@ CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], fl
 			mathVec3Cross(v, p0p1, v);
 			if (fcmpf(mathVec3Dot(v, pn), 0.0f, CCT_EPSILON) < 0)
 				mathVec3Negate(v, v);
+			mathVec3Normalized(v, v);
 			mathVec3Copy(result->hit_point, hp);
 			mathVec3AddScalar(result->hit_point, v, radius);
 			mathVec3AddScalar(result->hit_point, dir, d);
