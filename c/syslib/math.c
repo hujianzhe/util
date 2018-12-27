@@ -566,8 +566,42 @@ int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 	return 0;
 }
 
-int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[2][3]) {
-	return 0;
+int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[4][3]) {
+	float axis[3], cos_theta;
+	mathVec3Sub(axis, cp[1], cp[0]);
+	cos_theta = mathVec3Dot(axis, plane_normal);
+	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
+		float plp[3], plpp[3];
+		mathPointProjectionLine(plane_vertice, cp, plp, NULL);
+		mathVec3Sub(plpp, plane_vertice, plp);
+		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
+	}
+	else {
+		float center[3], v1[3], d;
+		mathVec3Normalized(axis, axis);
+		cos_theta = mathVec3Dot(axis, plane_normal);
+		mathPointProjectionPlane(cp[0], plane_vertice, plane_normal, NULL, &d);
+		d /= cos_theta;
+		mathVec3AddScalar(mathVec3Copy(center, cp[0]), axis, d);
+		mathVec3Cross(v1, plane_normal, axis);
+		if (mathVec3IsZero(v1)) {
+			mathVec3Copy(p[0], center);
+			mathVec3Copy(p[1], axis);
+			return 1;
+		}
+		else {
+			float v2[3];
+			mathVec3Cross(v2, v1, plane_normal);
+			mathVec3Normalized(v1, v1);
+			mathVec3AddScalar(mathVec3Copy(p[0], center), v1, radius);
+			mathVec3AddScalar(mathVec3Copy(p[1], center), v1, -radius);
+			mathVec3Normalized(v2, v2);
+			d = radius / cos_theta;
+			mathVec3AddScalar(mathVec3Copy(p[2], center), v2, d);
+			mathVec3AddScalar(mathVec3Copy(p[3], center), v2, -d);
+			return 2;
+		}
+	}
 }
 
 CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
