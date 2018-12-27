@@ -571,7 +571,7 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 	float new_o[3], new_dir[3], p0p1len;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
 	float A, B, C, r[2];
-	int i, rcnt;
+	int rcnt;
 	mathVec3Sub(new_axies[2], p1, p0);
 	p0p1len = mathVec3Len(new_axies[2]);
 	mathVec3Normalized(new_axies[2], new_axies[2]);
@@ -593,6 +593,7 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
 	}
 	else {
+		int i;
 		for (i = 0; i < rcnt; ++i) {
 			mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), dir, r[i]);
 		}
@@ -636,6 +637,14 @@ int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane
 			return 2;
 		}
 	}
+}
+
+int mathCylinderHasLineSegment(float cp[2][3], float radius, float ls[2][3], float pointcut[3]) {
+	int cnt;
+	float intersect_point[2][3], lsdir[3];
+	mathVec3Normalized(lsdir, mathVec3Sub(lsdir, ls[1], ls[0]));
+	cnt = mathCylinderInfiniteIntersectLine(cp, radius, ls[0], lsdir, intersect_point);
+	return 0;
 }
 
 CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {

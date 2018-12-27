@@ -91,6 +91,7 @@ __declspec_dll int mathSphereHasLineSegment(float o[3], float radius, float ls[2
 __declspec_dll int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]);
 __declspec_dll int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float dir[3], float p[2][3]);
 __declspec_dll int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[4][3]);
+__declspec_dll int mathCylinderHasLineSegment(float cp[2][3], float radius, float ls[2][3], float pointcut[3]);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;
