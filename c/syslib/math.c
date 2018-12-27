@@ -566,7 +566,7 @@ int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 	return 0;
 }
 
-int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float dir[3], float p[2][3]) {
+int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
 	float *p0 = cp[0], *p1 = cp[1];
 	float new_o[3], new_dir[3], p0p1len;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
@@ -581,7 +581,7 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
 	mathVec3Normalized(new_axies[0], new_axies[0]);
 	mathCoordinateSystemTransform(ls_vertice, p0, new_axies, new_o);
-	mathCoordinateSystemTransform(dir, NULL, new_axies, new_dir);
+	mathCoordinateSystemTransform(lsdir, NULL, new_axies, new_dir);
 	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
 	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
@@ -595,7 +595,7 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 	else {
 		int i;
 		for (i = 0; i < rcnt; ++i) {
-			mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), dir, r[i]);
+			mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), lsdir, r[i]);
 		}
 	}
 	return rcnt;
