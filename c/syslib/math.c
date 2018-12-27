@@ -1803,10 +1803,9 @@ CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], fl
 			return NULL;
 		result->distance = d;
 		if (result->hit_point_cnt > 0) {
-			float q[4], v[3];
-			mathVec3Cross(N, p0p1, N);
-			mathQuatFromAxisRadian(q, N, (float)M_PI * 0.5f);
-			mathQuatMulVec3(v, q, p0p1);
+			float v[3];
+			mathVec3Cross(v, p0p1, N);
+			mathVec3Cross(v, p0p1, v);
 			if (fcmpf(mathVec3Dot(v, pn), 0.0f, CCT_EPSILON) < 0)
 				mathVec3Negate(v, v);
 			mathVec3Copy(result->hit_point, hp);
