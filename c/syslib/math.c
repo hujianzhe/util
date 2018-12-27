@@ -639,14 +639,6 @@ int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane
 	}
 }
 
-int mathCylinderHasLineSegment(float cp[2][3], float radius, float ls[2][3], float pointcut[3]) {
-	int cnt;
-	float intersect_point[2][3], lsdir[3];
-	mathVec3Normalized(lsdir, mathVec3Sub(lsdir, ls[1], ls[0]));
-	cnt = mathCylinderInfiniteIntersectLine(cp, radius, ls[0], lsdir, intersect_point);
-	return 0;
-}
-
 CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
 	if (mathLineSegmentHasPoint(ls, o)) {
 		result->distance = 0.0f;
