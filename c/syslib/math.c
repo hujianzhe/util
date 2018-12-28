@@ -548,6 +548,28 @@ int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float poi
 	}
 }
 
+int mathSphereIntersectLine(float o[3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
+	int cmp;
+	float vo[3], lp[3], lpo[3], lpolensq;
+	mathVec3Sub(vo, o, ls_vertice);
+	mathVec3AddScalar(mathVec3Copy(lp, ls_vertice), lsdir, mathVec3Dot(vo, lsdir));
+	mathVec3Sub(lpo, o, lp);
+	lpolensq = mathVec3LenSq(lpo);
+	cmp = fcmpf(lpolensq, radius * radius, CCT_EPSILON);
+	if (cmp > 0)
+		return 0;
+	else if (0 == cmp) {
+		mathVec3Copy(p[0], lp);
+		return 1;
+	}
+	else {
+		float d = sqrtf(radius * radius - lpolensq);
+		mathVec3AddScalar(mathVec3Copy(p[0], lp), lsdir, d);
+		mathVec3AddScalar(mathVec3Copy(p[1], lp), lsdir, -d);
+		return 2;
+	}
+}
+
 int mathCylinderHasPoint(float cp[2][3], float radius, float p[3]) {
 	float lp[3];
 	mathPointProjectionLine(p, cp, lp, NULL);
