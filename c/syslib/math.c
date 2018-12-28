@@ -1172,26 +1172,35 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 		else {
 			CCTResult_t results[2], *p_result;
 			int i;
-			float np[3], lp[3], npd, cos_theta;
+			float np[3], lp[3], lpnp[3], lpnplensq, npd, delta_lensq;
 			mathVec3Normalized(N, N);
 			mathPointProjectionPlane(center, ls[0], N, np, &npd);
 			if (fcmpf(npd * npd, radius * radius, CCT_EPSILON) > 0)
 				return NULL;
 			mathPointProjectionLine(np, ls, lp, NULL);
-			if (mathLineSegmentHasPoint(ls, lp)) {
-				float delta_len, lpnplen, lpnp[3], p[3], d, new_ls[2][3];
-				mathVec3Sub(lpnp, np, lp);
-				lpnplen = mathVec3Len(lpnp);
-				mathVec3Normalized(lpnp, lpnp);
-				delta_len = sqrtf(radius * radius - npd * npd);
-				d = lpnplen - delta_len;
-				mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, d);
-				cos_theta = mathVec3Dot(lpnp, dir);
-				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
-					return NULL;
-				d /= cos_theta;
-				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
-				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
+			mathVec3Sub(lpnp, np, lp);
+			lpnplensq = mathVec3LenSq(lpnp);
+			delta_lensq = radius * radius - npd * npd;
+			i = fcmpf(lpnplensq, delta_lensq, CCT_EPSILON);
+			if (i >= 0) {
+				float p[3], new_ls[2][3], d;
+				if (i > 0) {
+					float cos_theta = mathVec3Dot(lpnp, dir);
+					if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+						return NULL;
+					cos_theta = mathVec3Dot(mathVec3Normalized(lpnp, lpnp), dir);
+					d = sqrtf(lpnplensq) - sqrtf(delta_lensq);
+					mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, d);
+					d /= cos_theta;
+					mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+					mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
+				}
+				else {
+					d = 0.0f;
+					mathVec3Copy(new_ls[0], ls[0]);
+					mathVec3Copy(new_ls[1], ls[1]);
+					mathVec3Copy(p, lp);
+				}
 				if (mathLineSegmentHasPoint(new_ls, p)) {
 					result->distance = d;
 					result->hit_point_cnt = 1;
