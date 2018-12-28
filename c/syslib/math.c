@@ -1288,6 +1288,105 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 	}
 }
 
+CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[2][3], float radius, CCTResult_t* result) {
+	int i, j, res;
+	CCTResult_t results[8], *p_result;
+	float lsdir[3], N[3], intersect_point[2][3];
+	mathVec3Sub(lsdir, ls[1], ls[0]);
+	mathVec3Normalized(lsdir, lsdir);
+	res = mathCylinderIntersectLine(cp, radius, ls[0], lsdir, intersect_point);
+	if (1 == res) {
+		if (mathLineSegmentHasPoint(ls, intersect_point[0])) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, intersect_point[0]);
+			return result;
+		}
+	}
+	else if (2 == res) {
+		int c[2];
+		for (i = 0; i < 2; ++i) {
+			c[i] = mathLineSegmentHasPoint(intersect_point, ls[i]);
+			if (c[i] && !mathVec3Equal(intersect_point[0], ls[i]) && !mathVec3Equal(intersect_point[1], ls[i])) {
+				result->distance = 0.0f;
+				result->hit_point_cnt = -1;
+				return result;
+			}
+		}
+		for (i = 0; i < 2; ++i) {
+			c[i] = mathLineSegmentHasPoint(ls, intersect_point[i]);
+			if (c[i] && !mathVec3Equal(ls[0], intersect_point[i]) && !mathVec3Equal(ls[1], intersect_point[i])) {
+				result->distance = 0.0f;
+				result->hit_point_cnt = -1;
+				return result;
+			}
+		}
+		if (c[0]) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, intersect_point[0]);
+			return result;
+		}
+		if (c[1]) {
+			result->distance = 0.0f;
+			result->hit_point_cnt = 1;
+			mathVec3Copy(result->hit_point, intersect_point[1]);
+		}
+	}
+	mathVec3Cross(N, lsdir, dir);
+	p_result = NULL;
+	i = j = 0;
+	if (!mathVec3IsZero(N)) {
+		float intersect_res[4][3];
+		res = mathCylinderInfiniteIntersectPlane(cp, radius, ls[0], mathVec3Normalized(N, N), intersect_res);
+		if (0 == res)
+			return NULL;
+		else {
+			int j;
+			float axis[3];
+			if (2 == res) {
+				int has_point_cnt = 0;
+				float neg_dir[3], axis[3];
+				mathVec3Negate(neg_dir, dir);
+				for (; i < 4; ++i) {
+					if (!mathCylinderHasPoint(cp, radius, intersect_res[i]))
+						continue;
+					has_point_cnt++;
+					if (!mathRaycastLineSegment(intersect_res[i], neg_dir, ls, &results[i]))
+						continue;
+					if (!p_result || p_result->distance > results[i].distance)
+						p_result = &results[i];
+				}
+				if (0 == has_point_cnt)
+					return NULL;
+				j = i;
+			}
+			mathVec3Sub(axis, cp[1], cp[0]);
+			mathVec3Normalized(axis, axis);
+			for (; i < j + 2; ++i) {
+				if (mathLineSegmentcastCircle(ls, dir, cp[i - j], radius, axis, &results[i]) &&
+					(!p_result || p_result->distance > results[i].distance))
+				{
+					p_result = &results[i];
+				}
+			}
+			j = i;
+		}
+	}
+	for (; i < j + 2; ++i) {
+		if (mathRaycastCylinder(ls[i - j], dir, cp, radius, &results[i]) &&
+			(!p_result || p_result->distance > results[i].distance))
+		{
+			p_result = &results[i];
+		}
+	}
+	if (p_result) {
+		copy_result(result, p_result);
+		return result;
+	}
+	return NULL;
+}
+
 CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float center[3], float radius, float normal[3], CCTResult_t* result) {
 	if (!mathLineSegmentcastPlane(ls, dir, center, normal, result))
 		return NULL;
