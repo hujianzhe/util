@@ -661,6 +661,47 @@ int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane
 	}
 }
 
+int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
+	int res = mathCylinderInfiniteIntersectLine(cp, radius, ls_vertice, lsdir, p);
+	if (0 == res)
+		return 0;
+	else if (1 == res)
+		return 1;
+	else if (2 == res) {
+		int c[2];
+		c[0] = mathCylinderHasPoint(cp, radius, p[0]);
+		c[1] = mathCylinderHasPoint(cp, radius, p[1]);
+		if (c[0] && c[1])
+			return 2;
+		else if (c[0] || c[1]) {
+			float axis[3], d[2], *other_p, min_d, cos_theta;
+			mathVec3Sub(axis, cp[1], cp[0]);
+			mathVec3Normalized(axis, axis);
+			other_p = c[0] ? p[1] : p[0];
+			mathPointProjectionPlane(other_p, cp[0], axis, NULL, &d[0]);
+			mathPointProjectionPlane(other_p, cp[1], axis, NULL, &d[1]);
+			if (d[0] <= -CCT_EPSILON)
+				min_d = d[0] < d[1] ? d[1] : d[0];
+			else
+				min_d = d[0] < d[1] ? d[0] : d[1];
+			cos_theta = mathVec3Dot(axis, lsdir);
+			min_d /= cos_theta;
+			mathVec3AddScalar(other_p, lsdir, min_d);
+			return mathVec3Equal(p[0], p[1]) ? 1 : 2;
+		}
+		else
+			return 0;
+	}
+	else if (-1 == res) {
+		float axis[3], d[2];
+		mathVec3Sub(axis, cp[1], cp[0]);
+		mathVec3Normalized(axis, axis);
+		mathPointProjectionPlane(ls_vertice, cp[0], axis, p[0], NULL);
+		mathPointProjectionPlane(ls_vertice, cp[1], axis, p[1], NULL);
+		return 2;
+	}
+}
+
 CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
 	if (mathLineSegmentHasPoint(ls, o)) {
 		result->distance = 0.0f;
