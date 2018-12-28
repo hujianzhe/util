@@ -692,8 +692,8 @@ int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3],
 		else
 			return 0;
 	}
-	else if (-1 == res) {
-		float axis[3], d[2];
+	else {
+		float axis[3];
 		mathVec3Sub(axis, cp[1], cp[0]);
 		mathVec3Normalized(axis, axis);
 		mathPointProjectionPlane(ls_vertice, cp[0], axis, p[0], NULL);
@@ -1316,37 +1316,33 @@ CCTResult_t* mathLineSegmentcastCircle(float ls[2][3], float dir[3], float cente
 			return NULL;
 		else {
 			CCTResult_t results[2], *p_result;
-			float lp[3];
+			float lp[3], lpc[3], lpclensq;
 			mathPointProjectionLine(center, ls, lp, NULL);
-			if (mathLineSegmentHasPoint(ls, lp)) {
-				float lpc[3], lpclen, cos_theta, d, p[3];
-				mathVec3Sub(lpc, center, lp);
-				lpclen = mathVec3LenSq(lpc);
-				c[0] = fcmpf(lpclen, radius * radius, CCT_EPSILON);
-				if (0 == c[0]) {
-					result->distance = 0.0f;
-					result->hit_point_cnt = 1;
-					mathVec3Copy(result->hit_point, lp);
-					return result;
+			mathVec3Sub(lpc, center, lp);
+			lpclensq = mathVec3LenSq(lpc);
+			i = fcmpf(lpclensq, radius * radius, CCT_EPSILON);
+			if (i >= 0) {
+				float p[3], new_ls[2][3], d;
+				if (i > 0) {
+					float cos_theta = mathVec3Dot(lpc, normal);
+					if (fcmpf(cos_theta, 0.0f, CCT_EPSILON))
+						return NULL;
+					cos_theta = mathVec3Dot(dir, lpc);
+					if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+						return NULL;
+					cos_theta = mathVec3Dot(dir, mathVec3Normalized(lpc, lpc));
+					d = sqrtf(lpclensq) - radius;
+					mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
+					d /= cos_theta;
+					mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
+					mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
 				}
-				else if (c[0] < 0) {
-					result->distance = 0.0f;
-					result->hit_point_cnt = -1;
-					return result;
+				else {
+					d = 0.0f;
+					mathVec3Copy(p, lp);
+					mathVec3Copy(new_ls[0], ls[0]);
+					mathVec3Copy(new_ls[1], ls[1]);
 				}
-				cos_theta = mathVec3Dot(lpc, normal);
-				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON))
-					return NULL;
-				cos_theta = mathVec3Dot(dir, lpc);
-				if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
-					return NULL;
-				mathVec3Normalized(lpc, lpc);
-				cos_theta = mathVec3Dot(dir, lpc);
-				d = sqrtf(lpclen) - radius;
-				mathVec3AddScalar(mathVec3Copy(p, lp), lpc, d);
-				d /= cos_theta;
-				mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, d);
-				mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, d);
 				if (mathLineSegmentHasPoint(new_ls, p)) {
 					result->distance = d;
 					result->hit_point_cnt = 1;
