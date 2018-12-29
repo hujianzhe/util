@@ -1386,10 +1386,16 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 		}
 	}
 	for (; i < j + 2; ++i) {
-		if (mathRaycastCylinder(ls[i - j], dir, cp, radius, &results[i]) &&
-			(!p_result || p_result->distance > results[i].distance))
-		{
+		if (!mathRaycastCylinder(ls[i - j], dir, cp, radius, &results[i]))
+			continue;
+		if (!p_result)
 			p_result = &results[i];
+		else {
+			int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
+			if (0 == cmp)
+				p_result->hit_point_cnt = -1;
+			else if (cmp > 0)
+				p_result = &results[i];
 		}
 	}
 	if (p_result) {
