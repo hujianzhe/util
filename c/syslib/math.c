@@ -628,10 +628,9 @@ int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane
 	mathVec3Sub(axis, cp[1], cp[0]);
 	cos_theta = mathVec3Dot(axis, plane_normal);
 	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
-		float plp[3], plpp[3];
-		mathPointProjectionLine(plane_vertice, cp, plp, NULL);
-		mathVec3Sub(plpp, plane_vertice, plp);
-		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
+		float d;
+		mathPointProjectionPlane(cp[0], plane_vertice, plane_normal, NULL, &d);
+		return fcmpf(d < 0.0f ? -d : d, radius, CCT_EPSILON) > 0 ? 0 : -1;
 	}
 	else {
 		float center[3], v1[3], d;
@@ -1342,11 +1341,11 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 		if (0 == res)
 			return NULL;
 		else {
-			int j;
 			float axis[3];
 			if (1 == res) {
 				if (!mathLineSegmentHasPoint(cp, intersect_res[0]))
 					return NULL;
+				return mathLineSegmentcastCircle(ls, dir, intersect_res[0], radius, intersect_res[1], result);
 			}
 			else if (2 == res) {
 				int has_point_cnt = 0;
@@ -1358,8 +1357,10 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 					has_point_cnt++;
 					if (!mathRaycastLineSegment(intersect_res[i], neg_dir, ls, &results[i]))
 						continue;
-					if (!p_result || p_result->distance > results[i].distance)
+					if (!p_result || p_result->distance > results[i].distance) {
 						p_result = &results[i];
+						mathVec3Copy(p_result->hit_point, intersect_res[i]);
+					}
 				}
 				if (0 == has_point_cnt)
 					return NULL;
