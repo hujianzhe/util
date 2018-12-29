@@ -1344,7 +1344,11 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 		else {
 			int j;
 			float axis[3];
-			if (2 == res) {
+			if (1 == res) {
+				if (!mathLineSegmentHasPoint(cp, intersect_res[0]))
+					return NULL;
+			}
+			else if (2 == res) {
 				int has_point_cnt = 0;
 				float neg_dir[3], axis[3];
 				mathVec3Negate(neg_dir, dir);
@@ -1364,10 +1368,17 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 			mathVec3Sub(axis, cp[1], cp[0]);
 			mathVec3Normalized(axis, axis);
 			for (; i < j + 2; ++i) {
-				if (mathLineSegmentcastCircle(ls, dir, cp[i - j], radius, axis, &results[i]) &&
-					(!p_result || p_result->distance > results[i].distance))
-				{
+				if (!mathLineSegmentcastCircle(ls, dir, cp[i - j], radius, axis, &results[i]))
+					continue;
+				if (!p_result) {
 					p_result = &results[i];
+				}
+				else {
+					int cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
+					if (0 == cmp)
+						p_result->hit_point_cnt = -1;
+					else if (cmp > 0)
+						p_result = &results[i];
 				}
 			}
 			j = i;
