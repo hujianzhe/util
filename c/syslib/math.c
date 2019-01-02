@@ -394,6 +394,33 @@ void mathPointProjectionPlane(float p[3], float plane_v[3], float plane_normal[3
 	}
 }
 
+
+int mathLineIntersectLine(float ls1v[3], float ls1dir[3], float ls2v[3], float ls2dir[3], float* distance) {
+	float N[3], v[3], dot;
+	mathVec3Cross(N, ls1dir, ls2dir);
+	if (mathVec3IsZero(N)) {
+		mathVec3Sub(v, ls1v, ls2v);
+		dot = mathVec3Dot(v, ls2dir);
+		return fcmpf(dot * dot, mathVec3LenSq(v), CCT_EPSILON) ? 0 : -1;
+	}
+	else {
+		mathVec3Sub(v, ls1v, ls2v);
+		if (mathVec3IsZero(v)) {
+			*distance = 0.0f;
+			return 1;
+		}
+		dot = mathVec3Dot(v, N);
+		if (fcmpf(dot, 0.0f, CCT_EPSILON))
+			return 0;
+		dot = mathVec3Dot(v, ls2dir);
+		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
+		mathVec3Sub(v, v, ls1v);
+		*distance = mathVec3Len(v);
+		*distance /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+		return 1;
+	}
+}
+
 int mathLineIntersectPlane(float ls_v[3], float lsdir[3], float plane_v[3], float plane_normal[3], float* distance) {
 	float cos_theta = mathVec3Dot(lsdir, plane_normal);
 	mathPointProjectionPlane(ls_v, plane_v, plane_normal, NULL, distance);

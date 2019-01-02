@@ -80,6 +80,7 @@ __declspec_dll float* mathQuatMulVec3(float r[3], float q[4], float v[3]);
 __declspec_dll float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]);
 __declspec_dll void mathPointProjectionLine(float p[3], float ls[2][3], float np[3], float* distance);
 __declspec_dll void mathPointProjectionPlane(float p[3], float plane_v[3], float plane_normal[3], float np[3], float* distance);
+__declspec_dll int mathLineIntersectLine(float ls1v[3], float ls1dir[3], float ls2v[3], float ls2dir[3], float* distance);
 __declspec_dll int mathLineIntersectPlane(float ls_v[3], float lsdir[3], float plane_v[3], float plane_normal[3], float* distance);
 __declspec_dll int mathLineSegmentHasPoint(float ls[2][3], float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], float p[3], float* p_u, float* p_v);
