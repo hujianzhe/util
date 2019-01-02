@@ -414,13 +414,14 @@ int mathLineSegmentHasPoint(float ls[2][3], float p[3]) {
 	if (!mathVec3IsZero(mathVec3Cross(N, pv1, pv2)))
 		return 0;
 	else {
-		float min_x, max_x, min_y, max_y, min_z, max_z;
-		v1[0] < v2[0] ? (min_x = v1[0], max_x = v2[0]) : (min_x = v2[0], max_x = v1[0]);
-		v1[1] < v2[1] ? (min_y = v1[1], max_y = v2[1]) : (min_y = v2[1], max_y = v1[1]);
-		v1[2] < v2[2] ? (min_z = v1[2], max_z = v2[2]) : (min_z = v2[2], max_z = v1[2]);
-		return	fcmpf(p[0], min_x, CCT_EPSILON) >= 0 && fcmpf(p[0], max_x, CCT_EPSILON) <= 0 &&
-				fcmpf(p[1], min_y, CCT_EPSILON) >= 0 && fcmpf(p[1], max_y, CCT_EPSILON) <= 0 &&
-				fcmpf(p[2], min_z, CCT_EPSILON) >= 0 && fcmpf(p[2], max_z, CCT_EPSILON) <= 0;
+		int i;
+		for (i = 0; i < 3; ++i) {
+			float min_v, max_v;
+			v1[i] < v2[i] ? (min_v = v1[i], max_v = v2[i]) : (min_v = v2[i], max_v = v1[i]);
+			if (fcmpf(p[i], min_v, CCT_EPSILON) < 0 || fcmpf(p[i], max_v, CCT_EPSILON) > 0)
+				return 0;
+		}
+		return 1;
 	}
 }
 
@@ -1361,7 +1362,7 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 			}
 			else if (2 == res) {
 				int has_point_cnt = 0;
-				float neg_dir[3], axis[3];
+				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				for (; i < 4; ++i) {
 					if (!mathCylinderHasPoint(cp, radius, intersect_res[i]))
