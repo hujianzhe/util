@@ -90,14 +90,13 @@ __declspec_dll float* mathTriangleGetPoint(const float tri[3][3], float u, float
 
 __declspec_dll int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float* distance);
 __declspec_dll int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const float plane_v[3], const float plane_normal[3], float* distance);
+__declspec_dll int mathCylinderInfiniteIntersectLine(const float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]);
+__declspec_dll int mathCylinderInfiniteIntersectPlane(const float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]);
 __declspec_dll int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]);
 __declspec_dll int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
+__declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
 
 __declspec_dll int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]);
-
-
-__declspec_dll int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]);
-__declspec_dll int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[4][3]);
 //__declspec_dll int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]);
 typedef struct CCTResult_t {
 	float distance;
@@ -117,7 +116,6 @@ __declspec_dll CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[
 __declspec_dll CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[3], float o2[3], float r2, float n2[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result);
-__declspec_dll int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]);
 __declspec_dll CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathAABBcastAABB(float o1[3], float half1[3], float dir[3], float o2[3], float half2[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastPlane(float o[3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result);

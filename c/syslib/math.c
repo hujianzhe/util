@@ -592,11 +592,23 @@ int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v
 	}
 }
 
-int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
-	float *p0 = cp[0], *p1 = cp[1];
+int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
+	/*
+	!(o2[0] - half2[0] > o1[0] + half1[0] || o1[0] - half1[0] > o2[0] + half2[0] ||
+	o2[1] - half2[1] > o1[1] + half1[1] || o1[1] - half1[1] > o2[1] + half2[1] ||
+	o2[2] - half2[2] > o1[2] + half1[2] || o1[2] - half1[2] > o2[2] + half2[2]);
+	*/
+
+	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
+		o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
+		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
+}
+
+int mathCylinderInfiniteIntersectLine(const float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]) {
+	const float *p0 = cp[0], *p1 = cp[1];
 	float new_o[3], new_dir[3], p0p1len;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
-	float A, B, C, r[2];
+	float A, B, C;
 	int rcnt;
 	mathVec3Sub(new_axies[2], p1, p0);
 	p0p1len = mathVec3Len(new_axies[2]);
@@ -606,28 +618,22 @@ int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, float ls_ver
 	new_axies[1][2] = new_axies[2][1];
 	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
 	mathVec3Normalized(new_axies[0], new_axies[0]);
-	mathCoordinateSystemTransform(ls_vertice, p0, new_axies, new_o);
+	mathCoordinateSystemTransform(ls_v, p0, new_axies, new_o);
 	mathCoordinateSystemTransform(lsdir, NULL, new_axies, new_dir);
 	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
 	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
-	rcnt = mathQuadraticEquation(A, B, C, r);
+	rcnt = mathQuadraticEquation(A, B, C, distance);
 	if (0 == rcnt) {
 		float plp[3], plpp[3];
-		mathPointProjectionLine(ls_vertice, cp, plp, NULL);
-		mathVec3Sub(plpp, ls_vertice, plp);
+		mathPointProjectionLine(ls_v, cp, plp, NULL);
+		mathVec3Sub(plpp, ls_v, plp);
 		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
-	}
-	else {
-		int i;
-		for (i = 0; i < rcnt; ++i) {
-			mathVec3AddScalar(mathVec3Copy(p[i], ls_vertice), lsdir, r[i]);
-		}
 	}
 	return rcnt;
 }
 
-int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane_vertice[3], float plane_normal[3], float p[4][3]) {
+int mathCylinderInfiniteIntersectPlane(const float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
 	float axis[3], cos_theta;
 	mathVec3Sub(axis, cp[1], cp[0]);
 	cos_theta = mathVec3Dot(axis, plane_normal);
@@ -645,20 +651,20 @@ int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, float plane
 		mathVec3AddScalar(mathVec3Copy(center, cp[0]), axis, d);
 		mathVec3Cross(v1, plane_normal, axis);
 		if (mathVec3IsZero(v1)) {
-			mathVec3Copy(p[0], center);
-			mathVec3Copy(p[1], axis);
+			mathVec3Copy(res_data[0], center);
+			mathVec3Copy(res_data[1], axis);
 			return 1;
 		}
 		else {
 			float v2[3];
 			mathVec3Cross(v2, v1, plane_normal);
 			mathVec3Normalized(v1, v1);
-			mathVec3AddScalar(mathVec3Copy(p[0], center), v1, radius);
-			mathVec3AddScalar(mathVec3Copy(p[1], center), v1, -radius);
+			mathVec3AddScalar(mathVec3Copy(res_data[0], center), v1, radius);
+			mathVec3AddScalar(mathVec3Copy(res_data[1], center), v1, -radius);
 			mathVec3Normalized(v2, v2);
 			d = radius / cos_theta;
-			mathVec3AddScalar(mathVec3Copy(p[2], center), v2, d);
-			mathVec3AddScalar(mathVec3Copy(p[3], center), v2, -d);
+			mathVec3AddScalar(mathVec3Copy(res_data[2], center), v2, d);
+			mathVec3AddScalar(mathVec3Copy(res_data[3], center), v2, -d);
 			return 2;
 		}
 	}
@@ -1573,18 +1579,6 @@ static void AABBVertices(float o[3], float half[3], float v[8][3]) {
 	v[5][0] = o[0] + half[0], v[5][1] = o[1] - half[1], v[5][2] = o[2] + half[2];
 	v[6][0] = o[0] + half[0], v[6][1] = o[1] + half[1], v[6][2] = o[2] + half[2];
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
-}
-
-int mathAABBIntersectAABB(float o1[3], float half1[3], float o2[3], float half2[3]) {
-	/*
-	!(o2[0] - half2[0] > o1[0] + half1[0] || o1[0] - half1[0] > o2[0] + half2[0] ||
-	o2[1] - half2[1] > o1[1] + half1[1] || o1[1] - half1[1] > o2[1] + half2[1] ||
-	o2[2] - half2[2] > o1[2] + half1[2] || o1[2] - half1[2] > o2[2] + half2[2]);
-	*/
-	
-	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
-			o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
-			o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
 CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
