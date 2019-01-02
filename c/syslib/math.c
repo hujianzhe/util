@@ -394,6 +394,18 @@ void mathPointProjectionPlane(float p[3], float plane_v[3], float plane_normal[3
 	}
 }
 
+int mathLineIntersectPlane(float ls_v[3], float lsdir[3], float plane_v[3], float plane_normal[3], float* distance) {
+	float cos_theta = mathVec3Dot(lsdir, plane_normal);
+	mathPointProjectionPlane(ls_v, plane_v, plane_normal, NULL, distance);
+	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON)) {
+		*distance /= cos_theta;
+		return 1;
+	}
+	else {
+		return fcmpf(*distance, 0.0f, CCT_EPSILON) ? 0 : -1;
+	}
+}
+
 int mathLineSegmentHasPoint(float ls[2][3], float p[3]) {
 	float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
