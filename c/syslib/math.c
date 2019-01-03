@@ -597,35 +597,6 @@ int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const floa
 	}
 }
 
-int mathSphereHasLineSegment(const float o[3], float radius, float ls[2][3], float pointcut[3]) {
-	int c[2];
-	c[0] = mathSphereHasPoint(o, radius, ls[0]);
-	c[1] = mathSphereHasPoint(o, radius, ls[1]);
-	if (c[0] + c[1] >= 2)
-		return 2;
-	else {
-		float pl[3], plo[3];
-		mathPointProjectionLine(o, ls, pl, NULL);
-		if (!mathLineSegmentHasPoint(ls, pl)) {
-			if (c[0] && pointcut)
-				mathVec3Copy(pointcut, ls[0]);
-			else if (c[1] && pointcut)
-				mathVec3Copy(pointcut, ls[1]);
-			return c[0] + c[1];
-		}
-		mathVec3Sub(plo, o, pl);
-		c[0] = fcmpf(mathVec3LenSq(plo), radius * radius, CCT_EPSILON);
-		if (c[0] < 0)
-			return 2;
-		if (0 == c[0]) {
-			if (pointcut)
-				mathVec3Copy(pointcut, pl);
-			return 1;
-		}
-		return 0;
-	}
-}
-
 int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]) {
 	int cmp;
 	float vo[3], lp[3], lpo[3], lpolensq, radiussq, dot;
@@ -647,6 +618,35 @@ int mathSphereIntersectLine(const float o[3], float radius, const float ls_verti
 		distance[0] = dot + d;
 		distance[1] = dot - d;
 		return 2;
+	}
+}
+
+int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], float p[3]) {
+	int c[2];
+	c[0] = mathSphereHasPoint(o, radius, ls[0]);
+	c[1] = mathSphereHasPoint(o, radius, ls[1]);
+	if (c[0] + c[1] >= 2)
+		return 2;
+	else {
+		float pl[3], plo[3];
+		mathPointProjectionLine(o, ls, pl, NULL);
+		if (!mathLineSegmentHasPoint(ls, pl)) {
+			if (c[0] && p)
+				mathVec3Copy(p, ls[0]);
+			else if (c[1] && p)
+				mathVec3Copy(p, ls[1]);
+			return c[0] + c[1];
+		}
+		mathVec3Sub(plo, o, pl);
+		c[0] = fcmpf(mathVec3LenSq(plo), radius * radius, CCT_EPSILON);
+		if (c[0] < 0)
+			return 2;
+		if (0 == c[0]) {
+			if (p)
+				mathVec3Copy(p, pl);
+			return 1;
+		}
+		return 0;
 	}
 }
 
@@ -1318,7 +1318,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 }
 
 CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
-	int c = mathSphereHasLineSegment(center, radius, ls, result->hit_point);
+	int c = mathSphereIntersectSegment(center, radius, ls, result->hit_point);
 	if (1 == c) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;

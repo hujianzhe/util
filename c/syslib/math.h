@@ -94,12 +94,11 @@ __declspec_dll int mathLineIntersectPlane(const float ls_v[3], const float lsdir
 __declspec_dll int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]);
 __declspec_dll int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]);
 __declspec_dll int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]);
+__declspec_dll int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], float p[3]);
 __declspec_dll int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
 __declspec_dll int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], float r2, float p[3]);
 __declspec_dll int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, float cp[2][3], float cp_radius, float p[3]);
 __declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
-
-__declspec_dll int mathSphereHasLineSegment(const float o[3], float radius, float ls[2][3], float pointcut[3]);
 //__declspec_dll int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]);
 typedef struct CCTResult_t {
 	float distance;
