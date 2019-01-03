@@ -177,7 +177,7 @@ float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]) {
 	return r;
 }
 
-float* mathCoordinateSystemTransform(const float v[3], const float new_origin[3], const float new_axies[3][3], float new_v[3]) {
+float* mathCoordinateSystemTransform(const float v[3], const float new_origin[3], float new_axies[3][3], float new_v[3]) {
 	float t[3];
 	if (new_origin)/* if v is normal vector, this field must be NULL */
 		mathVec3Sub(t, v, new_origin);
@@ -359,7 +359,7 @@ static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	}
 }
 
-void mathPointProjectionLine(const float p[3], const float ls[2][3], float np[3], float* distance) {
+void mathPointProjectionLine(const float p[3], float ls[2][3], float np[3], float* distance) {
 	float v0v1[3], v0p[3], pp[3];
 	mathVec3Sub(v0v1, ls[1], ls[0]);
 	mathVec3Sub(v0p, p, ls[0]);
@@ -386,7 +386,7 @@ void mathPointProjectionPlane(const float p[3], const float plane_v[3], const fl
 	}
 }
 
-float* mathPlaneNormalByVertices3(const float vertices[3][3], float normal[3]) {
+float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]) {
 	float v0v1[3], v0v2[3];
 	mathVec3Sub(v0v1, vertices[1], vertices[0]);
 	mathVec3Sub(v0v2, vertices[2], vertices[0]);
@@ -394,7 +394,7 @@ float* mathPlaneNormalByVertices3(const float vertices[3][3], float normal[3]) {
 	return mathVec3Normalized(normal, normal);
 }
 
-int mathLineSegmentHasPoint(const float ls[2][3], const float p[3]) {
+int mathLineSegmentHasPoint(float ls[2][3], const float p[3]) {
 	const float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
 	mathVec3Sub(pv1, v1, p);
@@ -417,7 +417,7 @@ int mathLineSegmentHasPoint(const float ls[2][3], const float p[3]) {
 	}
 }
 
-int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
+int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p_v) {
 	float ap[3], ab[3], ac[3], N[3];
 	mathVec3Sub(ap, p, tri[0]);
 	mathVec3Sub(ab, tri[1], tri[0]);
@@ -447,7 +447,7 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, fl
 	}
 }
 
-int mathCapsuleHasPoint(const float cp[2][3], float radius, const float p[3]) {
+int mathCapsuleHasPoint(float cp[2][3], float radius, const float p[3]) {
 	float cpdir[3], cplensq, v[3], dot;
 	mathVec3Sub(cpdir, cp[1], cp[0]);
 	cplensq = mathVec3LenSq(cpdir);
@@ -480,7 +480,7 @@ int mathSphereHasPoint(const float o[3], float radius, const float p[3]) {
 		return 2;
 }
 
-float* mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]) {
+float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
 	float v0[3], v1[3], v2[3];
 	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
 	mathVec3MultiplyScalar(v1, tri[1], u);
@@ -508,19 +508,29 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 		dot = mathVec3Dot(v, ls2dir);
 		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
 		mathVec3Sub(v, v, ls1v);
-		distance[0] = mathVec3Len(v);
-		distance[0] /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+		if (mathVec3IsZero(v)) {
+			distance[0] = 0.0f;
+		}
+		else {
+			distance[0] = mathVec3Len(v);
+			distance[0] /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+		}
 		mathVec3Sub(v, ls2v, ls1v);
 		dot = mathVec3Dot(v, ls1dir);
 		mathVec3AddScalar(mathVec3Copy(v, ls1v), ls1dir, dot);
 		mathVec3Sub(v, v, ls2v);
-		distance[1] = mathVec3Len(v);
-		distance[1] /= mathVec3Dot(mathVec3Normalized(v, v), ls2dir);
+		if (mathVec3IsZero(v)) {
+			distance[1] = 0.0f;
+		}
+		else {
+			distance[1] = mathVec3Len(v);
+			distance[1] /= mathVec3Dot(mathVec3Normalized(v, v), ls2dir);
+		}
 		return 1;
 	}
 }
 
-static int overlapSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+static int overlapSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
 	int res = mathLineSegmentHasPoint(ls1, ls2[0]);
 	if (3 == res)
 		return 2;
@@ -550,7 +560,7 @@ static int overlapSegmentIntersectSegment(const float ls1[2][3], const float ls2
 	return 0;
 }
 
-int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+int mathSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
 	int res;
 	float lsdir1[3], lsdir2[3], d[2], lslensq1, lslensq2;
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
@@ -587,7 +597,7 @@ int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const floa
 	}
 }
 
-int mathSphereHasLineSegment(const float o[3], float radius, const float ls[2][3], float pointcut[3]) {
+int mathSphereHasLineSegment(const float o[3], float radius, float ls[2][3], float pointcut[3]) {
 	int c[2];
 	c[0] = mathSphereHasPoint(o, radius, ls[0]);
 	c[1] = mathSphereHasPoint(o, radius, ls[1]);
@@ -676,7 +686,7 @@ int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], fl
 	}
 }
 
-int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, const float cp[2][3], float cp_radius, float p[3]) {
+int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, float cp[2][3], float cp_radius, float p[3]) {
 	float cpdir[3], cplensq, v[3], dot;
 	mathVec3Sub(cpdir, cp[1], cp[0]);
 	cplensq = mathVec3LenSq(cpdir);
@@ -718,7 +728,7 @@ int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o
 		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
-int mathCylinderInfiniteIntersectLine(const float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]) {
+int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]) {
 	const float *p0 = cp[0], *p1 = cp[1];
 	float new_o[3], new_dir[3], p0p1len;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
@@ -747,7 +757,7 @@ int mathCylinderInfiniteIntersectLine(const float cp[2][3], float radius, const 
 	return rcnt;
 }
 
-int mathCylinderInfiniteIntersectPlane(const float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
+int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
 	float axis[3], cos_theta;
 	mathVec3Sub(axis, cp[1], cp[0]);
 	cos_theta = mathVec3Dot(axis, plane_normal);
