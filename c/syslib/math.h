@@ -99,7 +99,7 @@ __declspec_dll int mathSphereIntersectSphere(const float o1[3], float r1, const 
 __declspec_dll int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, const float cp[2][3], float cp_radius, float p[3]);
 __declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
 
-__declspec_dll int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]);
+__declspec_dll int mathSphereHasLineSegment(const float o[3], float radius, const float ls[2][3], float pointcut[3]);
 //__declspec_dll int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]);
 typedef struct CCTResult_t {
 	float distance;

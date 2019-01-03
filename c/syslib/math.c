@@ -587,7 +587,7 @@ int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const floa
 	}
 }
 
-int mathSphereHasLineSegment(float o[3], float radius, float ls[2][3], float pointcut[3]) {
+int mathSphereHasLineSegment(const float o[3], float radius, const float ls[2][3], float pointcut[3]) {
 	int c[2];
 	c[0] = mathSphereHasPoint(o, radius, ls[0]);
 	c[1] = mathSphereHasPoint(o, radius, ls[1]);
