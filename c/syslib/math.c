@@ -403,13 +403,17 @@ int mathLineSegmentHasPoint(const float ls[2][3], const float p[3]) {
 		return 0;
 	else {
 		int i;
+		if (mathVec3Equal(ls[0], p))
+			return 1;
+		if (mathVec3Equal(ls[1], p))
+			return 2;
 		for (i = 0; i < 3; ++i) {
 			float min_v, max_v;
 			v1[i] < v2[i] ? (min_v = v1[i], max_v = v2[i]) : (min_v = v2[i], max_v = v1[i]);
 			if (fcmpf(p[i], min_v, CCT_EPSILON) < 0 || fcmpf(p[i], max_v, CCT_EPSILON) > 0)
 				return 0;
 		}
-		return 1;
+		return 3;
 	}
 }
 
@@ -444,14 +448,17 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, fl
 }
 
 int mathCapsuleHasPoint(const float cp[2][3], float radius, const float p[3]) {
-	float cpdir[3], v[3], dot;
+	float cpdir[3], cplensq, v[3], dot;
 	mathVec3Sub(cpdir, cp[1], cp[0]);
+	cplensq = mathVec3LenSq(cpdir);
 	mathVec3Sub(v, p, cp[0]);
 	dot = mathVec3Dot(cpdir, v);
 	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
 		return mathSphereHasPoint(cp[0], radius, p);
 	}
-	else if (fcmpf(dot * dot, mathVec3LenSq(cpdir), CCT_EPSILON) > 0) {
+	mathVec3Normalized(cpdir, cpdir);
+	dot = mathVec3Dot(cpdir, v);
+	if (fcmpf(dot * dot, cplensq, CCT_EPSILON) > 0) {
 		return mathSphereHasPoint(cp[1], radius, p);
 	}
 	else {
@@ -481,7 +488,7 @@ float* mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3])
 	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
 }
 
-int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float* distance) {
+int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float distance[2]) {
 	float N[3], v[3], dot;
 	mathVec3Cross(N, ls1dir, ls2dir);
 	if (mathVec3IsZero(N)) {
@@ -492,7 +499,7 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 	else {
 		mathVec3Sub(v, ls1v, ls2v);
 		if (mathVec3IsZero(v)) {
-			*distance = 0.0f;
+			distance[0] = distance[1] = 0.0f;
 			return 1;
 		}
 		dot = mathVec3Dot(v, N);
@@ -501,9 +508,70 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 		dot = mathVec3Dot(v, ls2dir);
 		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
 		mathVec3Sub(v, v, ls1v);
-		*distance = mathVec3Len(v);
-		*distance /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+		distance[0] = mathVec3Len(v);
+		distance[0] /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+		mathVec3Sub(v, ls2v, ls1v);
+		dot = mathVec3Dot(v, ls1dir);
+		mathVec3AddScalar(mathVec3Copy(v, ls1v), ls1dir, dot);
+		mathVec3Sub(v, v, ls2v);
+		distance[1] = mathVec3Len(v);
+		distance[1] /= mathVec3Dot(mathVec3Normalized(v, v), ls2dir);
 		return 1;
+	}
+}
+
+static int overlapSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+	int res = mathLineSegmentHasPoint(ls1, ls2[0]);
+	if (3 == res)
+		return 2;
+	else if (res) {
+		if (mathLineSegmentHasPoint(ls1, ls2[1]))
+			return 2;
+		if (mathLineSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
+			return 2;
+		mathVec3Copy(p, ls1[res - 1]);
+		return 1;
+	}
+	res = mathLineSegmentHasPoint(ls1, ls2[1]);
+	if (3 == res)
+		return 2;
+	else if (res) {
+		if (mathLineSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
+			return 2;
+		mathVec3Copy(p, ls1[res - 1]);
+		return 1;
+	}
+
+	if (mathLineSegmentHasPoint(ls2, ls1[0]) == 3 ||
+		mathLineSegmentHasPoint(ls2, ls1[1]) == 3)
+	{
+		return 2;
+	}
+	return 0;
+}
+
+int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+	int res;
+	float lsdir1[3], lsdir2[3], d[2], lslensq1, lslensq2;
+	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
+	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
+	lslensq1 = mathVec3LenSq(lsdir1);
+	lslensq2 = mathVec3LenSq(lsdir2);
+	mathVec3Normalized(lsdir1, lsdir1);
+	mathVec3Normalized(lsdir2, lsdir2);
+	res = mathLineIntersectLine(ls1[0], lsdir1, ls2[0], lsdir2, d);
+	if (0 == res)
+		return 0;
+	if (res > 0) {
+		if (fcmpf(d[0], 0.0f, CCT_EPSILON) < 0 || fcmpf(d[1], 0.0f, CCT_EPSILON) < 0)
+			return 0;
+		if (fcmpf(d[0] * d[0], lslensq1, CCT_EPSILON) > 0 || fcmpf(d[1] * d[1], lslensq2, CCT_EPSILON) > 0)
+			return 0;
+		mathVec3AddScalar(mathVec3Copy(p, ls1[0]), lsdir1, d[0]);
+		return 1;
+	}
+	else {
+		return overlapSegmentIntersectSegment(ls1, ls2, p);
 	}
 }
 
@@ -589,6 +657,52 @@ int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v
 		mathVec3Copy(new_o, pp);
 		*new_r = sqrtf(radius * radius - mathVec3LenSq(ppo));
 		return 2;
+	}
+}
+
+int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], float r2, float p[3]) {
+	int cmp;
+	float o1o2[3], radius_sum = r1 + r2;
+	mathVec3Sub(o1o2, o2, o1);
+	cmp = fcmpf(mathVec3LenSq(o1o2), radius_sum * radius_sum, CCT_EPSILON);
+	if (cmp > 0)
+		return 0;
+	if (cmp < 0)
+		return 2;
+	else {
+		mathVec3Normalized(o1o2, o1o2);
+		mathVec3AddScalar(mathVec3Copy(p, o1), o1o2, r1);
+		return 1;
+	}
+}
+
+int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, const float cp[2][3], float cp_radius, float p[3]) {
+	float cpdir[3], cplensq, v[3], dot;
+	mathVec3Sub(cpdir, cp[1], cp[0]);
+	cplensq = mathVec3LenSq(cpdir);
+	mathVec3Sub(v, sphere_o, cp[0]);
+	dot = mathVec3Dot(cpdir, v);
+	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0)
+		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp[0], cp_radius, p);
+	mathVec3Normalized(cpdir, cpdir);
+	dot = mathVec3Dot(cpdir, v);
+	if (fcmpf(dot * dot, cplensq, CCT_EPSILON) > 0)
+		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp[1], cp_radius, p);
+	else {
+		float radius_sum = sphere_radius + cp_radius;
+		int cmp = fcmpf(mathVec3LenSq(v) - dot * dot, radius_sum * radius_sum, CCT_EPSILON);
+		if (cmp > 0)
+			return 0;
+		if (cmp < 0)
+			return 2;
+		else {
+			float pl[3];
+			mathVec3AddScalar(mathVec3Copy(pl, cp[0]), cpdir, dot);
+			mathVec3Sub(v, pl, sphere_o);
+			mathVec3Normalized(v, v);
+			mathVec3AddScalar(mathVec3Copy(p, sphere_o), v, sphere_radius);
+			return 1;
+		}
 	}
 }
 
