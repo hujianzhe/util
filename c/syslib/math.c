@@ -107,7 +107,7 @@ float mathVec3Len(const float v[3]) {
 	return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
-float* mathVec3Normalized(float r[3], const float v[3]) {
+float mathVec3Normalized(float r[3], const float v[3]) {
 	float len = mathVec3Len(v);
 	if (fcmpf(len, 0.0f, CCT_EPSILON) > 0) {
 		float inv_len = 1.0f / len;
@@ -115,7 +115,7 @@ float* mathVec3Normalized(float r[3], const float v[3]) {
 		r[1] = v[1] * inv_len;
 		r[2] = v[2] * inv_len;
 	}
-	return r;
+	return len;
 }
 
 /* r = -v */
@@ -362,8 +362,8 @@ static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
 void mathPointProjectionLine(const float p[3], float ls[2][3], float np[3], float* distance) {
 	float v0v1[3], v0p[3], pp[3];
 	mathVec3Sub(v0v1, ls[1], ls[0]);
-	mathVec3Sub(v0p, p, ls[0]);
 	mathVec3Normalized(v0v1, v0v1);
+	mathVec3Sub(v0p, p, ls[0]);
 	mathVec3Copy(pp, ls[0]);
 	mathVec3AddScalar(pp, v0v1, mathVec3Dot(v0v1, v0p));
 	if (np)
@@ -391,7 +391,8 @@ float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]) {
 	mathVec3Sub(v0v1, vertices[1], vertices[0]);
 	mathVec3Sub(v0v2, vertices[2], vertices[0]);
 	mathVec3Cross(normal, v0v1, v0v2);
-	return mathVec3Normalized(normal, normal);
+	mathVec3Normalized(normal, normal);
+	return normal;
 }
 
 int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]) {
@@ -453,19 +454,17 @@ int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p
 	}
 }
 
-int mathCapsuleHasPoint(float cp[2][3], float radius, const float p[3]) {
-	float cpdir[3], cplensq, v[3], dot;
-	mathVec3Sub(cpdir, cp[1], cp[0]);
-	cplensq = mathVec3LenSq(cpdir);
-	mathVec3Sub(v, p, cp[0]);
-	dot = mathVec3Dot(cpdir, v);
+int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]) {
+	float cp[3], v[3], dot;
+	mathVec3AddScalar(mathVec3Copy(cp, o), axis, -half_height);
+	mathVec3Sub(v, p, cp);
+	dot = mathVec3Dot(axis, v);
 	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
-		return mathSphereHasPoint(cp[0], radius, p);
+		return mathSphereHasPoint(cp, radius, p);
 	}
-	mathVec3Normalized(cpdir, cpdir);
-	dot = mathVec3Dot(cpdir, v);
-	if (fcmpf(dot * dot, cplensq, CCT_EPSILON) > 0) {
-		return mathSphereHasPoint(cp[1], radius, p);
+	else if (fcmpf(dot, half_height + half_height, CCT_EPSILON) > 0) {
+		mathVec3AddScalar(cp, axis, half_height + half_height);
+		return mathSphereHasPoint(cp, radius, p);
 	}
 	else {
 		int cmp = fcmpf(mathVec3LenSq(v) - dot * dot, radius * radius, CCT_EPSILON);
@@ -518,8 +517,8 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 			distance[0] = 0.0f;
 		}
 		else {
-			distance[0] = mathVec3Len(v);
-			distance[0] /= mathVec3Dot(mathVec3Normalized(v, v), ls1dir);
+			distance[0] = mathVec3Normalized(v, v);
+			distance[0] /= mathVec3Dot(v, ls1dir);
 		}
 		mathVec3Sub(v, ls2v, ls1v);
 		dot = mathVec3Dot(v, ls1dir);
@@ -529,8 +528,8 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 			distance[1] = 0.0f;
 		}
 		else {
-			distance[1] = mathVec3Len(v);
-			distance[1] /= mathVec3Dot(mathVec3Normalized(v, v), ls2dir);
+			distance[1] = mathVec3Normalized(v, v);
+			distance[1] /= mathVec3Dot(v, ls2dir);
 		}
 		return 1;
 	}
@@ -568,20 +567,18 @@ static int overlapSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], floa
 
 int mathSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
 	int res;
-	float lsdir1[3], lsdir2[3], d[2], lslensq1, lslensq2;
+	float lsdir1[3], lsdir2[3], d[2], lslen1, lslen2;
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
-	lslensq1 = mathVec3LenSq(lsdir1);
-	lslensq2 = mathVec3LenSq(lsdir2);
-	mathVec3Normalized(lsdir1, lsdir1);
-	mathVec3Normalized(lsdir2, lsdir2);
+	lslen1 = mathVec3Normalized(lsdir1, lsdir1);
+	lslen2 = mathVec3Normalized(lsdir2, lsdir2);
 	res = mathLineIntersectLine(ls1[0], lsdir1, ls2[0], lsdir2, d);
 	if (0 == res)
 		return 0;
 	if (res > 0) {
 		if (fcmpf(d[0], 0.0f, CCT_EPSILON) < 0 || fcmpf(d[1], 0.0f, CCT_EPSILON) < 0)
 			return 0;
-		if (fcmpf(d[0] * d[0], lslensq1, CCT_EPSILON) > 0 || fcmpf(d[1] * d[1], lslensq2, CCT_EPSILON) > 0)
+		if (fcmpf(d[0], lslen1, CCT_EPSILON) > 0 || fcmpf(d[1], lslen2, CCT_EPSILON) > 0)
 			return 0;
 		mathVec3AddScalar(mathVec3Copy(p, ls1[0]), lsdir1, d[0]);
 		return 1;
@@ -721,18 +718,18 @@ int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], fl
 	}
 }
 
-int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, float cp[2][3], float cp_radius, float p[3]) {
-	float cpdir[3], cplensq, v[3], dot;
-	mathVec3Sub(cpdir, cp[1], cp[0]);
-	cplensq = mathVec3LenSq(cpdir);
-	mathVec3Sub(v, sphere_o, cp[0]);
-	dot = mathVec3Dot(cpdir, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0)
-		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp[0], cp_radius, p);
-	mathVec3Normalized(cpdir, cpdir);
-	dot = mathVec3Dot(cpdir, v);
-	if (fcmpf(dot * dot, cplensq, CCT_EPSILON) > 0)
-		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp[1], cp_radius, p);
+int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, float p[3]) {
+	float v[3], cp[3], dot;
+	mathVec3AddScalar(mathVec3Copy(cp, cp_o), cp_axis, -cp_half_height);
+	mathVec3Sub(v, sphere_o, cp);
+	dot = mathVec3Dot(cp_axis, v);
+	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
+		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp, cp_radius, p);
+	}
+	else if (fcmpf(dot, cp_half_height + cp_half_height, CCT_EPSILON) > 0) {
+		mathVec3AddScalar(cp, cp_axis, cp_half_height + cp_half_height);
+		return mathSphereIntersectSphere(sphere_o, sphere_radius, cp, cp_radius, p);
+	}
 	else {
 		float radius_sum = sphere_radius + cp_radius;
 		int cmp = fcmpf(mathVec3LenSq(v) - dot * dot, radius_sum * radius_sum, CCT_EPSILON);
@@ -742,7 +739,7 @@ int mathSphereIntersectCapsule(const float sphere_o[3], float sphere_radius, flo
 			return 2;
 		else {
 			float pl[3];
-			mathVec3AddScalar(mathVec3Copy(pl, cp[0]), cpdir, dot);
+			mathVec3AddScalar(mathVec3Copy(pl, cp), cp_axis, dot);
 			mathVec3Sub(v, pl, sphere_o);
 			mathVec3Normalized(v, v);
 			mathVec3AddScalar(mathVec3Copy(p, sphere_o), v, sphere_radius);
@@ -763,51 +760,44 @@ int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o
 		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
 }
 
-int mathCylinderInfiniteIntersectLine(float cp[2][3], float radius, const float ls_v[3], const float lsdir[3], float distance[2]) {
-	const float *p0 = cp[0], *p1 = cp[1];
-	float new_o[3], new_dir[3], p0p1len;
+int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
+	float new_o[3], new_dir[3], radius_sq = radius * radius;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
 	float A, B, C;
 	int rcnt;
-	mathVec3Sub(new_axies[2], p1, p0);
-	p0p1len = mathVec3Len(new_axies[2]);
-	mathVec3Normalized(new_axies[2], new_axies[2]);
+	mathVec3Copy(new_axies[2], axis);
 	new_axies[1][0] = 0.0f;
-	new_axies[1][1] = new_axies[2][2];
+	new_axies[1][1] = -new_axies[2][2];
 	new_axies[1][2] = new_axies[2][1];
+	mathVec3Normalized(new_axies[1], new_axies[1]);
 	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
-	mathVec3Normalized(new_axies[0], new_axies[0]);
-	mathCoordinateSystemTransform(ls_v, p0, new_axies, new_o);
+	mathCoordinateSystemTransform(ls_v, cp, new_axies, new_o);
 	mathCoordinateSystemTransform(lsdir, NULL, new_axies, new_dir);
 	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
-	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius * radius;
+	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius_sq;
 	rcnt = mathQuadraticEquation(A, B, C, distance);
 	if (0 == rcnt) {
-		float plp[3], plpp[3];
-		mathPointProjectionLine(ls_v, cp, plp, NULL);
-		mathVec3Sub(plpp, ls_v, plp);
-		return fcmpf(mathVec3LenSq(plpp), radius * radius, CCT_EPSILON) > 0 ? 0 : -1;
+		float v[3], dot;
+		mathVec3Sub(v, ls_v, cp);
+		dot = mathVec3Dot(v, axis);
+		return fcmpf(mathVec3LenSq(v) - dot * dot, radius_sq, CCT_EPSILON) > 0 ? 0 : -1;
 	}
 	return rcnt;
 }
 
-int mathCylinderInfiniteIntersectPlane(float cp[2][3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
-	float axis[3], cos_theta;
-	mathVec3Sub(axis, cp[1], cp[0]);
-	cos_theta = mathVec3Dot(axis, plane_normal);
+int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
+	float cos_theta = mathVec3Dot(axis, plane_normal);
 	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
 		float d;
-		mathPointProjectionPlane(cp[0], plane_vertice, plane_normal, NULL, &d);
+		mathPointProjectionPlane(cp, plane_vertice, plane_normal, NULL, &d);
 		return fcmpf(d < 0.0f ? -d : d, radius, CCT_EPSILON) > 0 ? 0 : -1;
 	}
 	else {
 		float center[3], v1[3], d;
-		mathVec3Normalized(axis, axis);
-		cos_theta = mathVec3Dot(axis, plane_normal);
-		mathPointProjectionPlane(cp[0], plane_vertice, plane_normal, NULL, &d);
+		mathPointProjectionPlane(cp, plane_vertice, plane_normal, NULL, &d);
 		d /= cos_theta;
-		mathVec3AddScalar(mathVec3Copy(center, cp[0]), axis, d);
+		mathVec3AddScalar(mathVec3Copy(center, cp), axis, d);
 		mathVec3Cross(v1, plane_normal, axis);
 		if (mathVec3IsZero(v1)) {
 			mathVec3Copy(res_data[0], center);
@@ -885,8 +875,7 @@ CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CC
 		if (fcmpf(pld, 0.0f, CCT_EPSILON)) {
 			float opl[3], cos_theta, d;
 			mathVec3Sub(opl, pl, o);
-			d = mathVec3Len(opl);
-			mathVec3Normalized(opl, opl);
+			d = mathVec3Normalized(opl, opl);
 			cos_theta = mathVec3Dot(opl, dir);
 			if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
 				return NULL;
@@ -1397,7 +1386,8 @@ CCTResult_t* mathSegmentcastSphere(float ls[2][3], float dir[3], float center[3]
 					float cos_theta = mathVec3Dot(lpnp, dir);
 					if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
 						return NULL;
-					cos_theta = mathVec3Dot(mathVec3Normalized(lpnp, lpnp), dir);
+					mathVec3Normalized(lpnp, lpnp);
+					cos_theta = mathVec3Dot(lpnp, dir);
 					d = sqrtf(lpnplensq) - sqrtf(delta_lensq);
 					mathVec3AddScalar(mathVec3Copy(p, lp), lpnp, d);
 					d /= cos_theta;
