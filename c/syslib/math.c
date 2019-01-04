@@ -394,7 +394,13 @@ float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]) {
 	return mathVec3Normalized(normal, normal);
 }
 
-int mathLineSegmentHasPoint(float ls[2][3], const float p[3]) {
+int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]) {
+	float v[3];
+	mathVec3Sub(v, plane_v, p);
+	return fcmpf(mathVec3Dot(plane_normal, v), 0.0f, CCT_EPSILON) == 0;
+}
+
+int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
 	const float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
 	mathVec3Sub(pv1, v1, p);
@@ -531,29 +537,29 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 }
 
 static int overlapSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
-	int res = mathLineSegmentHasPoint(ls1, ls2[0]);
+	int res = mathSegmentHasPoint(ls1, ls2[0]);
 	if (3 == res)
 		return 2;
 	else if (res) {
-		if (mathLineSegmentHasPoint(ls1, ls2[1]))
+		if (mathSegmentHasPoint(ls1, ls2[1]))
 			return 2;
-		if (mathLineSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
+		if (mathSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
 			return 2;
 		mathVec3Copy(p, ls1[res - 1]);
 		return 1;
 	}
-	res = mathLineSegmentHasPoint(ls1, ls2[1]);
+	res = mathSegmentHasPoint(ls1, ls2[1]);
 	if (3 == res)
 		return 2;
 	else if (res) {
-		if (mathLineSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
+		if (mathSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
 			return 2;
 		mathVec3Copy(p, ls1[res - 1]);
 		return 1;
 	}
 
-	if (mathLineSegmentHasPoint(ls2, ls1[0]) == 3 ||
-		mathLineSegmentHasPoint(ls2, ls1[1]) == 3)
+	if (mathSegmentHasPoint(ls2, ls1[0]) == 3 ||
+		mathSegmentHasPoint(ls2, ls1[1]) == 3)
 	{
 		return 2;
 	}
@@ -659,7 +665,7 @@ int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], f
 	else {
 		float pl[3], plo[3];
 		mathPointProjectionLine(o, ls, pl, NULL);
-		if (!mathLineSegmentHasPoint(ls, pl)) {
+		if (!mathSegmentHasPoint(ls, pl)) {
 			if (c[0] && p)
 				mathVec3Copy(p, ls[0]);
 			else if (c[1] && p)
@@ -867,7 +873,7 @@ int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3],
 */
 
 CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CCTResult_t* result) {
-	if (mathLineSegmentHasPoint(ls, o)) {
+	if (mathSegmentHasPoint(ls, o)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
 		mathVec3Copy(result->hit_point, o);
@@ -888,7 +894,7 @@ CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], float ls[2][3], CC
 			result->distance = d;
 			result->hit_point_cnt = 1;
 			mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d);
-			return mathLineSegmentHasPoint(ls, result->hit_point) ? result : NULL;
+			return mathSegmentHasPoint(ls, result->hit_point) ? result : NULL;
 		}
 		else {
 			float ols[3], d[2];
@@ -1088,7 +1094,7 @@ CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float cp[2][3], float
 }
 */
 
-CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
+CCTResult_t* mathSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	int cmp[2];
 	float d[2];
 	mathPointProjectionPlane(ls[0], vertice, normal, NULL, &d[0]);
@@ -1162,7 +1168,7 @@ CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertic
 	}
 }
 
-CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result) {
+CCTResult_t* mathSegmentcastSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result) {
 	float N[3], lsdir1[3];
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 	mathVec3Cross(N, lsdir1, dir);
@@ -1185,7 +1191,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 	}
 	else {
 		float neg_dir[3];
-		if (!mathLineSegmentcastPlane(ls2, dir, ls1[0], N, result))
+		if (!mathSegmentcastPlane(ls2, dir, ls1[0], N, result))
 			return NULL;
 		mathVec3Negate(neg_dir, dir);
 		if (result->hit_point_cnt < 0) {
@@ -1218,7 +1224,7 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 				d /= cos_theta;
 				mathVec3Copy(p, ls1[0]);
 				mathVec3AddScalar(p, lsdir1, d);
-				if (mathLineSegmentHasPoint(ls1, p) && mathLineSegmentHasPoint(ls2, p)) {
+				if (mathSegmentHasPoint(ls1, p) && mathSegmentHasPoint(ls2, p)) {
 					result->distance = 0.0f;
 					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, p);
@@ -1295,12 +1301,12 @@ CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float
 	}
 }
 
-CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
+CCTResult_t* mathSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result) {
 	int i;
 	CCTResult_t results[3], *p_result = NULL;
 	float N[3];
 	mathPlaneNormalByVertices3(tri, N);
-	if (!mathLineSegmentcastPlane(ls, dir, tri[0], N, result))
+	if (!mathSegmentcastPlane(ls, dir, tri[0], N, result))
 		return NULL;
 	else if (result->hit_point_cnt < 0) {
 		int c[2];
@@ -1320,7 +1326,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 		float edge[2][3];
 		mathVec3Copy(edge[0], tri[i % 3]);
 		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
-		if (!mathLineSegmentcastLineSegment(ls, dir, edge, &results[i]))
+		if (!mathSegmentcastSegment(ls, dir, edge, &results[i]))
 			continue;
 		if (!p_result)
 			p_result = &results[i];
@@ -1346,7 +1352,7 @@ CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri
 	return NULL;
 }
 
-CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
+CCTResult_t* mathSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result) {
 	int c = mathSphereIntersectSegment(center, radius, ls, result->hit_point);
 	if (1 == c) {
 		result->distance = 0.0f;
@@ -1404,7 +1410,7 @@ CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float cente
 					mathVec3Copy(new_ls[1], ls[1]);
 					mathVec3Copy(p, lp);
 				}
-				if (mathLineSegmentHasPoint(new_ls, p)) {
+				if (mathSegmentHasPoint(new_ls, p)) {
 					result->distance = d;
 					result->hit_point_cnt = 1;
 					mathVec3Copy(result->hit_point, p);
@@ -1546,7 +1552,6 @@ CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[
 	}
 	return NULL;
 }
-*/
 
 CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[3], float o2[3], float r2, float n2[3], CCTResult_t* result) {
 	float cos_theta = mathVec3Dot(n1, n2);
@@ -1622,6 +1627,7 @@ CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[
 		}
 	}
 }
+*/
 
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
@@ -1630,7 +1636,7 @@ CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[
 		float ls[2][3];
 		mathVec3Copy(ls[0], tri[i % 3]);
 		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
-		if (mathLineSegmentcastPlane(ls, dir, vertice, normal, &results[i])) {
+		if (mathSegmentcastPlane(ls, dir, vertice, normal, &results[i])) {
 			if (!p_result)
 				p_result = &results[i];
 			else {
@@ -1663,7 +1669,7 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 		float ls[2][3];
 		mathVec3Copy(ls[0], tri1[i % 3]);
 		mathVec3Copy(ls[1], tri1[(i + 1) % 3]);
-		if (!mathLineSegmentcastTriangle(ls, dir, tri2, &results[i]))
+		if (!mathSegmentcastTriangle(ls, dir, tri2, &results[i]))
 			continue;
 		if (!p_result) {
 			p_result = &results[i];
@@ -1680,7 +1686,7 @@ CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2
 		float ls[2][3];
 		mathVec3Copy(ls[0], tri2[i % 3]);
 		mathVec3Copy(ls[1], tri2[(i + 1) % 3]);
-		if (!mathLineSegmentcastTriangle(ls, neg_dir, tri1, &results[i]))
+		if (!mathSegmentcastTriangle(ls, neg_dir, tri1, &results[i]))
 			continue;
 		if (!p_result) {
 			p_result = &results[i];
@@ -1867,7 +1873,7 @@ CCTResult_t* mathSpherecastTriangle(float o[3], float radius, float dir[3], floa
 			float ls[2][3];
 			mathVec3Copy(ls[0], tri[i % 3]);
 			mathVec3Copy(ls[1], tri[(i + 1) % 3]);
-			if (mathLineSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
+			if (mathSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
 				(!p_result || p_result->distance > result_temp.distance))
 			{
 				copy_result(result, &result_temp);
@@ -1909,7 +1915,7 @@ CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3]
 				float ls[2][3];
 				mathVec3Copy(ls[0], vertices[indices[j % 3 + i]]);
 				mathVec3Copy(ls[1], vertices[indices[(j + 1) % 3 + i]]);
-				if (mathLineSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
+				if (mathSegmentcastSphere(ls, neg_dir, o, radius, &result_temp) &&
 					(!p_result || p_result->distance > result_temp.distance))
 				{
 					copy_result(result, &result_temp);
@@ -1939,7 +1945,7 @@ CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float ce
 	}
 	return p_result;
 }
-
+/*
 CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result) {
 	float dn0, dn1, N[3], pn0[3], pn1[3];
 	mathPlaneNormalByVertices3(vertices, N);
@@ -2014,6 +2020,7 @@ CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], fl
 		return result;
 	}
 }
+*/
 
 #ifdef	__cplusplus
 }

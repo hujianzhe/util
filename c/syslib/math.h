@@ -81,7 +81,8 @@ __declspec_dll void mathPointProjectionLine(const float p[3], float ls[2][3], fl
 __declspec_dll void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_normal[3], float np[3], float* distance);
 
 __declspec_dll float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]);
-__declspec_dll int mathLineSegmentHasPoint(float ls[2][3], const float p[3]);
+__declspec_dll int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]);
+__declspec_dll int mathSegmentHasPoint(float ls[2][3], const float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p_v);
 __declspec_dll int mathSphereHasPoint(const float o[3], float radius, const float p[3]);
 __declspec_dll int mathCapsuleHasPoint(float cp[2][3], float radius, const float p[3]);
@@ -111,12 +112,12 @@ __declspec_dll CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float ver
 __declspec_dll CCTResult_t* mathRaycastTriangle(float o[3], float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float radius, CCTResult_t* result);
 //__declspec_dll CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float cp[2][3], float radius, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathLineSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathLineSegmentcastLineSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathLineSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathLineSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSegmentcastSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSegmentcastTriangle(float ls[2][3], float dir[3], float tri[3][3], CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSegmentcastSphere(float ls[2][3], float dir[3], float center[3], float radius, CCTResult_t* result);
 //__declspec_dll CCTResult_t* mathLineSegmentcastCylinder(float ls[2][3], float dir[3], float cp[2][3], float radius, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[3], float o2[3], float r2, float n2[3], CCTResult_t* result);
+//__declspec_dll CCTResult_t* mathCirclecastCircle(float o1[3], float r1, float n1[3], float dir[3], float o2[3], float r2, float n2[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], float dir[3], float tri2[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathAABBcastPlane(float o[3], float half[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
@@ -126,7 +127,7 @@ __declspec_dll CCTResult_t* mathSpherecastSphere(float o1[3], float r1, float di
 __declspec_dll CCTResult_t* mathSpherecastTriangle(float o[3], float radius, float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastTrianglesPlane(float o[3], float radius, float dir[3], float vertices[][3], int indices[], int indicescnt, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastAABB(float o[3], float radius, float dir[3], float center[3], float half[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result);
+//__declspec_dll CCTResult_t* mathCylindercastPlane(float p[2][3], float radius, float dir[3], float vertices[3][3], CCTResult_t* result);
 
 #ifdef	__cplusplus
 }
