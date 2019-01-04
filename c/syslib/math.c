@@ -820,6 +820,20 @@ int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], f
 }
 
 /*
+int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]) {
+	float d[2];
+	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, d);
+	if (0 == res)
+		return 0;
+	if (1 == res) {
+		float p[3];
+		mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, d[0]);
+
+	}
+}
+*/
+
+/*
 int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
 	int res = mathCylinderInfiniteIntersectLine(cp, radius, ls_vertice, lsdir, p);
 	if (0 == res)
