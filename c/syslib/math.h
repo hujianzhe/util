@@ -112,6 +112,7 @@ __declspec_dll CCTResult_t* mathRaycastLineSegment(float o[3], float dir[3], flo
 __declspec_dll CCTResult_t* mathRaycastPlane(float o[3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastTriangle(float o[3], float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathRaycastSphere(float o[3], float dir[3], float center[3], float radius, CCTResult_t* result);
+//__declspec_dll CCTResult_t* mathRaycastCapsule(const float o[3], const float dir[3], const float cp_o[3], const float cp_axis[3], float half_height, CCTResult_t* result);
 //__declspec_dll CCTResult_t* mathRaycastCylinder(float o[3], float dir[3], float cp[2][3], float radius, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSegmentcastPlane(float ls[2][3], float dir[3], float vertice[3], float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSegmentcastSegment(float ls1[2][3], float dir[3], float ls2[2][3], CCTResult_t* result);

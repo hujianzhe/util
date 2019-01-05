@@ -863,9 +863,9 @@ int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const fl
 			distance[1] = *max_d;
 		}
 		else if (fcmpf(distance[j], 0.0f, CCT_EPSILON) > 0)
-			distance[j ? 0 : 1] = *min_d;
+			distance[j ? 0 : 1] = *min_d > distance[j] ? *max_d : *min_d;
 		else
-			distance[j ? 0 : 1] = *max_d;
+			distance[j ? 0 : 1] = *max_d > distance[j] ? *max_d : *min_d;
 		return 1;
 	}
 }
