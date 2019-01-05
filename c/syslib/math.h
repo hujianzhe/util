@@ -94,6 +94,7 @@ __declspec_dll int mathSegmentIntersectSegment(float ls1[2][3], float ls2[2][3],
 __declspec_dll int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const float plane_v[3], const float plane_normal[3], float* distance);
 __declspec_dll int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 __declspec_dll int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]);
+__declspec_dll int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]);
 __declspec_dll int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]);
 __declspec_dll int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]);
 __declspec_dll int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], float p[3]);

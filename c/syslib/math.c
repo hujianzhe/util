@@ -819,19 +819,56 @@ int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], f
 	}
 }
 
-/*
 int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]) {
-	float d[2];
-	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, d);
+	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, distance);
 	if (0 == res)
 		return 0;
 	if (1 == res) {
 		float p[3];
-		mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, d[0]);
-
+		mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, distance[0]);
+		return mathCapsuleHasPoint(o, axis, radius, half_height, p);
+	}
+	else {
+		float sphere_o[3], d[4], *min_d, *max_d;
+		int i, j = -1, cnt;
+		if (2 == res) {
+			cnt = 0;
+			for (i = 0; i < 2; ++i) {
+				float p[3];
+				mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, distance[i]);
+				if (!mathCapsuleHasPoint(o, axis, radius, half_height, p))
+					continue;
+				++cnt;
+				j = i;
+			}
+			if (2 == cnt)
+				return 1;
+		}
+		cnt = 0;
+		mathVec3AddScalar(mathVec3Copy(sphere_o, o), axis, half_height);
+		cnt += mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d);
+		mathVec3AddScalar(mathVec3Copy(sphere_o, o), axis, -half_height);
+		cnt += mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d + 2);
+		if (0 == cnt)
+			return 0;
+		min_d = max_d = NULL;
+		for (i = 0; i < cnt; ++i) {
+			if (!min_d || *min_d > d[i])
+				min_d = d + i;
+			if (!max_d || *max_d < d[i])
+				max_d = d + i;
+		}
+		if (j < 0) {
+			distance[0] = *min_d;
+			distance[1] = *max_d;
+		}
+		else if (fcmpf(distance[j], 0.0f, CCT_EPSILON) > 0)
+			distance[j ? 0 : 1] = *min_d;
+		else
+			distance[j ? 0 : 1] = *max_d;
+		return 1;
 	}
 }
-*/
 
 /*
 int mathCylinderIntersectLine(float cp[2][3], float radius, float ls_vertice[3], float lsdir[3], float p[2][3]) {
