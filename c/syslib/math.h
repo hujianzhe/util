@@ -86,6 +86,7 @@ __declspec_dll int mathSegmentHasPoint(float ls[2][3], const float p[3]);
 __declspec_dll int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p_v);
 __declspec_dll int mathSphereHasPoint(const float o[3], float radius, const float p[3]);
 __declspec_dll int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]);
+__declspec_dll int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]);
 
 __declspec_dll float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]);
 
@@ -107,6 +108,8 @@ __declspec_dll int mathSphereIntersectCapsule(const float sp_o[3], float sp_radi
 __declspec_dll int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt);
 __declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
 __declspec_dll int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3]);
+__declspec_dll int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float radius);
+__declspec_dll int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height);
 typedef struct CCTResult_t {
 	float distance;
 	int hit_point_cnt;

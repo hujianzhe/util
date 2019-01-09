@@ -467,6 +467,12 @@ int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, flo
 	}
 }
 
+int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
+	return p[0] >= o[0] - half[0] && p[0] <= o[0] + half[0] &&
+		p[1] >= o[1] - half[1] && p[1] <= o[1] + half[1] &&
+		p[2] >= o[2] - half[2] && p[2] <= o[2] + half[2];
+}
+
 int mathSphereHasPoint(const float o[3], float radius, const float p[3]) {
 	float op[3];
 	int cmp = fcmpf(mathVec3LenSq(mathVec3Sub(op, p, o)), radius * radius, CCT_EPSILON);
@@ -793,6 +799,11 @@ static int Box_Triangle_Vertices_Indices[] = {
 	3, 7, 6,	6, 2, 3,
 	0, 4, 5,	5, 1, 0
 };
+static float AABB_Plane_Normal[][3] = {
+	{ 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, -1.0f },
+	{ 1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
+	{ 0.0f, 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }
+};
 static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
 	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
@@ -828,6 +839,36 @@ int mathAABBIntersectPlane(const float o[3], const float half[3], const float pl
 		prev_d = d;
 	}
 	return 1;
+}
+
+int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
+	if (mathAABBHasPoint(aabb_o, aabb_half, sp_o))
+		return 1;
+	else {
+		int i;
+		float vertices[8][3];
+		AABBVertices(aabb_o, aabb_half, vertices);
+		for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6) {
+			if (mathSphereIntersectTrianglesPlane(sp_o, sp_radius, AABB_Plane_Normal[i / 6], vertices, Box_Triangle_Vertices_Indices + i, 6))
+				return 1;
+		}
+		return 0;
+	}
+}
+
+int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height) {
+	if (mathAABBHasPoint(aabb_o, aabb_half, cp_o))
+		return 1;
+	else {
+		int i;
+		float vertices[8][3];
+		AABBVertices(aabb_o, aabb_half, vertices);
+		for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6) {
+			if (mathCapsuleIntersectTrianglesPlane(cp_o, cp_axis, cp_radius, cp_half_height, AABB_Plane_Normal[i / 6], vertices, Box_Triangle_Vertices_Indices + i, 6))
+				return 1;
+		}
+		return 0;
+	}
 }
 
 int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
