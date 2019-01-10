@@ -897,12 +897,12 @@ int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3],
 	return rcnt;
 }
 
-int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[4][3]) {
+int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], float radius, const float plane_vertice[3], const float plane_normal[3], float res_data[2][3]) {
 	float cos_theta = mathVec3Dot(axis, plane_normal);
 	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
 		float d;
 		mathPointProjectionPlane(cp, plane_vertice, plane_normal, NULL, &d);
-		return fcmpf(d < 0.0f ? -d : d, radius, CCT_EPSILON) > 0 ? 0 : -1;
+		return fcmpf(d <= -CCT_EPSILON ? -d : d, radius, CCT_EPSILON) > 0 ? 0 : -1;
 	}
 	else {
 		float center[3], v1[3], d;
@@ -912,10 +912,11 @@ int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], f
 		mathVec3Cross(v1, plane_normal, axis);
 		if (mathVec3IsZero(v1)) {
 			mathVec3Copy(res_data[0], center);
-			mathVec3Copy(res_data[1], axis);
+			mathVec3Copy(res_data[1], center);
 			return 1;
 		}
 		else {
+			/*
 			float v2[3];
 			mathVec3Cross(v2, v1, plane_normal);
 			mathVec3Normalized(v1, v1);
@@ -926,39 +927,50 @@ int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], f
 			mathVec3AddScalar(mathVec3Copy(res_data[2], center), v2, d);
 			mathVec3AddScalar(mathVec3Copy(res_data[3], center), v2, -d);
 			return 2;
+			*/
+			d = radius / cos_theta;
+			d = sqrtf(d * d - radius * radius);
+			mathVec3AddScalar(mathVec3Copy(res_data[0], center), axis, d);
+			mathVec3AddScalar(mathVec3Copy(res_data[1], center), axis, -d);
+			return 2;
 		}
 	}
 }
 
-int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float p[3]) {
-	int i, cmp[2];
-	for (i = 0; i < 2; ++i) {
-		int res;
-		float sphere_o[3], d;
-		mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, i ? -cp_half_height : cp_half_height);
-		mathPointProjectionPlane(sphere_o, plane_v, plane_n, NULL, &d);
-		cmp[i] = fcmpf(d, 0.0f, CCT_EPSILON);
-		if (cmp[i] < 0)
-			res = fcmpf(-d, cp_radius, CCT_EPSILON);
-		else
-			res = fcmpf(d, cp_radius, CCT_EPSILON);
-		if (res < 0)
-			return 2;
-		if (0 == res) {
-			float dot = mathVec3Dot(cp_axis, plane_n);
-			if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
-				mathVec3AddScalar(mathVec3Copy(p, sphere_o), plane_n, d);
-				return 1;
-			}
-			return 2;
-		}
+int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float res_data[2][3], float p[3]) {
+	int res = mathCylinderInfiniteIntersectPlane(cp_o, cp_axis, cp_radius, plane_v, plane_n, res_data);
+	if (0 == res)
+		return 0;
+	else if (-1 == res) {
+		mathVec3AddScalar(mathVec3Copy(res_data[0], cp_o), cp_axis, cp_half_height);
+		mathVec3AddScalar(mathVec3Copy(res_data[1], cp_o), cp_axis, -cp_half_height);
+		return 2;
 	}
-	return cmp[0] * cmp[1] ? 0 : 2;
+	else {
+		int i, intersect_res = 0;
+		for (i = 0; i < res; ++i) {
+			int cmp;
+			float v[3], dot, circle_radius;
+			mathVec3Sub(v, res_data[i], cp_o);
+			dot = mathVec3Dot(v, cp_axis);
+			cmp = fcmpf(dot * dot, cp_half_height * cp_half_height, CCT_EPSILON);
+			if (cmp > 0)
+				mathVec3AddScalar(mathVec3Copy(res_data[i], cp_o), cp_axis, dot > -CCT_EPSILON ? cp_half_height : -cp_half_height);
+			else if (cmp < 0) {
+				intersect_res = 2;
+				continue;
+			}
+			cmp = mathSphereIntersectPlane(res_data[i], cp_radius, plane_v, plane_n, p, &circle_radius);
+			if (cmp > intersect_res)
+				intersect_res = cmp;
+		}
+		return intersect_res;
+	}
 }
 
 int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
-	float p[3];
-	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[0], plane_n, p);
+	float res_data[2][3], p[3];
+	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[0], plane_n, res_data, p);
 	if (0 == res)
 		return 0;
 	i = 0;
@@ -971,39 +983,17 @@ int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[
 			if (mathTriangleHasPoint(tri, p, NULL, NULL))
 				return 1;
 		}
+		return 0;
 	}
 	else {
-		float res_data[4][3];
-		for (i = 0; i < indicescnt; i += 3) {
-			int j;
-			for (j = 0; j < 3; ++i) {
-				float edge[2][3];
-				mathVec3Copy(edge[0], vertices[indices[j % 3 + i]]);
-				mathVec3Copy(edge[1], vertices[indices[(j + 1) % 3 + i]]);
-				if (mathSegmentIntersectCapsule(edge, cp_o, cp_axis, cp_radius, cp_half_height, p))
-					return 1;
-			}
+		int i, intersect_res = 0;
+		for (i = 0; i < 2; ++i) {
+			res = mathSphereIntersectTrianglesPlane(res_data[i], cp_radius, plane_n, vertices, indices, indicescnt);
+			if (res > intersect_res)
+				intersect_res = res;
 		}
-		res = mathCylinderInfiniteIntersectPlane(cp_o, cp_axis, cp_radius, vertices[0], plane_n, res_data);
-		if (1 == res) {
-			return mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, res_data[0]);
-		}
-		else if (2 == res) {
-			for (i = 0; i < 4; ++i) {
-				if (mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, res_data[i]))
-					return 1;
-			}
-		}
-		else if (-1 == res) {
-			float sphere_o[3];
-			for (i = 0; i < 2; ++i) {
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, i ? cp_half_height : -cp_half_height);
-				if (mathSphereIntersectTrianglesPlane(cp_o, cp_radius, plane_n, vertices, indices, indicescnt))
-					return 1;
-			}
-		}
+		return intersect_res;
 	}
-	return 0;
 }
 
 int mathTriangleIntersectCapsule(float tri[3][3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height) {
@@ -1556,6 +1546,7 @@ CCTResult_t* mathSegmentcastSphere(float ls[2][3], const float dir[3], const flo
 	}
 }
 
+/*
 CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
 	int res = mathSegmentIntersectCapsule(ls, cp_o, cp_axis, cp_radius, cp_half_height, result->hit_point);
 	if (1 == res) {
@@ -1655,6 +1646,7 @@ CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const fl
 		}
 	}
 }
+*/
 
 CCTResult_t* mathTrianglecastPlane(float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
@@ -1962,6 +1954,7 @@ CCTResult_t* mathSpherecastCapsule(const float sp_o[3], float sp_radius, const f
 	return NULL;
 }
 
+/*
 CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, plane_v, plane_n, result->hit_point);
 	if (2 == res) {
@@ -2036,6 +2029,7 @@ CCTResult_t* mathCapsulecastTriangle(const float cp_o[3], const float cp_axis[3]
 	}
 	return NULL;
 }
+*/
 
 #ifdef	__cplusplus
 }
