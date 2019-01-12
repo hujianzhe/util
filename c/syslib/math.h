@@ -78,7 +78,7 @@ __declspec_dll float* mathQuatMulQuat(float r[4], const float q1[4], const float
 __declspec_dll float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]);
 
 __declspec_dll void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float vec_to_p[3], float np[3]);
-__declspec_dll float mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float p[2][3]);
+__declspec_dll int mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]);
 __declspec_dll void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance);
 
 __declspec_dll float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]);

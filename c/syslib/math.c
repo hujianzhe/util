@@ -114,8 +114,9 @@ float mathVec3Normalized(float r[3], const float v[3]) {
 		r[0] = v[0] * inv_len;
 		r[1] = v[1] * inv_len;
 		r[2] = v[2] * inv_len;
+		return len;
 	}
-	return len;
+	return 0.0f;
 }
 
 /* r = -v */
@@ -367,13 +368,23 @@ void mathPointProjectionLine(const float p[3], const float ls_v[3], const float 
 	mathVec3Sub(np_to_p, p, np);
 }
 
-float mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float p[2][3]) {
-	float n[3], v[3], d, dn;
+int mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]) {
+	float n[3], v[3];
 	mathVec3Sub(v, lsv2, lsv1);
 	mathVec3Cross(n, lsdir1, lsdir2);
-	dn = mathVec3Normalized(n, n);
-	d = mathVec3Dot(v, n);
-	return d;
+	if (mathVec3IsZero(n)) {
+		mathPointProjectionLine(lsv1, lsv2, lsdir2, n, v);
+		*min_d = mathVec3Normalized(n, n);
+		return 0;
+	}
+	mathVec3Normalized(n, n);
+	*min_d = mathVec3Dot(v, n);
+	if (dir_d) {
+		float cross_v[3];
+		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n);
+		dir_d[1] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir1), n);
+	}
+	return 1;
 }
 
 void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance) {
