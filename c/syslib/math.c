@@ -367,6 +367,15 @@ void mathPointProjectionLine(const float p[3], const float ls_v[3], const float 
 	mathVec3Sub(np_to_p, p, np);
 }
 
+float mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float p[2][3]) {
+	float n[3], v[3], d, dn;
+	mathVec3Sub(v, lsv2, lsv1);
+	mathVec3Cross(n, lsdir1, lsdir2);
+	dn = mathVec3Normalized(n, n);
+	d = mathVec3Dot(v, n);
+	return d;
+}
+
 void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance) {
 	float pv[3], d;
 	mathVec3Sub(pv, plane_v, p);
