@@ -890,7 +890,7 @@ int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], co
 }
 */
 
-int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
+static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
 	float new_o[3], new_dir[3], radius_sq = radius * radius;
 	float new_axies[3][3], z_axies_normal[3] = { 0.0f, 0.0f, 1.0f };
 	float A, B, C;
