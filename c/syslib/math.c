@@ -956,7 +956,7 @@ int mathCylinderInfiniteIntersectPlane(const float cp[3], const float axis[3], f
 	}
 }
 */
-int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float res_data[2][3], float p[3]) {
+int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float p[3]) {
 	float sphere_o[2][3], d[2];
 	int i, cmp[2];
 	for (i = 0; i < 2; ++i) {
@@ -1804,35 +1804,12 @@ CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir
 }
 
 CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const float dir[3], const float o2[3], float r2, CCTResult_t* result) {
-	float r12 = r1 + r2;
-	float o1o2[3];
-	mathVec3Sub(o1o2, o2, o1);
-	if (fcmpf(mathVec3LenSq(o1o2), r12 * r12, CCT_EPSILON) < 0) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else {
-		float dot = mathVec3Dot(o1o2, dir);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) <= 0)
-			return NULL;
-		else {
-			float distance, new_o1o2[3];
-			float dn = mathVec3LenSq(o1o2) - dot * dot;
-			float delta_len = r12 * r12 - dn;
-			if (fcmpf(delta_len, 0.0f, CCT_EPSILON) < 0)
-				return NULL;
-			distance = dot - sqrtf(delta_len);
-			result->distance = distance;
-			result->hit_point_cnt = 1;
-			mathVec3AddScalar(mathVec3Copy(result->hit_point, o1), dir, distance);
-			mathVec3Sub(new_o1o2, o2, result->hit_point);
-			mathVec3Normalized(new_o1o2, new_o1o2);
-			mathVec3AddScalar(result->hit_point, new_o1o2, r1);
-			mathVec3Copy(result->hit_normal, new_o1o2);
-			return result;
-		}
-	}
+	if (!mathRaycastSphere(o1, dir, o2, r1 + r2, result))
+		return NULL;
+	mathVec3Sub(result->hit_normal, result->hit_point, o2);
+	mathVec3Normalized(result->hit_normal, result->hit_normal);
+	mathVec3AddScalar(result->hit_point, result->hit_normal, -r1);
+	return result;
 }
 
 CCTResult_t* mathSpherecastTriangle(const float o[3], float radius, const float dir[3], float tri[3][3], CCTResult_t* result) {
@@ -1937,7 +1914,6 @@ CCTResult_t* mathSpherecastCapsule(const float sp_o[3], float sp_radius, const f
 	return NULL;
 }
 
-/*
 CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, plane_v, plane_n, result->hit_point);
 	if (2 == res) {
@@ -1972,7 +1948,7 @@ CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], f
 		return NULL;
 	}
 }
-
+/*
 CCTResult_t* mathCapsulecastTriangle(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], float tri[3][3], CCTResult_t* result) {
 	if (mathTriangleIntersectCapsule(tri, cp_o, cp_axis, cp_radius, cp_half_height)) {
 		result->distance = 0.0f;
