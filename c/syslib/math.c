@@ -873,7 +873,7 @@ int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], con
 		return 0;
 	}
 }
-/*
+
 int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height) {
 	if (mathAABBHasPoint(aabb_o, aabb_half, cp_o))
 		return 1;
@@ -888,7 +888,6 @@ int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], co
 		return 0;
 	}
 }
-*/
 
 static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
 	float new_o[3], new_dir[3], radius_sq = radius * radius;
@@ -980,14 +979,14 @@ int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float
 	cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
 	return cmp[0] * cmp[1] > 0 ? 0 : 2;
 }
-/*
+
 int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
-	float res_data[2][3], p[3];
-	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[0], plane_n, res_data, p);
+	float p[3];
+	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[0], plane_n, p);
 	if (0 == res)
 		return 0;
-	i = 0;
-	if (1 == res) {
+	else if (1 == res) {
+		i = 0;
 		while (i < indicescnt) {
 			float tri[3][3];
 			mathVec3Copy(tri[0], vertices[indices[i++]]);
@@ -999,16 +998,37 @@ int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[
 		return 0;
 	}
 	else {
-		int i, intersect_res = 0;
-		for (i = 0; i < 2; ++i) {
-			res = mathSphereIntersectTrianglesPlane(res_data[i], cp_radius, plane_n, vertices, indices, indicescnt);
-			if (res > intersect_res)
-				intersect_res = res;
+		float cos_theta, center[3];
+		for (i = 0; i < indicescnt; i += 3) {
+			int j;
+			for (j = 0; j < 3; ++j) {
+				float edge[2][3];
+				mathVec3Copy(edge[0], vertices[indices[j % 3 + i]]);
+				mathVec3Copy(edge[1], vertices[indices[(j + 1) % 3 + i]]);
+				if (mathSegmentIntersectCapsule(edge, cp_o, cp_axis, cp_radius, cp_half_height, p))
+					return 1;
+			}
 		}
-		return intersect_res;
+		cos_theta = mathVec3Dot(cp_axis, plane_n);
+		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON)) {
+			float d;
+			mathPointProjectionPlane(cp_o, vertices[0], plane_n, NULL, &d);
+			mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, d);
+		}
+		else {
+			mathPointProjectionPlane(cp_o, vertices[0], plane_n, center, NULL);
+		}
+		for (i = 0; i < indicescnt; ) {
+			float tri[3][3];
+			mathVec3Copy(tri[0], vertices[indices[i++]]);
+			mathVec3Copy(tri[1], vertices[indices[i++]]);
+			mathVec3Copy(tri[2], vertices[indices[i++]]);
+			if (mathTriangleHasPoint(tri, center, NULL, NULL))
+				return 1;
+		}
+		return 0;
 	}
 }
-*/
 
 int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]) {
 	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, distance);
