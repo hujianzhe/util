@@ -78,7 +78,7 @@ __declspec_dll float* mathQuatMulQuat(float r[4], const float q1[4], const float
 __declspec_dll float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]);
 
 __declspec_dll void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float vec_to_p[3], float np[3]);
-__declspec_dll int mathLineClosesetLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]);
+__declspec_dll int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]);
 __declspec_dll void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance);
 
 __declspec_dll float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]);
@@ -126,7 +126,7 @@ __declspec_dll CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir
 __declspec_dll CCTResult_t* mathSegmentcastSegment(float ls1[2][3], const float dir[3], float ls2[2][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSegmentcastTriangle(float ls[2][3], const float dir[3], float tri[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSegmentcastSphere(float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result);
-//__declspec_dll CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], const float dir[3], float tri2[3][3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result);
