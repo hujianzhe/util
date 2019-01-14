@@ -133,11 +133,12 @@ __declspec_dll CCTResult_t* mathAABBcastAABB(const float o1[3], const float half
 __declspec_dll CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const float dir[3], const float o2[3], float r2, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastTriangle(const float o[3], float radius, const float dir[3], float tri[3][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result);
+__declspec_dll CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathSpherecastCapsule(const float sp_o[3], float sp_radius, const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
 __declspec_dll CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result);
 __declspec_dll CCTResult_t* mathCapsulecastTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result);
+__declspec_dll CCTResult_t* mathCapsulecastAABB(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result);
 
 #ifdef	__cplusplus
 }
