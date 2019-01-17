@@ -996,6 +996,32 @@ int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[
 	}
 }
 
+int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axis[3], float cp1_radius, float cp1_half_height, const float cp2_o[3], const float cp2_axis[3], float cp2_radius, float cp2_half_height) {
+	float min_d, dir_d[2], radius_sum = cp1_radius + cp2_radius;
+	int res = mathLineClosestLine(cp1_o, cp1_axis, cp2_o, cp2_axis, &min_d, dir_d);
+	if (fcmpf(min_d, radius_sum, CCT_EPSILON) > 0)
+		return 0;
+	else {
+		float p[3];
+		int i;
+		for (i = 0; i < 2; ++i) {
+			float sphere_o[3];
+			mathVec3AddScalar(mathVec3Copy(sphere_o, cp1_o), cp1_axis, i ? cp1_half_height : -cp1_half_height);
+			if (mathSphereIntersectCapsule(sphere_o, cp1_radius, cp2_o, cp2_axis, cp2_radius, cp2_half_height, p))
+				return 1;
+		}
+		for (i = 0; i < 2; ++i) {
+			float sphere_o[3];
+			mathVec3AddScalar(mathVec3Copy(sphere_o, cp2_o), cp2_axis, i ? cp2_half_height : -cp2_half_height);
+			if (mathSphereIntersectCapsule(sphere_o, cp2_radius, cp1_o, cp1_axis, cp1_radius, cp1_half_height, p))
+				return 1;
+		}
+		if (0 == res)
+			return 0;
+
+	}
+}
+
 int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]) {
 	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, distance);
 	if (0 == res)
