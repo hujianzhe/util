@@ -1018,7 +1018,8 @@ int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axis[3], f
 		}
 		if (0 == res)
 			return 0;
-
+		return fcmpf(dir_d[0] >= CCT_EPSILON ? dir_d[0] : -dir_d[0], cp1_half_height, CCT_EPSILON) < 0 &&
+			fcmpf(dir_d[1] >= CCT_EPSILON ? dir_d[1] : -dir_d[1], cp2_half_height, CCT_EPSILON) < 0;
 	}
 }
 
