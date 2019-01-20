@@ -28,6 +28,7 @@
 #pragma warning(disable:4267)
 #endif
 
+#include "cJSON.h"
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -35,7 +36,6 @@
 #include <float.h>
 #include <limits.h>
 #include <ctype.h>
-#include "cJSON.h"
 
 #ifdef __cplusplus
 extern "C"
