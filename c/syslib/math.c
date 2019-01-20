@@ -363,7 +363,7 @@ static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
 void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np_to_p[3], float np[3]) {
 	float vp[3], dot;
 	mathVec3Sub(vp, p, ls_v);
-	dot = mathVec3Dot(ls_v, lsdir);
+	dot = mathVec3Dot(vp, lsdir);
 	mathVec3AddScalar(mathVec3Copy(np, ls_v), lsdir, dot);
 	mathVec3Sub(np_to_p, p, np);
 }
