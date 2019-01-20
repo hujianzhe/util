@@ -425,12 +425,12 @@ int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
 	mathVec3Sub(pv2, v2, p);
 	if (!mathVec3IsZero(mathVec3Cross(N, pv1, pv2)))
 		return 0;
+	else if (mathVec3Equal(ls[0], p))
+		return 1;
+	else if (mathVec3Equal(ls[1], p))
+		return 2;
 	else {
 		int i;
-		if (mathVec3Equal(ls[0], p))
-			return 1;
-		if (mathVec3Equal(ls[1], p))
-			return 2;
 		for (i = 0; i < 3; ++i) {
 			float min_v, max_v;
 			v1[i] < v2[i] ? (min_v = v1[i], max_v = v2[i]) : (min_v = v2[i], max_v = v1[i]);
