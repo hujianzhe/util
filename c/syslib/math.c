@@ -706,20 +706,20 @@ int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], f
 
 int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r) {
 	int cmp;
-	float pp[3], ppd, ppo[3];
+	float pp[3], ppd, ppo[3], ppolensq;
 	mathPointProjectionPlane(o, plane_v, plane_normal, pp, &ppd);
 	mathVec3Sub(ppo, o, pp);
-	cmp = fcmpf(mathVec3LenSq(ppo), radius * radius, CCT_EPSILON);
+	ppolensq = mathVec3LenSq(ppo);
+	cmp = fcmpf(ppolensq, radius * radius, CCT_EPSILON);
 	if (cmp > 0)
 		return 0;
+	mathVec3Copy(new_o, pp);
 	if (0 == cmp) {
-		mathVec3Copy(new_o, pp);
 		*new_r = 0.0f;
 		return 1;
 	}
 	else {
-		mathVec3Copy(new_o, pp);
-		*new_r = sqrtf(radius * radius - mathVec3LenSq(ppo));
+		*new_r = sqrtf(radius * radius - ppolensq);
 		return 2;
 	}
 }
