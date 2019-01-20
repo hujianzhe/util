@@ -369,22 +369,22 @@ void mathPointProjectionLine(const float p[3], const float ls_v[3], const float 
 }
 
 int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]) {
-	float n[3], v[3], d;
+	float n[3], v[3], dot;
 	mathVec3Sub(v, lsv2, lsv1);
 	mathVec3Cross(n, lsdir1, lsdir2);
 	if (mathVec3IsZero(n)) {
 		if (min_d) {
-			mathPointProjectionLine(lsv1, lsv2, lsdir2, n, v);
-			*min_d = mathVec3Normalized(n, n);
+			dot = mathVec3Dot(v, lsdir1);
+			*min_d = sqrtf(mathVec3LenSq(v) - dot * dot);
 		}
 		return 0;
 	}
 	mathVec3Normalized(n, n);
-	d = mathVec3Dot(v, n);
-	if (d <= -CCT_EPSILON)
-		d = -d;
+	dot = mathVec3Dot(v, n);
+	if (dot <= -CCT_EPSILON)
+		dot = -dot;
 	if (min_d)
-		*min_d = d;
+		*min_d = dot;
 	if (dir_d) {
 		float cross_v[3];
 		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n);
