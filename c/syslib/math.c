@@ -1076,7 +1076,7 @@ int mathSegmentIntersectCapsule(float ls[2][3], const float o[3], const float ax
 	if (2 == res[0])
 		return 2;
 	res[1] = mathCapsuleHasPoint(o, axis, radius, half_height, ls[1]);
-	if (2 == res[0])
+	if (2 == res[1])
 		return 2;
 	if (res[0] + res[1] >= 2)
 		return 2;
@@ -1268,6 +1268,8 @@ CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], const floa
 		return result;
 	}
 	else if (1 == res) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = 1;
 		return result;
 	}
 	else {
