@@ -725,7 +725,7 @@ int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v
 
 int mathSphereIntersectTrianglesPlane(const float o[3], float radius, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
 	float new_o[3], new_radius;
-	int i, res = mathSphereIntersectPlane(o, radius, vertices[0], plane_n, new_o, &new_radius);
+	int i, res = mathSphereIntersectPlane(o, radius, vertices[indices[0]], plane_n, new_o, &new_radius);
 	if (0 == res)
 		return 0;
 	i = 0;
@@ -947,7 +947,7 @@ int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float
 
 int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
 	float p[3];
-	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[0], plane_n, p);
+	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[indices[0]], plane_n, p);
 	if (0 == res)
 		return 0;
 	else if (1 == res) {
@@ -1821,8 +1821,9 @@ CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const 
 		result->hit_point_cnt = -1;
 		return result;
 	}
-	if (mathSpherecastPlane(o, radius, dir, vertices[0], plane_n, result)) {
+	if (mathSpherecastPlane(o, radius, dir, vertices[indices[0]], plane_n, result)) {
 		CCTResult_t *p_result;
+		float neg_dir[3];
 		int i = 0;
 		if (result->hit_point_cnt > 0) {
 			while (i < indicescnt) {
@@ -1835,6 +1836,7 @@ CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const 
 			}
 		}
 		p_result = NULL;
+		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < indicescnt; i += 3) {
 			int j;
 			for (j = 0; j < 3; ++j) {
@@ -1842,13 +1844,16 @@ CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const 
 				float edge[2][3];
 				mathVec3Copy(edge[0], vertices[indices[j % 3 + i]]);
 				mathVec3Copy(edge[1], vertices[indices[(j + 1) % 3 + i]]);
-				if (mathSegmentcastSphere(edge, dir, o, radius, &result_temp) &&
+				if (mathSegmentcastSphere(edge, neg_dir, o, radius, &result_temp) &&
 					(!p_result || p_result->distance > result_temp.distance))
 				{
 					copy_result(result, &result_temp);
 					p_result = result;
 				}
 			}
+		}
+		if (p_result && p_result->hit_point_cnt > 0) {
+			mathVec3AddScalar(p_result->hit_point, dir, result->distance);
 		}
 		return p_result;
 	}
@@ -1931,7 +1936,7 @@ CCTResult_t* mathCapsulecastTrianglesPlane(const float cp_o[3], const float cp_a
 		result->hit_point_cnt = -1;
 		return result;
 	}
-	if (mathCapsulecastPlane(cp_o, cp_axis, cp_radius, cp_half_height, dir, vertices[0], plane_n, result)) {
+	if (mathCapsulecastPlane(cp_o, cp_axis, cp_radius, cp_half_height, dir, vertices[indices[0]], plane_n, result)) {
 		CCTResult_t *p_result;
 		float neg_dir[3];
 		int i = 0;
