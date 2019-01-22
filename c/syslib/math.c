@@ -1052,7 +1052,7 @@ int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const fl
 		if (mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d))
 			cnt += 2;
 		mathVec3AddScalar(mathVec3Copy(sphere_o, o), axis, -half_height);
-		if (mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d + 2))
+		if (mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d + cnt))
 			cnt += 2;
 		if (0 == cnt)
 			return 0;
