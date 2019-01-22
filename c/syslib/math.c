@@ -1057,7 +1057,7 @@ int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const fl
 		if (0 == cnt)
 			return 0;
 		min_d = max_d = NULL;
-		if (j < 0)
+		if (j >= 0)
 			d[cnt++] = distance[j];
 		for (i = 0; i < cnt; ++i) {
 			if (!min_d || *min_d > d[i])
