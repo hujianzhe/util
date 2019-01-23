@@ -2063,11 +2063,6 @@ CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3
 						p_result = &results[i + 2];
 					}
 				}
-				if (p_result) {
-					p_result->hit_point_cnt = -1;
-					copy_result(result, p_result);
-					return result;
-				}
 			}
 			for (i = 0; i < 2; ++i) {
 				float sphere_o[3];
@@ -2079,6 +2074,7 @@ CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3
 				}
 			}
 			if (p_result) {
+				p_result->hit_point_cnt = -1;
 				copy_result(result, p_result);
 				return result;
 			}
