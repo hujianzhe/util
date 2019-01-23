@@ -1938,15 +1938,22 @@ CCTResult_t* mathCapsulecastTrianglesPlane(const float cp_o[3], const float cp_a
 	}
 	if (mathCapsulecastPlane(cp_o, cp_axis, cp_radius, cp_half_height, dir, vertices[indices[0]], plane_n, result)) {
 		CCTResult_t *p_result;
-		float neg_dir[3];
+		float neg_dir[3], p[3];
 		int i = 0;
 		if (result->hit_point_cnt > 0) {
+			mathVec3Copy(p, result->hit_point);
+		}
+		else if (result->distance >= CCT_EPSILON) {
+			mathVec3AddScalar(mathVec3Copy(p, cp_o), dir, result->distance);
+			mathPointProjectionPlane(p, vertices[indices[0]], plane_n, p, NULL);
+		}
+		if (result->distance >= CCT_EPSILON) {
 			while (i < indicescnt) {
 				float tri[3][3];
 				mathVec3Copy(tri[0], vertices[indices[i++]]);
 				mathVec3Copy(tri[1], vertices[indices[i++]]);
 				mathVec3Copy(tri[2], vertices[indices[i++]]);
-				if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+				if (mathTriangleHasPoint(tri, p, NULL, NULL))
 					return result;
 			}
 		}
