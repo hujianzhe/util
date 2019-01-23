@@ -977,11 +977,11 @@ int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[
 		cos_theta = mathVec3Dot(cp_axis, plane_n);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON)) {
 			float d;
-			mathPointProjectionPlane(cp_o, vertices[0], plane_n, NULL, &d);
+			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, NULL, &d);
 			mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, d);
 		}
 		else {
-			mathPointProjectionPlane(cp_o, vertices[0], plane_n, center, NULL);
+			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, center, NULL);
 		}
 		for (i = 0; i < indicescnt; ) {
 			float tri[3][3];
@@ -1922,7 +1922,7 @@ CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], f
 		if (p_result) {
 			float dot = mathVec3Dot(cp_axis, plane_n);
 			if (0 == fcmpf(dot, 0.0f, CCT_EPSILON))
-				result->hit_point_cnt = -1;
+				p_result->hit_point_cnt = -1;
 			copy_result(result, p_result);
 			return result;
 		}
