@@ -2012,7 +2012,7 @@ CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3
 		return result;
 	}
 	else {
-		CCTResult_t results[2], *p_result;
+		CCTResult_t results[4], *p_result;
 		int i;
 		float N[3];
 		mathVec3Cross(N, cp1_axis, dir);
@@ -2029,26 +2029,46 @@ CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3
 		}
 		else {
 			float min_d, dir_d[2];
-			mathLineClosestLine(cp1_o, cp1_axis, cp2_o, cp2_axis, &min_d, dir_d);
-			if (fcmpf(min_d, cp1_radius + cp2_radius, CCT_EPSILON) > 0) {
-				float closest_p[2][3], closest_v[3], plane_p[3];
-				mathVec3AddScalar(mathVec3Copy(closest_p[0], cp1_o), cp1_axis, dir_d[0]);
-				mathVec3AddScalar(mathVec3Copy(closest_p[1], cp2_o), cp2_axis, dir_d[1]);
-				mathVec3Sub(closest_v, closest_p[1], closest_p[0]);
-				mathVec3Normalized(closest_v, closest_v);
-				mathVec3AddScalar(mathVec3Copy(plane_p, cp2_o), closest_v, -cp2_radius);
-				if (!mathCapsulecastPlane(cp1_o, cp1_axis, cp1_radius, cp1_half_height, dir, plane_p, closest_v, result))
-					return NULL;
-				else {
-					float new_cp1_o[3];
-					mathVec3AddScalar(mathVec3Copy(new_cp1_o, cp1_o), dir, result->distance);
-					if (mathCapsuleIntersectCapsule(new_cp1_o, cp1_axis, cp1_radius, cp1_half_height, cp2_o, cp2_axis, cp2_radius, cp2_half_height)) {
-						result->hit_point_cnt = -1;
-						return result;
+			if (mathLineClosestLine(cp1_o, cp1_axis, cp2_o, cp2_axis, &min_d, dir_d)) {
+				if (fcmpf(min_d, cp1_radius + cp2_radius, CCT_EPSILON) > 0) {
+					float closest_p[2][3], closest_v[3], plane_p[3];
+					mathVec3AddScalar(mathVec3Copy(closest_p[0], cp1_o), cp1_axis, dir_d[0]);
+					mathVec3AddScalar(mathVec3Copy(closest_p[1], cp2_o), cp2_axis, dir_d[1]);
+					mathVec3Sub(closest_v, closest_p[1], closest_p[0]);
+					mathVec3Normalized(closest_v, closest_v);
+					mathVec3AddScalar(mathVec3Copy(plane_p, cp2_o), closest_v, -cp2_radius);
+					if (!mathCapsulecastPlane(cp1_o, cp1_axis, cp1_radius, cp1_half_height, dir, plane_p, closest_v, result))
+						return NULL;
+					else {
+						float new_cp1_o[3];
+						mathVec3AddScalar(mathVec3Copy(new_cp1_o, cp1_o), dir, result->distance);
+						if (mathCapsuleIntersectCapsule(new_cp1_o, cp1_axis, cp1_radius, cp1_half_height, cp2_o, cp2_axis, cp2_radius, cp2_half_height)) {
+							result->hit_point_cnt = -1;
+							return result;
+						}
 					}
 				}
+				p_result = NULL;
 			}
-			p_result = NULL;
+			else {
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				p_result = NULL;
+				for (i = 0; i < 2; ++i) {
+					float sphere_o[3];
+					mathVec3AddScalar(mathVec3Copy(sphere_o, cp2_o), cp2_axis, i ? cp2_half_height : -cp2_half_height);
+					if (mathSpherecastCapsule(sphere_o, cp2_radius, neg_dir, cp1_o, cp1_axis, cp1_radius, cp1_half_height, &results[i + 2]) &&
+						(!p_result || p_result->distance > results[i + 2].distance))
+					{
+						p_result = &results[i + 2];
+					}
+				}
+				if (p_result) {
+					p_result->hit_point_cnt = -1;
+					copy_result(result, p_result);
+					return result;
+				}
+			}
 			for (i = 0; i < 2; ++i) {
 				float sphere_o[3];
 				mathVec3AddScalar(mathVec3Copy(sphere_o, cp1_o), cp1_axis, i ? cp1_half_height : -cp1_half_height);
