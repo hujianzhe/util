@@ -1982,7 +1982,7 @@ CCTResult_t* mathCapsulecastTrianglesPlane(const float cp_o[3], const float cp_a
 }
 
 CCTResult_t* mathCapsulecastAABB(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
-	if (mathAABBIntersectCapsule(aabb_o, aabb_half, cp_o, cp_axis, cp_radius, cp_half_height)) {
+	if (mathAABBHasPoint(aabb_o, aabb_half, cp_o) || mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, aabb_o)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
 		return result;
