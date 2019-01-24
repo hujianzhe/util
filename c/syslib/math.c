@@ -903,6 +903,11 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	new_axies[1][0] = 0.0f;
 	new_axies[1][1] = -new_axies[2][2];
 	new_axies[1][2] = new_axies[2][1];
+	if (mathVec3IsZero(new_axies[1])) {
+		new_axies[1][0] = -new_axies[2][2];
+		new_axies[1][1] = 0.0f;
+		new_axies[1][2] = new_axies[2][0];
+	}
 	mathVec3Normalized(new_axies[1], new_axies[1]);
 	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
 	mathCoordinateSystemTransform(ls_v, cp, new_axies, new_o);
