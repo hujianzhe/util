@@ -386,9 +386,9 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 	if (min_d)
 		*min_d = dot;
 	if (dir_d) {
-		float cross_v[3], nlensq = nlen * nlen;
-		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n) / nlensq;
-		dir_d[1] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir1), n) / nlensq;
+		float cross_v[3], nlensq_inv = 1.0f / (nlen * nlen);
+		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n) * nlensq_inv;
+		dir_d[1] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir1), n) * nlensq_inv;
 	}
 	return 1;
 }
