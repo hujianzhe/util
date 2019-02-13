@@ -5,6 +5,8 @@
 #ifndef	UTIL_C_COMPONENT_LENGTHFIELDFRAME_H
 #define	UTIL_C_COMPONENT_LENGTHFIELDFRAME_H
 
+#include "../compiler_define.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

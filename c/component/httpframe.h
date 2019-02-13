@@ -5,6 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_HTTPFRAME_H
 #define	UTIL_C_COMPONENT_HTTPFRAME_H
 
+#include "../compiler_define.h"
 #include "../datastruct/hashtable.h"
 
 typedef struct HttpFrameHeaderField_t {
