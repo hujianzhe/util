@@ -26,8 +26,8 @@ extern "C" {
 #endif
 
 __declspec_dll uuid_t* uuidCreate(uuid_t* uuid);
-__declspec_dll BOOL uuidToString(const uuid_t* uuid, uuid_string_t uuid_string);
-__declspec_dll BOOL uuidFromString(uuid_t* uuid, const uuid_string_t uuid_string);
+__declspec_dll char* uuidToString(const uuid_t* uuid, uuid_string_t uuid_string);
+__declspec_dll uuid_t* uuidFromString(uuid_t* uuid, const uuid_string_t uuid_string);
 
 #ifdef	__cplusplus
 }
