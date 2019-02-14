@@ -27,7 +27,7 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 		default:
 			return -1;
 	}
-	if (lengthfieldsize + *datalen > len)
+	if (*datalen > len - lengthfieldsize)
 		return 0;
 
 	if (*datalen)
