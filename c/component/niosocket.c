@@ -385,10 +385,9 @@ static size_t sockht_expire(Hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 	return i;
 }
 
-static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
+void niosocketloopHandler(NioSocketLoop_t* loop) {
 	NioEv_t e[4096];
 	NioSocket_t* expire_sockets[512];
-	NioSocketLoop_t* loop = (NioSocketLoop_t*)arg;
 	int wait_msec = 1000;
 
 	while (loop->valid) {
@@ -447,7 +446,8 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 
 		do {
 			ListNode_t *cur, *next;
-			for (cur = dataqueuePop(&loop->m_dq, 0, ~0); cur; cur = next) {
+			criticalsectionEnter(&loop->m_msglistlock);
+			for (cur = loop->m_msglist.head; cur; cur = next) {
 				NioSocketMsg_t* message;
 				next = cur->next;
 				message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
@@ -486,6 +486,8 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 					}
 				}
 			}
+			listInit(&loop->m_msglist);
+			criticalsectionLeave(&loop->m_msglistlock);
 		} while (0);
 
 		if (n) {
@@ -511,8 +513,6 @@ static unsigned int THREAD_CALL reactor_socket_loop_entry(void* arg) {
 		else
 			wait_msec -= delta_msec;
 	}
-
-	return 0;
 }
 
 NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) {
@@ -548,7 +548,7 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 		return NULL;
 	}
 
-	if (!dataqueueInit(&loop->m_dq)) {
+	if (!criticalsectionCreate(&loop->m_msglistlock)) {
 		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
@@ -558,17 +558,9 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq) 
 
 	loop->valid = 1;
 	loop->m_msgdq = msgdq;
+	listInit(&loop->m_msglist);
 	hashtableInit(&loop->m_sockht, loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 			sockht_keycmp, sockht_keyhash);
-
-	if (!threadCreate(&loop->m_handle, reactor_socket_loop_entry, loop)) {
-		reactorFreeOverlapped(loop->m_readOl);
-		socketClose(loop->m_socketpair[0]);
-		socketClose(loop->m_socketpair[1]);
-		reactorClose(&loop->m_reactor);
-		dataqueueDestroy(&loop->m_dq, NULL);
-		return NULL;
-	}
 	loop->initok = 1;
 	return loop;
 }
@@ -582,19 +574,20 @@ void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
 		s[i]->m_msg.type = NIO_SOCKET_REG_MESSAGE;
 		listInsertNodeBack(&list, list.tail, &s[i]->m_msg.m_listnode);
 	}
-	dataqueuePushList(&loop->m_dq, &list);
+	criticalsectionEnter(&loop->m_msglistlock);
+	listMerge(&loop->m_msglist, &list);
+	criticalsectionLeave(&loop->m_msglistlock);
 	socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
 }
 
-void niosocketloopJoin(NioSocketLoop_t* loop) {
+void niosocketloopDestroy(NioSocketLoop_t* loop) {
 	if (loop && loop->initok) {
 		HashtableNode_t *cur, *next;
-		threadJoin(loop->m_handle, NULL);
 		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
-		dataqueueDestroy(&loop->m_dq, NULL);
+		criticalsectionClose(&loop->m_msglistlock);
 		for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
 			next = hashtableNextNode(cur);
 			niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
@@ -611,7 +604,9 @@ void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_cal
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 			if (s->close)
 				s->close(s);
-			dataqueuePush(&s->loop->m_dq, &s->m_msg.m_listnode);
+			criticalsectionEnter(&s->loop->m_msglistlock);
+			listInsertNodeBack(&s->loop->m_msglist, s->loop->m_msglist.tail, cur);
+			criticalsectionLeave(&s->loop->m_msglistlock);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == message->type) {
 			user_msg_callback(message, arg);
