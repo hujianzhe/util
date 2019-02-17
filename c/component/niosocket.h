@@ -12,7 +12,6 @@
 #include "dataqueue.h"
 
 typedef struct NioSocketLoop_t {
-	volatile char valid;
 	unsigned char initok;
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
@@ -75,7 +74,7 @@ __declspec_dll void niosocketFree(NioSocket_t* s);
 __declspec_dll int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, struct sockaddr_storage*);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq);
-__declspec_dll void niosocketloopHandler(NioSocketLoop_t* loop);
+__declspec_dll void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec);
 __declspec_dll void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void niosocketloopDestroy(NioSocketLoop_t* loop);
 __declspec_dll void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg);
