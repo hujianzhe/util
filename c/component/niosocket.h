@@ -63,7 +63,6 @@ typedef struct NioSocket_t {
 	char m_writeCommit;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
-	CriticalSection_t m_outbufLock;
 	List_t m_outbuflist;
 } NioSocket_t;
 

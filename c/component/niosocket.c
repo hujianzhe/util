@@ -28,9 +28,6 @@ void niosocketFree(NioSocket_t* s) {
 	reactorFreeOverlapped(s->m_readOl);
 	reactorFreeOverlapped(s->m_writeOl);
 
-	if (SOCK_STREAM == s->socktype) {
-		criticalsectionClose(&s->m_outbufLock);
-	}
 	if (s->m_inbuf) {
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
@@ -262,17 +259,9 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	NioSocket_t* s = pmalloc();
 	if (!s)
 		return NULL;
-	if (SOCK_STREAM == socktype) {
-		if (!criticalsectionCreate(&s->m_outbufLock)) {
-			pfree(s);
-			return NULL;
-		}
-	}
 	if (INVALID_FD_HANDLE == fd) {
 		fd = socket(domain, socktype, protocol);
 		if (INVALID_FD_HANDLE == fd) {
-			if (SOCK_STREAM == socktype)
-				criticalsectionClose(&s->m_outbufLock);
 			pfree(s);
 			return NULL;
 		}
