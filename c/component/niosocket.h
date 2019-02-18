@@ -60,7 +60,6 @@ typedef struct NioSocket_t {
 	void* m_readOl;
 	void* m_writeOl;
 	time_t m_lastActiveTime;
-	char m_writeCommit;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
 	List_t m_outbuflist;
