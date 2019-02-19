@@ -524,14 +524,15 @@ void niosocketloopDestroy(NioSocketLoop_t* loop) {
 }
 
 void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
-	List_t closelist;
 	ListNode_t *cur, *next;
-	listInit(&closelist);
 	for (cur = dataqueuePop(dq, max_wait_msec, popcnt); cur; cur = next) {
 		NioSocketMsg_t* msgbase = pod_container_of(cur, NioSocketMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
-			listInsertNodeBack(&closelist, closelist.tail, cur);
+			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_msg);
+			criticalsectionEnter(&s->loop->m_msglistlock);
+			listInsertNodeBack(&s->loop->m_msglist, s->loop->m_msglist.tail, cur);
+			criticalsectionLeave(&s->loop->m_msglistlock);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
 			int res, is_empty;
@@ -590,13 +591,6 @@ void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 				break;
 			}
 		}
-	}
-	for (cur = closelist.head; cur; cur = next) {
-		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_msg.m_listnode);
-		next = cur->next;
-		criticalsectionEnter(&s->loop->m_msglistlock);
-		listInsertNodeBack(&s->loop->m_msglist, s->loop->m_msglist.tail, cur);
-		criticalsectionLeave(&s->loop->m_msglistlock);
 	}
 }
 
