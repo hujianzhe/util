@@ -209,7 +209,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 	dataqueuePush(s->loop->m_senddq, &s->m_sendmsg.m_listnode);
 }
 
-int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, struct sockaddr_storage* saddr) {
+int niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
 	size_t i, nbytes;
 	if (!s->valid)
 		return -1;
