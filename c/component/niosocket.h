@@ -43,12 +43,13 @@ typedef struct NioSocket_t {
 	volatile char valid;
 	volatile int timeout_second;
 	NioSocketLoop_t* loop;
-	void (*accept_callback)(FD_t, struct sockaddr_storage*, void*);
-	void (*connect_callback)(struct NioSocket_t*, int);
 	union {
 		void* accept_callback_arg;
 		struct sockaddr_storage connect_saddr;
 	};
+	void(*reg_callback)(struct NioSocket_t*, int);
+	void (*accept_callback)(FD_t, struct sockaddr_storage*, void*);
+	void (*connect_callback)(struct NioSocket_t*, int);
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
 	int(*send_packet)(struct NioSocket_t*, Iobuf_t[], unsigned int, const struct sockaddr_storage*);
 	void(*close)(struct NioSocket_t*);
