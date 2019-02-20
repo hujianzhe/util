@@ -209,7 +209,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 	dataqueuePush(s->loop->m_senddq, &s->m_sendmsg.m_listnode);
 }
 
-int niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
 	size_t i, nbytes;
 	if (!s->valid)
 		return -1;
@@ -265,6 +265,10 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 			pfree(s);
 			return NULL;
 		}
+	}
+	if (!socketNonBlock(fd, TRUE)) {
+		pfree(s);
+		return NULL;
 	}
 	s->fd = fd;
 	s->domain = domain;
@@ -388,8 +392,6 @@ void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec) {
 				NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 				int reg_ok = 0;
 				do {
-					if (!socketNonBlock(s->fd, TRUE))
-						break;
 					if (!reactorReg(&loop->m_reactor, s->fd))
 						break;
 					s->loop = loop;
