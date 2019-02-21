@@ -42,7 +42,6 @@ typedef struct NioSocket_t {
 	int protocol;
 	volatile char valid;
 	volatile int timeout_second;
-	NioSocketLoop_t* loop;
 	union {
 		void* accept_callback_arg;
 		struct sockaddr_storage connect_saddr;
@@ -53,11 +52,12 @@ typedef struct NioSocket_t {
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
 	int(*send_packet)(struct NioSocket_t*, Iobuf_t[], unsigned int, const struct sockaddr_storage*);
 	void(*close)(struct NioSocket_t*);
-	void(*free)(struct NioSocket_t*);
 /* private */
 	NioSocketMsg_t m_msg;
 	NioSocketMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
+	NioSocketLoop_t* m_loop;
+	void(*m_free)(struct NioSocket_t*);
 	void* m_readOl;
 	void* m_writeOl;
 	time_t m_lastActiveTime;
