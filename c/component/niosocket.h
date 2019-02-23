@@ -24,12 +24,6 @@ typedef struct NioSocketLoop_t {
 	HashtableNode_t* m_sockht_bulks[2048];
 } NioSocketLoop_t;
 
-enum {
-	NIO_SOCKET_USER_MESSAGE,
-	NIO_SOCKET_CLOSE_MESSAGE,
-	NIO_SOCKET_REG_MESSAGE,
-	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE
-};
 typedef struct NioSocketMsg_t {
 	ListNode_t m_listnode;
 	int type;

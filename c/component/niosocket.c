@@ -7,6 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+enum {
+	NIO_SOCKET_USER_MESSAGE,
+	NIO_SOCKET_CLOSE_MESSAGE,
+	NIO_SOCKET_REG_MESSAGE,
+	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE
+};
+
 typedef struct Packet_t {
 	NioSocketMsg_t msg;
 	struct sockaddr_storage saddr, *p_saddr;
