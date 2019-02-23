@@ -107,7 +107,7 @@ int websocketframeDecode(unsigned char* buf, unsigned long long len,
 	return header_size + ext_payload_filed_len + mask_len + payload_len;
 }
 
-unsigned int websocketframeHeadLength(unsigned long long datalen) {
+unsigned int websocketframeEncodeHeadLength(unsigned long long datalen) {
 	if (datalen < 126)
 		return 2;
 	else if (datalen <= 0xffff)
