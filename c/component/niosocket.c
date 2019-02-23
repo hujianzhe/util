@@ -111,7 +111,8 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				}
 
 				while (offset < s->m_inbuflen) {
-					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr);
+					NioSocketMsg_t* msgptr = NULL;
+					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr, &msgptr);
 					if (0 == len)
 						break;
 					if (len < 0) {
@@ -120,6 +121,10 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 						break;
 					}
 					offset += len;
+					if (msgptr) {
+						msgptr->type = NIO_SOCKET_USER_MESSAGE;
+						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+					}
 				}
 
 				if (offset) {
@@ -150,20 +155,30 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				break;
 			}
 			else if (0 == res) {
-				if (s->decode_packet(s, NULL, 0, &saddr) < 0) {
+				NioSocketMsg_t* msgptr = NULL;
+				if (s->decode_packet(s, NULL, 0, &saddr, &msgptr) < 0) {
 					s->valid = 0;
 					break;
+				}
+				if (msgptr) {
+					msgptr->type = NIO_SOCKET_USER_MESSAGE;
+					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
 			}
 			else {
 				int offset = 0, len = -1;
 				while (offset < res) {
-					len = s->decode_packet(s, buffer + offset, res - offset, &saddr);
+					NioSocketMsg_t* msgptr = NULL;
+					len = s->decode_packet(s, buffer + offset, res - offset, &saddr, &msgptr);
 					if (len < 0) {
 						s->valid = 0;
 						break;
 					}
 					offset += len;
+					if (msgptr) {
+						msgptr->type = NIO_SOCKET_USER_MESSAGE;
+						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+					}
 				}
 				if (len < 0)
 					break;
@@ -522,7 +537,7 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq, 
 	return loop;
 }
 
-void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
+void niosocketloopReg(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
 	char c;
 	size_t i;
 	List_t list;

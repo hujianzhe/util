@@ -50,7 +50,7 @@ typedef struct NioSocket_t {
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*accept_callback)(FD_t, struct sockaddr_storage*, void*);
 	void(*connect_callback)(struct NioSocket_t*, int);
-	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, struct sockaddr_storage*);
+	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketMsg_t**);
 	void(*close)(struct NioSocket_t*);
 /* private */
 	NioSocketMsg_t m_msg;
@@ -77,7 +77,7 @@ __declspec_dll int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int io
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq);
 __declspec_dll void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec);
-__declspec_dll void niosocketloopAdd(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
+__declspec_dll void niosocketloopReg(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void niosocketloopDestroy(NioSocketLoop_t* loop);
 __declspec_dll void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt);
 __declspec_dll void niosocketsendClean(DataQueue_t* dq);
