@@ -576,6 +576,35 @@ void nioloopDestroy(NioLoop_t* loop) {
 	}
 }
 
+static void reactorsocket_real_send(NioSocket_t* s, Packet_t* packet) {
+	int res, is_empty;
+	if (!s->valid)
+		return;
+	res = 0;
+	is_empty = !s->m_outbuflist.head;
+	if (SOCK_STREAM != s->socktype || is_empty) {
+		res = socketWrite(s->fd, packet->data, packet->len, 0, packet->p_saddr);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				s->valid = 0;
+				return;
+			}
+			res = 0;
+		}
+		else if (res >= packet->len) {
+			if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
+				free(packet);
+			return;
+		}
+	}
+	if (SOCK_STREAM == s->socktype) {
+		packet->offset = res;
+		listInsertNodeBack(&s->m_outbuflist, s->m_outbuflist.tail, &packet->msg.m_listnode);
+		if (is_empty)
+			reactorsocket_write(s);
+	}
+}
+
 void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 	ListNode_t *cur, *next;
 	for (cur = dataqueuePop(dq, max_wait_msec, popcnt); cur; cur = next) {
@@ -588,33 +617,9 @@ void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 			criticalsectionLeave(&s->m_loop->m_msglistlock);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
-			int res, is_empty;
 			Packet_t* packet = pod_container_of(msgbase, Packet_t, msg);
 			NioSocket_t* s = packet->s;
-			if (!s->valid)
-				continue;
-			res = 0;
-			is_empty = !s->m_outbuflist.head;
-			if (SOCK_STREAM != s->socktype || is_empty) {
-				res = socketWrite(s->fd, packet->data, packet->len, 0, packet->p_saddr);
-				if (res < 0) {
-					if (errnoGet() != EWOULDBLOCK) {
-						s->valid = 0;
-						continue;
-					}
-					res = 0;
-				}
-				else if (res >= packet->len) {
-					free(packet);
-					continue;
-				}
-			}
-			if (SOCK_STREAM == s->socktype) {
-				packet->offset = res;
-				listInsertNodeBack(&s->m_outbuflist, s->m_outbuflist.tail, cur);
-				if (is_empty)
-					reactorsocket_write(s);
-			}
+			reactorsocket_real_send(s, packet);
 		}
 		else if (NIO_SOCKET_STREAM_WRITEABLE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_sendmsg);
@@ -636,7 +641,8 @@ void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 				packet->offset += res;
 				if (packet->offset >= packet->len) {
 					listRemoveNode(&s->m_outbuflist, cur);
-					free(packet);
+					if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
+						free(packet);
 					continue;
 				}
 				else if (s->valid)
