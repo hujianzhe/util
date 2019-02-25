@@ -15,7 +15,7 @@ enum {
 };
 
 typedef struct Packet_t {
-	NioSocketMsg_t msg;
+	NioMsg_t msg;
 	struct sockaddr_storage saddr, *p_saddr;
 	NioSocket_t* s;
 	size_t offset;
@@ -118,7 +118,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				}
 
 				while (offset < s->m_inbuflen) {
-					NioSocketMsg_t* msgptr = NULL;
+					NioMsg_t* msgptr = NULL;
 					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr, &msgptr);
 					if (0 == len)
 						break;
@@ -162,7 +162,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				break;
 			}
 			else if (0 == res) {
-				NioSocketMsg_t* msgptr = NULL;
+				NioMsg_t* msgptr = NULL;
 				if (s->decode_packet(s, NULL, 0, &saddr, &msgptr) < 0) {
 					s->valid = 0;
 					break;
@@ -175,7 +175,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 			else {
 				int offset = 0, len = -1;
 				while (offset < res) {
-					NioSocketMsg_t* msgptr = NULL;
+					NioMsg_t* msgptr = NULL;
 					len = s->decode_packet(s, buffer + offset, res - offset, &saddr, &msgptr);
 					if (len < 0) {
 						s->valid = 0;
@@ -370,7 +370,7 @@ static size_t sockht_expire(Hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 	return i;
 }
 
-void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec) {
+void nioloopHandler(NioLoop_t* loop, int* wait_msec) {
 	NioEv_t e[4096];
 	NioSocket_t* expire_sockets[512];
 	ListNode_t *cur, *next;
@@ -432,9 +432,9 @@ void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec) {
 	criticalsectionLeave(&loop->m_msglistlock);
 
 	for (; cur; cur = next) {
-		NioSocketMsg_t* message;
+		NioMsg_t* message;
 		next = cur->next;
-		message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+		message = pod_container_of(cur, NioMsg_t, m_listnode);
 		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
 			niosocketFree(s);
@@ -494,7 +494,7 @@ void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec) {
 		*wait_msec -= delta_msec;
 }
 
-NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq) {
+NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq) {
 	struct sockaddr_storage saddr;
 	loop->initok = 0;
 
@@ -544,7 +544,7 @@ NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq, 
 	return loop;
 }
 
-void niosocketloopReg(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
+void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 	char c;
 	size_t i;
 	List_t list;
@@ -559,7 +559,7 @@ void niosocketloopReg(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n) {
 	socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
 }
 
-void niosocketloopDestroy(NioSocketLoop_t* loop) {
+void nioloopDestroy(NioLoop_t* loop) {
 	if (loop && loop->initok) {
 		HashtableNode_t *cur, *next;
 		reactorFreeOverlapped(loop->m_readOl);
@@ -574,10 +574,10 @@ void niosocketloopDestroy(NioSocketLoop_t* loop) {
 	}
 }
 
-void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
+void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 	ListNode_t *cur, *next;
 	for (cur = dataqueuePop(dq, max_wait_msec, popcnt); cur; cur = next) {
-		NioSocketMsg_t* msgbase = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_msg);
@@ -645,20 +645,20 @@ void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 	}
 }
 
-void niosocketsendClean(DataQueue_t* dq) {
+void niosendClean(DataQueue_t* dq) {
 	ListNode_t *cur, *next;
 	for (cur = dataqueuePop(dq, 0, ~0); cur; cur = next) {
-		NioSocketMsg_t* msgbase = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_USER_MESSAGE == msgbase->type)
 			free(pod_container_of(msgbase, Packet_t, msg));
 	}
 }
 
-void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg) {
+void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg) {
 	ListNode_t* cur, *next;
 	for (cur = dataqueuePop(dq, max_wait_msec, ~0); cur; cur = next) {
-		NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+		NioMsg_t* message = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_msg);
@@ -672,12 +672,12 @@ void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_cal
 	}
 }
 
-void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*)) {
+void niomsgClean(DataQueue_t* dq, void(*deleter)(NioMsg_t*)) {
 	ListNode_t *cur = dataqueuePop(dq, 0, ~0);
 	if (deleter) {
 		ListNode_t *next;
 		for (; cur; cur = next) {
-			NioSocketMsg_t* message = pod_container_of(cur, NioSocketMsg_t, m_listnode);
+			NioMsg_t* message = pod_container_of(cur, NioMsg_t, m_listnode);
 			next = cur->next;
 			if (NIO_SOCKET_USER_MESSAGE == message->type)
 				deleter(message);

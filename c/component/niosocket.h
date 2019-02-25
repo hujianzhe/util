@@ -11,7 +11,7 @@
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
-typedef struct NioSocketLoop_t {
+typedef struct NioLoop_t {
 	unsigned char initok;
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
@@ -22,12 +22,12 @@ typedef struct NioSocketLoop_t {
 	List_t m_msglist;
 	Hashtable_t m_sockht;
 	HashtableNode_t* m_sockht_bulks[2048];
-} NioSocketLoop_t;
+} NioLoop_t;
 
-typedef struct NioSocketMsg_t {
+typedef struct NioMsg_t {
 	ListNode_t m_listnode;
 	int type;
-} NioSocketMsg_t;
+} NioMsg_t;
 
 typedef struct NioSocket_t {
 	FD_t fd;
@@ -44,13 +44,13 @@ typedef struct NioSocket_t {
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*accept_callback)(FD_t, struct sockaddr_storage*, void*);
 	void(*connect_callback)(struct NioSocket_t*, int);
-	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketMsg_t**);
+	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
 	void(*close)(struct NioSocket_t*);
 /* private */
-	NioSocketMsg_t m_msg;
-	NioSocketMsg_t m_sendmsg;
+	NioMsg_t m_msg;
+	NioMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
-	NioSocketLoop_t* m_loop;
+	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);
 	void* m_readOl;
 	void* m_writeOl;
@@ -69,14 +69,14 @@ __declspec_dll void niosocketFree(NioSocket_t* s);
 __declspec_dll int niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
 __declspec_dll int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
-__declspec_dll NioSocketLoop_t* niosocketloopCreate(NioSocketLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq);
-__declspec_dll void niosocketloopHandler(NioSocketLoop_t* loop, int* wait_msec);
-__declspec_dll void niosocketloopReg(NioSocketLoop_t* loop, NioSocket_t* s[], size_t n);
-__declspec_dll void niosocketloopDestroy(NioSocketLoop_t* loop);
-__declspec_dll void niosocketsendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt);
-__declspec_dll void niosocketsendClean(DataQueue_t* dq);
-__declspec_dll void niosocketmsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioSocketMsg_t*, void*), void* arg);
-__declspec_dll void niosocketmsgClean(DataQueue_t* dq, void(*deleter)(NioSocketMsg_t*));
+__declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq);
+__declspec_dll void nioloopHandler(NioLoop_t* loop, int* wait_msec);
+__declspec_dll void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n);
+__declspec_dll void nioloopDestroy(NioLoop_t* loop);
+__declspec_dll void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt);
+__declspec_dll void niosendClean(DataQueue_t* dq);
+__declspec_dll void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg);
+__declspec_dll void niomsgClean(DataQueue_t* dq, void(*deleter)(NioMsg_t*));
 
 #ifdef __cplusplus
 }
