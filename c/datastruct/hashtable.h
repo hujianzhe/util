@@ -18,7 +18,7 @@ typedef struct HashtableNode_t {
 typedef struct Hashtable_t {
 	struct HashtableNode_t** buckets;
 	unsigned int buckets_size;
-	int (*keycmp)(struct HashtableNode_t*, const void*);
+	int (*keycmp)(const struct HashtableNode_t*, const void*);
 	unsigned int (*keyhash)(const void*);
 } Hashtable_t;
 

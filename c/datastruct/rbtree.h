@@ -19,7 +19,7 @@ typedef struct RBTreeNode_t {
 
 typedef struct RBTree_t {
 	struct RBTreeNode_t *rb_tree_node;
-	int (*keycmp)(struct RBTreeNode_t*, const void*);
+	int (*keycmp)(const struct RBTreeNode_t*, const void*);
 } RBTree_t;
 
 #ifdef	__cplusplus
