@@ -232,12 +232,13 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 	dataqueuePush(s->m_loop->m_senddq, &s->m_sendmsg.m_listnode);
 }
 
-int niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
+NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
+	Packet_t* packet;
 	if (!data || !len)
-		return 0;
-	Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + len);
+		return s;
+	packet = (Packet_t*)malloc(sizeof(Packet_t) + len);
 	if (!packet)
-		return -1;
+		return NULL;
 	packet->msg.type = NIO_SOCKET_USER_MESSAGE;
 	packet->s = s;
 	packet->offset = 0;
@@ -251,25 +252,26 @@ int niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const stru
 		packet->saddr = *saddr;
 	}
 	dataqueuePush(s->m_loop->m_senddq, &packet->msg.m_listnode);
-	return 0;
+	return s;
 }
 
-int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+	Packet_t* packet;
 	size_t i, nbytes;
 	if (!s->valid)
-		return -1;
+		return NULL;
 	if (!iov || !iovcnt)
-		return 0;
+		return s;
 
 	for (nbytes = 0, i = 0; i < iovcnt; ++i) {
 		nbytes += iobufLen(iov + i);
 	}
 	if (0 == nbytes)
-		return 0;
+		return s;
 
-	Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + nbytes);
+	packet = (Packet_t*)malloc(sizeof(Packet_t) + nbytes);
 	if (!packet)
-		return -1;
+		return NULL;
 	packet->msg.type = NIO_SOCKET_USER_MESSAGE;
 	packet->s = s;
 	packet->offset = 0;
@@ -286,7 +288,7 @@ int niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const str
 		packet->saddr = *saddr;
 	}
 	dataqueuePush(s->m_loop->m_senddq, &packet->msg.m_listnode);
-	return 0;
+	return s;
 }
 
 void niosocketShutdown(NioSocket_t* s) {
