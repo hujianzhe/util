@@ -64,7 +64,7 @@ public:
 	typedef iterator	const_iterator;
 
 private:
-	static int keycmp(::HashtableNode_t* _n, const void* key) {
+	static int keycmp(const ::HashtableNode_t* _n, const void* key) {
 		return ((Xnode*)_n)->k != *(key_type*)key;
 	}
 
