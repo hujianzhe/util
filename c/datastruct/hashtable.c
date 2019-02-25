@@ -8,6 +8,9 @@
 extern "C" {
 #endif
 
+static int __default_keycmp(const struct HashtableNode_t* node, const void* key) { return node->key != key; }
+static unsigned int __default_keyhash(const void* key) { return (ptrlen_t)key; }
+
 struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const void* key) {
 	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
@@ -28,7 +31,7 @@ struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, co
 
 struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(struct HashtableNode_t*, const void*),
+		int (*keycmp)(const struct HashtableNode_t*, const void*),
 		unsigned int (*keyhash)(const void*))
 {
 	unsigned int i;
@@ -37,8 +40,8 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 	}
 	hashtable->buckets = buckets;
 	hashtable->buckets_size = buckets_size;
-	hashtable->keycmp = keycmp;
-	hashtable->keyhash = keyhash;
+	hashtable->keycmp = keycmp ? keycmp : __default_keycmp;
+	hashtable->keyhash = keyhash ? keyhash : __default_keyhash;
 	return hashtable;
 }
 

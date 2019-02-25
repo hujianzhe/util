@@ -28,7 +28,7 @@ extern "C" {
 
 __declspec_dll struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(struct HashtableNode_t*, const void*),
+		int (*keycmp)(const struct HashtableNode_t*, const void*),
 		unsigned int (*keyhash)(const void*));
 
 __declspec_dll struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);

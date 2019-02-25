@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-static int header_keycmp(struct HashtableNode_t* node, const void* key) {
+static int header_keycmp(const struct HashtableNode_t* node, const void* key) {
 	const char* sk = *(const char**)key;
 	return strcmp(pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->key, sk);
 }

@@ -26,7 +26,7 @@ typedef struct RBTree_t {
 extern "C" {
 #endif
 
-__declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(struct RBTreeNode_t*, const void*));
+__declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const struct RBTreeNode_t*, const void*));
 
 __declspec_dll struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node);
 __declspec_dll void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node);

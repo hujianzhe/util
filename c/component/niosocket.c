@@ -342,7 +342,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	return s;
 }
 
-static int sockht_keycmp(struct HashtableNode_t* node, const void* key) {
+static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
 	return pod_container_of(node, NioSocket_t, m_hashnode)->fd != *(FD_t*)key;
 }
 

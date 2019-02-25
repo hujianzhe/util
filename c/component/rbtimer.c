@@ -15,7 +15,7 @@ typedef struct RBTimerEvList {
 extern "C" {
 #endif
 
-static int rbtimer_keycmp(struct RBTreeNode_t* node, const void* key) {
+static int rbtimer_keycmp(const struct RBTreeNode_t* node, const void* key) {
 	RBTimerEvList* evlist = pod_container_of(node, RBTimerEvList, m_rbtreenode);
 	long long res = *(long long*)key - evlist->timestamp_msec;
 	if (res < 0)
