@@ -42,7 +42,7 @@ void niosocketFree(NioSocket_t* s) {
 	}
 	do {
 		ListNode_t *cur, *next;
-		for (cur = s->m_outbuflist.head; cur; cur = next) {
+		for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 			next = cur->next;
 			free(pod_container_of(cur, Packet_t, msg.m_listnode));
 		}
@@ -326,9 +326,9 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->valid = 1;
 	s->timeout_second = INFTIM;
 	s->userdata = NULL;
-	s->reg_callback = NULL;
 	s->accept_callback = NULL;
 	s->connect_callback = NULL;
+	s->reg_callback = NULL;
 	s->decode_packet = NULL;
 	s->close = NULL;
 	s->m_sendmsg.type = NIO_SOCKET_STREAM_WRITEABLE_MESSAGE;
@@ -340,7 +340,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_lastActiveTime = 0;
 	s->m_inbuf = NULL;
 	s->m_inbuflen = 0;
-	listInit(&s->m_outbuflist);
+	listInit(&s->m_sendpacketlist);
 	return s;
 }
 
@@ -581,7 +581,7 @@ static void reactorsocket_real_send(NioSocket_t* s, Packet_t* packet) {
 	if (!s->valid)
 		return;
 	res = 0;
-	is_empty = !s->m_outbuflist.head;
+	is_empty = !s->m_sendpacketlist.head;
 	if (SOCK_STREAM != s->socktype || is_empty) {
 		res = socketWrite(s->fd, packet->data, packet->len, 0, packet->p_saddr);
 		if (res < 0) {
@@ -599,7 +599,7 @@ static void reactorsocket_real_send(NioSocket_t* s, Packet_t* packet) {
 	}
 	if (SOCK_STREAM == s->socktype) {
 		packet->offset = res;
-		listInsertNodeBack(&s->m_outbuflist, s->m_outbuflist.tail, &packet->msg.m_listnode);
+		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		if (is_empty)
 			reactorsocket_write(s);
 	}
@@ -626,7 +626,7 @@ void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 			ListNode_t* cur, *next;
 			if (!s->valid)
 				continue;
-			for (cur = s->m_outbuflist.head; cur; cur = next) {
+			for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 				int res;
 				Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 				next = cur->next;
@@ -640,7 +640,7 @@ void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt) {
 				}
 				packet->offset += res;
 				if (packet->offset >= packet->len) {
-					listRemoveNode(&s->m_outbuflist, cur);
+					listRemoveNode(&s->m_sendpacketlist, cur);
 					if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
 						free(packet);
 					continue;
