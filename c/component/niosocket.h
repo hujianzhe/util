@@ -22,6 +22,7 @@ typedef struct NioLoop_t {
 	List_t m_msglist;
 	Hashtable_t m_sockht;
 	HashtableNode_t* m_sockht_bulks[2048];
+	long long m_checkexpire_msec;
 } NioLoop_t;
 
 typedef struct NioMsg_t {
@@ -70,7 +71,7 @@ __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsi
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq);
-__declspec_dll void nioloopHandler(NioLoop_t* loop, int* wait_msec);
+__declspec_dll void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec);
 __declspec_dll void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void nioloopDestroy(NioLoop_t* loop);
 __declspec_dll void niosendHandler(DataQueue_t* dq, int max_wait_msec, size_t popcnt);

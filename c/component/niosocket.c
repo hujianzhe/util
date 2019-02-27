@@ -372,18 +372,15 @@ static size_t sockht_expire(Hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 	return i;
 }
 
-void nioloopHandler(NioLoop_t* loop, int* wait_msec) {
+void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 	NioEv_t e[4096];
-	NioSocket_t* expire_sockets[512];
 	ListNode_t *cur, *next;
-	int delta_msec;
-	long long start_ts_msec = gmtimeMillisecond();
-	int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), *wait_msec);
+	int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
 	if (n < 0) {
 		return;
 	}
 	else if (n > 0) {
-		time_t now_ts_sec = start_ts_msec / 1000;
+		time_t now_ts_sec = timestamp_msec / 1000;
 		int i;
 		for (i = 0; i < n; ++i) {
 			HashtableNode_t* find_node;
@@ -472,15 +469,16 @@ void nioloopHandler(NioLoop_t* loop, int* wait_msec) {
 		}
 	}
 
-	if (n) {
-		delta_msec = gmtimeMillisecond() - start_ts_msec;
-		if (delta_msec < 0)
-			delta_msec = *wait_msec;
-	}
+	if (n)
+		timestamp_msec = gmtimeMillisecond();
 	else
-		delta_msec = *wait_msec;
+		timestamp_msec += wait_msec;
 
-	if (delta_msec >= *wait_msec) {
+	if (timestamp_msec < loop->m_checkexpire_msec) {
+		loop->m_checkexpire_msec = timestamp_msec;
+	}
+	if (timestamp_msec >= loop->m_checkexpire_msec + 1000) {
+		NioSocket_t* expire_sockets[512];
 		List_t list;
 		size_t i;
 		size_t cnt = sockht_expire(&loop->m_sockht, expire_sockets, sizeof(expire_sockets) / sizeof(expire_sockets[0]));
@@ -489,11 +487,8 @@ void nioloopHandler(NioLoop_t* loop, int* wait_msec) {
 			listInsertNodeBack(&list, list.tail, &expire_sockets[i]->m_msg.m_listnode);
 		}
 		dataqueuePushList(loop->m_msgdq, &list);
-
-		*wait_msec = 1000;
+		loop->m_checkexpire_msec = timestamp_msec;
 	}
-	else
-		*wait_msec -= delta_msec;
 }
 
 NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* senddq) {
@@ -543,6 +538,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, DataQueue_t* sendd
 	hashtableInit(&loop->m_sockht, loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 			sockht_keycmp, sockht_keyhash);
 	loop->initok = 1;
+	loop->m_checkexpire_msec = 0;
 	return loop;
 }
 
