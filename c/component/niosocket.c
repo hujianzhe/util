@@ -373,9 +373,18 @@ static size_t sockht_expire(Hashtable_t* ht, NioSocket_t* buf[], size_t n) {
 }
 
 void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
+	int n;
 	NioEv_t e[4096];
 	ListNode_t *cur, *next;
-	int n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
+
+	if (timestamp_msec < loop->m_checkexpire_msec)
+		loop->m_checkexpire_msec = timestamp_msec;
+	else if (timestamp_msec > loop->m_checkexpire_msec + 1000)
+		wait_msec = 0;
+	else if (timestamp_msec + wait_msec > loop->m_checkexpire_msec + 1000)
+		wait_msec = loop->m_checkexpire_msec + 1000 - timestamp_msec;
+
+	n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
 	if (n < 0) {
 		return;
 	}
@@ -477,7 +486,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 	if (timestamp_msec < loop->m_checkexpire_msec) {
 		loop->m_checkexpire_msec = timestamp_msec;
 	}
-	if (timestamp_msec >= loop->m_checkexpire_msec + 1000) {
+	else if (timestamp_msec >= loop->m_checkexpire_msec + 1000) {
 		NioSocket_t* expire_sockets[512];
 		List_t list;
 		size_t i;
