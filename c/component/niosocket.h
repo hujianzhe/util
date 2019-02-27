@@ -35,6 +35,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
+	char reliable;
 	volatile char valid;
 	volatile int timeout_second;
 	void* userdata;
@@ -58,7 +59,10 @@ typedef struct NioSocket_t {
 	time_t m_lastActiveTime;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
+	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
+	int m_recvseq;
+	int m_sendseq;
 } NioSocket_t;
 
 #ifdef __cplusplus
