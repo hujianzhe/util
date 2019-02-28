@@ -12,8 +12,7 @@ enum {
 	NIO_SOCKET_CLOSE_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE,
-	NIO_SOCKET_RELIABLE_ACK_MESSAGE,
-	NIO_SOCKET_RELIABLE_RESEND_MESSAGE
+	NIO_SOCKET_RELIABLE_ACK_MESSAGE
 };
 
 enum {
@@ -442,7 +441,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
 	s->m_sendmsg.type = NIO_SOCKET_STREAM_WRITEABLE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
-	s->m_senderhashnode.key = &s->fd;
 	s->m_loop = NULL;
 	s->m_free = pfree;
 	s->m_readOl = NULL;
@@ -732,25 +730,31 @@ NioSender_t* niosenderCreate(NioSender_t* sender) {
 	sender->initok = 0;
 	if (!dataqueueInit(&sender->m_dq))
 		return NULL;
-	hashtableInit(&sender->m_sockht,
-		sender->m_sockht_bulks, sizeof(sender->m_sockht_bulks) / sizeof(sender->m_sockht_bulks[0]),
-		sockht_keycmp, sockht_keyhash);
+	listInit(&sender->m_socklist);
+	sender->m_resend_msec = 0;
 	sender->initok = 1;
 	return sender;
 }
 
 void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec) {
 	ListNode_t *cur, *next;
+	if (timestamp_msec < sender->m_resend_msec || 0 == sender->m_resend_msec)
+		sender->m_resend_msec = timestamp_msec;
+	else if (timestamp_msec > sender->m_resend_msec + 500)
+		wait_msec = 0;
+	else if (timestamp_msec + wait_msec > sender->m_resend_msec + 500)
+		wait_msec = sender->m_resend_msec + 500 - timestamp_msec;
+
 	for (cur = dataqueuePop(&sender->m_dq, wait_msec, ~0); cur; cur = next) {
 		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_REG_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_regmsg);
-			hashtableReplaceNode(hashtableInsertNode(&sender->m_sockht, &s->m_senderhashnode), &s->m_senderhashnode);
+			listInsertNodeBack(&sender->m_socklist, sender->m_socklist.tail, &s->m_senderlistnode);
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_closemsg);
-			hashtableRemoveNode(&sender->m_sockht, &s->m_senderhashnode);
+			listRemoveNode(&sender->m_socklist, &s->m_senderlistnode);
 			criticalsectionEnter(&s->m_loop->m_msglistlock);
 			listInsertNodeBack(&s->m_loop->m_msglist, s->m_loop->m_msglist.tail, cur);
 			criticalsectionLeave(&s->m_loop->m_msglistlock);
@@ -807,19 +811,15 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				}
 			}
 		}
-		else if (NIO_SOCKET_RELIABLE_RESEND_MESSAGE == msgbase->type) {
-			ListNode_t* cur;
-			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_sendmsg);
-			if (!s->valid)
-				continue;
-			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-				Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-				int res = socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
-				if (res < 0 && errnoGet() != EWOULDBLOCK) {
-					s->valid = 0;
-					break;
-				}
-			}
+	}
+
+	timestamp_msec = gmtimeMillisecond();
+	if (timestamp_msec < sender->m_resend_msec)
+		sender->m_resend_msec = timestamp_msec;
+	else if (timestamp_msec > sender->m_resend_msec + 500) {
+		for (cur = sender->m_socklist.head; cur; cur = cur->next) {
+			NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_senderlistnode);
+			// TODO resend
 		}
 	}
 }

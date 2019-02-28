@@ -29,8 +29,8 @@ typedef struct NioLoop_t {
 typedef struct NioSender_t {
 	unsigned char initok;
 	DataQueue_t m_dq;
-	Hashtable_t m_sockht;
-	HashtableNode_t* m_sockht_bulks[2048];
+	List_t m_socklist;
+	long long m_resend_msec;
 } NioSender_t;
 
 typedef struct NioMsg_t {
@@ -61,7 +61,7 @@ typedef struct NioSocket_t {
 	NioMsg_t m_closemsg;
 	NioMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
-	HashtableNode_t m_senderhashnode;
+	ListNode_t m_senderlistnode;
 	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);
 	void* m_readOl;
