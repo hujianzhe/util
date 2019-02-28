@@ -24,6 +24,7 @@ enum {
 
 typedef struct Packet_t {
 	NioMsg_t msg;
+	long long timestamp_msec;
 	struct sockaddr_storage saddr, *p_saddr;
 	NioSocket_t* s;
 	size_t offset;
@@ -732,7 +733,7 @@ NioSender_t* niosenderCreate(NioSender_t* sender) {
 	return sender;
 }
 
-static void resend_packet(NioSocket_t* s) {
+static void resend_packet(NioSocket_t* s, long long timestamp) {
 	ListNode_t* cur;
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
@@ -741,6 +742,7 @@ static void resend_packet(NioSocket_t* s) {
 }
 
 void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec) {
+	int update_timestamp = 1;
 	ListNode_t *cur, *next;
 	if (timestamp_msec < sender->m_resend_msec || 0 == sender->m_resend_msec)
 		sender->m_resend_msec = timestamp_msec;
@@ -770,6 +772,11 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			*(unsigned int*)(packet->data + 1) = htonl(s->m_sendseq);
 			s->m_sendseq++;
 			reactorsocket_real_send(s, packet);
+			if (update_timestamp) {
+				update_timestamp = 0;
+				timestamp_msec = gmtimeMillisecond();
+			}
+			packet->timestamp_msec = timestamp_msec;
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
@@ -833,7 +840,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_senderlistnode);
 			if (!s->reliable || s->socktype == SOCK_STREAM)
 				continue;
-			resend_packet(s);
+			resend_packet(s, timestamp_msec);
 		}
 	}
 }
