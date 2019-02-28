@@ -839,14 +839,16 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 }
 
 void niosenderDestroy(NioSender_t* sender) {
-	ListNode_t *cur, *next;
-	for (cur = dataqueuePop(&sender->m_dq, 0, ~0); cur; cur = next) {
-		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
-		next = cur->next;
-		if (NIO_SOCKET_USER_MESSAGE == msgbase->type)
-			free(pod_container_of(msgbase, Packet_t, msg));
+	if (sender && sender->initok) {
+		ListNode_t *cur, *next;
+		for (cur = dataqueuePop(&sender->m_dq, 0, ~0); cur; cur = next) {
+			NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
+			next = cur->next;
+			if (NIO_SOCKET_USER_MESSAGE == msgbase->type)
+				free(pod_container_of(msgbase, Packet_t, msg));
+		}
+		dataqueueDestroy(&sender->m_dq, NULL);
 	}
-	dataqueueDestroy(&sender->m_dq, NULL);
 }
 
 void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg) {
