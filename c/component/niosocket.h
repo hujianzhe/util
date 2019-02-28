@@ -61,8 +61,8 @@ typedef struct NioSocket_t {
 	size_t m_inbuflen;
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
-	int m_recvseq;
-	int m_sendseq;
+	unsigned int m_recvseq;
+	unsigned int m_sendseq;
 } NioSocket_t;
 
 #ifdef __cplusplus
