@@ -491,13 +491,17 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 	int n;
 	NioEv_t e[4096];
 	ListNode_t *cur, *next;
-
+	if (wait_msec < 0)
+		wait_msec = 1000;
 	if (timestamp_msec < loop->m_checkexpire_msec)
 		loop->m_checkexpire_msec = timestamp_msec;
 	else if (timestamp_msec > loop->m_checkexpire_msec + 1000)
 		wait_msec = 0;
-	else if (timestamp_msec + wait_msec > loop->m_checkexpire_msec + 1000)
-		wait_msec = loop->m_checkexpire_msec + 1000 - timestamp_msec;
+	else if (timestamp_msec + wait_msec > loop->m_checkexpire_msec + 1000) {
+		int expire_wait_msec = loop->m_checkexpire_msec + 1000 - timestamp_msec;
+		if (expire_wait_msec < wait_msec)
+			wait_msec = expire_wait_msec;
+	}
 
 	n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
 	if (n < 0) {
@@ -755,8 +759,11 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 	ListNode_t *cur, *next;
 	if (sender->m_resend_msec > timestamp_msec) {
 		int resend_wait_msec = sender->m_resend_msec - timestamp_msec;
-		if (resend_wait_msec < wait_msec)
+		if (resend_wait_msec < wait_msec || wait_msec < 0)
 			wait_msec = resend_wait_msec;
+	}
+	else if (sender->m_resend_msec) {
+		wait_msec = 0;
 	}
 	for (cur = dataqueuePop(&sender->m_dq, wait_msec, ~0); cur; cur = next) {
 		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
@@ -838,7 +845,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		}
 	}
 	timestamp_msec = gmtimeMillisecond();
-	if (timestamp_msec >= sender->m_resend_msec) {
+	if (sender->m_resend_msec && timestamp_msec >= sender->m_resend_msec) {
 		for (cur = sender->m_socklist.head; cur; cur = cur->next) {
 			NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_senderlistnode);
 			if (!s->reliable || s->socktype == SOCK_STREAM)
