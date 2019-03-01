@@ -130,16 +130,16 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		socketWrite(s->fd, ack, sizeof(ack), 0, saddr);
 
 		seq = ntohl(seq);
-		if (seq < s->m_recvseq)
+		if (seq < s->reliable.m_recvseq)
 			return 1;
-		if (seq == s->m_recvseq) {
+		if (seq == s->reliable.m_recvseq) {
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				NioMsg_t* msgptr;
 				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
-				if (packet->seq != s->m_recvseq)
+				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
-				s->m_recvseq++;
+				s->reliable.m_recvseq++;
 				msgptr = NULL;
 				if (s->decode_packet(s, packet->len ? packet->data : NULL, packet->len, &packet->saddr, &msgptr) < 0) {
 					s->valid = 0;
@@ -276,7 +276,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
 			}
-			else if (s->reliable) {
+			else if (s->reliable.enable) {
 				if (res < RELIABLE_HDR_LEN)
 					continue;
 				if (!reactor_socket_reliable_read(s, buffer, res, &saddr))
@@ -347,7 +347,7 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 		return NULL;
 	if (!data || !len)
 		return s;
-	if (s->reliable && s->socktype != SOCK_STREAM) {
+	if (s->socktype != SOCK_STREAM && s->reliable.enable) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + len);
 		if (!packet)
 			return NULL;
@@ -390,7 +390,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 		nbytes += iobufLen(iov + i);
 	if (0 == nbytes)
 		return s;
-	if (s->reliable && s->socktype != SOCK_STREAM) {
+	if (s->socktype != SOCK_STREAM && s->reliable.enable) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + nbytes);
 		if (!packet)
 			return NULL;
@@ -461,7 +461,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->reliable = 0;
 	s->valid = 1;
 	s->timeout_second = INFTIM;
 	s->userdata = NULL;
@@ -483,9 +482,10 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_inbuflen = 0;
 	listInit(&s->m_recvpacketlist);
 	listInit(&s->m_sendpacketlist);
-	s->m_rto = 5;
-	s->m_recvseq = 0;
-	s->m_sendseq = 0;
+	s->reliable.enable = 0;
+	s->reliable.rto = 4;
+	s->reliable.m_recvseq = 0;
+	s->reliable.m_sendseq = 0;
 	return s;
 }
 
@@ -776,7 +776,7 @@ static void resend_packet(NioSender_t* sender, NioSocket_t* s, long long timesta
 		ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 		if (packet->resend_timestamp_msec <= timestamp_msec) {
 			socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
-			packet->resend_timestamp_msec = timestamp_msec + s->m_rto;
+			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 			packet->resendtimes++;
 		}
 		if (!sender->m_resend_msec || packet->resend_timestamp_msec < sender->m_resend_msec)
@@ -814,13 +814,13 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			if (!s->valid)
 				continue;
 			packet->data[0] = HDR_DATA;
-			*(unsigned int*)(packet->data + 1) = htonl(s->m_sendseq);
-			packet->seq = s->m_sendseq++;
+			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
+			packet->seq = s->reliable.m_sendseq++;
 			if (socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr) < 0) {
 				s->valid = 0;
 				continue;
 			}
-			packet->resend_timestamp_msec = gmtimeMillisecond() + s->m_rto;
+			packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
 			if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
 				sender->m_resend_msec = packet->resend_timestamp_msec;
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
@@ -881,7 +881,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		sender->m_resend_msec = 0;
 		for (cur = sender->m_socklist.head; cur; cur = cur->next) {
 			NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_senderlistnode);
-			if (!s->reliable || s->socktype == SOCK_STREAM)
+			if (s->socktype == SOCK_STREAM || !s->reliable.enable)
 				continue;
 			resend_packet(sender, s, timestamp_msec);
 		}
