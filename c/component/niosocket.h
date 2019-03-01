@@ -73,6 +73,8 @@ typedef struct NioSocket_t {
 	struct {
 		int enable;
 		unsigned int rto;
+		unsigned int m_cwndseq;
+		unsigned int m_cwndsize;
 		unsigned int m_recvseq;
 		unsigned int m_sendseq;
 	} reliable;

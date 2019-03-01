@@ -53,34 +53,6 @@ typedef struct ReliableAckPacket_t {
 extern "C" {
 #endif
 
-void niosocketFree(NioSocket_t* s) {
-	ListNode_t *cur, *next;
-	if (!s)
-		return;
-
-	socketClose(s->fd);
-	reactorFreeOverlapped(s->m_readOl);
-	reactorFreeOverlapped(s->m_writeOl);
-
-	if (s->m_inbuf) {
-		free(s->m_inbuf);
-		s->m_inbuf = NULL;
-		s->m_inbuflen = 0;
-	}
-
-	for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, Packet_t, msg.m_listnode));
-	}
-	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, Packet_t, msg.m_listnode));
-	}
-
-	if (s->m_free)
-		s->m_free(s);
-}
-
 static int reactorsocket_read(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
 	int opcode;
@@ -484,9 +456,39 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	listInit(&s->m_sendpacketlist);
 	s->reliable.enable = 0;
 	s->reliable.rto = 4;
+	s->reliable.m_cwndseq = 0;
+	s->reliable.m_cwndsize = 10;
 	s->reliable.m_recvseq = 0;
 	s->reliable.m_sendseq = 0;
 	return s;
+}
+
+void niosocketFree(NioSocket_t* s) {
+	ListNode_t *cur, *next;
+	if (!s)
+		return;
+
+	socketClose(s->fd);
+	reactorFreeOverlapped(s->m_readOl);
+	reactorFreeOverlapped(s->m_writeOl);
+
+	if (s->m_inbuf) {
+		free(s->m_inbuf);
+		s->m_inbuf = NULL;
+		s->m_inbuflen = 0;
+	}
+
+	for (cur = s->m_recvpacketlist.head; cur; cur = next) {
+		next = cur->next;
+		free(pod_container_of(cur, Packet_t, msg.m_listnode));
+	}
+	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
+		next = cur->next;
+		free(pod_container_of(cur, Packet_t, msg.m_listnode));
+	}
+
+	if (s->m_free)
+		s->m_free(s);
 }
 
 static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
@@ -730,12 +732,8 @@ void nioloopDestroy(NioLoop_t* loop) {
 	}
 }
 
-static void reactorsocket_real_send(NioSocket_t* s, Packet_t* packet) {
-	int res, is_empty;
-	if (!s->valid)
-		return;
-	res = 0;
-	is_empty = !s->m_sendpacketlist.head;
+static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
+	int res = 0, is_empty = !s->m_sendpacketlist.head;
 	if (SOCK_STREAM != s->socktype || is_empty) {
 		struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
 		res = socketWrite(s->fd, packet->data, packet->len, 0, saddrptr);
@@ -772,9 +770,14 @@ NioSender_t* niosenderCreate(NioSender_t* sender) {
 
 static void resend_packet(NioSender_t* sender, NioSocket_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
-	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+	unsigned int send_cnt = 0;
+	unsigned long long cwndseq = s->reliable.m_cwndseq;
+	for (cur = s->m_sendpacketlist.head; cur && send_cnt < s->reliable.m_cwndsize; cur = cur->next) {
 		ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+		if (packet->seq >= cwndseq + s->reliable.m_cwndsize)
+			continue;
 		if (packet->resend_timestamp_msec <= timestamp_msec) {
+			send_cnt++;
 			socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 			packet->resendtimes++;
@@ -809,25 +812,29 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			criticalsectionLeave(&s->m_loop->m_msglistlock);
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type) {
+			unsigned long long cwndseq;
 			ReliableDataPacket_t* packet = pod_container_of(msgbase, ReliableDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->valid)
 				continue;
 			packet->data[0] = HDR_DATA;
 			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
-			packet->seq = s->reliable.m_sendseq++;
-			if (socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr) < 0) {
-				s->valid = 0;
-				continue;
+			cwndseq = s->reliable.m_cwndseq;
+			if (packet->seq >= cwndseq && packet->seq < cwndseq + s->reliable.m_cwndsize)
+			{
+				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
+				if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
+					sender->m_resend_msec = packet->resend_timestamp_msec;
 			}
-			packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
-			if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
-				sender->m_resend_msec = packet->resend_timestamp_msec;
+			packet->seq = s->reliable.m_sendseq++;
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
 			Packet_t* packet = pod_container_of(msgbase, Packet_t, msg);
-			reactorsocket_real_send(packet->s, packet);
+			NioSocket_t* s = packet->s;
+			if (s->valid)
+				niosocket_send(packet->s, packet);
 		}
 		else if (NIO_SOCKET_STREAM_WRITEABLE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_sendmsg);
@@ -861,17 +868,41 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		else if (NIO_SOCKET_RELIABLE_ACK_MESSAGE == msgbase->type) {
 			ListNode_t* cur;
 			ReliableAckPacket_t* packet = pod_container_of(msgbase, ReliableAckPacket_t, msg);
-			unsigned int ack_seq = packet->seq;
 			NioSocket_t* s = packet->s;
+			unsigned int ack_seq = packet->seq, cwnd_skip = 0;
 			free(packet);
 			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 				ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 				if (ack_seq < packet->seq)
 					break;
 				if (packet->seq == ack_seq) {
+					ListNode_t* next = cur->next;
 					listRemoveNode(&s->m_sendpacketlist, cur);
 					free(packet);
+					if (ack_seq == s->reliable.m_cwndseq) {
+						if (next) {
+							packet = pod_container_of(next, ReliableDataPacket_t, msg.m_listnode);
+							s->reliable.m_cwndseq = packet->seq;
+							cwnd_skip = 1;
+						}
+						else
+							++s->reliable.m_cwndseq;
+					}
 					break;
+				}
+			}
+			if (cwnd_skip) {
+				unsigned int send_cnt = 0;
+				unsigned long long cwndseq = s->reliable.m_cwndseq;
+				for (cur = s->m_sendpacketlist.head; cur && send_cnt < s->reliable.m_cwndsize; cur = cur->next) {
+					ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+					if (packet->seq >= cwndseq + s->reliable.m_cwndsize)
+						continue;
+					++send_cnt;
+					socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+					packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
+					if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
+						sender->m_resend_msec = packet->resend_timestamp_msec;
 				}
 			}
 		}
