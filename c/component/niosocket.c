@@ -106,7 +106,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		if (seq == s->reliable.m_recvseq) {
 			NioMsg_t* msgptr;
-			cur = cur = s->m_recvpacketlist.head;
+			cur = s->m_recvpacketlist.head;
 			if (cur) {
 				for (; cur; cur = next) {
 					packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
