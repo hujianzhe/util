@@ -740,7 +740,6 @@ NioSender_t* niosenderCreate(NioSender_t* sender) {
 }
 
 static void resend_packet(NioSender_t* sender, NioSocket_t* s, long long timestamp_msec) {
-	long long next_resend_msec = 0;
 	ListNode_t* cur;
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
@@ -749,10 +748,9 @@ static void resend_packet(NioSender_t* sender, NioSocket_t* s, long long timesta
 			packet->resend_timestamp_msec = timestamp_msec + s->m_rto;
 			packet->resendtimes++;
 		}
-		if (!next_resend_msec || packet->resend_timestamp_msec < next_resend_msec)
-			next_resend_msec = packet->resend_timestamp_msec;
+		if (!sender->m_resend_msec || packet->resend_timestamp_msec < sender->m_resend_msec)
+			sender->m_resend_msec = packet->resend_timestamp_msec;
 	}
-	sender->m_resend_msec = next_resend_msec;
 }
 
 void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec) {
@@ -846,6 +844,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 	}
 	timestamp_msec = gmtimeMillisecond();
 	if (sender->m_resend_msec && timestamp_msec >= sender->m_resend_msec) {
+		sender->m_resend_msec = 0;
 		for (cur = sender->m_socklist.head; cur; cur = cur->next) {
 			NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_senderlistnode);
 			if (!s->reliable || s->socktype == SOCK_STREAM)
