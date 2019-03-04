@@ -104,7 +104,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		seq = ntohl(seq);
 		if (seq < s->reliable.m_recvseq)
 			return 1;
-		if (seq == s->reliable.m_recvseq) {
+		else if (seq == s->reliable.m_recvseq) {
 			NioMsg_t* msgptr;
 			cur = s->m_recvpacketlist.head;
 			if (cur) {

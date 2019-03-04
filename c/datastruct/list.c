@@ -115,18 +115,23 @@ void listReverse(struct List_t* list) {
 }
 
 struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head) {
-	struct List_t new_list;
-	new_list.head = new_head;
-	new_list.tail = old_list->tail;
-	old_list->tail = new_head->prev;
-	if (new_head->prev) {
-		new_head->prev->next = (struct ListNode_t*)0;
-		new_head->prev = (struct ListNode_t*)0;
+	if (new_head) {
+		struct List_t new_list;
+		new_list.head = new_head;
+		new_list.tail = old_list->tail;
+		old_list->tail = new_head->prev;
+		if (new_head->prev) {
+			new_head->prev->next = (struct ListNode_t*)0;
+			new_head->prev = (struct ListNode_t*)0;
+		}
+		else {
+			old_list->head = (struct ListNode_t*)0;
+		}
+		return new_list;
 	}
 	else {
-		old_list->head = (struct ListNode_t*)0;
+		return *old_list;
 	}
-	return new_list;
 }
 
 #ifdef	__cplusplus
