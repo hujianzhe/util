@@ -335,8 +335,11 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
 	if (!s->valid)
 		return NULL;
-	if (!data || !len)
-		return s;
+	if (!data || !len) {
+		if (SOCK_STREAM == s->socktype)
+			return s;
+		len = 0;
+	}
 	if (s->socktype != SOCK_STREAM && s->reliable.enable) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + len);
 		if (!packet)
@@ -374,12 +377,21 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 	size_t i, nbytes;
 	if (!s->valid)
 		return NULL;
-	if (!iov || !iovcnt)
-		return s;
-	for (nbytes = 0, i = 0; i < iovcnt; ++i)
-		nbytes += iobufLen(iov + i);
-	if (0 == nbytes)
-		return s;
+	if (!iov || !iovcnt) {
+		if (SOCK_STREAM == s->socktype)
+			return s;
+		iovcnt = 0;
+		nbytes = 0;
+	}
+	else {
+		for (nbytes = 0, i = 0; i < iovcnt; ++i)
+			nbytes += iobufLen(iov + i);
+		if (0 == nbytes) {
+			if (SOCK_STREAM == s->socktype)
+				return s;
+			iovcnt = 0;
+		}
+	}
 	if (s->socktype != SOCK_STREAM && s->reliable.enable) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + nbytes);
 		if (!packet)
