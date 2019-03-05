@@ -5,6 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_NIOSOCKET_H
 #define	UTIL_C_COMPONENT_NIOSOCKET_H
 
+#include "../syslib/atomic.h"
 #include "../syslib/io.h"
 #include "../syslib/socket.h"
 #include "../syslib/time.h"
@@ -56,6 +57,7 @@ typedef struct NioSocket_t {
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*close)(struct NioSocket_t*);
 /* private */
+	Atom32_t m_shutdown;
 	NioMsg_t m_regmsg;
 	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_closemsg;
@@ -72,7 +74,7 @@ typedef struct NioSocket_t {
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
 	struct {
-		int enable;
+		unsigned int enable;
 		unsigned int rto;
 		unsigned int m_cwndseq;
 		unsigned int m_cwndsize;

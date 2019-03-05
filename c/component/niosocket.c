@@ -435,16 +435,12 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 void niosocketShutdown(NioSocket_t* s) {
 	if (SOCK_STREAM == s->socktype && s->accept_callback) {
 		s->valid = 0;
+		s->m_shutdown = 1;
 		if (INFTIM == s->timeout_second)
 			s->timeout_second = 5;
 	}
-	else {
-		char c;
-		NioLoop_t* loop = s->m_loop;
-		criticalsectionEnter(&loop->m_msglistlock);
-		listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, &s->m_shutdownmsg.m_listnode);
-		criticalsectionLeave(&loop->m_msglistlock);
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	else if (!_xchg32(&s->m_shutdown, 1)) {
+		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_shutdownmsg.m_listnode);
 	}
 }
 
@@ -477,6 +473,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reg_callback = NULL;
 	s->decode_packet = NULL;
 	s->close = NULL;
+	s->m_shutdown = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
@@ -631,14 +628,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 		NioMsg_t* message;
 		next = cur->next;
 		message = pod_container_of(cur, NioMsg_t, m_listnode);
-		if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
-			if (hashtableSearchKey(&loop->m_sockht, &s->fd)) {
-				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
-			}
-		}
-		else if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
+		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
 			niosocketFree(s);
 		}
@@ -847,6 +837,15 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		if (NIO_SOCKET_REG_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_regmsg);
 			listInsertNodeBack(&sender->m_socklist, sender->m_socklist.tail, &s->m_senderlistnode);
+		}
+		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == msgbase->type) {
+			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_shutdownmsg);
+			if (SOCK_STREAM == s->socktype) {
+				socketShutdown(s->fd, SHUT_WR);
+			}
+			else if (s->reliable.enable) {
+				// TODO disconnect
+			}
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_closemsg);
