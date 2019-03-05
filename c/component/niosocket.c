@@ -10,6 +10,7 @@
 enum {
 	NIO_SOCKET_USER_MESSAGE,
 	NIO_SOCKET_CLOSE_MESSAGE,
+	NIO_SOCKET_SHUTDOWN_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE,
 	NIO_SOCKET_RELIABLE_MESSAGE,
@@ -432,13 +433,18 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 }
 
 void niosocketShutdown(NioSocket_t* s) {
-	if (SOCK_STREAM == s->socktype && !s->accept_callback) {
-		socketShutdown(s->fd, SHUT_WR);
+	if (SOCK_STREAM == s->socktype && s->accept_callback) {
+		s->valid = 0;
 		if (INFTIM == s->timeout_second)
 			s->timeout_second = 5;
 	}
 	else {
-		s->valid = 0;
+		char c;
+		NioLoop_t* loop = s->m_loop;
+		criticalsectionEnter(&loop->m_msglistlock);
+		listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, &s->m_shutdownmsg.m_listnode);
+		criticalsectionLeave(&loop->m_msglistlock);
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
 	}
 }
 
@@ -472,6 +478,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->decode_packet = NULL;
 	s->close = NULL;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
+	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
 	s->m_sendmsg.type = NIO_SOCKET_STREAM_WRITEABLE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
@@ -624,7 +631,14 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 		NioMsg_t* message;
 		next = cur->next;
 		message = pod_container_of(cur, NioMsg_t, m_listnode);
-		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
+		if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
+			if (hashtableSearchKey(&loop->m_sockht, &s->fd)) {
+				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
+				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
+			}
+		}
+		else if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
 			niosocketFree(s);
 		}

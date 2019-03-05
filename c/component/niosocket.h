@@ -57,6 +57,7 @@ typedef struct NioSocket_t {
 	void(*close)(struct NioSocket_t*);
 /* private */
 	NioMsg_t m_regmsg;
+	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_closemsg;
 	NioMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
