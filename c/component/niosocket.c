@@ -258,6 +258,27 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					s->valid = 0;
 				break;
 			}
+			else if (s->reliable.m_enable) {
+				if (s->accept_callback) {
+					FD_t new_fd;
+					struct sockaddr_storage local_saddr;
+					if (!sockaddrEncode(&local_saddr, s->domain, NULL, 0))
+						continue;
+					new_fd = socket(s->domain, s->socktype, s->protocol);
+					if (new_fd == INVALID_FD_HANDLE)
+						continue;
+					if (!socketBindAddr(new_fd, &local_saddr)) {
+						socketClose(new_fd);
+						continue;
+					}
+					socketWrite(new_fd, NULL, 0, 0, &saddr);
+					s->accept_callback(new_fd, &saddr, s->accept_callback_arg);
+				}
+				else if (res < RELIABLE_HDR_LEN)
+					continue;
+				else if (!reactor_socket_reliable_read(s, buffer, res, &saddr))
+					break;
+			}
 			else if (0 == res) {
 				NioMsg_t* msgptr = NULL;
 				if (s->decode_packet(s, NULL, 0, &saddr, &msgptr) < 0) {
@@ -268,12 +289,6 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					msgptr->type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
-			}
-			else if (s->reliable.m_enable) {
-				if (res < RELIABLE_HDR_LEN)
-					continue;
-				if (!reactor_socket_reliable_read(s, buffer, res, &saddr))
-					break;
 			}
 			else {
 				int offset = 0, len = -1;
@@ -321,6 +336,10 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 			s->valid = 0;
 		}
 		else if (!reactorsocket_read(s)) {
+			errnum = errnoGet();
+			s->valid = 0;
+		}
+		if (0 == errnum && !socketGetLocalAddr(s->fd, &s->local_saddr)) {
 			errnum = errnoGet();
 			s->valid = 0;
 		}
@@ -472,6 +491,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->protocol = protocol;
 	s->timeout_second = INFTIM;
 	s->userdata = NULL;
+	s->local_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
 	s->connect_callback = NULL;
 	s->reg_callback = NULL;
@@ -652,7 +672,19 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 						if (!s->m_writeOl)
 							break;
 					}
-					if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->connect_saddr))
+					if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_saddr))
+						break;
+				}
+				else if (SOCK_STREAM != s->socktype && s->reliable.m_enable && s->connect_callback) {
+					if (s->local_saddr.ss_family == AF_UNSPEC) {
+						if (!sockaddrEncode(&s->local_saddr, s->domain, NULL, 0))
+							break;
+						if (!socketBindAddr(s->fd, &s->local_saddr))
+							break;
+					}
+					if (!socketGetLocalAddr(s->fd, &s->local_saddr))
+						break;
+					if (socketWrite(s->fd, NULL, 0, 0, &s->peer_saddr) < 0)
 						break;
 				}
 				else if (!reactorsocket_read(s))

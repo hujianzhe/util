@@ -45,9 +45,10 @@ typedef struct NioSocket_t {
 	int protocol;
 	volatile int timeout_second;
 	void* userdata;
+	struct sockaddr_storage local_saddr;
 	union {
 		void* accept_callback_arg;
-		struct sockaddr_storage connect_saddr;
+		struct sockaddr_storage peer_saddr;
 	};
 	void(*accept_callback)(FD_t, struct sockaddr_storage*, void*);
 	void(*connect_callback)(struct NioSocket_t*, int);
