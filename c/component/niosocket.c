@@ -334,7 +334,7 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 }
 
 NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
-	if (!s->valid)
+	if (!s->valid || s->m_shutdown)
 		return NULL;
 	if (!data || !len) {
 		if (SOCK_STREAM == s->socktype)
@@ -375,8 +375,8 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 }
 
 NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
-	size_t i, nbytes;
-	if (!s->valid)
+	unsigned int i, nbytes;
+	if (!s->valid || s->m_shutdown)
 		return NULL;
 	if (!iov || !iovcnt) {
 		if (SOCK_STREAM == s->socktype)
@@ -439,7 +439,8 @@ void niosocketShutdown(NioSocket_t* s) {
 		if (INFTIM == s->timeout_second)
 			s->timeout_second = 5;
 	}
-	else if (!_xchg32(&s->m_shutdown, 1)) {
+	else if (!s->m_shutdown) {
+		s->m_shutdown = 1;
 		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_shutdownmsg.m_listnode);
 	}
 }
@@ -465,7 +466,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->valid = 1;
 	s->timeout_second = INFTIM;
 	s->userdata = NULL;
 	s->accept_callback = NULL;
@@ -473,7 +473,9 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reg_callback = NULL;
 	s->decode_packet = NULL;
 	s->close = NULL;
+	s->valid = 1;
 	s->m_shutdown = 0;
+	s->m_shutwr = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
@@ -766,7 +768,7 @@ void nioloopDestroy(NioLoop_t* loop) {
 	}
 }
 
-static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
+static int niosocket_send(NioSocket_t* s, Packet_t* packet) {
 	int res = 0, is_empty = !s->m_sendpacketlist.head;
 	if (SOCK_STREAM != s->socktype || is_empty) {
 		struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
@@ -774,14 +776,15 @@ static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				s->valid = 0;
-				return;
+				free(packet);
+				return 0;
 			}
 			res = 0;
 		}
 		else if (res >= packet->len) {
 			if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
 				free(packet);
-			return;
+			return 0;
 		}
 	}
 	if (SOCK_STREAM == s->socktype) {
@@ -790,6 +793,7 @@ static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
 		if (is_empty)
 			reactorsocket_write(s);
 	}
+	return 1;
 }
 
 NioSender_t* niosenderCreate(NioSender_t* sender) {
@@ -840,6 +844,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_shutdownmsg);
+			s->m_shutwr = 1;
 			if (SOCK_STREAM == s->socktype) {
 				socketShutdown(s->fd, SHUT_WR);
 			}
@@ -858,8 +863,10 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			unsigned long long cwndseq;
 			ReliableDataPacket_t* packet = pod_container_of(msgbase, ReliableDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
-			if (!s->valid)
+			if (!s->valid || s->m_shutwr) {
+				free(packet);
 				continue;
+			}
 			packet->data[0] = HDR_DATA;
 			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
 			cwndseq = s->reliable.m_cwndseq;
@@ -876,13 +883,15 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
 			Packet_t* packet = pod_container_of(msgbase, Packet_t, msg);
 			NioSocket_t* s = packet->s;
-			if (s->valid)
+			if (!s->valid || s->m_shutwr)
+				free(packet);
+			else
 				niosocket_send(packet->s, packet);
 		}
 		else if (NIO_SOCKET_STREAM_WRITEABLE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_sendmsg);
 			ListNode_t* cur, *next;
-			if (!s->valid)
+			if (!s->valid || s->m_shutwr)
 				continue;
 			for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 				int res;

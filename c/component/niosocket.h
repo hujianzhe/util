@@ -5,7 +5,6 @@
 #ifndef	UTIL_C_COMPONENT_NIOSOCKET_H
 #define	UTIL_C_COMPONENT_NIOSOCKET_H
 
-#include "../syslib/atomic.h"
 #include "../syslib/io.h"
 #include "../syslib/socket.h"
 #include "../syslib/time.h"
@@ -44,7 +43,6 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
-	volatile char valid;
 	volatile int timeout_second;
 	void* userdata;
 	union {
@@ -56,8 +54,10 @@ typedef struct NioSocket_t {
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*close)(struct NioSocket_t*);
+	volatile char valid;
 /* private */
-	Atom32_t m_shutdown;
+	volatile char m_shutdown;
+	char m_shutwr;
 	NioMsg_t m_regmsg;
 	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_closemsg;
