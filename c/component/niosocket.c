@@ -18,6 +18,8 @@ enum {
 };
 
 enum {
+	HDR_SYN,
+	HDR_FIN,
 	HDR_DATA,
 	HDR_ACK
 };
@@ -354,6 +356,7 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 		packet->resendtimes = 0;
 		packet->len = RELIABLE_HDR_LEN + len;
 		memcpy(packet->data + RELIABLE_HDR_LEN, data, len);
+		packet->data[0] = HDR_DATA;
 		dataqueuePush(&s->m_loop->m_sender->m_dq, &packet->msg.m_listnode);
 	}
 	else {
@@ -409,6 +412,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 			memcpy(packet->data + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
 			nbytes += iobufLen(iov + i);
 		}
+		packet->data[0] = HDR_DATA;
 		dataqueuePush(&s->m_loop->m_sender->m_dq, &packet->msg.m_listnode);
 	}
 	else {
@@ -867,7 +871,6 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				free(packet);
 				continue;
 			}
-			packet->data[0] = HDR_DATA;
 			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
 			cwndseq = s->reliable.m_cwndseq;
 			if (packet->seq >= cwndseq && packet->seq < cwndseq + s->reliable.m_cwndsize)
