@@ -503,22 +503,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	return s;
 }
 
-NioSocket_t* niosocketReliable(NioSocket_t* s) {
-	if (SOCK_STREAM == s->socktype)
-		return s;
-	else if (SOCK_DGRAM == s->socktype) {
-		struct sockaddr_storage saddr;
-		if (!sockaddrEncode(&saddr, s->domain, NULL, 0) ||
-			!socketBindAddr(s->fd, &saddr))
-		{
-			return NULL;
-		}
-		s->reliable.m_enable = 1;
-		return s;
-	}
-	return NULL;
-}
-
 void niosocketFree(NioSocket_t* s) {
 	ListNode_t *cur, *next;
 	if (!s)
