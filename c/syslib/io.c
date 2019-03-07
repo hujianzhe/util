@@ -519,58 +519,48 @@ BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 #endif
 }
 
+FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr) {
 #if defined(_WIN32) || defined(_WIN64)
-static BOOL __win32AcceptPretreatment(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg) {
 	SOCKET* pConnfd = (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED) + 2);
+	SOCKET connfd = *pConnfd;
+	struct sockaddr_storage listen_saddr;
+	int slen = sizeof(listen_saddr);
 	do {
-		SOCKET connfd = *pConnfd;
-		struct sockaddr_storage saddr;
-		int slen = sizeof(saddr);
-		/**/
-		if (getsockname(listenfd, (struct sockaddr*)&saddr, &slen)) {
+		if (getsockname(listenfd, (struct sockaddr*)&listen_saddr, &slen)) {
 			break;
 		}
-		*pConnfd = socket(saddr.ss_family, SOCK_STREAM, 0);
+		*pConnfd = socket(listen_saddr.ss_family, SOCK_STREAM, 0);
 		if (INVALID_SOCKET == *pConnfd) {
 			closesocket(connfd);
-			*pConnfd = socket(saddr.ss_family, SOCK_STREAM, 0);
+			*pConnfd = socket(listen_saddr.ss_family, SOCK_STREAM, 0);
 			break;
 		}
-		/**/
 		if (setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&listenfd, sizeof(listenfd))) {
 			closesocket(connfd);
 			break;
 		}
-		if (callback) {
-			slen = sizeof(saddr);
-			if (getpeername(connfd, (struct sockaddr*)&saddr, &slen)) {
-				closesocket(connfd);
-				break;
-			}
-			callback(connfd, &saddr, arg);
+		slen = sizeof(*peer_saddr);
+		if (getpeername(connfd, (struct sockaddr*)peer_saddr, &slen)) {
+			closesocket(connfd);
+			break;
 		}
+		return connfd;
 	} while (0);
-	return *pConnfd != INVALID_SOCKET;
-}
-#endif
-
-BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockaddr_storage*, void*), void* arg) {
-	FD_t connfd;
-	struct sockaddr_storage saddr;
-#if defined(_WIN32) || defined(_WIN64)
-	int slen = sizeof(saddr);
-	if (!__win32AcceptPretreatment(listenfd, ol, callback, arg)) {
-		return FALSE;
-	}
+	return INVALID_FD_HANDLE;
 #else
-	socklen_t slen = sizeof(saddr);
+	socklen_t slen = sizeof(*peer_saddr);
+	return accept(listenfd, (struct sockaddr*)peer_saddr, &slen);
 #endif
-	while ((connfd = accept(listenfd, (struct sockaddr*)&saddr, &slen)) != INVALID_FD_HANDLE) {
-		slen = sizeof(saddr);
-		if (callback) {
-			callback(connfd, &saddr, arg);
-		}
-	}
+}
+
+FD_t reactorAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
+#if defined(_WIN32) || defined(_WIN64)
+	int slen = sizeof(*peer_saddr);
+#else
+	socklen_t slen = sizeof(*peer_saddr);
+#endif
+	return accept(listenfd, (struct sockaddr*)peer_saddr, &slen);
+/*
 #if defined(_WIN32) || defined(_WIN64)
 	switch (WSAGetLastError()) {
 		case WSAEMFILE:
@@ -593,12 +583,13 @@ BOOL reactorAccept(FD_t listenfd, void* ol, void(*callback)(FD_t, struct sockadd
 		case ENOMEM:
 			return TRUE;
 		case ECONNABORTED:
-		case EPERM:/* maybe linux firewall */
+		case EPERM:
 		case EINTR:
 			return TRUE;
 	}
 #endif
 	return FALSE;
+*/
 }
 
 BOOL reactorClose(Reactor_t* reactor) {

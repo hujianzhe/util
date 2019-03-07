@@ -175,13 +175,17 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 
 static void reactor_socket_do_read(NioSocket_t* s) {
 	if (SOCK_STREAM == s->socktype) {
+		struct sockaddr_storage saddr;
 		if (s->accept_callback) {
-			if (!reactorAccept(s->fd, s->m_readOl, s->accept_callback, s->accept_callback_arg)) {
-				s->valid = 0;
+			FD_t connfd;
+			for (connfd = reactorAcceptFirst(s->fd, s->m_readOl, &saddr);
+				connfd != INVALID_FD_HANDLE;
+				connfd = reactorAcceptNext(s->fd, &saddr))
+			{
+				s->accept_callback(connfd, &saddr, s->accept_callback_arg);
 			}
 		}
 		else {
-			struct sockaddr_storage saddr;
 			int res = socketTcpReadableBytes(s->fd);
 			do {
 				unsigned char *p;
