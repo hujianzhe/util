@@ -76,7 +76,9 @@ typedef struct NioSocket_t {
 	List_t m_sendpacketlist;
 	struct {
 		unsigned int rto;
-		unsigned int m_enable;
+		unsigned short m_enable;
+		unsigned short m_reconnect_times;
+		long long m_reconnect_msec;
 		unsigned int m_cwndseq;
 		unsigned int m_cwndsize;
 		unsigned int m_recvseq;
