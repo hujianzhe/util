@@ -89,7 +89,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (HDR_SYN == hdr_type) {
 			// TODO first, you should check connection is repeated, then setup half-connection
 			FD_t new_fd;
-			unsigned char ack[3];
+			unsigned char syn_ack[3];
 			unsigned short local_port;
 			struct sockaddr_storage local_saddr;
 
@@ -110,9 +110,9 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				socketClose(new_fd);
 				return 1;
 			}
-			ack[0] = HDR_SYN_ACK;
-			*(unsigned short*)(ack + 1) = htons(local_port);
-			socketWrite(s->fd, ack, sizeof(ack), 0, saddr);
+			syn_ack[0] = HDR_SYN_ACK;
+			*(unsigned short*)(syn_ack + 1) = htons(local_port);
+			socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, saddr);
 			// TODO save this half-connection
 		}
 		else if (HDR_SYN_ACK_ACK == hdr_type) {
@@ -120,7 +120,16 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		}
 	}
 	else if (HDR_SYN_ACK == hdr_type) {
-		// TODO compare sockaddr_storage, then reply HDR_SYN_ACK_ACK
+		unsigned char syn_ack_ack;
+		unsigned short peer_port;
+		if (len < 3)
+			return 1;
+		peer_port = *(unsigned short*)(buffer + 1);
+		peer_port = ntohs(peer_port);
+		sockaddrSetPort(&s->peer_saddr, peer_port);
+
+		syn_ack_ack = HDR_SYN_ACK_ACK;
+		socketWrite(s->fd, &syn_ack_ack, sizeof(syn_ack_ack), 0, saddr);
 	}
 	else if (HDR_ACK == hdr_type) {
 		unsigned int seq;
