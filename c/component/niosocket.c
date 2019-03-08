@@ -42,6 +42,13 @@ typedef struct Packet_t {
 	unsigned char data[1];
 } Packet_t;
 
+typedef struct ReliableHalfConnect_t {
+	ListNode_t m_listnode;
+	FD_t sockfd;
+	unsigned short local_port;
+	struct sockaddr_storage peer_addr;
+} ReliableHalfConnect_t;
+
 typedef struct ReliableDataPacket_t {
 	NioMsg_t msg;
 	long long resend_timestamp_msec;
@@ -92,34 +99,57 @@ static int reactorsocket_read(NioSocket_t* s) {
 static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
 	unsigned char hdr_type = buffer[0];
 	if (s->accept_callback) {
+		ListNode_t* cur, *next;
 		if (HDR_SYN == hdr_type) {
-			// TODO first, you should check connection is repeated, then setup half-connection
-			FD_t new_fd;
-			IPString_t ipstr;
 			unsigned char syn_ack[3];
-			unsigned short local_port;
-			struct sockaddr_storage local_saddr = s->local_saddr;
-			if (!sockaddrSetPort(&local_saddr, 0))
-				return 1;
-			new_fd = socket(s->domain, s->socktype, s->protocol);
-			if (new_fd == INVALID_FD_HANDLE)
-				return 1;
-			if (!socketBindAddr(new_fd, &local_saddr)) {
-				socketClose(new_fd);
-				return 1;
+			ReliableHalfConnect_t* halfcon = NULL;
+			for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
+				halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+				next = cur->next;
+				if (!memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
+					break;
+				halfcon = NULL;
 			}
-			if (!socketGetLocalAddr(new_fd, &local_saddr)) {
-				socketClose(new_fd);
-				return 1;
+			if (halfcon) {
+				syn_ack[0] = HDR_SYN_ACK;
+				*(unsigned short*)(syn_ack + 1) = htons(halfcon->local_port);
 			}
-			if (!sockaddrDecode(&local_saddr, ipstr, &local_port)) {
-				socketClose(new_fd);
-				return 1;
+			else {
+				FD_t new_fd;
+				IPString_t ipstr;
+				unsigned short local_port;
+				struct sockaddr_storage local_saddr = s->local_saddr;
+				if (!sockaddrSetPort(&local_saddr, 0))
+					return 1;
+				new_fd = socket(s->domain, s->socktype, s->protocol);
+				if (new_fd == INVALID_FD_HANDLE)
+					return 1;
+				if (!socketBindAddr(new_fd, &local_saddr)) {
+					socketClose(new_fd);
+					return 1;
+				}
+				if (!socketGetLocalAddr(new_fd, &local_saddr)) {
+					socketClose(new_fd);
+					return 1;
+				}
+				if (!sockaddrDecode(&local_saddr, ipstr, &local_port)) {
+					socketClose(new_fd);
+					return 1;
+				}
+				halfcon = (ReliableHalfConnect_t*)malloc(sizeof(ReliableHalfConnect_t));
+				if (!halfcon) {
+					socketClose(new_fd);
+					return 1;
+				}
+				halfcon->local_port = local_port;
+				halfcon->peer_addr = *saddr;
+				halfcon->sockfd = new_fd;
+				listInsertNodeBack(&s->reliable.m_halfconlist, s->reliable.m_halfconlist.tail, &halfcon->m_listnode);
+
+				syn_ack[0] = HDR_SYN_ACK;
+				*(unsigned short*)(syn_ack + 1) = htons(local_port);
 			}
-			syn_ack[0] = HDR_SYN_ACK;
-			*(unsigned short*)(syn_ack + 1) = htons(local_port);
 			socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, saddr);
-			// TODO save this half-connection
 		}
 		else if (HDR_SYN_ACK_ACK == hdr_type) {
 			// TODO delete sockaddr and accept is ok!
