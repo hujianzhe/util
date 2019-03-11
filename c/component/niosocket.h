@@ -79,8 +79,10 @@ typedef struct NioSocket_t {
 		volatile unsigned short m_status;
 		unsigned short m_enable;
 
-		unsigned short m_reconnect_times;
-		long long m_reconnect_msec;
+		unsigned short m_synsent_times;
+		unsigned short m_fin_times;
+		long long m_synsent_msec;
+		long long m_fin_msec;
 		unsigned int m_cwndseq;
 		unsigned int m_cwndsize;
 		unsigned int m_recvseq;
