@@ -687,6 +687,7 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 		next = hashtableNextNode(cur);
 		s = pod_container_of(cur, NioSocket_t, m_hashnode);
 		if (s->valid) {
+			int timeout_msec = s->timeout_msec;
 			if (LISTENED_STATUS == s->reliable.m_status) {
 				ListNode_t* cur, *next;
 				for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
@@ -703,6 +704,9 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 					}
 					++halfcon->resend_times;
 					halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
+
+					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > halfcon->timestamp_msec)
+						loop->m_checkexpire_msec = halfcon->timestamp_msec;
 				}
 			}
 			else if (SYN_SENT_STATUS == s->reliable.m_status) {
@@ -715,14 +719,20 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 				else {
 					unsigned char syn_pkg = HDR_SYN;
 					socketWrite(s->fd, &syn_pkg, sizeof(syn_pkg), 0, &s->peer_listenaddr);
-					s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 					++s->reliable.m_reconnect_times;
+					s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
+
+					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_reconnect_msec)
+						loop->m_checkexpire_msec = s->reliable.m_reconnect_msec;
 				}
 			}
-			else if (s->timeout_msec < 0)
+			else if (timeout_msec < 0)
 				continue;
-			else if (timestamp_msec - s->timeout_msec < s->m_lastactive_msec)
+			else if (timestamp_msec - timeout_msec < s->m_lastactive_msec) {
+				if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->m_lastactive_msec + timeout_msec)
+					loop->m_checkexpire_msec = s->m_lastactive_msec + timeout_msec;
 				continue;
+			}
 			else
 				s->valid = 0;
 		}
@@ -736,16 +746,14 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 	int n;
 	NioEv_t e[4096];
 	ListNode_t *cur, *next;
-	if (wait_msec < 0)
-		wait_msec = 1000;
-	if (timestamp_msec < loop->m_checkexpire_msec)
-		loop->m_checkexpire_msec = timestamp_msec;
-	else if (timestamp_msec > loop->m_checkexpire_msec + 1000)
+
+	if (loop->m_checkexpire_msec > timestamp_msec) {
+		int checkexpire_wait_msec = loop->m_checkexpire_msec - timestamp_msec;
+		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
+			wait_msec = checkexpire_wait_msec;
+	}
+	else if (loop->m_checkexpire_msec) {
 		wait_msec = 0;
-	else if (timestamp_msec + wait_msec > loop->m_checkexpire_msec + 1000) {
-		int expire_wait_msec = loop->m_checkexpire_msec + 1000 - timestamp_msec;
-		if (expire_wait_msec < wait_msec)
-			wait_msec = expire_wait_msec;
 	}
 
 	n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
@@ -814,10 +822,11 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
 			int reg_ok = 0;
 			do {
+				int timeout_msec;
 				if (!reactorReg(&loop->m_reactor, s->fd))
 					break;
 				s->m_loop = loop;
-				s->m_lastactive_msec = gmtimeMillisecond();
+				s->m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
 					if (s->connect_callback) {
 						if (!s->m_writeOl) {
@@ -838,8 +847,11 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 							if (socketWrite(s->fd, &syn_pkg, sizeof(syn_pkg), 0, &s->peer_listenaddr) < 0)
 								break;
 							s->reliable.m_status = SYN_SENT_STATUS;
-							s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 							s->reliable.peer_saddr = s->peer_listenaddr;
+							s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
+
+							if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_reconnect_msec)
+								loop->m_checkexpire_msec = s->reliable.m_reconnect_msec;
 						}
 						else if (s->accept_callback) {
 							s->reliable.m_status = LISTENED_STATUS;
@@ -858,6 +870,11 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 				dataqueuePush(&loop->m_sender->m_dq, &s->m_regmsg.m_listnode);
 				reg_ok = 1;
+				timeout_msec = s->timeout_msec;
+				if (timeout_msec > 0) {
+					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->m_lastactive_msec + timeout_msec)
+						loop->m_checkexpire_msec = s->m_lastactive_msec + timeout_msec;
+				}
 			} while (0);
 			if (s->reg_callback)
 				s->reg_callback(s, reg_ok ? 0 : errnoGet());
@@ -865,17 +882,11 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				niosocketFree(s);
 		}
 	}
-
-	if (n)
-		timestamp_msec = gmtimeMillisecond();
-	else
-		timestamp_msec += wait_msec;
-
-	if (timestamp_msec < loop->m_checkexpire_msec) {
-		loop->m_checkexpire_msec = timestamp_msec;
-	}
-	else if (timestamp_msec >= loop->m_checkexpire_msec + 1000) {
-		List_t expirelist = sockht_expire(loop, timestamp_msec);
+	timestamp_msec = gmtimeMillisecond();
+	if (loop->m_checkexpire_msec && timestamp_msec >= loop->m_checkexpire_msec) {
+		List_t expirelist;
+		loop->m_checkexpire_msec = 0;
+		expirelist = sockht_expire(loop, timestamp_msec);
 		dataqueuePushList(loop->m_msgdq, &expirelist);
 		loop->m_checkexpire_msec = timestamp_msec;
 	}

@@ -69,7 +69,7 @@ typedef struct NioSocket_t {
 	void(*m_free)(struct NioSocket_t*);
 	void* m_readOl;
 	void* m_writeOl;
-	time_t m_lastactive_msec;
+	long long m_lastactive_msec;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
 	List_t m_recvpacketlist;
