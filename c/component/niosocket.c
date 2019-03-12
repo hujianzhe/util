@@ -33,8 +33,8 @@ enum {
 	ESTABLISHED_STATUS,
 	FIN_WAIT_1_STATUS,
 	FIN_WAIT_2_STATUS,
-	TIME_WAIT_STATUS,
 	CLOSE_WAIT_STATUS,
+	TIME_WAIT_STATUS,
 	LAST_ACK_STATUS
 };
 #define	RELIABLE_HDR_LEN	5
@@ -237,7 +237,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		ReliableAckPacket_t* packet;
 		if (len < RELIABLE_HDR_LEN)
 			return 1;
-		if (ESTABLISHED_STATUS != s->reliable.m_status)
+		if (ESTABLISHED_STATUS > s->reliable.m_status)
 			return 1;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
@@ -260,7 +260,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		unsigned char ack[RELIABLE_HDR_LEN];
 		if (len < RELIABLE_HDR_LEN)
 			return 1;
-		if (ESTABLISHED_STATUS != s->reliable.m_status)
+		if (ESTABLISHED_STATUS > s->reliable.m_status)
 			return 1;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
@@ -845,6 +845,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				char c[512];
 				socketRead(fd, c, sizeof(c), 0, NULL);
 				reactorCommit(&loop->m_reactor, fd, REACTOR_READ, loop->m_readOl, &saddr);
+				_xchg16(&loop->m_wake, 0);
 				continue;
 			}
 			find_node = hashtableSearchKey(&loop->m_sockht, &fd);
@@ -1025,12 +1026,20 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sende
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 		sockht_keycmp, sockht_keyhash);
 	loop->initok = 1;
+	loop->m_wake = 0;
 	loop->m_checkexpire_msec = 0;
 	return loop;
 }
 
+NioLoop_t* nioloopWake(NioLoop_t* loop) {
+	if (0 == _cmpxchg16(&loop->m_wake, 1, 0)) {
+		char c;
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	}
+	return loop;
+}
+
 void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
-	char c;
 	size_t i;
 	List_t list;
 	listInit(&list);
@@ -1040,7 +1049,7 @@ void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 	criticalsectionEnter(&loop->m_msglistlock);
 	listMerge(&loop->m_msglist, &list);
 	criticalsectionLeave(&loop->m_msglistlock);
-	socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	nioloopWake(loop);
 }
 
 void nioloopDestroy(NioLoop_t* loop) {
@@ -1140,24 +1149,22 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			}
 			else if (ESTABLISHED_STATUS == s->reliable.m_status) {
 				if (!s->m_sendpacketlist.head) {
-					char c;
 					NioLoop_t* loop = s->m_loop;
 					criticalsectionEnter(&loop->m_msglistlock);
 					listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, cur);
 					criticalsectionLeave(&loop->m_msglistlock);
-					socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+					nioloopWake(loop);
 				}
 			}
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
-			char c;
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_closemsg);
 			NioLoop_t* loop = s->m_loop;
 			listRemoveNode(&sender->m_socklist, &s->m_senderlistnode);
 			criticalsectionEnter(&loop->m_msglistlock);
 			listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, cur);
 			criticalsectionLeave(&loop->m_msglistlock);
-			socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+			nioloopWake(loop);
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type) {
 			unsigned long long cwndseq;
@@ -1257,12 +1264,11 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				}
 			}
 			if (!s->m_sendpacketlist.head && s->m_shutwr) {
-				char c;
 				NioLoop_t* loop = s->m_loop;
 				criticalsectionEnter(&loop->m_msglistlock);
 				listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, &s->m_shutdownmsg.m_listnode);
 				criticalsectionLeave(&loop->m_msglistlock);
-				socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+				nioloopWake(loop);
 			}
 		}
 	}
@@ -1290,6 +1296,10 @@ void niosenderDestroy(NioSender_t* sender) {
 			next = cur->next;
 			if (NIO_SOCKET_USER_MESSAGE == msgbase->type)
 				free(pod_container_of(msgbase, Packet_t, msg));
+			else if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type)
+				free(pod_container_of(msgbase, ReliableDataPacket_t, msg));
+			else if (NIO_SOCKET_RELIABLE_ACK_MESSAGE == msgbase->type)
+				free(pod_container_of(msgbase, ReliableAckPacket_t, msg));
 		}
 		dataqueueDestroy(&sender->m_dq, NULL);
 	}
