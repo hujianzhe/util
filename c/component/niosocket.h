@@ -5,6 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_NIOSOCKET_H
 #define	UTIL_C_COMPONENT_NIOSOCKET_H
 
+#include "../syslib/atomic.h"
 #include "../syslib/io.h"
 #include "../syslib/socket.h"
 #include "../syslib/time.h"
@@ -57,7 +58,7 @@ typedef struct NioSocket_t {
 	void(*close)(struct NioSocket_t*);
 	volatile char valid;
 /* private */
-	volatile char m_shutdown;
+	Atom16_t m_shutdown;
 	char m_shutwr;
 	NioMsg_t m_regmsg;
 	NioMsg_t m_shutdownmsg;
