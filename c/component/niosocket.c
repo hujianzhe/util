@@ -113,7 +113,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (HDR_SYN == hdr_type) {
 			unsigned char syn_ack[3];
 			halfcon = NULL;
-			for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
+			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
 				halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 				if (!memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
@@ -156,8 +156,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				halfcon->peer_addr = *saddr;
 				halfcon->sockfd = new_fd;
 				halfcon->timestamp_msec = gmtimeMillisecond();
-				listInsertNodeBack(&s->reliable.m_halfconlist, s->reliable.m_halfconlist.tail, &halfcon->m_listnode);
-				++s->reliable.m_halfconcnt;
+				listInsertNodeBack(&s->m_recvpacketlist, s->m_recvpacketlist.tail, &halfcon->m_listnode);
 
 				syn_ack[0] = HDR_SYN_ACK;
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
@@ -165,13 +164,12 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, saddr);
 		}
 		else if (HDR_SYN_ACK_ACK == hdr_type) {
-			for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
+			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 				next = cur->next;
 				if (memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
 					continue;
-				listRemoveNode(&s->reliable.m_halfconlist, cur);
-				--s->reliable.m_halfconcnt;
+				listRemoveNode(&s->m_recvpacketlist, cur);
 				s->accept_callback(halfcon->sockfd, &halfcon->peer_addr, s->accept_callback_arg);
 				free(halfcon);
 				break;
@@ -418,10 +416,10 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 		}
 	}
 	else if (SOCK_DGRAM == s->socktype) {
-		unsigned char buffer[0xffff];
 		struct sockaddr_storage saddr;
-		unsigned int readtimes;
-		for (readtimes = 0; readtimes < 10; ++readtimes) {
+		unsigned char buffer[0xffff];
+		unsigned int readtimes, readmaxtimes = s->m_recvpacket_maxcnt;
+		for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
 			int res = socketRead(s->fd, buffer, sizeof(buffer), 0, &saddr);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK)
@@ -666,6 +664,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_lastactive_msec = 0;
 	s->m_inbuf = NULL;
 	s->m_inbuflen = 0;
+	s->m_recvpacket_maxcnt = 8;
 	listInit(&s->m_recvpacketlist);
 	listInit(&s->m_sendpacketlist);
 	s->reliable.rto = 4;
@@ -680,9 +679,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reliable.m_recvseq = 0;
 	s->reliable.m_sendseq = 0;
 	s->reliable.peer_saddr.ss_family = AF_UNSPEC;
-	s->reliable.m_halfconcnt = 0;
-	s->reliable.m_halfconmaxcnt = 200;
-	listInit(&s->reliable.m_halfconlist);
 	return s;
 }
 
@@ -701,19 +697,22 @@ void niosocketFree(NioSocket_t* s) {
 		s->m_inbuflen = 0;
 	}
 
-	for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, Packet_t, msg.m_listnode));
+	if (s->reliable.m_enable) {
+		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
+			next = cur->next;
+			if (s->accept_callback) {
+				ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+				socketClose(halfcon->sockfd);
+				free(halfcon);
+			}
+			else {
+				free(pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode));
+			}
+		}
 	}
 	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 		next = cur->next;
 		free(pod_container_of(cur, Packet_t, msg.m_listnode));
-	}
-	for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
-		ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
-		next = cur->next;
-		socketClose(halfcon->sockfd);
-		free(halfcon);
 	}
 
 	if (s->m_free)
@@ -738,15 +737,14 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 			int timeout_msec = s->timeout_msec;
 			if (LISTENED_STATUS == s->reliable.m_status) {
 				ListNode_t* cur, *next;
-				for (cur = s->reliable.m_halfconlist.head; cur; cur = next) {
+				for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 					ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 					next = cur->next;
 					if (halfcon->timestamp_msec > timestamp_msec)
 						continue;
 					else if (halfcon->resend_times >= 5) {
 						socketClose(halfcon->sockfd);
-						listRemoveNode(&s->reliable.m_halfconlist, cur);
-						--s->reliable.m_halfconcnt;
+						listRemoveNode(&s->m_recvpacketlist, cur);
 						free(halfcon);
 					}
 					else {
@@ -941,6 +939,8 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 						}
 						else if (s->accept_callback) {
 							s->reliable.m_status = LISTENED_STATUS;
+							if (s->m_recvpacket_maxcnt < 200)
+								s->m_recvpacket_maxcnt = 200;
 							if (AF_UNSPEC == s->local_saddr.ss_family) {
 								if (!socketGetLocalAddr(s->fd, &s->local_saddr))
 									break;

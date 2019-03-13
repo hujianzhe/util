@@ -74,12 +74,13 @@ typedef struct NioSocket_t {
 	long long m_lastactive_msec;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
+	unsigned short m_recvpacket_maxcnt;
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
 	struct {
 		unsigned short rto;
-		volatile unsigned short m_status;
-		unsigned short m_enable;
+		volatile unsigned char m_status;
+		unsigned char m_enable;
 
 		unsigned short m_synsent_times;
 		unsigned short m_fin_times;
@@ -90,10 +91,6 @@ typedef struct NioSocket_t {
 		unsigned int m_recvseq;
 		unsigned int m_sendseq;
 		struct sockaddr_storage peer_saddr;
-
-		unsigned short m_halfconcnt;
-		unsigned short m_halfconmaxcnt;
-		List_t m_halfconlist;
 	} reliable;
 } NioSocket_t;
 
