@@ -128,7 +128,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				FD_t new_fd;
 				IPString_t ipstr;
 				unsigned short local_port;
-				struct sockaddr_storage local_saddr = s->local_saddr;
+				struct sockaddr_storage local_saddr = s->local_listen_saddr;
 				if (!sockaddrSetPort(&local_saddr, 0))
 					return 1;
 				new_fd = socket(s->domain, s->socktype, s->protocol);
@@ -170,7 +170,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				if (memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
 					continue;
 				listRemoveNode(&s->m_recvpacketlist, cur);
-				s->accept_callback(halfcon->sockfd, &halfcon->peer_addr, s->accept_callback_arg);
+				s->accept_callback(s, halfcon->sockfd, &halfcon->peer_addr);
 				free(halfcon);
 				break;
 			}
@@ -180,7 +180,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		unsigned char syn_ack_ack;
 		if (len < 3)
 			return 1;
-		if (memcmp(saddr, &s->peer_listenaddr, sizeof(s->peer_listenaddr)))
+		if (memcmp(saddr, &s->peer_listen_saddr, sizeof(s->peer_listen_saddr)))
 			return 1;
 		if (SYN_SENT_STATUS == s->reliable.m_status) {
 			unsigned short peer_port;
@@ -346,7 +346,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				connfd != INVALID_FD_HANDLE;
 				connfd = reactorAcceptNext(s->fd, &saddr))
 			{
-				s->accept_callback(connfd, &saddr, s->accept_callback_arg);
+				s->accept_callback(s, connfd, &saddr);
 			}
 		}
 		else {
@@ -489,10 +489,6 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 			s->valid = 0;
 		}
 		else if (!reactorsocket_read(s)) {
-			errnum = errnoGet();
-			s->valid = 0;
-		}
-		if (0 == errnum && !socketGetLocalAddr(s->fd, &s->local_saddr)) {
 			errnum = errnoGet();
 			s->valid = 0;
 		}
@@ -643,7 +639,8 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->protocol = protocol;
 	s->timeout_msec = INFTIM;
 	s->userdata = NULL;
-	s->local_saddr.ss_family = AF_UNSPEC;
+	s->local_listen_saddr.ss_family = AF_UNSPEC;
+	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
 	s->connect_callback = NULL;
 	s->reg_callback = NULL;
@@ -669,7 +666,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	listInit(&s->m_sendpacketlist);
 	s->reliable.rto = 4;
 	s->reliable.m_status = IDLE_STATUS;
-	s->reliable.m_enable = 0;
+	s->reliable.enable = 0;
 	s->reliable.m_synsent_times = 0;
 	s->reliable.m_synsent_msec = 0;
 	s->reliable.m_fin_times = 0;
@@ -697,7 +694,7 @@ void niosocketFree(NioSocket_t* s) {
 		s->m_inbuflen = 0;
 	}
 
-	if (s->reliable.m_enable) {
+	if (s->reliable.enable) {
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 			next = cur->next;
 			if (s->accept_callback) {
@@ -766,7 +763,7 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 				}
 				else {
 					unsigned char syn = HDR_SYN;
-					socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listenaddr);
+					socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
 					++s->reliable.m_synsent_times;
 					s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
 
@@ -918,20 +915,28 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 							if (!s->m_writeOl)
 								break;
 						}
-						if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listenaddr))
+						if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listen_saddr))
 							break;
 					}
-					else if (!reactorsocket_read(s))
-						break;
+					else {
+						if (s->accept_callback) {
+							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
+								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
+									break;
+							}
+						}
+						if (!reactorsocket_read(s))
+							break;
+					}
 				}
 				else {
-					if (s->reliable.m_enable) {
+					if (s->reliable.enable) {
 						if (s->connect_callback) {
 							unsigned char syn_pkg = HDR_SYN;
-							if (socketWrite(s->fd, &syn_pkg, sizeof(syn_pkg), 0, &s->peer_listenaddr) < 0)
+							if (socketWrite(s->fd, &syn_pkg, sizeof(syn_pkg), 0, &s->peer_listen_saddr) < 0)
 								break;
 							s->reliable.m_status = SYN_SENT_STATUS;
-							s->reliable.peer_saddr = s->peer_listenaddr;
+							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
 
 							if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_synsent_msec)
@@ -941,8 +946,8 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 							s->reliable.m_status = LISTENED_STATUS;
 							if (s->m_recvpacket_maxcnt < 200)
 								s->m_recvpacket_maxcnt = 200;
-							if (AF_UNSPEC == s->local_saddr.ss_family) {
-								if (!socketGetLocalAddr(s->fd, &s->local_saddr))
+							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
+								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
 									break;
 							}
 						}
