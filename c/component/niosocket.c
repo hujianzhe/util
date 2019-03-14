@@ -961,10 +961,17 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 						loop->m_checkexpire_msec = s->m_lastactive_msec + timeout_msec;
 				}
 			} while (0);
-			if (s->reg_callback)
-				s->reg_callback(s, reg_ok ? 0 : errnoGet());
-			if (!reg_ok)
+			if (reg_ok) {
+				if (!s->connect_callback && s->reg_callback)
+					s->reg_callback(s, 0);
+			}
+			else {
+				if (s->connect_callback)
+					s->connect_callback(s, errnoGet());
+				else if (s->reg_callback)
+					s->reg_callback(s, errnoGet());
 				niosocketFree(s);
+			}
 		}
 	}
 	timestamp_msec = gmtimeMillisecond();
