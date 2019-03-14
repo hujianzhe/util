@@ -516,10 +516,7 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 		if (!packet)
 			return NULL;
 		packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
-		if (saddr && SOCK_STREAM != s->socktype)
-			packet->saddr = *saddr;
-		else
-			packet->saddr.ss_family = AF_UNSPEC;
+		packet->saddr = s->reliable.peer_saddr;
 		packet->s = s;
 		packet->resendtimes = 0;
 		packet->len = RELIABLE_HDR_LEN + len;
@@ -569,10 +566,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 		if (!packet)
 			return NULL;
 		packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
-		if (saddr)
-			packet->saddr = *saddr;
-		else
-			packet->saddr.ss_family = AF_UNSPEC;
+		packet->saddr = s->reliable.peer_saddr;
 		packet->resendtimes = 0;
 		packet->s = s;
 		packet->len = RELIABLE_HDR_LEN + nbytes;
@@ -1180,6 +1174,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				continue;
 			}
 			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
+			packet->seq = s->reliable.m_sendseq++;
 			cwndseq = s->reliable.m_cwndseq;
 			if (packet->seq >= cwndseq && packet->seq < cwndseq + s->reliable.m_cwndsize)
 			{
@@ -1188,7 +1183,6 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
 					sender->m_resend_msec = packet->resend_timestamp_msec;
 			}
-			packet->seq = s->reliable.m_sendseq++;
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		}
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
