@@ -851,7 +851,13 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 
 /* SOCKET */
 int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
-	socklen_t slen = from ? sizeof(*from) : 0;
+	socklen_t slen;
+	if (from) {
+		slen = sizeof(*from);
+		memset(from, 0, sizeof(*from));
+	}
+	else
+		slen = 0;
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
@@ -878,12 +884,21 @@ int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, co
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
-	int slen = saddr ? sizeof(*saddr) : 0;
+	int slen;
+	if (saddr) {
+		slen = sizeof(*saddr);
+		memset(saddr, 0, sizeof(*saddr));
+	}
+	else
+		slen = 0;
 	return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)saddr, &slen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = { 0 };
-	msghdr.msg_name = (struct sockaddr*)saddr;
-	msghdr.msg_namelen = saddr ? sizeof(*saddr) : 0;
+	if (saddr) {
+		msghdr.msg_name = (struct sockaddr*)saddr;
+		msghdr.msg_namelen = sizeof(*saddr);
+		memset(saddr, 0, sizeof(*saddr));
+	}
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
 	return recvmsg(sockfd, &msghdr, flags);
