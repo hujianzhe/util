@@ -85,7 +85,7 @@ static int reactorsocket_read(NioSocket_t* s) {
 	int opcode;
 	if (!s->valid)
 		return 0;
-	else if (s->accept_callback) {
+	else if (s->accept_callback && SOCK_STREAM == s->socktype) {
 		opcode = REACTOR_ACCEPT;
 		saddr.ss_family = s->domain;
 	}
@@ -932,8 +932,8 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				else {
 					if (s->reliable.enable) {
 						if (s->connect_callback) {
-							unsigned char syn_pkg = HDR_SYN;
-							if (socketWrite(s->fd, &syn_pkg, sizeof(syn_pkg), 0, &s->peer_listen_saddr) < 0)
+							unsigned char syn = HDR_SYN;
+							if (socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr) < 0)
 								break;
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
