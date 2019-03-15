@@ -93,7 +93,7 @@ static int reactorsocket_read(NioSocket_t* s) {
 		opcode = REACTOR_READ;
 	}
 	if (!s->m_readOl) {
-		s->m_readOl = reactorMallocOverlapped(opcode);
+		s->m_readOl = reactorMallocOverlapped(opcode, NULL, 0, SOCK_STREAM != s->socktype ? 65000 : 0);
 		if (!s->m_readOl) {
 			s->valid = 0;
 			return 0;
@@ -468,7 +468,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 static int reactorsocket_write(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
 	if (!s->m_writeOl) {
-		s->m_writeOl = reactorMallocOverlapped(REACTOR_WRITE);
+		s->m_writeOl = reactorMallocOverlapped(REACTOR_WRITE, NULL, 0, 0);
 		if (!s->m_writeOl) {
 			s->valid = 0;
 			return 0;
@@ -904,7 +904,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				if (SOCK_STREAM == s->socktype) {
 					if (s->connect_callback) {
 						if (!s->m_writeOl) {
-							s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT);
+							s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
 							if (!s->m_writeOl)
 								break;
 						}
@@ -990,7 +990,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sende
 	if (!socketPair(SOCK_STREAM, loop->m_socketpair))
 		return NULL;
 
-	loop->m_readOl = reactorMallocOverlapped(REACTOR_READ);
+	loop->m_readOl = reactorMallocOverlapped(REACTOR_READ, NULL, 0, 0);
 	if (!loop->m_readOl) {
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);

@@ -224,6 +224,11 @@ typedef struct IocpOverlapped {
 	OVERLAPPED ol;
 	unsigned short opcode;
 } IocpOverlapped;
+typedef struct IocpReadOverlapped {
+	IocpOverlapped base;
+	struct sockaddr_storage saddr;
+	WSABUF wsabuf;
+} IocpReadOverlapped;
 typedef struct IocpAcceptExOverlapped {
 	IocpOverlapped base;
 	SOCKET accpetsocket;
@@ -231,10 +236,27 @@ typedef struct IocpAcceptExOverlapped {
 } IocpAcceptExOverlapped;
 #endif
 
-void* reactorMallocOverlapped(int opcode) {
+void* reactorMallocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (opcode) {
 		case REACTOR_READ:
+		{
+			IocpReadOverlapped* ol = (IocpReadOverlapped*)malloc(sizeof(IocpReadOverlapped) + appendsize);
+			if (ol) {
+				memset(ol, 0, sizeof(IocpReadOverlapped));
+				ol->base.opcode = REACTOR_READ;
+				ol->saddr.ss_family = AF_UNSPEC;
+				if (refbuf && refsize) {
+					ol->wsabuf.buf = (char*)refbuf;
+					ol->wsabuf.len = refsize;
+				}
+				else if (appendsize) {
+					ol->wsabuf.buf = (char*)(ol + 1);
+					ol->wsabuf.len = appendsize;
+				}
+			}
+			return ol;
+		}
 		case REACTOR_WRITE:
 		case REACTOR_CONNECT:
 		{
@@ -286,15 +308,15 @@ void reactorFreeOverlapped(void* ol) {
 BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
+		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
-			int slen = sizeof(*saddr);/* connectionless socket must set this param */
+			int slen = sizeof(iocp_ol->saddr);/* connectionless socket must set this param */
 			DWORD Flags = 0;
-			WSABUF wsabuf = { 0 };
-			return !WSARecvFrom((SOCKET)fd, &wsabuf, 1, NULL, &Flags, (struct sockaddr*)saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
+			return !WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
 					WSAGetLastError() == WSA_IO_PENDING;
 		}
 		else {
-			return ReadFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+			return ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
 		}
 	}
 	else if (REACTOR_WRITE == opcode) {

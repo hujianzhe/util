@@ -79,7 +79,7 @@ typedef struct Reactor_t {
 } Reactor_t;
 __declspec_dll BOOL reactorCreate(Reactor_t* reactor);
 __declspec_dll BOOL reactorReg(Reactor_t* reactor, FD_t fd);
-__declspec_dll void* reactorMallocOverlapped(int opcode);
+__declspec_dll void* reactorMallocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void reactorFreeOverlapped(void* ol);
 __declspec_dll BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
 __declspec_dll int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
