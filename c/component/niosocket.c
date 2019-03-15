@@ -417,10 +417,23 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 	}
 	else if (SOCK_DGRAM == s->socktype) {
 		struct sockaddr_storage saddr;
-		unsigned char buffer[0xffff];
+		unsigned char buffer[0xffff], *p_data;
 		unsigned int readtimes, readmaxtimes = s->m_recvpacket_maxcnt;
 		for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
-			int res = socketRead(s->fd, buffer, sizeof(buffer), 0, &saddr);
+			int res;
+			if (0 == readtimes) {
+				Iobuf_t iov;
+				reactorEventOverlappedData(s->m_readOl, &iov, &saddr);
+				res = iobufLen(&iov);
+				if (res <= 0)
+					continue;
+				p_data = (unsigned char*)iobufPtr(&iov);
+			}
+			else {
+				p_data = buffer;
+				res = socketRead(s->fd, buffer, sizeof(buffer), 0, &saddr);
+			}
+
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK)
 					s->valid = 0;
@@ -429,7 +442,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 			else if (s->reliable.m_status) {
 				if (0 == res)
 					continue;
-				if (!reactor_socket_reliable_read(s, buffer, res, &saddr))
+				if (!reactor_socket_reliable_read(s, p_data, res, &saddr))
 					break;
 			}
 			else if (0 == res) {
@@ -447,7 +460,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				int offset = 0, len = -1;
 				while (offset < res) {
 					NioMsg_t* msgptr = NULL;
-					len = s->decode_packet(s, buffer + offset, res - offset, &saddr, &msgptr);
+					len = s->decode_packet(s, p_data + offset, res - offset, &saddr, &msgptr);
 					if (len < 0) {
 						s->valid = 0;
 						break;
