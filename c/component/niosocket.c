@@ -425,8 +425,10 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				Iobuf_t iov;
 				reactorEventOverlappedData(s->m_readOl, &iov, &saddr);
 				res = iobufLen(&iov);
-				if (res <= 0)
+				if (res <= 0) {
+					++readmaxtimes;
 					continue;
+				}
 				p_data = (unsigned char*)iobufPtr(&iov);
 			}
 			else {
