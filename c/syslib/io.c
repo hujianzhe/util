@@ -219,6 +219,17 @@ BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #endif
 }
 */
+#if defined(_WIN32) || defined(_WIN64)
+typedef struct IocpOverlapped {
+	OVERLAPPED ol;
+	unsigned short opcode;
+} IocpOverlapped;
+typedef struct IocpAcceptExOverlapped {
+	IocpOverlapped base;
+	SOCKET accpetsocket;
+	unsigned char saddrs[sizeof(struct sockaddr_storage) + 16 + sizeof(struct sockaddr_storage) + 16];
+} IocpAcceptExOverlapped;
+#endif
 
 void* reactorMallocOverlapped(int opcode) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -227,14 +238,26 @@ void* reactorMallocOverlapped(int opcode) {
 		case REACTOR_WRITE:
 		case REACTOR_CONNECT:
 		{
-			return calloc(1, sizeof(OVERLAPPED) + 2);
+			IocpOverlapped* ol = (IocpOverlapped*)calloc(1, sizeof(IocpOverlapped));
+			if (ol) {
+				ol->opcode = opcode;
+			}
+			return ol;
 		}
 		case REACTOR_ACCEPT:
 		{
+			/*
 			char* ol = (char*)calloc(1, sizeof(OVERLAPPED) + 2 + sizeof(SOCKET) + (sizeof(struct sockaddr_storage) + 16) * 2);
 			if (ol) {
 				ol[sizeof(OVERLAPPED) + 1] = 1;
 				*(SOCKET*)(ol + sizeof(OVERLAPPED) + 2) = INVALID_SOCKET;
+			}
+			return ol;
+			*/
+			IocpAcceptExOverlapped* ol = (IocpAcceptExOverlapped*)calloc(1, sizeof(IocpAcceptExOverlapped));
+			if (ol) {
+				ol->base.opcode = REACTOR_ACCEPT;
+				ol->accpetsocket = INVALID_SOCKET;
 			}
 			return ol;
 		}
@@ -248,13 +271,15 @@ void* reactorMallocOverlapped(int opcode) {
 }
 void reactorFreeOverlapped(void* ol) {
 #if defined(_WIN32) || defined(_WIN64)
-	const char* p = (char*)ol;
-	if (p && p[sizeof(OVERLAPPED) + 1]) {
-		SOCKET s = *(SOCKET*)(p + sizeof(OVERLAPPED) + 2);
-		if (INVALID_SOCKET != s)
-			closesocket(s);
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
+	if (iocp_ol) {
+		if (REACTOR_ACCEPT == iocp_ol->opcode) {
+			IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
+			if (INVALID_SOCKET != iocp_acceptex->accpetsocket)
+				closesocket(iocp_acceptex->accpetsocket);
+		}
+		free(iocp_ol);
 	}
-	free(ol);
 #endif
 }
 
@@ -275,16 +300,15 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 	else if (REACTOR_WRITE == opcode) {
 		if (saddr) {
 			WSABUF wsabuf = { 0 };
-			return	!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)(((char*)ol) + 1), NULL) ||
+			return	!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)ol, NULL) ||
 					WSAGetLastError() == WSA_IO_PENDING;
 		}
 		else {
-			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)(((char*)ol) + 1), NULL) || GetLastError() == ERROR_IO_PENDING;
+			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
 		}
 	}
 	else if (REACTOR_ACCEPT == opcode) {
-		BOOL res;
-		SOCKET* pConnfd;
+		IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
 		if (!lpfnAcceptEx) {
 			DWORD dwBytes;
@@ -297,28 +321,26 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 				return FALSE;
 			}
 		}
-		pConnfd = (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED) + 2);
-		if (INVALID_SOCKET == *pConnfd) {
-			*pConnfd = socket(saddr->ss_family, SOCK_STREAM, 0);
-			if (INVALID_SOCKET == *pConnfd) {
+		if (INVALID_SOCKET == iocp_ol->accpetsocket) {
+			iocp_ol->accpetsocket = socket(saddr->ss_family, SOCK_STREAM, 0);
+			if (INVALID_SOCKET == iocp_ol->accpetsocket) {
 				return FALSE;
 			}
 		}
-		res = lpfnAcceptEx((SOCKET)fd, *pConnfd,
-							pConnfd + 1, 0,
-							sizeof(struct sockaddr_storage) + 16,
-							sizeof(struct sockaddr_storage) + 16,
-							NULL, (LPOVERLAPPED)ol) ||
-							WSAGetLastError() == ERROR_IO_PENDING;
-		if (!res) {
-			closesocket(*pConnfd);
-			*pConnfd = INVALID_SOCKET;
+		if (lpfnAcceptEx((SOCKET)fd, iocp_ol->accpetsocket, iocp_ol->saddrs, 0,
+			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
+			NULL, (LPOVERLAPPED)ol) ||
+			WSAGetLastError() == ERROR_IO_PENDING)
+		{
+			return TRUE;
 		}
-
-		return res;
+		else {
+			closesocket(iocp_ol->accpetsocket);
+			iocp_ol->accpetsocket = INVALID_SOCKET;
+			return FALSE;
+		}
 	}
 	else if (REACTOR_CONNECT == opcode) {
-		BOOL res;
 		struct sockaddr_storage _sa = {0};
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		int slen;
@@ -348,12 +370,8 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		if (bind((SOCKET)fd, (struct sockaddr*)&_sa, sizeof(_sa))) {
 			return FALSE;
 		}
-		res = lpfnConnectEx((SOCKET)fd,
-							(struct sockaddr*)saddr, slen,
-							NULL, 0, NULL,
-							(LPWSAOVERLAPPED)(((char*)ol) + 1)) ||
-							WSAGetLastError() == ERROR_IO_PENDING;
-		return res;
+		return lpfnConnectEx((SOCKET)fd, (struct sockaddr*)saddr, slen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol) ||
+				WSAGetLastError() == ERROR_IO_PENDING;
 	}
 	else {
 		SetLastError(ERROR_INVALID_PARAMETER);
@@ -473,8 +491,18 @@ FD_t reactorEventFD(const NioEv_t* e) {
 
 void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_ol) {
 #if defined(_WIN32) || defined(_WIN64)
-	*p_ol = (void*)(((size_t)(e->lpOverlapped)) & ~1);
-	*p_opcode = ((ULONG_PTR)(e->lpOverlapped) & 1) ? REACTOR_WRITE : REACTOR_READ;
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
+	*p_ol = (void*)iocp_ol;
+	if (REACTOR_ACCEPT == iocp_ol->opcode)
+		*p_opcode = REACTOR_READ;
+	else if (REACTOR_CONNECT == iocp_ol->opcode)
+		*p_opcode = REACTOR_WRITE;
+	else if (REACTOR_READ == iocp_ol->opcode)
+		*p_opcode = REACTOR_READ;
+	else if (REACTOR_WRITE == iocp_ol->opcode)
+		*p_opcode = REACTOR_WRITE;
+	else
+		*p_opcode = REACTOR_NOP;
 #elif __linux__
 	*p_ol = NULL;
 	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {/* epoll must catch this event */
@@ -530,30 +558,21 @@ BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 
 FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr) {
 #if defined(_WIN32) || defined(_WIN64)
-	SOCKET* pConnfd = (SOCKET*)(((char*)ol) + sizeof(OVERLAPPED) + 2);
-	SOCKET connfd = *pConnfd;
-	struct sockaddr_storage listen_saddr;
-	int slen = sizeof(listen_saddr);
+	IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
+	SOCKET acceptfd = iocp_ol->accpetsocket;
+	iocp_ol->accpetsocket = INVALID_SOCKET;
 	do {
-		if (getsockname(listenfd, (struct sockaddr*)&listen_saddr, &slen)) {
-			break;
-		}
-		*pConnfd = socket(listen_saddr.ss_family, SOCK_STREAM, 0);
-		if (INVALID_SOCKET == *pConnfd) {
-			closesocket(connfd);
-			*pConnfd = socket(listen_saddr.ss_family, SOCK_STREAM, 0);
-			break;
-		}
-		if (setsockopt(connfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&listenfd, sizeof(listenfd))) {
-			closesocket(connfd);
+		int slen;
+		if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&listenfd, sizeof(listenfd))) {
+			closesocket(acceptfd);
 			break;
 		}
 		slen = sizeof(*peer_saddr);
-		if (getpeername(connfd, (struct sockaddr*)peer_saddr, &slen)) {
-			closesocket(connfd);
+		if (getpeername(acceptfd, (struct sockaddr*)peer_saddr, &slen)) {
+			closesocket(acceptfd);
 			break;
 		}
-		return connfd;
+		return acceptfd;
 	} while (0);
 	return INVALID_FD_HANDLE;
 #else
