@@ -227,6 +227,7 @@ typedef struct IocpOverlapped {
 typedef struct IocpReadOverlapped {
 	IocpOverlapped base;
 	struct sockaddr_storage saddr;
+	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
 } IocpReadOverlapped;
 typedef struct IocpAcceptExOverlapped {
@@ -310,7 +311,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 	if (REACTOR_READ == opcode) {
 		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
-			int slen = sizeof(iocp_ol->saddr);/* connectionless socket must set this param */
+			int slen = sizeof(iocp_ol->saddr);
 			DWORD Flags = 0;
 			return !WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
 					WSAGetLastError() == WSA_IO_PENDING;
@@ -519,8 +520,11 @@ void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_o
 		*p_opcode = REACTOR_READ;
 	else if (REACTOR_CONNECT == iocp_ol->opcode)
 		*p_opcode = REACTOR_WRITE;
-	else if (REACTOR_READ == iocp_ol->opcode)
+	else if (REACTOR_READ == iocp_ol->opcode) {
+		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
+		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		*p_opcode = REACTOR_READ;
+	}
 	else if (REACTOR_WRITE == iocp_ol->opcode)
 		*p_opcode = REACTOR_WRITE;
 	else
@@ -551,6 +555,24 @@ void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_o
 	else /* program don't run here... */
 		*p_opcode = REACTOR_NOP;
 #endif
+}
+
+void reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
+#if defined(_WIN32) || defined(_WIN64)
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
+	if (REACTOR_READ == iocp_ol->opcode) {
+		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
+		iov->buf = iocp_read_ol->wsabuf.buf;
+		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
+		if (saddr)
+			*saddr = iocp_read_ol->saddr;
+		return;
+	}
+#endif
+	iobufPtr(iov) = NULL;
+	iobufLen(iov) = 0;
+	if (saddr)
+		saddr->ss_family = AF_UNSPEC;
 }
 
 BOOL reactorConnectCheckSuccess(FD_t sockfd) {
