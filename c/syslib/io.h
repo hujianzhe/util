@@ -79,12 +79,12 @@ typedef struct Reactor_t {
 } Reactor_t;
 __declspec_dll BOOL reactorCreate(Reactor_t* reactor);
 __declspec_dll BOOL reactorReg(Reactor_t* reactor, FD_t fd);
-__declspec_dll BOOL reactorCancel(Reactor_t* reactor, FD_t fd);
 __declspec_dll void* reactorMallocOverlapped(int opcode);
 __declspec_dll void reactorFreeOverlapped(void* ol);
 __declspec_dll BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
 __declspec_dll int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
-__declspec_dll void reactorResult(const NioEv_t* e, FD_t* p_fd, int* p_event, void** p_ol);
+__declspec_dll FD_t reactorEventFD(const NioEv_t* e);
+__declspec_dll void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_ol);
 __declspec_dll BOOL reactorConnectCheckSuccess(FD_t sockfd);
 __declspec_dll FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr);
 __declspec_dll FD_t reactorAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr);
