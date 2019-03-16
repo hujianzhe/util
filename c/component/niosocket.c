@@ -731,6 +731,11 @@ static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
+static void update_timestamp(long long* dst, long long timestamp) {
+	if (0 == *dst || *dst > timestamp)
+		*dst = timestamp;
+}
+
 static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 	List_t expirelist;
 	HashtableNode_t *cur, *next;
@@ -746,8 +751,10 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 				for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 					ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 					next = cur->next;
-					if (halfcon->timestamp_msec > timestamp_msec)
+					if (halfcon->timestamp_msec > timestamp_msec) {
+						update_timestamp(&loop->m_checkexpire_msec, halfcon->timestamp_msec);
 						continue;
+					}
 					else if (halfcon->resend_times >= 5) {
 						socketClose(halfcon->sockfd);
 						listRemoveNode(&s->m_recvpacketlist, cur);
@@ -756,16 +763,16 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 					else {
 						++halfcon->resend_times;
 						halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
-
-						if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > halfcon->timestamp_msec)
-							loop->m_checkexpire_msec = halfcon->timestamp_msec;
+						update_timestamp(&loop->m_checkexpire_msec, halfcon->timestamp_msec);
 					}
 				}
 				continue;
 			}
 			else if (SYN_SENT_STATUS == s->reliable.m_status) {
-				if (s->reliable.m_synsent_msec > timestamp_msec)
+				if (s->reliable.m_synsent_msec > timestamp_msec) {
+					update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
 					continue;
+				}
 				else if (s->reliable.m_synsent_times >= 5) {
 					s->valid = 0;
 					s->connect_callback(s, ETIMEDOUT);
@@ -775,15 +782,15 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 					socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
 					++s->reliable.m_synsent_times;
 					s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
-
-					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_synsent_msec)
-						loop->m_checkexpire_msec = s->reliable.m_synsent_msec;
+					update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
 				}
 				continue;
 			}
 			else if (FIN_WAIT_1_STATUS == s->reliable.m_status || LAST_ACK_STATUS == s->reliable.m_status) {
-				if (s->reliable.m_fin_msec > timestamp_msec)
+				if (s->reliable.m_fin_msec > timestamp_msec) {
+					update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
 					continue;
+				}
 				else if (s->reliable.m_fin_times >= 5) {
 					s->reliable.m_status = IDLE_STATUS;
 					s->m_lastactive_msec = timestamp_msec;
@@ -794,17 +801,14 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 					socketWrite(s->fd, &fin, sizeof(fin), 0, &s->reliable.peer_saddr);
 					++s->reliable.m_fin_times;
 					s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
-
-					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_fin_msec)
-						loop->m_checkexpire_msec = s->reliable.m_fin_msec;
+					update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
 				}
 				continue;
 			}
 			else if (timeout_msec < 0)
 				continue;
 			else if (timestamp_msec - timeout_msec < s->m_lastactive_msec) {
-				if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->m_lastactive_msec + timeout_msec)
-					loop->m_checkexpire_msec = s->m_lastactive_msec + timeout_msec;
+				update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + timeout_msec);
 				continue;
 			}
 			else
@@ -902,9 +906,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 					s->reliable.m_status = FIN_WAIT_1_STATUS;
 				else
 					s->reliable.m_status = LAST_ACK_STATUS;
-
-				if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_fin_msec)
-					loop->m_checkexpire_msec = s->reliable.m_fin_msec;
+				update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
 			}
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
@@ -946,9 +948,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
-
-							if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->reliable.m_synsent_msec)
-								loop->m_checkexpire_msec = s->reliable.m_synsent_msec;
+							update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
 						}
 						else if (s->accept_callback) {
 							s->reliable.m_status = LISTENED_STATUS;
@@ -971,8 +971,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 				reg_ok = 1;
 				timeout_msec = s->timeout_msec;
 				if (timeout_msec > 0) {
-					if (!loop->m_checkexpire_msec || loop->m_checkexpire_msec > s->m_lastactive_msec + timeout_msec)
-						loop->m_checkexpire_msec = s->m_lastactive_msec + timeout_msec;
+					update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + timeout_msec);
 				}
 			} while (0);
 			if (reg_ok) {
@@ -994,7 +993,6 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 		loop->m_checkexpire_msec = 0;
 		expirelist = sockht_expire(loop, timestamp_msec);
 		dataqueuePushList(loop->m_msgdq, &expirelist);
-		loop->m_checkexpire_msec = timestamp_msec;
 	}
 }
 
@@ -1133,14 +1131,20 @@ static void resend_packet(NioSender_t* sender, NioSocket_t* s, long long timesta
 		ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 		if (packet->seq >= cwndseq + s->reliable.m_cwndsize)
 			continue;
-		if (packet->resend_timestamp_msec <= timestamp_msec) {
-			send_cnt++;
-			socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
-			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
-			packet->resendtimes++;
+		if (packet->resend_timestamp_msec > timestamp_msec) {
+			update_timestamp(&sender->m_resend_msec, packet->resend_timestamp_msec);
+			continue;
 		}
-		if (!sender->m_resend_msec || packet->resend_timestamp_msec < sender->m_resend_msec)
-			sender->m_resend_msec = packet->resend_timestamp_msec;
+		if (packet->resendtimes >= 5) {
+			s->m_lastactive_msec = timestamp_msec;
+			s->timeout_msec = MSL + MSL;
+			break;
+		}
+		send_cnt++;
+		socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+		packet->resendtimes++;
+		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
+		update_timestamp(&sender->m_resend_msec, packet->resend_timestamp_msec);
 	}
 }
 
@@ -1167,7 +1171,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			if (SOCK_STREAM == s->socktype) {
 				socketShutdown(s->fd, SHUT_WR);
 			}
-			else if (ESTABLISHED_STATUS == s->reliable.m_status) {
+			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 				if (!s->m_sendpacketlist.head) {
 					NioLoop_t* loop = s->m_loop;
 					criticalsectionEnter(&loop->m_msglistlock);
@@ -1201,8 +1205,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			{
 				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
-				if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
-					sender->m_resend_msec = packet->resend_timestamp_msec;
+				update_timestamp(&sender->m_resend_msec, packet->resend_timestamp_msec);
 			}
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		}
@@ -1279,8 +1282,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 					++send_cnt;
 					socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 					packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
-					if (!sender->m_resend_msec || sender->m_resend_msec > packet->resend_timestamp_msec)
-						sender->m_resend_msec = packet->resend_timestamp_msec;
+					update_timestamp(&sender->m_resend_msec, packet->resend_timestamp_msec);
 				}
 			}
 			if (!s->m_sendpacketlist.head && s->m_shutwr) {
