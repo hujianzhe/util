@@ -80,6 +80,32 @@ typedef struct ReliableAckPacket_t {
 extern "C" {
 #endif
 
+static NioLoop_t* nioloop_exec_msg(NioLoop_t* loop, ListNode_t* msgnode) {
+	int need_wake;
+	criticalsectionEnter(&loop->m_msglistlock);
+	need_wake = !loop->m_msglist.head;
+	listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, msgnode);
+	criticalsectionLeave(&loop->m_msglistlock);
+	if (need_wake) {
+		char c;
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	}
+	return loop;
+}
+
+static NioLoop_t* nioloop_exec_msglist(NioLoop_t* loop, List_t* msglist) {
+	int need_wake;
+	criticalsectionEnter(&loop->m_msglistlock);
+	need_wake = !loop->m_msglist.head;
+	listMerge(&loop->m_msglist, msglist);
+	criticalsectionLeave(&loop->m_msglistlock);
+	if (need_wake) {
+		char c;
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	}
+	return loop;
+}
+
 static int reactorsocket_read(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
 	int opcode;
@@ -718,7 +744,7 @@ void niosocketFree(NioSocket_t* s) {
 	}
 	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 		next = cur->next;
-		free(pod_container_of(cur, Packet_t, msg.m_listnode));
+		free(cur);
 	}
 
 	if (s->m_free)
@@ -1064,10 +1090,7 @@ void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 	for (i = 0; i < n; ++i) {
 		listInsertNodeBack(&list, list.tail, &s[i]->m_regmsg.m_listnode);
 	}
-	criticalsectionEnter(&loop->m_msglistlock);
-	listMerge(&loop->m_msglist, &list);
-	criticalsectionLeave(&loop->m_msglistlock);
-	nioloopWake(loop);
+	nioloop_exec_msglist(loop, &list);
 }
 
 void nioloopDestroy(NioLoop_t* loop) {
@@ -1174,21 +1197,14 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 				if (!s->m_sendpacketlist.head) {
 					NioLoop_t* loop = s->m_loop;
-					criticalsectionEnter(&loop->m_msglistlock);
-					listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, cur);
-					criticalsectionLeave(&loop->m_msglistlock);
-					nioloopWake(loop);
+					nioloop_exec_msg(loop, cur);
 				}
 			}
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_closemsg);
-			NioLoop_t* loop = s->m_loop;
 			listRemoveNode(&sender->m_socklist, &s->m_senderlistnode);
-			criticalsectionEnter(&loop->m_msglistlock);
-			listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, cur);
-			criticalsectionLeave(&loop->m_msglistlock);
-			nioloopWake(loop);
+			nioloop_exec_msg(s->m_loop, cur);
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type) {
 			unsigned long long cwndseq;
@@ -1286,11 +1302,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				}
 			}
 			if (!s->m_sendpacketlist.head && s->m_shutwr) {
-				NioLoop_t* loop = s->m_loop;
-				criticalsectionEnter(&loop->m_msglistlock);
-				listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, &s->m_shutdownmsg.m_listnode);
-				criticalsectionLeave(&loop->m_msglistlock);
-				nioloopWake(loop);
+				nioloop_exec_msg(s->m_loop, &s->m_shutdownmsg.m_listnode);
 			}
 		}
 	}
