@@ -552,7 +552,7 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 			return s;
 		len = 0;
 	}
-	if (s->socktype != SOCK_STREAM && ESTABLISHED_STATUS == s->reliable.m_status) {
+	if (ESTABLISHED_STATUS == s->reliable.m_status) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + len);
 		if (!packet)
 			return NULL;
@@ -602,7 +602,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 			iovcnt = 0;
 		}
 	}
-	if (s->socktype != SOCK_STREAM && ESTABLISHED_STATUS == s->reliable.m_status) {
+	if (ESTABLISHED_STATUS == s->reliable.m_status) {
 		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + nbytes);
 		if (!packet)
 			return NULL;
