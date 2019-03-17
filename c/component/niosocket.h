@@ -31,7 +31,6 @@ typedef struct NioLoop_t {
 typedef struct NioSender_t {
 	unsigned char initok;
 	DataQueue_t m_dq;
-	List_t m_socklist;
 	long long m_resend_msec;
 } NioSender_t;
 
@@ -65,7 +64,6 @@ typedef struct NioSocket_t {
 	NioMsg_t m_closemsg;
 	NioMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
-	ListNode_t m_senderlistnode;
 	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);
 	void* m_readOl;
@@ -77,18 +75,19 @@ typedef struct NioSocket_t {
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
 	struct {
-		unsigned short rto;
+		unsigned int rto;
 		unsigned char enable;
 		volatile unsigned char m_status;
+		unsigned short m_resend_maxtimes;
 
-		unsigned short m_synsent_times;
-		unsigned short m_fin_times;
-		long long m_synsent_msec;
-		long long m_fin_msec;
 		unsigned int m_cwndseq;
 		unsigned int m_cwndsize;
 		unsigned int m_recvseq;
 		unsigned int m_sendseq;
+		unsigned short m_synsent_times;
+		unsigned short m_fin_times;
+		long long m_synsent_msec;
+		long long m_fin_msec;
 		struct sockaddr_storage peer_saddr;
 	} reliable;
 } NioSocket_t;
