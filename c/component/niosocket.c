@@ -68,13 +68,6 @@ typedef struct ReliableDataPacket_t {
 	unsigned char data[1];
 } ReliableDataPacket_t;
 
-typedef struct ReliableAckPacket_t {
-	NioMsg_t msg;
-	struct sockaddr_storage saddr;
-	NioSocket_t* s;
-	unsigned int seq;
-} ReliableAckPacket_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -804,7 +797,7 @@ static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
-static void resend_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp_msec) {
+static int resend_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
 	unsigned int send_cnt = 0;
 	unsigned long long cwndseq = s->reliable.m_cwndseq;
@@ -819,7 +812,7 @@ static void resend_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp_m
 		if (packet->resendtimes >= s->reliable.m_resend_maxtimes) {
 			s->m_lastactive_msec = timestamp_msec;
 			s->timeout_msec = MSL + MSL;
-			break;
+			return 0;
 		}
 		send_cnt++;
 		socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
@@ -827,6 +820,7 @@ static void resend_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp_m
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
 	}
+	return 1;
 }
 
 static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
@@ -902,6 +896,7 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 			}
 			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 				resend_packet(loop, s, timestamp_msec);
+				continue;
 			}
 			else if (timeout_msec < 0)
 				continue;
@@ -909,8 +904,7 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 				update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + timeout_msec);
 				continue;
 			}
-			else
-				s->valid = 0;
+			s->valid = 0;
 		}
 		hashtableRemoveNode(&loop->m_sockht, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, &s->m_closemsg.m_listnode);
@@ -1180,16 +1174,27 @@ void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 
 void nioloopDestroy(NioLoop_t* loop) {
 	if (loop && loop->initok) {
-		HashtableNode_t *cur, *next;
 		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
 		reactorClose(&loop->m_reactor);
 		criticalsectionClose(&loop->m_msglistlock);
-		for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
-			next = hashtableNextNode(cur);
-			niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
-		}
+		do {
+			ListNode_t* cur, *next;
+			for (cur = loop->m_msglist.head; cur; cur = next) {
+				NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
+				next = cur->next;
+				if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type)
+					free(cur);
+			}
+		} while (0);
+		do {
+			HashtableNode_t *cur, *next;
+			for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
+				next = hashtableNextNode(cur);
+				niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+			}
+		} while (0);
 	}
 }
 
