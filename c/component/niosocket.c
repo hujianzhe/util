@@ -242,6 +242,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->m_shutwr = 1;
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
 					send_fin_packet(s->m_loop, s, gmtimeMillisecond());
+					dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				}
 			}
 			else if (FIN_WAIT_1_STATUS == s->reliable.m_status ||
@@ -275,6 +276,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
 		seq = *(unsigned int*)(buffer + 1);
+		seq = ntohl(seq);
 		cwnd_skip = 0;
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 			ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
@@ -311,6 +313,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		}
 		if (!s->m_sendpacketlist.head && s->m_shutwr) {
 			send_fin_packet(s->m_loop, s, gmtimeMillisecond());
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 		}
 	}
 	else if (HDR_DATA == hdr_type) {
@@ -881,7 +884,6 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 					continue;
 				}
 				else if (s->reliable.m_fin_times >= s->reliable.m_resend_maxtimes) {
-					s->reliable.m_status = IDLE_STATUS;
 					s->m_lastactive_msec = timestamp_msec;
 					s->timeout_msec = MSL + MSL;
 				}
@@ -992,8 +994,10 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
 			s->m_shutwr = 1;
 			if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
-				if (!s->m_sendpacketlist.head)
+				if (!s->m_sendpacketlist.head) {
 					send_fin_packet(loop, s, timestamp_msec);
+					dataqueuePush(loop->m_msgdq, cur);
+				}
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
@@ -1318,10 +1322,19 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 	for (cur = dataqueuePop(dq, max_wait_msec, ~0); cur; cur = next) {
 		NioMsg_t* message = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
-		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
-			if (s->close)
+		if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
+			if (s->close) {
 				s->close(s);
+				s->close = NULL;
+			}
+		}
+		else if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
+			if (s->close) {
+				s->close(s);
+				s->close = NULL;
+			}
 			if (s->reliable.m_status)
 				nioloop_exec_msg(s->m_loop, cur);
 			else
