@@ -221,6 +221,8 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		if (memcmp(saddr, &s->peer_listen_saddr, sizeof(s->peer_listen_saddr)))
 			return 1;
+		syn_ack_ack = HDR_SYN_ACK_ACK;
+		socketWrite(s->fd, &syn_ack_ack, sizeof(syn_ack_ack), 0, saddr);
 		if (SYN_SENT_STATUS == s->reliable.m_status) {
 			unsigned short peer_port;
 			s->reliable.m_status = ESTABLISHED_STATUS;
@@ -232,9 +234,6 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->connect_callback = NULL;
 			}
 		}
-
-		syn_ack_ack = HDR_SYN_ACK_ACK;
-		socketWrite(s->fd, &syn_ack_ack, sizeof(syn_ack_ack), 0, saddr);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -856,6 +855,10 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 						free(halfcon);
 					}
 					else {
+						unsigned char syn_ack[3];
+						syn_ack[0] = HDR_SYN_ACK;
+						*(unsigned short*)(syn_ack + 1) = htons(halfcon->local_port);
+						socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, &halfcon->peer_addr);
 						++halfcon->resend_times;
 						halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
 						update_timestamp(&loop->m_checkexpire_msec, halfcon->timestamp_msec);
