@@ -553,6 +553,8 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 						s->valid = 0;
 						break;
 					}
+					if (0 == len)
+						break;
 					offset += len;
 					if (msgptr) {
 						msgptr->type = NIO_SOCKET_USER_MESSAGE;
