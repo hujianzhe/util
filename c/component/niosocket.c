@@ -87,6 +87,9 @@ static NioLoop_t* nioloop_exec_msg(NioLoop_t* loop, ListNode_t* msgnode) {
 		char c;
 		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
 	}
+	else {
+		nioloopWake(loop);
+	}
 	return loop;
 }
 
@@ -99,6 +102,9 @@ static NioLoop_t* nioloop_exec_msglist(NioLoop_t* loop, List_t* msglist) {
 	if (need_wake) {
 		char c;
 		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+	}
+	else {
+		nioloopWake(loop);
 	}
 	return loop;
 }
