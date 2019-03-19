@@ -848,20 +848,7 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 	}
 	return FALSE;
 #else
-	if (socketpair(AF_UNIX, type, 0, sockfd)) {
-		return FALSE;
-	}
-	if (SOCK_STREAM == type) {
-		int on = 1;
-		if (setsockopt(sockfd[0], IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)) ||
-			setsockopt(sockfd[1], IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)))
-		{
-			close(sockfd[0]);
-			close(sockfd[1]);
-			return FALSE;
-		}
-	}
-	return TRUE;
+	return socketpair(AF_UNIX, type, 0, sockfd) == 0;
 #endif
 }
 
