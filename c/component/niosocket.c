@@ -34,7 +34,8 @@ enum {
 	FIN_WAIT_2_STATUS,
 	CLOSE_WAIT_STATUS,
 	TIME_WAIT_STATUS,
-	LAST_ACK_STATUS
+	LAST_ACK_STATUS,
+	CLOSED_STATUS
 };
 #define	RELIABLE_HDR_LEN	5
 #define	MSL					30000
@@ -277,7 +278,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
 		else if (LAST_ACK_STATUS == s->reliable.m_status) {
-			s->reliable.m_status = IDLE_STATUS;
+			s->reliable.m_status = CLOSED_STATUS;
 			s->m_lastactive_msec = gmtimeMillisecond();
 			s->timeout_msec = MSL + MSL;
 		}
