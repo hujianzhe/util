@@ -204,7 +204,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				halfcon->resend_times = 0;
 				halfcon->peer_addr = *saddr;
 				halfcon->sockfd = new_fd;
-				halfcon->timestamp_msec = gmtimeMillisecond();
+				halfcon->timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
 
 				listInsertNodeBack(&s->m_recvpacketlist, s->m_recvpacketlist.tail, &halfcon->m_listnode);
 				update_timestamp(&s->m_loop->m_checkexpire_msec, halfcon->timestamp_msec);
