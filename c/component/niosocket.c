@@ -185,6 +185,10 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 					socketClose(new_fd);
 					return 1;
 				}
+				if (!socketNonBlock(new_fd, TRUE)) {
+					socketClose(new_fd);
+					return 1;
+				}
 				halfcon = (ReliableHalfConnect_t*)malloc(sizeof(ReliableHalfConnect_t));
 				if (!halfcon) {
 					socketClose(new_fd);
@@ -195,7 +199,9 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				halfcon->peer_addr = *saddr;
 				halfcon->sockfd = new_fd;
 				halfcon->timestamp_msec = gmtimeMillisecond();
+
 				listInsertNodeBack(&s->m_recvpacketlist, s->m_recvpacketlist.tail, &halfcon->m_listnode);
+				update_timestamp(&s->m_loop->m_checkexpire_msec, halfcon->timestamp_msec);
 
 				syn_ack[0] = HDR_SYN_ACK;
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
@@ -203,13 +209,16 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, saddr);
 		}
 		else if (HDR_SYN_ACK_ACK == hdr_type) {
+			struct sockaddr_storage peer_addr;
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 				next = cur->next;
 				if (memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
 					continue;
+				if (socketRead(halfcon->sockfd, NULL, 0, 0, &peer_addr))
+					break;
 				listRemoveNode(&s->m_recvpacketlist, cur);
-				s->accept_callback(s, halfcon->sockfd, &halfcon->peer_addr);
+				s->accept_callback(s, halfcon->sockfd, &peer_addr);
 				free(halfcon);
 				break;
 			}
@@ -234,6 +243,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->connect_callback = NULL;
 			}
 		}
+		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
