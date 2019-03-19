@@ -852,6 +852,7 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 		return FALSE;
 	}
 	if (SOCK_STREAM == type) {
+		int on = 1;
 		if (setsockopt(sockfd[0], IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)) ||
 			setsockopt(sockfd[1], IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)))
 		{
