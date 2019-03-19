@@ -938,11 +938,8 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 	return expirelist;
 }
 
-void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
-	int n;
-	NioEv_t e[4096];
+int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
 	ListNode_t *cur, *next;
-
 	if (loop->m_checkexpire_msec > timestamp_msec) {
 		int checkexpire_wait_msec = loop->m_checkexpire_msec - timestamp_msec;
 		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
@@ -952,9 +949,9 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 		wait_msec = 0;
 	}
 
-	n = reactorWait(&loop->m_reactor, e, sizeof(e) / sizeof(e[0]), wait_msec);
+	n = reactorWait(&loop->m_reactor, e, n, wait_msec);
 	if (n < 0) {
-		return;
+		return n;
 	}
 	else if (n > 0) {
 		int i;
@@ -1126,6 +1123,7 @@ void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec) {
 		expirelist = sockht_expire(loop, timestamp_msec);
 		dataqueuePushList(loop->m_msgdq, &expirelist);
 	}
+	return n;
 }
 
 NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sender) {

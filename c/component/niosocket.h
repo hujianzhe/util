@@ -103,7 +103,7 @@ __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsign
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sender);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);
-__declspec_dll void nioloopHandler(NioLoop_t* loop, long long timestamp_msec, int wait_msec);
+__declspec_dll int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void nioloopDestroy(NioLoop_t* loop);
 __declspec_dll NioSender_t* niosenderCreate(NioSender_t* sender);
