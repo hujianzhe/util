@@ -362,36 +362,31 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (seq == s->reliable.m_recvseq) {
 			NioMsg_t* msgptr;
-			cur = s->m_recvpacketlist.head;
-			if (cur) {
-				for (; cur; cur = next) {
-					packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
-					if (packet->seq != s->reliable.m_recvseq)
-						break;
-					next = cur->next;
-					s->reliable.m_recvseq++;
-					msgptr = NULL;
-					if (s->decode_packet(s, packet->len ? packet->data : NULL, packet->len, &packet->saddr, &msgptr) < 0) {
-						s->valid = 0;
-						return 0;
-					}
-					if (msgptr) {
-						msgptr->type = NIO_SOCKET_USER_MESSAGE;
-						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-					}
-					listRemoveNode(&s->m_recvpacketlist, cur);
-					free(packet);
-				}
+			s->reliable.m_recvseq++;
+			msgptr = NULL;
+			len -= RELIABLE_HDR_LEN;
+			buffer = len ? buffer + RELIABLE_HDR_LEN : NULL;
+			if (s->decode_packet(s, buffer, len, saddr, &msgptr) < 0) {
+				s->valid = 0;
+				return 0;
 			}
-			else {
+			if (msgptr) {
+				msgptr->type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+			}
+			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
+				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+				if (packet->seq != s->reliable.m_recvseq)
+					break;
+				next = cur->next;
 				s->reliable.m_recvseq++;
 				msgptr = NULL;
-				len -= RELIABLE_HDR_LEN;
-				buffer = len ? buffer + RELIABLE_HDR_LEN : NULL;
-				if (s->decode_packet(s, buffer, len, saddr, &msgptr) < 0) {
+				if (s->decode_packet(s, packet->len ? packet->data : NULL, packet->len, &packet->saddr, &msgptr) < 0) {
 					s->valid = 0;
 					return 0;
 				}
+				listRemoveNode(&s->m_recvpacketlist, cur);
+				free(packet);
 				if (msgptr) {
 					msgptr->type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
