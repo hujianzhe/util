@@ -324,13 +324,10 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			}
 		}
 		if (cwnd_skip) {
-			unsigned int send_cnt = 0;
-			unsigned long long cwndseq = s->reliable.m_cwndseq;
-			for (cur = s->m_sendpacketlist.head; cur && send_cnt < s->reliable.cwndsize; cur = cur->next) {
+			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 				ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
-				if (packet->seq >= cwndseq + s->reliable.cwndsize)
-					continue;
-				++send_cnt;
+				if (packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
+					break;
 				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_checkexpire_msec, packet->resend_timestamp_msec);
@@ -484,12 +481,10 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 	}
 	else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 		ListNode_t* cur;
-		unsigned int send_cnt = 0;
-		unsigned long long cwndseq = s->reliable.m_cwndseq;
-		for (cur = s->m_sendpacketlist.head; cur && send_cnt < s->reliable.cwndsize; cur = cur->next) {
+		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 			ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
-			if (packet->seq >= cwndseq + s->reliable.cwndsize)
-				continue;
+			if (packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
+				break;
 			if (packet->resend_timestamp_msec > timestamp_msec) {
 				update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
 				continue;
@@ -500,7 +495,6 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 				update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
 				break;
 			}
-			send_cnt++;
 			socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 			packet->resendtimes++;
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
@@ -1017,7 +1011,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
-			unsigned long long cwndseq;
 			ReliableDataPacket_t* packet = pod_container_of(message, ReliableDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->valid || s->m_shutwr) {
@@ -1026,9 +1019,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
 			packet->seq = s->reliable.m_sendseq++;
-			cwndseq = s->reliable.m_cwndseq;
-			if (packet->seq >= cwndseq && packet->seq < cwndseq + s->reliable.cwndsize)
-			{
+			if (packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize) {
 				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
 				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
