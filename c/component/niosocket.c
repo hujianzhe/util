@@ -142,12 +142,10 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	if (ESTABLISHED_STATUS == s->reliable.m_status) {
 		s->reliable.m_status = FIN_WAIT_1_STATUS;
 		update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
-		dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 	}
 	else if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
 		s->reliable.m_status = LAST_ACK_STATUS;
 		update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
-		dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 	}
 }
 
@@ -264,6 +262,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			if (ESTABLISHED_STATUS == s->reliable.m_status) {
 				s->reliable.m_status = CLOSE_WAIT_STATUS;
 				s->m_shutwr = 1;
+				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
 					send_fin_packet(s->m_loop, s, gmtimeMillisecond());
 				}
@@ -274,6 +273,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->reliable.m_status = TIME_WAIT_STATUS;
 				s->m_lastactive_msec = gmtimeMillisecond();
 				s->timeout_msec = MSL + MSL;
+				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
 		}
 	}
