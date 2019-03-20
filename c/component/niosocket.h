@@ -40,6 +40,7 @@ typedef struct NioMsg_t {
 } NioMsg_t;
 
 typedef struct NioSocket_t {
+/* public */
 	FD_t fd;
 	int domain;
 	int socktype;
@@ -75,20 +76,21 @@ typedef struct NioSocket_t {
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
 	struct {
-		unsigned int rto;
+	/* public */
+		struct sockaddr_storage peer_saddr;
+		unsigned short rto;
+		unsigned char resend_maxtimes;
+		unsigned char cwndsize;
 		unsigned char enable;
-		volatile unsigned char m_status;
-		unsigned short m_resend_maxtimes;
-
-		unsigned int m_cwndseq;
-		unsigned int m_cwndsize;
-		unsigned int m_recvseq;
-		unsigned int m_sendseq;
-		unsigned short m_synsent_times;
-		unsigned short m_fin_times;
+	/* private */
+		unsigned char m_status;
+		unsigned char m_synsent_times;
+		unsigned char m_fin_times;
 		long long m_synsent_msec;
 		long long m_fin_msec;
-		struct sockaddr_storage peer_saddr;
+		unsigned int m_cwndseq;
+		unsigned int m_recvseq;
+		unsigned int m_sendseq;
 	} reliable;
 } NioSocket_t;
 
