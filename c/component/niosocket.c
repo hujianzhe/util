@@ -852,7 +852,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	listInit(&s->m_sendpacketlist);
 
 	s->reliable.peer_saddr.ss_family = AF_UNSPEC;
-	s->reliable.rto = 4;
+	s->reliable.rto = 200;
 	s->reliable.resend_maxtimes = 5;
 	s->reliable.cwndsize = 10;
 	s->reliable.enable = 0;
