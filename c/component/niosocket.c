@@ -152,7 +152,10 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 }
 
 static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
-	unsigned char hdr_type = buffer[0];
+	unsigned char hdr_type;
+	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
+		return 1;
+	hdr_type = buffer[0];
 	if (s->accept_callback) {
 		ListNode_t* cur, *next;
 		ReliableHalfConnect_t* halfcon;
