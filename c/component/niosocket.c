@@ -149,6 +149,37 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	}
 }
 
+static void relable_data_packet_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
+	NioMsg_t* msgptr;
+	int offset, res;
+	len -= RELIABLE_HDR_LEN;
+	if (len) {
+		buffer += RELIABLE_HDR_LEN;
+		offset = 0;
+		while (offset < len) {
+			msgptr = NULL;
+			res = s->decode_packet(s, buffer, len, saddr, &msgptr);
+			if (res < 0)
+				break;
+			else if (0 == res)
+				break;
+			offset += res;
+			if (msgptr) {
+				msgptr->type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+			}
+		}
+	}
+	else {
+		msgptr = NULL;
+		s->decode_packet(s, NULL, 0, saddr, &msgptr);
+		if (msgptr) {
+			msgptr->type = NIO_SOCKET_USER_MESSAGE;
+			dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+		}
+	}
+}
+
 static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
@@ -361,41 +392,17 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (seq < s->reliable.m_recvseq)
 			return 1;
 		else if (seq == s->reliable.m_recvseq) {
-			NioMsg_t* msgptr;
 			s->reliable.m_recvseq++;
-			msgptr = NULL;
-			len -= RELIABLE_HDR_LEN;
-			buffer = len ? buffer + RELIABLE_HDR_LEN : NULL;
-			if (s->decode_packet(s, buffer, len, saddr, &msgptr) < 0) {
-				//s->valid = 0;
-				//return 0;
-			}
-			if (msgptr) {
-				msgptr->type = NIO_SOCKET_USER_MESSAGE;
-				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-			}
+			relable_data_packet_handler(s, buffer, len, saddr);
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-				unsigned char* dataptr;
-				unsigned int datalen;
 				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
 				s->reliable.m_recvseq++;
-
-				msgptr = NULL;
-				datalen = packet->len - RELIABLE_HDR_LEN;
-				dataptr = datalen ? packet->data + RELIABLE_HDR_LEN : NULL;
-				if (s->decode_packet(s, dataptr, datalen, &packet->saddr, &msgptr) < 0) {
-					//s->valid = 0;
-					//return 0;
-				}
+				relable_data_packet_handler(s, packet->data, packet->len, &packet->saddr);
 				listRemoveNode(&s->m_recvpacketlist, cur);
 				free(packet);
-				if (msgptr) {
-					msgptr->type = NIO_SOCKET_USER_MESSAGE;
-					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-				}
 			}
 		}
 		else {
@@ -528,24 +535,21 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 		}
 		else {
 			int res = socketTcpReadableBytes(s->fd);
+			if (res <= 0) {
+				s->m_valid = 0;
+				return;
+			}
 			do {
-				unsigned char *p;
-				size_t offset = 0;
-
-				if (res <= 0) {
-					s->m_valid = 0;
-					break;
-				}
-
-				p = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
-				if (!p) {
+				size_t offset;
+				unsigned char *ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
+				if (!ptr) {
 					free(s->m_inbuf);
 					s->m_inbuf = NULL;
 					s->m_inbuflen = 0;
 					s->m_valid = 0;
 					break;
 				}
-				s->m_inbuf = p;
+				s->m_inbuf = ptr;
 				res = socketRead(s->fd, s->m_inbuf + s->m_inbuflen, res, 0, &saddr);
 				if (res <= 0) {
 					free(s->m_inbuf);
@@ -558,6 +562,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					s->m_inbuflen += res;
 				}
 
+				offset = 0;
 				while (offset < s->m_inbuflen) {
 					NioMsg_t* msgptr = NULL;
 					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr, &msgptr);
