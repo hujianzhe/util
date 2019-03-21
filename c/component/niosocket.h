@@ -78,6 +78,7 @@ typedef struct NioSocket_t {
 	struct {
 	/* public */
 		struct sockaddr_storage peer_saddr;
+		unsigned short mtu;
 		unsigned short rto;
 		unsigned char resend_maxtimes;
 		unsigned char cwndsize;
