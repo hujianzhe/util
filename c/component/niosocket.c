@@ -375,13 +375,18 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 			}
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
+				unsigned char* dataptr;
+				unsigned int datalen;
 				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
 				s->reliable.m_recvseq++;
+
 				msgptr = NULL;
-				if (s->decode_packet(s, packet->len ? packet->data : NULL, packet->len, &packet->saddr, &msgptr) < 0) {
+				datalen = packet->len - RELIABLE_HDR_LEN;
+				dataptr = datalen ? packet->data + RELIABLE_HDR_LEN : NULL;
+				if (s->decode_packet(s, dataptr, datalen, &packet->saddr, &msgptr) < 0) {
 					//s->valid = 0;
 					//return 0;
 				}
@@ -401,7 +406,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				else if (packet->seq == seq)
 					return 1;
 			}
-			packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + len - RELIABLE_HDR_LEN);
+			packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + len);
 			if (!packet) {
 				//s->valid = 0;
 				return 0;
@@ -410,8 +415,8 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			packet->saddr = *saddr;
 			packet->s = s;
 			packet->seq = seq;
-			packet->len = len - RELIABLE_HDR_LEN;
-			memcpy(packet->data, buffer + RELIABLE_HDR_LEN, len - RELIABLE_HDR_LEN);
+			packet->len = len;
+			memcpy(packet->data, buffer, len);
 			if (cur)
 				listInsertNodeFront(&s->m_recvpacketlist, cur, &packet->msg.m_listnode);
 			else
