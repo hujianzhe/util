@@ -154,7 +154,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
 		return 1;
 	hdr_type = buffer[0];
-	if (s->accept_callback && s->m_shutdown) {
+	if (s->accept_callback && 0 == s->m_shutdown) {
 		ListNode_t* cur, *next;
 		ReliableHalfConnect_t* halfcon;
 		if (HDR_SYN == hdr_type) {
