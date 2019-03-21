@@ -56,10 +56,10 @@ typedef struct NioSocket_t {
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*close)(struct NioSocket_t*);
-	volatile char valid;
 /* private */
+	volatile char m_valid;
+	volatile char m_shutwr;
 	Atom16_t m_shutdown;
-	char m_shutwr;
 	NioMsg_t m_regmsg;
 	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_closemsg;
