@@ -38,6 +38,7 @@ enum {
 	CLOSED_STATUS
 };
 #define	RELIABLE_HDR_LEN	5
+#define	HDR_DATA_END_FLAG	0x80
 #define	MSL					30000
 
 typedef struct Packet_t {
@@ -149,16 +150,14 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	}
 }
 
-static void relable_data_packet_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
+static void relable_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioMsg_t* msgptr;
 	int offset, res;
-	len -= RELIABLE_HDR_LEN;
 	if (len) {
-		buffer += RELIABLE_HDR_LEN;
 		offset = 0;
 		while (offset < len) {
 			msgptr = NULL;
-			res = s->decode_packet(s, buffer, len, saddr, &msgptr);
+			res = s->decode_packet(s, data, len, saddr, &msgptr);
 			if (res < 0)
 				break;
 			else if (0 == res)
@@ -180,11 +179,34 @@ static void relable_data_packet_handler(NioSocket_t* s, unsigned char* buffer, i
 	}
 }
 
+static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+	unsigned char hdr_data_end_flag = data[0] & HDR_DATA_END_FLAG;
+	len -= RELIABLE_HDR_LEN;
+	data += RELIABLE_HDR_LEN;
+	if (!s->m_inbuf && hdr_data_end_flag) {
+		relable_data_packet_handler(s, data, len, saddr);
+	}
+	else {
+		unsigned char* ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + len);
+		if (ptr) {
+			s->m_inbuf = ptr;
+			memcpy(s->m_inbuf + s->m_inbuflen, data, len);
+			s->m_inbuflen += len;
+			if (!hdr_data_end_flag)
+				return;
+			relable_data_packet_handler(s, data, len, saddr);
+		}
+		free(s->m_inbuf);
+		s->m_inbuf = NULL;
+		s->m_inbuflen = 0;
+	}
+}
+
 static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
 		return 1;
-	hdr_type = buffer[0];
+	hdr_type = buffer[0] & (~HDR_DATA_END_FLAG);
 	if (s->accept_callback && 0 == s->m_shutdown) {
 		ListNode_t* cur, *next;
 		ReliableHalfConnect_t* halfcon;
@@ -393,14 +415,14 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (seq == s->reliable.m_recvseq) {
 			s->reliable.m_recvseq++;
-			relable_data_packet_handler(s, buffer, len, saddr);
+			reliable_data_packet_merge(s, buffer, len, saddr);
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
 				s->reliable.m_recvseq++;
-				relable_data_packet_handler(s, packet->data, packet->len, &packet->saddr);
+				reliable_data_packet_merge(s, packet->data, packet->len, saddr);
 				listRemoveNode(&s->m_recvpacketlist, cur);
 				free(packet);
 			}
@@ -718,9 +740,9 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 		packet->saddr = s->reliable.peer_saddr;
 		packet->s = s;
 		packet->resendtimes = 0;
+		packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
 		packet->len = RELIABLE_HDR_LEN + len;
 		memcpy(packet->data + RELIABLE_HDR_LEN, data, len);
-		packet->data[0] = HDR_DATA;
 		nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 	}
 	else {
@@ -768,12 +790,12 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, 
 		packet->saddr = s->reliable.peer_saddr;
 		packet->resendtimes = 0;
 		packet->s = s;
+		packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
 		packet->len = RELIABLE_HDR_LEN + nbytes;
 		for (nbytes = RELIABLE_HDR_LEN, i = 0; i < iovcnt; ++i) {
 			memcpy(packet->data + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
 			nbytes += iobufLen(iov + i);
 		}
-		packet->data[0] = HDR_DATA;
 		nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 	}
 	else {
