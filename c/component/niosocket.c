@@ -729,7 +729,7 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 	return niosocketSendv(s, &iov, 1, saddr);
 }
 
-NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
 	unsigned int i, nbytes;
 	if (!s->m_valid || s->m_shutdown)
 		return NULL;
