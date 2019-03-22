@@ -725,21 +725,37 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 }
 
 NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
+	Iobuf_t iov = iobufStaticInit(data, len);
+	return niosocketSendv(s, &iov, 1, saddr);
+}
+
+NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+	unsigned int i, nbytes;
 	if (!s->m_valid || s->m_shutdown)
 		return NULL;
-	if (!data || !len) {
+	if (!iov || !iovcnt) {
 		if (SOCK_STREAM == s->socktype)
 			return s;
-		len = 0;
+		iovcnt = 0;
+		nbytes = 0;
+	}
+	else {
+		for (nbytes = 0, i = 0; i < iovcnt; ++i)
+			nbytes += iobufLen(iov + i);
+		if (0 == nbytes) {
+			if (SOCK_STREAM == s->socktype)
+				return s;
+			iovcnt = 0;
+		}
 	}
 	if (ESTABLISHED_STATUS == s->reliable.m_status) {
 		ReliableDataPacket_t* packet;
-		if (len) {
+		if (nbytes) {
+			unsigned int offset, packetlen, copy_off, i_off;
 			List_t packetlist;
 			listInit(&packetlist);
-			unsigned int offset, packetlen;
-			for (offset = 0; offset < len; offset += packetlen) {
-				packetlen = len - offset > s->reliable.mtu ? s->reliable.mtu : len - offset;
+			for (i = i_off = offset = 0; offset < nbytes; offset += packetlen) {
+				packetlen = nbytes - offset > s->reliable.mtu ? s->reliable.mtu : nbytes - offset;
 				packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + packetlen);
 				if (!packet)
 					break;
@@ -749,10 +765,27 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 				packet->resendtimes = 0;
 				packet->data[0] = HDR_DATA;
 				packet->len = RELIABLE_HDR_LEN + packetlen;
-				memcpy(packet->data + RELIABLE_HDR_LEN, ((unsigned char*)data) + offset, packetlen);
+
+				copy_off = 0;
+				while (i < iovcnt) {
+					unsigned int copy_len;
+					if (iobufLen(iov + i) - i_off > packetlen - copy_off) {
+						copy_len = packetlen - copy_off;
+						memcpy(packet->data + RELIABLE_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+						i_off += copy_len;
+						break;
+					}
+					else {
+						copy_len = iobufLen(iov + i) - i_off;
+						memcpy(packet->data + RELIABLE_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+						copy_off += copy_len;
+						i_off = 0;
+						++i;
+					}
+				}
 				listInsertNodeBack(&packetlist, packetlist.tail, &packet->msg.m_listnode);
 			}
-			if (offset >= len) {
+			if (offset >= nbytes) {
 				packet->data[0] |= HDR_DATA_END_FLAG;
 				nioloop_exec_msglist(s->m_loop, &packetlist);
 			}
@@ -777,77 +810,6 @@ NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, c
 			packet->len = RELIABLE_HDR_LEN;
 			nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 		}
-	}
-	else {
-		Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + len);
-		if (!packet)
-			return NULL;
-		packet->msg.type = NIO_SOCKET_USER_MESSAGE;
-		if (saddr && SOCK_STREAM != s->socktype)
-			packet->saddr = *saddr;
-		else
-			packet->saddr.ss_family = AF_UNSPEC;
-		packet->s = s;
-		packet->offset = 0;
-		packet->len = len;
-		memcpy(packet->data, data, len);
-		dataqueuePush(&s->m_loop->m_sender->m_dq, &packet->msg.m_listnode);
-	}
-	return s;
-}
-
-NioSocket_t* niosocketSendv(NioSocket_t* s, Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
-	unsigned int i, nbytes;
-	if (!s->m_valid || s->m_shutdown)
-		return NULL;
-	if (!iov || !iovcnt) {
-		if (SOCK_STREAM == s->socktype)
-			return s;
-		iovcnt = 0;
-		nbytes = 0;
-	}
-	else {
-		for (nbytes = 0, i = 0; i < iovcnt; ++i)
-			nbytes += iobufLen(iov + i);
-		if (0 == nbytes) {
-			if (SOCK_STREAM == s->socktype)
-				return s;
-			iovcnt = 0;
-		}
-	}
-	if (ESTABLISHED_STATUS == s->reliable.m_status) {
-		if (nbytes) {
-			unsigned int offset;
-			unsigned char* buffer = (unsigned char*)malloc(nbytes);
-			if (!buffer)
-				return NULL;
-			for (offset = i = 0; i < iovcnt; ++i) {
-				memcpy(buffer + offset, iobufPtr(iov + i), iobufLen(iov + i));
-				offset += iobufLen(iov + i);
-			}
-			s = niosocketSend(s, buffer, nbytes, saddr);
-			free(buffer);
-			return s;
-		}
-		else {
-			return niosocketSend(s, NULL, 0, saddr);
-		}
-		/*
-		ReliableDataPacket_t* packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + nbytes);
-		if (!packet)
-			return NULL;
-		packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
-		packet->saddr = s->reliable.peer_saddr;
-		packet->resendtimes = 0;
-		packet->s = s;
-		packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
-		packet->len = RELIABLE_HDR_LEN + nbytes;
-		for (nbytes = RELIABLE_HDR_LEN, i = 0; i < iovcnt; ++i) {
-			memcpy(packet->data + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
-			nbytes += iobufLen(iov + i);
-		}
-		nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
-		*/
 	}
 	else {
 		Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + nbytes);
