@@ -194,7 +194,7 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 			s->m_inbuflen += len;
 			if (!hdr_data_end_flag)
 				return;
-			relable_data_packet_handler(s, data, len, saddr);
+			relable_data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
 		}
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
