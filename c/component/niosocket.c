@@ -202,7 +202,7 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 	}
 }
 
-static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr) {
+static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
 		return 1;
@@ -268,6 +268,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
 			}
 			socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, saddr);
+			s->m_lastactive_msec = timestamp_msec;
 		}
 		else if (HDR_SYN_ACK_ACK == hdr_type) {
 			struct sockaddr_storage peer_addr;
@@ -283,6 +284,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				free(halfcon);
 				break;
 			}
+			s->m_lastactive_msec = timestamp_msec;
 		}
 	}
 	else if (HDR_SYN_ACK == hdr_type) {
@@ -305,6 +307,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			}
 		}
 		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
+		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -328,6 +331,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->timeout_msec = MSL + MSL;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
+			s->m_lastactive_msec = timestamp_msec;
 		}
 	}
 	else if (HDR_FIN_ACK == hdr_type) {
@@ -341,6 +345,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		else if (FIN_WAIT_1_STATUS == s->reliable.m_status) {
 			s->reliable.m_status = FIN_WAIT_2_STATUS;
 		}
+		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_ACK == hdr_type) {
 		ListNode_t* cur;
@@ -351,10 +356,13 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
+
+		s->m_lastactive_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		seq = ntohl(seq);
 		cwnd_skip = 0;
 		ack_valid = 0;
+
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 			ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
 			if (seq < packet->seq)
@@ -405,6 +413,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
 
+		s->m_lastactive_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		ack[0] = HDR_ACK;
 		*(unsigned int*)(ack + 1) = seq;
@@ -543,7 +552,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 	}
 }
 
-static void reactor_socket_do_read(NioSocket_t* s) {
+static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM == s->socktype) {
 		struct sockaddr_storage saddr;
 		if (s->accept_callback) {
@@ -554,6 +563,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 			{
 				s->accept_callback(s, connfd, &saddr);
 			}
+			s->m_lastactive_msec = timestamp_msec;
 		}
 		else {
 			int res = socketTcpReadableBytes(s->fd);
@@ -582,6 +592,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 				}
 				else {
 					s->m_inbuflen += res;
+					s->m_lastactive_msec = timestamp_msec;
 				}
 
 				offset = 0;
@@ -648,7 +659,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 			else if (s->reliable.m_status) {
 				if (0 == res)
 					continue;
-				if (!reactor_socket_reliable_read(s, p_data, res, &saddr))
+				if (!reactor_socket_reliable_read(s, p_data, res, &saddr, timestamp_msec))
 					break;
 			}
 			else if (0 == res) {
@@ -661,6 +672,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 					msgptr->type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
+				s->m_lastactive_msec = timestamp_msec;
 			}
 			else {
 				int offset = 0, len = -1;
@@ -679,6 +691,7 @@ static void reactor_socket_do_read(NioSocket_t* s) {
 						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 					}
 				}
+				s->m_lastactive_msec = timestamp_msec;
 				if (len < 0)
 					break;
 			}
@@ -991,6 +1004,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 	}
 	else if (n > 0) {
 		int i;
+		timestamp_msec = gmtimeMillisecond();
 		for (i = 0; i < n; ++i) {
 			HashtableNode_t* find_node;
 			NioSocket_t* s;
@@ -1009,12 +1023,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (!find_node)
 				continue;
 			s = pod_container_of(find_node, NioSocket_t, m_hashnode);
-			s->m_lastactive_msec = timestamp_msec;
 
 			reactorEventOpcodeAndOverlapped(e + i, &event, &ol);
 			switch (event) {
 				case REACTOR_READ:
-					reactor_socket_do_read(s);
+					reactor_socket_do_read(s, timestamp_msec);
 					reactorsocket_read(s);
 					break;
 				case REACTOR_WRITE:
@@ -1033,13 +1046,14 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 		}
 	}
+	else {
+		timestamp_msec += wait_msec;
+	}
 
 	criticalsectionEnter(&loop->m_msglistlock);
 	cur = loop->m_msglist.head;
 	listInit(&loop->m_msglist);
 	criticalsectionLeave(&loop->m_msglistlock);
-
-	timestamp_msec = gmtimeMillisecond();
 
 	for (; cur; cur = next) {
 		NioMsg_t* message;
