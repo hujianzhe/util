@@ -516,7 +516,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 		}
 	}
 	else if (SYN_RCVD_STATUS == s->reliable.m_status) {
-		if (AF_UNSPEC == s->reliable.peer_saddr.ss_family) {
+		if (AF_UNSPEC == s->reliable.peer_saddr.ss_family || s->m_shutdown) {
 			return;
 		}
 		else if (s->reliable.m_synrcvd_msec > timestamp_msec) {
