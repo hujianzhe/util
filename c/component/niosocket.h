@@ -86,8 +86,10 @@ typedef struct NioSocket_t {
 		unsigned char enable;
 	/* private */
 		unsigned char m_status;
+		unsigned char m_synrcvd_times;
 		unsigned char m_synsent_times;
 		unsigned char m_fin_times;
+		long long m_synrcvd_msec;
 		long long m_synsent_msec;
 		long long m_fin_msec;
 		unsigned int m_cwndseq;
