@@ -516,7 +516,6 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 		}
 	}
 	else if (SYN_RCVD_STATUS == s->reliable.m_status) {
-		unsigned char syn_ack;
 		if (AF_UNSPEC == s->reliable.peer_saddr.ss_family) {
 			return;
 		}
@@ -524,13 +523,12 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synrcvd_msec);
 		}
 		else if (s->reliable.m_synrcvd_times >= s->reliable.resend_maxtimes) {
-			s->reliable.m_status = CLOSED_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
-			s->timeout_msec = MSL + MSL;
-			update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+			s->timeout_msec = INFTIM;
+			s->reliable.m_synrcvd_times = 0;
+			s->reliable.peer_saddr.ss_family = AF_UNSPEC;
 		}
 		else {
-			syn_ack = HDR_SYN_ACK;
+			unsigned int syn_ack = HDR_SYN_ACK;
 			socketWrite(s->fd, &syn_ack, 1, 0, &s->reliable.peer_saddr);
 			++s->reliable.m_synrcvd_times;
 			s->reliable.m_synrcvd_msec = timestamp_msec + s->reliable.rto;
