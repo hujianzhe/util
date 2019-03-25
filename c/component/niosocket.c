@@ -63,7 +63,6 @@ typedef struct ReliableDataPacket_t {
 	NioMsg_t msg;
 	long long resend_timestamp_msec;
 	unsigned int resendtimes;
-	struct sockaddr_storage saddr;
 	NioSocket_t* s;
 	unsigned int seq;
 	size_t len;
@@ -392,7 +391,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				{
 					break;
 				}
-				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_checkexpire_msec, packet->resend_timestamp_msec);
 			}
@@ -450,7 +449,6 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				return 0;
 			}
 			packet->msg.type = NIO_SOCKET_USER_MESSAGE;
-			packet->saddr = *saddr;
 			packet->s = s;
 			packet->seq = seq;
 			packet->len = len;
@@ -544,7 +542,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 				update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
 				break;
 			}
-			socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 			packet->resendtimes++;
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
@@ -638,12 +636,11 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			int res;
 			if (0 == readtimes) {
 				Iobuf_t iov;
-				reactorEventOverlappedData(s->m_readOl, &iov, &saddr);
-				res = iobufLen(&iov);
-				if (res <= 0) {
+				if (0 == reactorEventOverlappedData(s->m_readOl, &iov, &saddr)) {
 					++readmaxtimes;
 					continue;
 				}
+				res = iobufLen(&iov);
 				p_data = (unsigned char*)iobufPtr(&iov);
 			}
 			else {
@@ -652,8 +649,15 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			}
 
 			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK)
-					s->m_valid = 0;
+				if (errnoGet() != EWOULDBLOCK) {
+					if (s->reliable.m_status) {
+						s->m_lastactive_msec = timestamp_msec;
+						s->timeout_msec = MSL + MSL;
+						update_timestamp(&s->m_loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+					}
+					else
+						s->m_valid = 0;
+				}
 				break;
 			}
 			else if (s->reliable.m_status) {
@@ -773,7 +777,6 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 				if (!packet)
 					break;
 				packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
-				packet->saddr = s->reliable.peer_saddr;
 				packet->s = s;
 				packet->resendtimes = 0;
 				packet->data[0] = HDR_DATA;
@@ -816,7 +819,6 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			if (!packet)
 				return NULL;
 			packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
-			packet->saddr = s->reliable.peer_saddr;
 			packet->s = s;
 			packet->resendtimes = 0;
 			packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
@@ -1095,7 +1097,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (packet->seq >= s->reliable.m_cwndseq &&
 				packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
 			{
-				socketWrite(s->fd, packet->data, packet->len, 0, &packet->saddr);
+				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
 			}

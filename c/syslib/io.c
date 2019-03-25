@@ -557,7 +557,7 @@ void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_o
 #endif
 }
 
-void reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
+int reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (REACTOR_READ == iocp_ol->opcode) {
@@ -566,13 +566,14 @@ void reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage*
 		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
 		if (saddr)
 			*saddr = iocp_read_ol->saddr;
-		return;
+		return 1;
 	}
 #endif
 	iobufPtr(iov) = NULL;
 	iobufLen(iov) = 0;
 	if (saddr)
 		saddr->ss_family = AF_UNSPEC;
+	return 0;
 }
 
 BOOL reactorConnectCheckSuccess(FD_t sockfd) {
