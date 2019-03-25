@@ -305,7 +305,8 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->connect_callback = NULL;
 			}
 		}
-		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
+		if (memcmp(&s->peer_listen_saddr, &s->reliable.peer_saddr, sizeof(s->reliable.peer_saddr)))
+			socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_FIN == hdr_type) {
