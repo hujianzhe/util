@@ -47,6 +47,7 @@ typedef struct NioSocket_t {
 	int protocol;
 	volatile int timeout_msec;
 	void* userdata;
+	int is_listener;
 	union {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
