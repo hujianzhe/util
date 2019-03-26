@@ -142,11 +142,11 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
 	if (ESTABLISHED_STATUS == s->reliable.m_status) {
 		s->reliable.m_status = FIN_WAIT_1_STATUS;
-		update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
+		update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
 	}
 	else if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
 		s->reliable.m_status = LAST_ACK_STATUS;
-		update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
+		update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
 	}
 }
 
@@ -263,7 +263,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				halfcon->timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
 
 				listInsertNodeBack(&s->m_recvpacketlist, s->m_recvpacketlist.tail, &halfcon->m_listnode);
-				update_timestamp(&s->m_loop->m_checkexpire_msec, halfcon->timestamp_msec);
+				update_timestamp(&s->m_loop->m_event_msec, halfcon->timestamp_msec);
 
 				syn_ack[0] = HDR_SYN_ACK;
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
@@ -275,7 +275,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			if (AF_UNSPEC == s->reliable.peer_saddr.ss_family) {
 				s->reliable.peer_saddr = *saddr;
 				s->reliable.m_synrcvd_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&s->m_loop->m_checkexpire_msec, s->reliable.m_synrcvd_msec);
+				update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_synrcvd_msec);
 			}
 			else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 				return 1;
@@ -421,7 +421,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				}
 				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
-				update_timestamp(&s->m_loop->m_checkexpire_msec, packet->resend_timestamp_msec);
+				update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 			}
 		}
 		if (ack_valid && !s->m_sendpacketlist.head && s->m_shutwr) {
@@ -497,7 +497,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 			next = cur->next;
 			if (halfcon->timestamp_msec > timestamp_msec) {
-				update_timestamp(&loop->m_checkexpire_msec, halfcon->timestamp_msec);
+				update_timestamp(&loop->m_event_msec, halfcon->timestamp_msec);
 			}
 			else if (halfcon->resend_times >= s->reliable.resend_maxtimes) {
 				socketClose(halfcon->sockfd);
@@ -511,7 +511,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 				socketWrite(s->fd, syn_ack, sizeof(syn_ack), 0, &halfcon->peer_addr);
 				++halfcon->resend_times;
 				halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&loop->m_checkexpire_msec, halfcon->timestamp_msec);
+				update_timestamp(&loop->m_event_msec, halfcon->timestamp_msec);
 			}
 		}
 	}
@@ -520,7 +520,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			return;
 		}
 		else if (s->reliable.m_synrcvd_msec > timestamp_msec) {
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synrcvd_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_synrcvd_msec);
 		}
 		else if (s->reliable.m_synrcvd_times >= s->reliable.resend_maxtimes) {
 			s->timeout_msec = INFTIM;
@@ -532,43 +532,43 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			socketWrite(s->fd, &syn_ack, 1, 0, &s->reliable.peer_saddr);
 			++s->reliable.m_synrcvd_times;
 			s->reliable.m_synrcvd_msec = timestamp_msec + s->reliable.rto;
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synrcvd_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_synrcvd_msec);
 		}
 	}
 	else if (SYN_SENT_STATUS == s->reliable.m_status) {
 		if (s->reliable.m_synsent_msec > timestamp_msec) {
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
 		}
 		else if (s->reliable.m_synsent_times >= s->reliable.resend_maxtimes) {
 			s->reliable.m_status = TIME_WAIT_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
 			s->timeout_msec = MSL + MSL;
 			s->connect_callback(s, ETIMEDOUT);
-			update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
 		}
 		else {
 			unsigned char syn = HDR_SYN;
 			socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
 			++s->reliable.m_synsent_times;
 			s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
 		}
 	}
 	else if (FIN_WAIT_1_STATUS == s->reliable.m_status || LAST_ACK_STATUS == s->reliable.m_status) {
 		if (s->reliable.m_fin_msec > timestamp_msec) {
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
 		}
 		else if (s->reliable.m_fin_times >= s->reliable.resend_maxtimes) {
 			s->m_lastactive_msec = timestamp_msec;
 			s->timeout_msec = MSL + MSL;
-			update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
 		}
 		else {
 			unsigned char fin = HDR_FIN;
 			socketWrite(s->fd, &fin, sizeof(fin), 0, &s->reliable.peer_saddr);
 			++s->reliable.m_fin_times;
 			s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
-			update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_fin_msec);
+			update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
 		}
 	}
 	else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
@@ -581,19 +581,19 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 				break;
 			}
 			if (packet->resend_timestamp_msec > timestamp_msec) {
-				update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
+				update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
 				continue;
 			}
 			if (packet->resendtimes >= s->reliable.resend_maxtimes) {
 				s->m_lastactive_msec = timestamp_msec;
 				s->timeout_msec = MSL + MSL;
-				update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
 				break;
 			}
 			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 			packet->resendtimes++;
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
-			update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
+			update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
 		}
 	}
 }
@@ -704,7 +704,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					if (s->reliable.m_status) {
 						s->m_lastactive_msec = timestamp_msec;
 						s->timeout_msec = MSL + MSL;
-						update_timestamp(&s->m_loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
 					}
 					else
 						s->m_valid = 0;
@@ -1019,7 +1019,7 @@ static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
-static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
+static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 	List_t expirelist;
 	HashtableNode_t *cur, *next;
 	listInit(&expirelist);
@@ -1031,7 +1031,7 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 			int timeout_msec = s->timeout_msec;
 			if (timeout_msec <= 0 || s->m_lastactive_msec + timeout_msec > timestamp_msec) {
 				if (timeout_msec > 0)
-					update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + timeout_msec);
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + timeout_msec);
 				reactor_socket_reliable_update(loop, s, timestamp_msec);
 				continue;
 			}
@@ -1040,17 +1040,17 @@ static List_t sockht_expire(NioLoop_t* loop, long long timestamp_msec) {
 		hashtableRemoveNode(&loop->m_sockht, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, &s->m_closemsg.m_listnode);
 	}
-	return expirelist;
+	dataqueuePushList(loop->m_msgdq, &expirelist);
 }
 
 int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
 	ListNode_t *cur, *next;
-	if (loop->m_checkexpire_msec > timestamp_msec) {
-		int checkexpire_wait_msec = loop->m_checkexpire_msec - timestamp_msec;
+	if (loop->m_event_msec > timestamp_msec) {
+		int checkexpire_wait_msec = loop->m_event_msec - timestamp_msec;
 		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
 			wait_msec = checkexpire_wait_msec;
 	}
-	else if (loop->m_checkexpire_msec) {
+	else if (loop->m_event_msec) {
 		wait_msec = 0;
 	}
 
@@ -1130,7 +1130,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				else {
 					s->m_lastactive_msec = timestamp_msec;
 					s->timeout_msec = MSL + MSL;
-					update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + s->timeout_msec);
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
 				}
 			}
 			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
@@ -1153,7 +1153,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			{
 				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
 				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&loop->m_checkexpire_msec, packet->resend_timestamp_msec);
+				update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
 			}
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		}
@@ -1196,7 +1196,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
-							update_timestamp(&loop->m_checkexpire_msec, s->reliable.m_synsent_msec);
+							update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
 						}
 						else if (s->is_listener) {
 							if (s->accept_callback) {
@@ -1223,7 +1223,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				reg_ok = 1;
 				timeout_msec = s->timeout_msec;
 				if (timeout_msec > 0) {
-					update_timestamp(&loop->m_checkexpire_msec, s->m_lastactive_msec + timeout_msec);
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + timeout_msec);
 				}
 			} while (0);
 			if (reg_ok) {
@@ -1239,11 +1239,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 		}
 	}
-	if (loop->m_checkexpire_msec && timestamp_msec >= loop->m_checkexpire_msec) {
-		List_t expirelist;
-		loop->m_checkexpire_msec = 0;
-		expirelist = sockht_expire(loop, timestamp_msec);
-		dataqueuePushList(loop->m_msgdq, &expirelist);
+	if (loop->m_event_msec && timestamp_msec >= loop->m_event_msec) {
+		loop->m_event_msec = 0;
+		sockht_update(loop, timestamp_msec);
 	}
 	return n;
 }
@@ -1297,7 +1295,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sende
 		sockht_keycmp, sockht_keyhash);
 	loop->initok = 1;
 	loop->m_wake = 0;
-	loop->m_checkexpire_msec = 0;
+	loop->m_event_msec = 0;
 	return loop;
 }
 

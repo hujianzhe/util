@@ -25,7 +25,7 @@ typedef struct NioLoop_t {
 	List_t m_msglist;
 	Hashtable_t m_sockht;
 	HashtableNode_t* m_sockht_bulks[2048];
-	long long m_checkexpire_msec;
+	long long m_event_msec;
 } NioLoop_t;
 
 typedef struct NioSender_t {
@@ -45,7 +45,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
-	volatile int timeout_msec;
+	int timeout_msec;
 	void* userdata;
 	int is_listener;
 	union {
