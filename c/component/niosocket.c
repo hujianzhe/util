@@ -925,7 +925,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->keepalive_timeout_msec = 0;
+	s->keepalive_timeout_sec = 0;
 	s->userdata = NULL;
 	s->is_listener = 0;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
@@ -1025,12 +1025,12 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
-			if (s->keepalive_timeout_msec > 0 && s->m_lastactive_msec + s->keepalive_timeout_msec <= timestamp_msec) {
+			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
 				s->m_valid = 0;
 			}
 			else {
-				if (s->keepalive_timeout_msec > 0)
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_msec);
+				if (s->keepalive_timeout_sec > 0)
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				if (s->reliable.m_status)
 					reactor_socket_reliable_update(loop, s, timestamp_msec);
 				continue;
@@ -1225,8 +1225,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 				reg_ok = 1;
-				if (s->keepalive_timeout_msec > 0) {
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_msec);
+				if (s->keepalive_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				}
 			} while (0);
 			if (reg_ok) {

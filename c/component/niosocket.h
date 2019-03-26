@@ -45,7 +45,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int keepalive_timeout_msec;
+	int keepalive_timeout_sec;
 	void* userdata;
 	int is_listener;
 	union {
