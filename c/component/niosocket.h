@@ -45,6 +45,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
+	int sendprobe_timeout_sec;
 	int keepalive_timeout_sec;
 	void* userdata;
 	int is_listener;
@@ -72,6 +73,7 @@ typedef struct NioSocket_t {
 	void* m_readOl;
 	void* m_writeOl;
 	long long m_lastactive_msec;
+	long long m_sendprobe_msec;
 	unsigned char *m_inbuf;
 	size_t m_inbuflen;
 	unsigned short m_recvpacket_maxcnt;

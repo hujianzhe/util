@@ -309,6 +309,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				return 1;
 			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
+			s->m_sendprobe_msec = timestamp_msec;
 		}
 	}
 	else if (HDR_SYN_ACK == hdr_type) {
@@ -335,6 +336,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(&s->peer_listen_saddr, &s->reliable.peer_saddr, sizeof(s->reliable.peer_saddr)))
 			socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 		s->m_lastactive_msec = timestamp_msec;
+		s->m_sendprobe_msec = timestamp_msec;
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -347,18 +349,19 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->m_shutwr = 1;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
-					send_fin_packet(s->m_loop, s, gmtimeMillisecond());
+					send_fin_packet(s->m_loop, s, timestamp_msec);
 				}
 			}
 			else if (FIN_WAIT_1_STATUS == s->reliable.m_status ||
 				FIN_WAIT_2_STATUS == s->reliable.m_status)
 			{
 				s->reliable.m_status = TIME_WAIT_STATUS;
-				s->m_lastactive_msec = gmtimeMillisecond();
 				s->m_valid = 0;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
 			s->m_lastactive_msec = timestamp_msec;
+			s->m_sendprobe_msec = 0;
+			s->sendprobe_timeout_sec = 0;
 		}
 	}
 	else if (HDR_FIN_ACK == hdr_type) {
@@ -925,6 +928,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
+	s->sendprobe_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->userdata = NULL;
 	s->is_listener = 0;
@@ -949,6 +953,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_readOl = NULL;
 	s->m_writeOl = NULL;
 	s->m_lastactive_msec = 0;
+	s->m_sendprobe_msec = 0;
 	s->m_inbuf = NULL;
 	s->m_inbuflen = 0;
 	s->m_recvpacket_maxcnt = 8;
@@ -1029,6 +1034,15 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				s->m_valid = 0;
 			}
 			else {
+				if (s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
+					if (s->m_lastactive_msec >= s->m_sendprobe_msec)
+						s->m_sendprobe_msec = s->m_lastactive_msec;
+					else if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
+						s->m_sendprobe_msec = timestamp_msec;
+						// TODO send probe packet ......
+					}
+					update_timestamp(&loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+				}
 				if (s->keepalive_timeout_sec > 0)
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				if (s->reliable.m_status)
@@ -1141,6 +1155,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				if (!s->m_sendpacketlist.head) {
 					send_fin_packet(loop, s, timestamp_msec);
 				}
+				s->sendprobe_timeout_sec = 0;
+				s->m_sendprobe_msec = 0;
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
@@ -1186,6 +1202,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 									break;
 							}
 						}
+						else {
+							s->m_sendprobe_msec = timestamp_msec;
+						}
 						if (!reactorsocket_read(s))
 							break;
 					}
@@ -1217,8 +1236,12 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						}
 						else {
 							s->reliable.m_status = ESTABLISHED_STATUS;
+							s->m_sendprobe_msec = timestamp_msec;
 						}
 						s->m_close_timeout_msec = MSL + MSL;
+					}
+					else {
+						s->m_sendprobe_msec = timestamp_msec;
 					}
 					if (!reactorsocket_read(s))
 						break;
@@ -1400,6 +1423,8 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_shutdownmsg);
 			s->m_shutwr = 1;
 			if (SOCK_STREAM == s->socktype) {
+				s->sendprobe_timeout_sec = 0;
+				s->m_sendprobe_msec = 0;
 				socketShutdown(s->fd, SHUT_WR);
 			}
 		}
