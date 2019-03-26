@@ -355,7 +355,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			{
 				s->reliable.m_status = TIME_WAIT_STATUS;
 				s->m_lastactive_msec = gmtimeMillisecond();
-				s->timeout_msec = MSL + MSL;
+				s->m_valid = 0;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
 			s->m_lastactive_msec = timestamp_msec;
@@ -367,7 +367,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		else if (LAST_ACK_STATUS == s->reliable.m_status) {
 			s->reliable.m_status = CLOSED_STATUS;
 			s->m_lastactive_msec = gmtimeMillisecond();
-			s->timeout_msec = MSL + MSL;
+			s->m_valid = 0;
 		}
 		else if (FIN_WAIT_1_STATUS == s->reliable.m_status) {
 			s->reliable.m_status = FIN_WAIT_2_STATUS;
@@ -523,7 +523,6 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			update_timestamp(&loop->m_event_msec, s->reliable.m_synrcvd_msec);
 		}
 		else if (s->reliable.m_synrcvd_times >= s->reliable.resend_maxtimes) {
-			s->timeout_msec = INFTIM;
 			s->reliable.m_synrcvd_times = 0;
 			s->reliable.peer_saddr.ss_family = AF_UNSPEC;
 		}
@@ -542,9 +541,9 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 		else if (s->reliable.m_synsent_times >= s->reliable.resend_maxtimes) {
 			s->reliable.m_status = TIME_WAIT_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
-			s->timeout_msec = MSL + MSL;
+			s->m_valid = 0;
 			s->connect_callback(s, ETIMEDOUT);
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 		}
 		else {
 			unsigned char syn = HDR_SYN;
@@ -560,8 +559,8 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 		}
 		else if (s->reliable.m_fin_times >= s->reliable.resend_maxtimes) {
 			s->m_lastactive_msec = timestamp_msec;
-			s->timeout_msec = MSL + MSL;
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
+			s->m_valid = 0;
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 		}
 		else {
 			unsigned char fin = HDR_FIN;
@@ -586,8 +585,8 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 			}
 			if (packet->resendtimes >= s->reliable.resend_maxtimes) {
 				s->m_lastactive_msec = timestamp_msec;
-				s->timeout_msec = MSL + MSL;
-				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
+				s->m_valid = 0;
+				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				break;
 			}
 			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
@@ -703,11 +702,9 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				if (errnoGet() != EWOULDBLOCK) {
 					if (s->reliable.m_status) {
 						s->m_lastactive_msec = timestamp_msec;
-						s->timeout_msec = MSL + MSL;
-						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
+						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 					}
-					else
-						s->m_valid = 0;
+					s->m_valid = 0;
 				}
 				break;
 			}
@@ -928,7 +925,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->timeout_msec = INFTIM;
+	s->keepalive_timeout_msec = 0;
 	s->userdata = NULL;
 	s->is_listener = 0;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
@@ -941,6 +938,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_valid = 1;
 	s->m_shutwr = 0;
 	s->m_shutdown = 0;
+	s->m_close_timeout_msec = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
@@ -1024,18 +1022,23 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 	HashtableNode_t *cur, *next;
 	listInit(&expirelist);
 	for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
-		NioSocket_t* s;
+		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_hashnode);
 		next = hashtableNextNode(cur);
-		s = pod_container_of(cur, NioSocket_t, m_hashnode);
 		if (s->m_valid) {
-			int timeout_msec = s->timeout_msec;
-			if (timeout_msec <= 0 || s->m_lastactive_msec + timeout_msec > timestamp_msec) {
-				if (timeout_msec > 0)
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + timeout_msec);
-				reactor_socket_reliable_update(loop, s, timestamp_msec);
+			if (s->keepalive_timeout_msec > 0 && s->m_lastactive_msec + s->keepalive_timeout_msec <= timestamp_msec) {
+				s->m_valid = 0;
+			}
+			else {
+				if (s->keepalive_timeout_msec > 0)
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_msec);
+				if (s->reliable.m_status)
+					reactor_socket_reliable_update(loop, s, timestamp_msec);
 				continue;
 			}
-			s->m_valid = 0;
+		}
+		if (s->m_lastactive_msec + s->m_close_timeout_msec > timestamp_msec) {
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+			continue;
 		}
 		hashtableRemoveNode(&loop->m_sockht, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, &s->m_closemsg.m_listnode);
@@ -1079,7 +1082,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (!find_node)
 				continue;
 			s = pod_container_of(find_node, NioSocket_t, m_hashnode);
-
+			if (!s->m_valid)
+				continue;
 			reactorEventOpcodeAndOverlapped(e + i, &event, &ol);
 			switch (event) {
 				case REACTOR_READ:
@@ -1092,7 +1096,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				default:
 					s->m_valid = 0;
 			}
-			if (s->m_valid)
+			if (s->m_valid || s->m_close_timeout_msec > 0)
 				continue;
 
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
@@ -1129,8 +1133,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				else {
 					s->m_lastactive_msec = timestamp_msec;
-					s->timeout_msec = MSL + MSL;
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->timeout_msec);
+					s->m_valid = 0;
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				}
 			}
 			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
@@ -1161,7 +1165,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
 			int reg_ok = 0;
 			do {
-				int timeout_msec;
 				if (!reactorReg(&loop->m_reactor, s->fd))
 					break;
 				s->m_loop = loop;
@@ -1215,15 +1218,15 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						else {
 							s->reliable.m_status = ESTABLISHED_STATUS;
 						}
+						s->m_close_timeout_msec = MSL + MSL;
 					}
 					if (!reactorsocket_read(s))
 						break;
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 				reg_ok = 1;
-				timeout_msec = s->timeout_msec;
-				if (timeout_msec > 0) {
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + timeout_msec);
+				if (s->keepalive_timeout_msec > 0) {
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_msec);
 				}
 			} while (0);
 			if (reg_ok) {

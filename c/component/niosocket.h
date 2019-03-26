@@ -45,7 +45,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int timeout_msec;
+	int keepalive_timeout_msec;
 	void* userdata;
 	int is_listener;
 	union {
@@ -61,6 +61,7 @@ typedef struct NioSocket_t {
 	volatile char m_valid;
 	volatile char m_shutwr;
 	Atom16_t m_shutdown;
+	int m_close_timeout_msec;
 	NioMsg_t m_regmsg;
 	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_closemsg;
