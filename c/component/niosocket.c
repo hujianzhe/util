@@ -938,6 +938,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->connect_callback = NULL;
 	s->reg_callback = NULL;
 	s->decode_packet = NULL;
+	s->send_probe = NULL;
 	s->close = NULL;
 	s->m_valid = 1;
 	s->m_shutwr = 0;
@@ -1034,12 +1035,12 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				s->m_valid = 0;
 			}
 			else {
-				if (s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
+				if (s->send_probe && s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
 					if (s->m_lastactive_msec >= s->m_sendprobe_msec)
 						s->m_sendprobe_msec = s->m_lastactive_msec;
 					else if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
 						s->m_sendprobe_msec = timestamp_msec;
-						// TODO send probe packet ......
+						s->send_probe(s);
 					}
 					update_timestamp(&loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
 				}
