@@ -388,6 +388,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 
 		s->m_lastactive_msec = timestamp_msec;
+		s->m_sendprobe_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		seq = ntohl(seq);
 		cwnd_skip = 0;
