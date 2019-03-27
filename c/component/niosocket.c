@@ -346,6 +346,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			socketWrite(s->fd, &fin_ack, sizeof(fin_ack), 0, &s->reliable.peer_saddr);
 			if (ESTABLISHED_STATUS == s->reliable.m_status) {
 				s->reliable.m_status = CLOSE_WAIT_STATUS;
+				s->m_lastactive_msec = timestamp_msec;
 				s->m_shutwr = 1;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
@@ -356,10 +357,10 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				FIN_WAIT_2_STATUS == s->reliable.m_status)
 			{
 				s->reliable.m_status = TIME_WAIT_STATUS;
+				s->m_lastactive_msec = timestamp_msec;
 				s->m_valid = 0;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
-			s->m_lastactive_msec = timestamp_msec;
 			s->m_sendprobe_msec = 0;
 			s->sendprobe_timeout_sec = 0;
 		}
@@ -369,13 +370,13 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (LAST_ACK_STATUS == s->reliable.m_status) {
 			s->reliable.m_status = CLOSED_STATUS;
-			s->m_lastactive_msec = gmtimeMillisecond();
+			s->m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 		}
 		else if (FIN_WAIT_1_STATUS == s->reliable.m_status) {
 			s->reliable.m_status = FIN_WAIT_2_STATUS;
+			s->m_lastactive_msec = timestamp_msec;
 		}
-		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_ACK == hdr_type) {
 		ListNode_t* cur;
@@ -932,6 +933,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->sendprobe_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->userdata = NULL;
+	s->is_client = 0;
 	s->is_listener = 0;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
@@ -1189,6 +1191,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
 					if (s->connect_callback) {
+						s->is_client = 1;
 						if (!s->m_writeOl) {
 							s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
 							if (!s->m_writeOl)
@@ -1220,8 +1223,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					if (s->reliable.enable) {
 						if (s->connect_callback) {
 							unsigned char syn = HDR_SYN;
-							if (socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr) < 0)
-								break;
+							socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
+							s->is_client = 1;
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
