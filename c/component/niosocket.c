@@ -1141,7 +1141,14 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
 			s->m_shutwr = 1;
-			if (s->is_listener) {
+			if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
+				if (!s->m_sendpacketlist.head) {
+					send_fin_packet(loop, s, timestamp_msec);
+				}
+				s->sendprobe_timeout_sec = 0;
+				s->m_sendprobe_msec = 0;
+			}
+			else if (s->is_listener) {
 				if (SOCK_STREAM == s->socktype) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 					niosocketFree(s);
@@ -1151,13 +1158,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_valid = 0;
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				}
-			}
-			else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
-				if (!s->m_sendpacketlist.head) {
-					send_fin_packet(loop, s, timestamp_msec);
-				}
-				s->sendprobe_timeout_sec = 0;
-				s->m_sendprobe_msec = 0;
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
