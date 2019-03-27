@@ -1198,10 +1198,15 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					}
 					else {
 						if (s->is_listener) {
+							BOOL has_listen;
 							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
 								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
 									break;
 							}
+							if (!socketIsListened(s->fd, &has_listen))
+								break;
+							if (!has_listen && !socketTcpListen(s->fd))
+								break;
 						}
 						else {
 							s->m_sendprobe_msec = timestamp_msec;
