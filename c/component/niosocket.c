@@ -1190,7 +1190,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
-			int reg_ok = 0;
+			int reg_ok = 0, immedinate_call_reg = 0;
 			do {
 				if (!reactorReg(&loop->m_reactor, s->fd))
 					break;
@@ -1202,9 +1202,10 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						if (!socketIsConnected(s->fd, &has_connected))
 							break;
 						if (has_connected) {
-							s->m_sendprobe_msec = timestamp_msec;
 							if (!reactorsocket_read(s))
 								break;
+							s->m_sendprobe_msec = timestamp_msec;
+							immedinate_call_reg = 1;
 						}
 						else {
 							if (!s->m_writeOl) {
@@ -1233,6 +1234,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						}
 						if (!reactorsocket_read(s))
 							break;
+						immedinate_call_reg = 1;
 					}
 				}
 				else {
@@ -1246,27 +1248,30 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
 						}
 						else if (s->is_listener) {
+							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
+								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
+									break;
+							}
 							if (s->accept_callback) {
 								s->reliable.m_status = LISTENED_STATUS;
 								if (s->m_recvpacket_maxcnt < 200)
 									s->m_recvpacket_maxcnt = 200;
+								immedinate_call_reg = 1;
 							}
 							else {
 								s->reliable.m_status = SYN_RCVD_STATUS;
-							}
-							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
-								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
-									break;
 							}
 						}
 						else {
 							s->reliable.m_status = ESTABLISHED_STATUS;
 							s->m_sendprobe_msec = timestamp_msec;
+							immedinate_call_reg = 1;
 						}
 						s->m_close_timeout_msec = MSL + MSL;
 					}
 					else {
 						s->m_sendprobe_msec = timestamp_msec;
+						immedinate_call_reg = 1;
 					}
 					if (!reactorsocket_read(s))
 						break;
@@ -1278,14 +1283,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			} while (0);
 			if (reg_ok) {
-				if (s->reg_callback) {
-					if (IDLE_STATUS == s->reliable.m_status ||
-						ESTABLISHED_STATUS == s->reliable.m_status ||
-						LISTENED_STATUS == s->reliable.m_status)
-					{
-						s->m_regcallonce = 1;
-						dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
-					}
+				if (s->reg_callback && immedinate_call_reg) {
+					s->m_regcallonce = 1;
+					dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
 				}
 			}
 			else {
