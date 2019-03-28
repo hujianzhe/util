@@ -670,6 +670,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 						msgptr->type = NIO_SOCKET_USER_MESSAGE;
 						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 					}
+					++s->reliable.m_recvseq;
 				}
 
 				if (offset) {
@@ -735,6 +736,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					msgptr->type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
+				++s->reliable.m_recvseq;
 				s->m_lastactive_msec = timestamp_msec;
 			}
 			else {
@@ -753,6 +755,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 						msgptr->type = NIO_SOCKET_USER_MESSAGE;
 						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 					}
+					++s->reliable.m_recvseq;
 				}
 				s->m_lastactive_msec = timestamp_msec;
 				if (len < 0)
@@ -1397,32 +1400,39 @@ void nioloopDestroy(NioLoop_t* loop) {
 	}
 }
 
-static int niosocket_send(NioSocket_t* s, Packet_t* packet) {
-	int res = 0, is_empty = !s->m_sendpacketlist.head;
-	if (SOCK_STREAM != s->socktype || is_empty) {
-		struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
-		res = socketWrite(s->fd, packet->data, packet->len, 0, saddrptr);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				s->m_valid = 0;
-				free(packet);
-				return 0;
-			}
-			res = 0;
-		}
-		else if (res >= packet->len) {
-			if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
-				free(packet);
-			return 0;
-		}
-	}
+static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
+	++s->reliable.m_sendseq;
 	if (SOCK_STREAM == s->socktype) {
-		packet->offset = res;
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-		if (is_empty)
+		if (!s->m_sendpacketlist.head) {
+			int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK) {
+					s->m_valid = 0;
+					free(packet);
+					return;
+				}
+				res = 0;
+			}
+			else if (res >= packet->len) {
+				free(packet);
+				return;
+			}
+			packet->offset = res;
+			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 			reactorsocket_write(s);
+		}
+		else {
+			packet->offset = 0;
+			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+		}
 	}
-	return 1;
+	else {
+		struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
+		if (socketWrite(s->fd, packet->data, packet->len, 0, saddrptr) < 0 && errnoGet() != EWOULDBLOCK) {
+			s->m_valid = 0;
+		}
+		free(packet);
+	}
 }
 
 NioSender_t* niosenderCreate(NioSender_t* sender) {
@@ -1488,12 +1498,10 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 				packet->offset += res;
 				if (packet->offset >= packet->len) {
 					listRemoveNode(&s->m_sendpacketlist, cur);
-					if (NIO_SOCKET_USER_MESSAGE == packet->msg.type)
-						free(packet);
+					free(packet);
 					continue;
 				}
-				else if (s->m_valid)
-					reactorsocket_write(s);
+				reactorsocket_write(s);
 				break;
 			}
 		}
