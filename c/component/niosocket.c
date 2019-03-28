@@ -665,11 +665,11 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 						offset = s->m_inbuflen;
 						break;
 					}
-					offset += len;
 					if (msgptr) {
 						msgptr->type = NIO_SOCKET_USER_MESSAGE;
 						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 					}
+					offset += len;
 					++s->reliable.m_recvseq;
 				}
 
@@ -736,7 +736,6 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					msgptr->type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 				}
-				++s->reliable.m_recvseq;
 				s->m_lastactive_msec = timestamp_msec;
 			}
 			else {
@@ -755,7 +754,6 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 						msgptr->type = NIO_SOCKET_USER_MESSAGE;
 						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 					}
-					++s->reliable.m_recvseq;
 				}
 				s->m_lastactive_msec = timestamp_msec;
 				if (len < 0)
@@ -1401,8 +1399,8 @@ void nioloopDestroy(NioLoop_t* loop) {
 }
 
 static void niosocket_send(NioSocket_t* s, Packet_t* packet) {
-	++s->reliable.m_sendseq;
 	if (SOCK_STREAM == s->socktype) {
+		++s->reliable.m_sendseq;
 		if (!s->m_sendpacketlist.head) {
 			int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
 			if (res < 0) {
