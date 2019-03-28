@@ -651,6 +651,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				else {
 					s->m_inbuflen += res;
 					s->m_lastactive_msec = timestamp_msec;
+					s->m_sendprobe_msec = timestamp_msec;
 				}
 
 				offset = 0;
