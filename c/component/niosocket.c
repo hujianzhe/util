@@ -1272,10 +1272,14 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			} while (0);
 			if (reg_ok) {
-				if (s->reg_callback && (IDLE_STATUS == s->reliable.m_status || ESTABLISHED_STATUS == s->reliable.m_status))
-				{
-					s->m_regcallonce = 1;
-					dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
+				if (s->reg_callback) {
+					if (IDLE_STATUS == s->reliable.m_status ||
+						ESTABLISHED_STATUS == s->reliable.m_status ||
+						LISTENED_STATUS == s->reliable.m_status)
+					{
+						s->m_regcallonce = 1;
+						dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
+					}
 				}
 			}
 			else {
