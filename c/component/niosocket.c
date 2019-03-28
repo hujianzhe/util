@@ -777,7 +777,7 @@ static int reactorsocket_write(NioSocket_t* s) {
 	return 0;
 }
 
-static void reactor_socket_do_write(NioSocket_t* s) {
+static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM != s->socktype)
 		return;
 	else if (!s->m_regcallonce) {
@@ -789,6 +789,10 @@ static void reactor_socket_do_write(NioSocket_t* s) {
 		else if (!reactorsocket_read(s)) {
 			s->m_regerrno = errnoGet();
 			s->m_valid = 0;
+		}
+		else {
+			s->m_lastactive_msec = timestamp_msec;
+			s->m_sendprobe_msec = timestamp_msec;
 		}
 		dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
 	}
@@ -1111,7 +1115,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					reactorsocket_read(s);
 					break;
 				case REACTOR_WRITE:
-					reactor_socket_do_write(s);
+					reactor_socket_do_write(s, timestamp_msec);
 					break;
 				default:
 					s->m_valid = 0;
