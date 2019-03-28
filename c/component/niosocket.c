@@ -940,7 +940,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
-	s->connect_callback = NULL;
 	s->reg_callback = NULL;
 	s->decode_packet = NULL;
 	s->send_probe = NULL;
@@ -1192,15 +1191,24 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->m_loop = loop;
 				s->m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
-					if (s->connect_callback) {
-						s->is_client = 1;
-						if (!s->m_writeOl) {
-							s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
-							if (!s->m_writeOl)
+					if (s->is_client) {
+						BOOL has_connected;
+						if (!socketIsConnected(s->fd, &has_connected))
+							break;
+						if (has_connected) {
+							s->m_sendprobe_msec = timestamp_msec;
+							if (!reactorsocket_read(s))
 								break;
 						}
-						if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listen_saddr))
-							break;
+						else {
+							if (!s->m_writeOl) {
+								s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
+								if (!s->m_writeOl)
+									break;
+							}
+							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listen_saddr))
+								break;
+						}
 					}
 					else {
 						if (s->is_listener) {
@@ -1223,10 +1231,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				else {
 					if (s->reliable.enable) {
-						if (s->connect_callback) {
+						if (s->is_client && s->peer_listen_saddr.ss_family != AF_UNSPEC) {
 							unsigned char syn = HDR_SYN;
 							socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
-							s->is_client = 1;
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
@@ -1265,7 +1272,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			} while (0);
 			if (reg_ok) {
-				if (!s->connect_callback && s->reg_callback) {
+				if (s->reg_callback) {
 					s->m_regcallonce = 1;
 					dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
 				}
@@ -1525,12 +1532,10 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
-			if (s->connect_callback)
-				s->connect_callback(s, s->m_regerrno);
-			else if (s->reg_callback)
+			if (s->reg_callback) {
 				s->reg_callback(s, s->m_regerrno);
-			s->connect_callback = NULL;
-			s->reg_callback = NULL;
+				s->reg_callback = NULL;
+			}
 		}
 	}
 }

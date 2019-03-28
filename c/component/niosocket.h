@@ -55,7 +55,6 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage peer_listen_saddr;
 	};
 	void(*accept_callback)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
-	void(*connect_callback)(struct NioSocket_t*, int);
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
 	void(*send_probe)(struct NioSocket_t*);
 	void(*reg_callback)(struct NioSocket_t*, int);
