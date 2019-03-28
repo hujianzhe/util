@@ -150,7 +150,7 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	}
 }
 
-static void relable_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+static void reliable_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioMsg_t* msgptr;
 	int offset, res;
 	if (len) {
@@ -184,7 +184,7 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 	len -= RELIABLE_HDR_LEN;
 	data += RELIABLE_HDR_LEN;
 	if (!s->m_inbuf && hdr_data_end_flag) {
-		relable_data_packet_handler(s, data, len, saddr);
+		reliable_data_packet_handler(s, data, len, saddr);
 	}
 	else {
 		unsigned char* ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + len);
@@ -194,7 +194,7 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 			s->m_inbuflen += len;
 			if (!hdr_data_end_flag)
 				return;
-			relable_data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
+			reliable_data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
 		}
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
@@ -286,10 +286,10 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 	}
 	else if (HDR_SYN_ACK_ACK == hdr_type) {
 		ListNode_t* cur, *next;
-		struct sockaddr_storage peer_addr;
 		if (s->m_shutdown)
 			return 1;
 		else if (LISTENED_STATUS == s->reliable.m_status) {
+			struct sockaddr_storage peer_addr;
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
 				next = cur->next;
