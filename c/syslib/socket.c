@@ -733,6 +733,19 @@ end:
 	return sockfd;
 }
 
+BOOL socketIsConnected(FD_t fd, BOOL* bool_value) {
+	struct sockaddr_storage peer_saddr;
+	socklen_t len = sizeof(peer_saddr);
+	if (getpeername(fd, (struct sockaddr*)&peer_saddr, &len)) {
+		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTCONN))
+			return FALSE;
+		*bool_value = FALSE;
+	}
+	else
+		*bool_value = TRUE;
+	return TRUE;
+}
+
 BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
 	socklen_t len = sizeof(*bool_value);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len)) {
