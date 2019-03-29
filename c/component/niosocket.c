@@ -792,6 +792,7 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			s->m_valid = 0;
 		}
 		else {
+			s->m_shutwr = 0;
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_sendprobe_msec = timestamp_msec;
 		}
@@ -1215,6 +1216,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							}
 							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listen_saddr))
 								break;
+							s->m_shutwr = 1;
 						}
 					}
 					else {
@@ -1228,6 +1230,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 								break;
 							if (!has_listen && !socketTcpListen(s->fd))
 								break;
+							s->m_shutwr = 1;
 						}
 						else {
 							s->m_sendprobe_msec = timestamp_msec;
