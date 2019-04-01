@@ -15,7 +15,11 @@ enum {
 	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE,
 	NIO_SOCKET_RELIABLE_MESSAGE
 };
-
+enum {
+	SEND_OK_ACTION = 0,
+	SEND_SHUT_ACTION,
+	SEND_RECONNECT_ACTION
+};
 enum {
 	HDR_SYN,
 	HDR_SYN_ACK,
@@ -348,7 +352,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			if (ESTABLISHED_STATUS == s->reliable.m_status) {
 				s->reliable.m_status = CLOSE_WAIT_STATUS;
 				s->m_lastactive_msec = timestamp_msec;
-				s->m_shutwr = 1;
+				s->m_sendaction = SEND_SHUT_ACTION;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
 					send_fin_packet(s->m_loop, s, timestamp_msec);
@@ -430,7 +434,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 			}
 		}
-		if (ack_valid && !s->m_sendpacketlist.head && s->m_shutwr) {
+		if (ack_valid && !s->m_sendpacketlist.head && SEND_SHUT_ACTION == s->m_sendaction) {
 			send_fin_packet(s->m_loop, s, gmtimeMillisecond());
 		}
 	}
@@ -951,7 +955,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->send_probe = NULL;
 	s->close = NULL;
 	s->m_valid = 1;
-	s->m_shutwr = 0;
+	s->m_sendaction = SEND_OK_ACTION;
 	s->m_shutdown = 0;
 	s->m_regcallonce = 0;
 	s->m_regerrno = 0;
@@ -982,9 +986,11 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reliable.m_status = IDLE_STATUS;
 	s->reliable.m_synrcvd_times = 0;
 	s->reliable.m_synsent_times = 0;
+	s->reliable.m_reconnect_times = 0;
 	s->reliable.m_fin_times = 0;
 	s->reliable.m_synrcvd_msec = 0;
 	s->reliable.m_synsent_msec = 0;
+	s->reliable.m_reconnect_msec = 0;
 	s->reliable.m_fin_msec = 0;
 	s->reliable.m_cwndseq = 0;
 	s->reliable.m_recvseq = 0;
@@ -1150,7 +1156,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
-			s->m_shutwr = 1;
+			s->m_sendaction = SEND_SHUT_ACTION;
 			if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 				if (!s->m_sendpacketlist.head) {
 					send_fin_packet(loop, s, timestamp_msec);
@@ -1173,7 +1179,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
 			ReliableDataPacket_t* packet = pod_container_of(message, ReliableDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
-			if (!s->m_valid || s->m_shutwr) {
+			if (!s->m_valid || SEND_SHUT_ACTION == s->m_sendaction) {
 				free(packet);
 				continue;
 			}
@@ -1457,7 +1463,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		next = cur->next;
 		if (NIO_SOCKET_SHUTDOWN_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_shutdownmsg);
-			s->m_shutwr = 1;
+			s->m_sendaction = SEND_SHUT_ACTION;
 			if (SOCK_STREAM == s->socktype) {
 				s->sendprobe_timeout_sec = 0;
 				s->m_sendprobe_msec = 0;
@@ -1471,7 +1477,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
 			Packet_t* packet = pod_container_of(msgbase, Packet_t, msg);
 			NioSocket_t* s = packet->s;
-			if (!s->m_valid || s->m_shutwr)
+			if (!s->m_valid || SEND_SHUT_ACTION == s->m_sendaction)
 				free(packet);
 			else
 				niosocket_send(packet->s, packet);
@@ -1479,7 +1485,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 		else if (NIO_SOCKET_STREAM_WRITEABLE_MESSAGE == msgbase->type) {
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_sendmsg);
 			ListNode_t* cur, *next;
-			if (!s->m_valid || s->m_shutwr)
+			if (!s->m_valid || SEND_SHUT_ACTION == s->m_sendaction)
 				continue;
 			for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 				int res;

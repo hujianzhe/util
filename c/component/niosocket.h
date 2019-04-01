@@ -61,7 +61,7 @@ typedef struct NioSocket_t {
 	void(*close)(struct NioSocket_t*);
 /* private */
 	volatile char m_valid;
-	volatile char m_shutwr;
+	volatile char m_sendaction;
 	Atom16_t m_shutdown;
 	int m_regcallonce;
 	int m_regerrno;
@@ -94,9 +94,11 @@ typedef struct NioSocket_t {
 		unsigned char m_status;
 		unsigned char m_synrcvd_times;
 		unsigned char m_synsent_times;
+		unsigned char m_reconnect_times;
 		unsigned char m_fin_times;
 		long long m_synrcvd_msec;
 		long long m_synsent_msec;
+		long long m_reconnect_msec;
 		long long m_fin_msec;
 		unsigned int m_cwndseq;
 		unsigned int m_recvseq;
