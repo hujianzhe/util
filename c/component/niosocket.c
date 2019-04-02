@@ -209,6 +209,22 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 	}
 }
 
+static void reliable_data_packet_reconnect(NioSocket_t* s, long long timestamp_msec) {
+	ListNode_t* cur;
+	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+		ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+		if (packet->seq < s->reliable.m_cwndseq ||
+			packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
+		{
+			break;
+		}
+		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+		packet->resendtimes = 0;
+		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
+		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
+	}
+}
+
 static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
@@ -352,7 +368,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
 			s->reliable.peer_saddr = *saddr;
-			// TODO resend packet
+			reliable_data_packet_reconnect(s, timestamp_msec);
 		}
 		reconnect_ack = HDR_RECONNECT_ACK;
 		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
@@ -363,7 +379,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
 		s->m_sendaction = SEND_OK_ACTION;
-		// TODO resend packet
+		reliable_data_packet_reconnect(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
