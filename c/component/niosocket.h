@@ -39,6 +39,13 @@ typedef struct NioMsg_t {
 	int type;
 } NioMsg_t;
 
+enum {
+	NIOSOCKET_TRANSPORT_NOSIDE,
+	NIOSOCKET_TRANSPORT_CLIENT,
+	NIOSOCKET_TRANSPORT_SERVER,
+	NIOSOCKET_TRANSPORT_LISTEN
+};
+
 typedef struct NioSocket_t {
 /* public */
 	FD_t fd;
@@ -48,8 +55,7 @@ typedef struct NioSocket_t {
 	int sendprobe_timeout_sec;
 	int keepalive_timeout_sec;
 	void* userdata;
-	unsigned short is_client;
-	unsigned short is_listener;
+	unsigned char transport_side;
 	union {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
@@ -116,6 +122,7 @@ __declspec_dll NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int p
 __declspec_dll void niosocketFree(NioSocket_t* s);
 __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
+__declspec_dll void niosocketReconnect(NioSocket_t* s);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sender);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);

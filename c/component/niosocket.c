@@ -123,7 +123,7 @@ static int reactorsocket_read(NioSocket_t* s) {
 	int opcode;
 	if (!s->m_valid)
 		return 0;
-	else if (s->is_listener && SOCK_STREAM == s->socktype) {
+	else if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side && SOCK_STREAM == s->socktype) {
 		opcode = REACTOR_ACCEPT;
 		saddr.ss_family = s->domain;
 	}
@@ -364,7 +364,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 	}
 	else if (HDR_RECONNECT == hdr_type) {
 		unsigned char reconnect_ack;
-		if (s->is_client || s->is_listener || SEND_SHUTDOWN_ACTION == s->m_sendaction)
+		if (NIOSOCKET_TRANSPORT_SERVER != s->transport_side || SEND_SHUTDOWN_ACTION == s->m_sendaction)
 			return 1;
 		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
 			s->reliable.peer_saddr = *saddr;
@@ -374,7 +374,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
 	}
 	else if (HDR_RECONNECT_ACK == hdr_type) {
-		if (!s->is_client || SEND_RECONNECT_ACTION != s->m_sendaction)
+		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
 			return 1;
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
@@ -675,7 +675,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM == s->socktype) {
 		struct sockaddr_storage saddr;
-		if (s->is_listener) {
+		if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 			FD_t connfd;
 			for (connfd = reactorAcceptFirst(s->fd, s->m_readOl, &saddr);
 				connfd != INVALID_FD_HANDLE;
@@ -973,10 +973,21 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 	return s;
 }
 
+void niosocketReconnect(NioSocket_t* s) {
+	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side)
+		return;
+	else if (_xchg16(&s->m_reconnect, 1))
+		return;
+	else if (s->reliable.m_status)
+		nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
+	else if (SOCK_STREAM == s->socktype)
+		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_reconnectmsg.m_listnode);
+}
+
 void niosocketShutdown(NioSocket_t* s) {
 	if (_cmpxchg16(&s->m_shutdown, 1, 0))
 		return;
-	else if (s->reliable.m_status || s->is_listener)
+	else if (s->reliable.m_status || NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
 		nioloop_exec_msg(s->m_loop, &s->m_shutdownmsg.m_listnode);
 	else
 		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_shutdownmsg.m_listnode);
@@ -1006,8 +1017,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->sendprobe_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->userdata = NULL;
-	s->is_client = 0;
-	s->is_listener = 0;
+	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
@@ -1116,7 +1126,9 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				s->m_valid = 0;
 			}
 			else {
-				if (s->is_client && s->send_probe && s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
+				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side &&
+					s->send_probe && s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0)
+				{
 					if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
 						s->m_sendprobe_msec = timestamp_msec;
 						s->send_probe(s);
@@ -1194,7 +1206,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				continue;
 
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-			if (s->is_listener)
+			if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
 				niosocketFree(s);
 			else
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
@@ -1227,7 +1239,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->sendprobe_timeout_sec = 0;
 				s->m_sendprobe_msec = 0;
 			}
-			else if (s->is_listener) {
+			else if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 				if (SOCK_STREAM == s->socktype) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 					niosocketFree(s);
@@ -1262,7 +1274,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
 			unsigned char reconnect_pkg;
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
-			if (!s->is_client || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
+			if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
 				continue;
 			reconnect_pkg = HDR_RECONNECT;
 			socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
@@ -1282,7 +1294,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->m_loop = loop;
 				s->m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
-					if (s->is_client) {
+					if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
 						BOOL has_connected;
 						if (!socketIsConnected(s->fd, &has_connected))
 							break;
@@ -1303,7 +1315,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						}
 					}
 					else {
-						if (s->is_listener) {
+						if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 							BOOL has_listen;
 							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
 								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
@@ -1324,7 +1336,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				else {
 					if (s->reliable.enable) {
-						if (s->is_client && s->peer_listen_saddr.ss_family != AF_UNSPEC) {
+						if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side && s->peer_listen_saddr.ss_family != AF_UNSPEC) {
 							unsigned char syn = HDR_SYN;
 							socketWrite(s->fd, &syn, sizeof(syn), 0, &s->peer_listen_saddr);
 							s->reliable.m_status = SYN_SENT_STATUS;
@@ -1332,7 +1344,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
 							update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
 						}
-						else if (s->is_listener) {
+						else if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 							if (AF_UNSPEC == s->local_listen_saddr.ss_family) {
 								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
 									break;
