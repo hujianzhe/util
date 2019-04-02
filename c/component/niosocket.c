@@ -1116,7 +1116,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				s->m_valid = 0;
 			}
 			else {
-				if (s->send_probe && s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
+				if (s->is_client && s->send_probe && s->sendprobe_timeout_sec > 0 && s->m_sendprobe_msec > 0) {
 					if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
 						s->m_sendprobe_msec = timestamp_msec;
 						s->send_probe(s);
