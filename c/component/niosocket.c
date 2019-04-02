@@ -379,6 +379,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
 		s->m_sendaction = SEND_OK_ACTION;
+		s->reliable.m_reconnect_times = 0;
 		reliable_data_packet_reconnect(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
@@ -656,7 +657,9 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 				}
 				if (packet->resendtimes >= s->reliable.resend_maxtimes) {
 					s->m_lastactive_msec = timestamp_msec;
-					s->m_valid = 0;
+					if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
+						s->m_valid = 0;
+					}
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 					break;
 				}
