@@ -86,6 +86,7 @@ typedef struct NioSocket_t {
 	long long m_lastactive_msec;
 	long long m_sendprobe_msec;
 	unsigned char *m_inbuf;
+	size_t m_inbufoffset;
 	size_t m_inbuflen;
 	unsigned short m_recvpacket_maxcnt;
 	List_t m_recvpacketlist;

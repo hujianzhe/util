@@ -157,33 +157,40 @@ static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp
 	}
 }
 
-static void reliable_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int* decode_len, int* decode_pkgcnt, const struct sockaddr_storage* saddr) {
 	NioMsg_t* msgptr;
-	int offset, res;
+	*decode_len = 0;
+	*decode_pkgcnt = 0;
 	if (len) {
-		offset = 0;
+		int res, offset = 0;
 		while (offset < len) {
 			msgptr = NULL;
-			res = s->decode_packet(s, data, len, saddr, &msgptr);
+			res = s->decode_packet(s, data + offset, len - offset, saddr, &msgptr);
 			if (res < 0)
-				break;
+				return res;
 			else if (0 == res)
 				break;
-			offset += res;
 			if (msgptr) {
 				msgptr->type = NIO_SOCKET_USER_MESSAGE;
 				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 			}
+			offset += res;
+			*decode_len += res;
+			(*decode_pkgcnt)++;
 		}
+		return offset;
 	}
-	else {
+	else if (SOCK_STREAM != s->socktype) {
 		msgptr = NULL;
 		s->decode_packet(s, NULL, 0, saddr, &msgptr);
 		if (msgptr) {
 			msgptr->type = NIO_SOCKET_USER_MESSAGE;
 			dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 		}
+		*decode_pkgcnt = 1;
+		return 0;
 	}
+	return 0;
 }
 
 static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
@@ -191,7 +198,8 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 	len -= RELIABLE_HDR_LEN;
 	data += RELIABLE_HDR_LEN;
 	if (!s->m_inbuf && hdr_data_end_flag) {
-		reliable_data_packet_handler(s, data, len, saddr);
+		int decode_len, decode_pkgcnt;
+		data_packet_handler(s, data, len, &decode_len, &decode_pkgcnt, saddr);
 	}
 	else {
 		unsigned char* ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + len);
@@ -201,10 +209,14 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 			s->m_inbuflen += len;
 			if (!hdr_data_end_flag)
 				return;
-			reliable_data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
+			else {
+				int decode_len, decode_pkgcnt;
+				data_packet_handler(s, s->m_inbuf, s->m_inbuflen, &decode_len, &decode_pkgcnt, saddr);
+			}
 		}
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
+		s->m_inbufoffset = 0;
 		s->m_inbuflen = 0;
 	}
 }
@@ -695,11 +707,11 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				return;
 			}
 			do {
-				size_t offset;
 				unsigned char *ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
 				if (!ptr) {
 					free(s->m_inbuf);
 					s->m_inbuf = NULL;
+					s->m_inbufoffset = 0;
 					s->m_inbuflen = 0;
 					s->m_valid = 0;
 					break;
@@ -709,48 +721,31 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				if (res <= 0) {
 					free(s->m_inbuf);
 					s->m_inbuf = NULL;
+					s->m_inbufoffset = 0;
 					s->m_inbuflen = 0;
 					s->m_valid = 0;
 					break;
 				}
 				else {
+					int decode_len, decode_pkgcnt;
 					s->m_inbuflen += res;
 					s->m_lastactive_msec = timestamp_msec;
 					s->m_sendprobe_msec = timestamp_msec;
-				}
-
-				offset = 0;
-				while (offset < s->m_inbuflen) {
-					NioMsg_t* msgptr = NULL;
-					int len = s->decode_packet(s, s->m_inbuf + offset, s->m_inbuflen - offset, &saddr, &msgptr);
-					if (0 == len)
-						break;
-					if (len < 0) {
-						s->m_valid = 0;
-						offset = s->m_inbuflen;
-						break;
-					}
-					if (msgptr) {
-						msgptr->type = NIO_SOCKET_USER_MESSAGE;
-						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-					}
-					offset += len;
-					++s->reliable.m_recvseq;
-				}
-
-				if (offset) {
-					if (offset >= s->m_inbuflen) {
-						free(s->m_inbuf);
-						s->m_inbuf = NULL;
-						s->m_inbuflen = 0;
+					if (data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset,
+						&decode_len, &decode_pkgcnt, &saddr) < 0)
+					{
+						s->m_inbuflen = s->m_inbufoffset;
 					}
 					else {
-						size_t n = offset, start;
-						for (start = 0; offset < s->m_inbuflen; ++start, ++offset) {
-							s->m_inbuf[start] = s->m_inbuf[offset];
+						s->m_inbufoffset += decode_len;
+						if (s->m_inbufoffset >= s->m_inbuflen) {
+							free(s->m_inbuf);
+							s->m_inbuf = NULL;
+							s->m_inbufoffset = 0;
+							s->m_inbuflen = 0;
 						}
-						s->m_inbuflen -= n;
 					}
+					s->reliable.m_recvseq += decode_pkgcnt;
 				}
 			} while (0);
 		}
@@ -791,38 +786,10 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				if (!reactor_socket_reliable_read(s, p_data, res, &saddr, timestamp_msec))
 					break;
 			}
-			else if (0 == res) {
-				NioMsg_t* msgptr = NULL;
-				if (s->decode_packet(s, NULL, 0, &saddr, &msgptr) < 0) {
-					s->m_valid = 0;
-					break;
-				}
-				if (msgptr) {
-					msgptr->type = NIO_SOCKET_USER_MESSAGE;
-					dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-				}
-				s->m_lastactive_msec = timestamp_msec;
-			}
 			else {
-				int offset = 0, len = -1;
-				while (offset < res) {
-					NioMsg_t* msgptr = NULL;
-					len = s->decode_packet(s, p_data + offset, res - offset, &saddr, &msgptr);
-					if (len < 0) {
-						s->m_valid = 0;
-						break;
-					}
-					if (0 == len)
-						break;
-					offset += len;
-					if (msgptr) {
-						msgptr->type = NIO_SOCKET_USER_MESSAGE;
-						dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
-					}
-				}
+				int decode_len, decode_pkgcnt;
+				data_packet_handler(s, p_data, res, &decode_len, &decode_pkgcnt, &saddr);
 				s->m_lastactive_msec = timestamp_msec;
-				if (len < 0)
-					break;
 			}
 		}
 	}
@@ -1046,6 +1013,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_lastactive_msec = 0;
 	s->m_sendprobe_msec = 0;
 	s->m_inbuf = NULL;
+	s->m_inbufoffset = 0;
 	s->m_inbuflen = 0;
 	s->m_recvpacket_maxcnt = 8;
 	listInit(&s->m_recvpacketlist);
@@ -1084,6 +1052,7 @@ void niosocketFree(NioSocket_t* s) {
 	if (s->m_inbuf) {
 		free(s->m_inbuf);
 		s->m_inbuf = NULL;
+		s->m_inbufoffset = 0;
 		s->m_inbuflen = 0;
 	}
 
