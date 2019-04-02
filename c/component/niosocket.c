@@ -283,7 +283,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				halfcon->resend_times = 0;
 				halfcon->peer_addr = *saddr;
 				halfcon->sockfd = new_fd;
-				halfcon->timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
+				halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
 
 				listInsertNodeBack(&s->m_recvpacketlist, s->m_recvpacketlist.tail, &halfcon->m_listnode);
 				update_timestamp(&s->m_loop->m_event_msec, halfcon->timestamp_msec);
@@ -469,12 +469,12 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 					break;
 				}
 				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
-				packet->resend_timestamp_msec = gmtimeMillisecond() + s->reliable.rto;
+				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 			}
 		}
 		if (ack_valid && !s->m_sendpacketlist.head && SEND_SHUTDOWN_ACTION == s->m_sendaction) {
-			send_fin_packet(s->m_loop, s, gmtimeMillisecond());
+			send_fin_packet(s->m_loop, s, timestamp_msec);
 		}
 	}
 	else if (HDR_DATA == hdr_type) {
@@ -1022,6 +1022,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
 	s->reg_callback = NULL;
+	s->reconnect_callback = NULL;
 	s->decode_packet = NULL;
 	s->send_probe = NULL;
 	s->close = NULL;
@@ -1535,21 +1536,12 @@ NioSender_t* niosenderCreate(NioSender_t* sender) {
 	sender->initok = 0;
 	if (!dataqueueInit(&sender->m_dq))
 		return NULL;
-	sender->m_resend_msec = 0;
 	sender->initok = 1;
 	return sender;
 }
 
 void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec) {
 	ListNode_t *cur, *next;
-	if (sender->m_resend_msec > timestamp_msec) {
-		int resend_wait_msec = sender->m_resend_msec - timestamp_msec;
-		if (resend_wait_msec < wait_msec || wait_msec < 0)
-			wait_msec = resend_wait_msec;
-	}
-	else if (sender->m_resend_msec) {
-		wait_msec = 0;
-	}
 	for (cur = dataqueuePop(&sender->m_dq, wait_msec, ~0); cur; cur = next) {
 		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 		next = cur->next;
@@ -1602,7 +1594,6 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			}
 		}
 	}
-	timestamp_msec = gmtimeMillisecond();
 }
 
 void niosenderDestroy(NioSender_t* sender) {

@@ -31,7 +31,6 @@ typedef struct NioLoop_t {
 typedef struct NioSender_t {
 	unsigned char initok;
 	DataQueue_t m_dq;
-	long long m_resend_msec;
 } NioSender_t;
 
 typedef struct NioMsg_t {
@@ -64,6 +63,7 @@ typedef struct NioSocket_t {
 	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
 	void(*send_probe)(struct NioSocket_t*);
 	void(*reg_callback)(struct NioSocket_t*, int);
+	void(*reconnect_callback)(struct NioSocket_t*, int);
 	void(*close)(struct NioSocket_t*);
 /* private */
 	volatile char m_valid;
