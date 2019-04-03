@@ -143,6 +143,13 @@ static int reactorsocket_read(NioSocket_t* s) {
 	return 0;
 }
 
+static void free_inbuf(NioSocket_t* s) {
+	free(s->m_inbuf);
+	s->m_inbuf = NULL;
+	s->m_inbuflen = 0;
+	s->m_inbufoffset = 0;
+}
+
 static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int* decode_len, int* decode_pkgcnt, const struct sockaddr_storage* saddr) {
 	NioMsg_t* msgptr;
 	*decode_len = 0;
@@ -214,10 +221,7 @@ static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int
 				data_packet_handler(s, s->m_inbuf, s->m_inbuflen, &decode_len, &decode_pkgcnt, saddr);
 			}
 		}
-		free(s->m_inbuf);
-		s->m_inbuf = NULL;
-		s->m_inbufoffset = 0;
-		s->m_inbuflen = 0;
+		free_inbuf(s);
 	}
 }
 
@@ -755,20 +759,14 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			do {
 				unsigned char *ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
 				if (!ptr) {
-					free(s->m_inbuf);
-					s->m_inbuf = NULL;
-					s->m_inbufoffset = 0;
-					s->m_inbuflen = 0;
+					free_inbuf(s);
 					s->m_valid = 0;
 					break;
 				}
 				s->m_inbuf = ptr;
 				res = socketRead(s->fd, s->m_inbuf + s->m_inbuflen, res, 0, &saddr);
 				if (res <= 0) {
-					free(s->m_inbuf);
-					s->m_inbuf = NULL;
-					s->m_inbufoffset = 0;
-					s->m_inbuflen = 0;
+					free_inbuf(s);
 					s->m_valid = 0;
 					break;
 				}
@@ -785,10 +783,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					else {
 						s->m_inbufoffset += decode_len;
 						if (s->m_inbufoffset >= s->m_inbuflen) {
-							free(s->m_inbuf);
-							s->m_inbuf = NULL;
-							s->m_inbufoffset = 0;
-							s->m_inbuflen = 0;
+							free_inbuf(s);
 						}
 					}
 					s->reliable.m_recvseq += decode_pkgcnt;
@@ -1095,12 +1090,7 @@ void niosocketFree(NioSocket_t* s) {
 	reactorFreeOverlapped(s->m_readOl);
 	reactorFreeOverlapped(s->m_writeOl);
 
-	if (s->m_inbuf) {
-		free(s->m_inbuf);
-		s->m_inbuf = NULL;
-		s->m_inbufoffset = 0;
-		s->m_inbuflen = 0;
-	}
+	free_inbuf(s);
 
 	if (s->reliable.enable) {
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
