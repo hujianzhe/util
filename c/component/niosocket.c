@@ -58,16 +58,16 @@ typedef struct Packet_t {
 	unsigned char data[1];
 } Packet_t;
 
-typedef struct ReliableHalfConnect_t {
+typedef struct ReliableDgramHalfConnectPacket_t {
 	ListNode_t m_listnode;
 	FD_t sockfd;
 	long long timestamp_msec;
 	unsigned short resend_times;
 	unsigned short local_port;
 	struct sockaddr_storage peer_addr;
-} ReliableHalfConnect_t;
+} ReliableDgramHalfConnectPacket_t;
 
-typedef struct ReliableDataPacket_t {
+typedef struct ReliableDgramDataPacket_t {
 	NioMsg_t msg;
 	long long resend_timestamp_msec;
 	unsigned int resendtimes;
@@ -75,7 +75,7 @@ typedef struct ReliableDataPacket_t {
 	unsigned int seq;
 	size_t len;
 	unsigned char data[1];
-} ReliableDataPacket_t;
+} ReliableDgramDataPacket_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -143,20 +143,6 @@ static int reactorsocket_read(NioSocket_t* s) {
 	return 0;
 }
 
-static void send_fin_packet(NioLoop_t* loop, NioSocket_t* s, long long timestamp_msec) {
-	unsigned char fin = HDR_FIN;
-	socketWrite(s->fd, &fin, sizeof(fin), 0, &s->reliable.peer_saddr);
-	s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
-	if (ESTABLISHED_STATUS == s->reliable.m_status) {
-		s->reliable.m_status = FIN_WAIT_1_STATUS;
-		update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
-	}
-	else if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
-		s->reliable.m_status = LAST_ACK_STATUS;
-		update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
-	}
-}
-
 static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int* decode_len, int* decode_pkgcnt, const struct sockaddr_storage* saddr) {
 	NioMsg_t* msgptr;
 	*decode_len = 0;
@@ -187,13 +173,27 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int
 			msgptr->type = NIO_SOCKET_USER_MESSAGE;
 			dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
 		}
-		*decode_pkgcnt = 1;
-		return 0;
 	}
 	return 0;
 }
 
-static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+static void data_packet_reconnect(NioSocket_t* s, long long timestamp_msec) {
+	ListNode_t* cur;
+	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+		ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+		if (packet->seq < s->reliable.m_cwndseq ||
+			packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
+		{
+			break;
+		}
+		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+		packet->resendtimes = 0;
+		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
+		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
+	}
+}
+
+static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	unsigned char hdr_data_end_flag = data[0] & HDR_DATA_END_FLAG;
 	len -= RELIABLE_HDR_LEN;
 	data += RELIABLE_HDR_LEN;
@@ -221,23 +221,54 @@ static void reliable_data_packet_merge(NioSocket_t* s, unsigned char* data, int 
 	}
 }
 
-static void reliable_data_packet_reconnect(NioSocket_t* s, long long timestamp_msec) {
-	ListNode_t* cur;
-	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-		ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
-		if (packet->seq < s->reliable.m_cwndseq ||
-			packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
-		{
-			break;
+static void reliable_dgram_send_fin_packet(NioSocket_t* s, long long timestamp_msec) {
+	unsigned char fin = HDR_FIN;
+	socketWrite(s->fd, &fin, sizeof(fin), 0, &s->reliable.peer_saddr);
+	s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
+	if (ESTABLISHED_STATUS == s->reliable.m_status) {
+		s->reliable.m_status = FIN_WAIT_1_STATUS;
+		update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_fin_msec);
+	}
+	else if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
+		s->reliable.m_status = LAST_ACK_STATUS;
+		update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_fin_msec);
+	}
+}
+
+static void reliable_dgram_shutdown_handler(NioSocket_t* s, long long timestamp_msec) {
+	if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
+		s->m_lastactive_msec = timestamp_msec;
+		s->m_valid = 0;
+		update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+	}
+	else if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side || NIOSOCKET_TRANSPORT_SERVER == s->transport_side) {
+		s->m_sendaction = SEND_SHUTDOWN_ACTION;
+		if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
+			if (!s->m_sendpacketlist.head) {
+				reliable_dgram_send_fin_packet(s, timestamp_msec);
+			}
+			s->sendprobe_timeout_sec = 0;
+			s->m_sendprobe_msec = 0;
 		}
+	}
+}
+
+static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t* packet, long long timestamp_msec) {
+	*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
+	packet->seq = s->reliable.m_sendseq++;
+	listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+	if (SEND_OK_ACTION != s->m_sendaction)
+		return;
+	if (packet->seq >= s->reliable.m_cwndseq &&
+		packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
+	{
 		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
-		packet->resendtimes = 0;
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 	}
 }
 
-static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
+static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
 		return 1;
@@ -247,11 +278,11 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		if (s->m_shutdown)
 			return 1;
 		else if (LISTENED_STATUS == s->reliable.m_status) {
-			ReliableHalfConnect_t* halfcon = NULL;
+			ReliableDgramHalfConnectPacket_t* halfcon = NULL;
 			ListNode_t* cur, *next;
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
-				halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+				halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
 				if (!memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
 					break;
 				halfcon = NULL;
@@ -286,7 +317,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 					socketClose(new_fd);
 					return 1;
 				}
-				halfcon = (ReliableHalfConnect_t*)malloc(sizeof(ReliableHalfConnect_t));
+				halfcon = (ReliableDgramHalfConnectPacket_t*)malloc(sizeof(ReliableDgramHalfConnectPacket_t));
 				if (!halfcon) {
 					socketClose(new_fd);
 					return 1;
@@ -326,7 +357,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		else if (LISTENED_STATUS == s->reliable.m_status) {
 			struct sockaddr_storage peer_addr;
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-				ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+				ReliableDgramHalfConnectPacket_t* halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
 				next = cur->next;
 				if (memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
 					continue;
@@ -380,7 +411,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
 			s->reliable.peer_saddr = *saddr;
-			reliable_data_packet_reconnect(s, timestamp_msec);
+			data_packet_reconnect(s, timestamp_msec);
 		}
 		reconnect_ack = HDR_RECONNECT_ACK;
 		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
@@ -392,7 +423,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		s->m_sendaction = SEND_OK_ACTION;
 		_xchg16(&s->m_reconnect, 0);
-		reliable_data_packet_reconnect(s, timestamp_msec);
+		data_packet_reconnect(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -406,7 +437,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
-					send_fin_packet(s->m_loop, s, timestamp_msec);
+					reliable_dgram_send_fin_packet(s, timestamp_msec);
 				}
 			}
 			else if (FIN_WAIT_1_STATUS == s->reliable.m_status ||
@@ -452,7 +483,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		ack_valid = 0;
 
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-			ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+			ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
 			if (seq < packet->seq)
 				break;
 			if (packet->seq == seq) {
@@ -461,7 +492,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 				free(packet);
 				if (seq == s->reliable.m_cwndseq) {
 					if (next) {
-						packet = pod_container_of(next, ReliableDataPacket_t, msg.m_listnode);
+						packet = pod_container_of(next, ReliableDgramDataPacket_t, msg.m_listnode);
 						s->reliable.m_cwndseq = packet->seq;
 						cwnd_skip = 1;
 					}
@@ -474,7 +505,7 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 		}
 		if (cwnd_skip) {
 			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-				ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+				ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
 				if (packet->seq < s->reliable.m_cwndseq ||
 					packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
 				{
@@ -486,12 +517,12 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			}
 		}
 		if (ack_valid && !s->m_sendpacketlist.head && SEND_SHUTDOWN_ACTION == s->m_sendaction) {
-			send_fin_packet(s->m_loop, s, timestamp_msec);
+			reliable_dgram_send_fin_packet(s, timestamp_msec);
 		}
 	}
 	else if (HDR_DATA == hdr_type) {
 		ListNode_t* cur, *next;
-		ReliableDataPacket_t* packet;
+		ReliableDgramDataPacket_t* packet;
 		unsigned int seq;
 		unsigned char ack[RELIABLE_HDR_LEN];
 		if (len < RELIABLE_HDR_LEN)
@@ -512,27 +543,27 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 			return 1;
 		else if (seq == s->reliable.m_recvseq) {
 			s->reliable.m_recvseq++;
-			reliable_data_packet_merge(s, buffer, len, saddr);
+			reliable_dgram_packet_merge(s, buffer, len, saddr);
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+				packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
 				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
 				s->reliable.m_recvseq++;
-				reliable_data_packet_merge(s, packet->data, packet->len, saddr);
+				reliable_dgram_packet_merge(s, packet->data, packet->len, saddr);
 				listRemoveNode(&s->m_recvpacketlist, cur);
 				free(packet);
 			}
 		}
 		else {
 			for (cur = s->m_recvpacketlist.head; cur; cur = cur->next) {
-				packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+				packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
 				if (packet->seq > seq)
 					break;
 				else if (packet->seq == seq)
 					return 1;
 			}
-			packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + len);
+			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + len);
 			if (!packet) {
 				//s->valid = 0;
 				return 0;
@@ -551,11 +582,11 @@ static int reactor_socket_reliable_read(NioSocket_t* s, unsigned char* buffer, i
 	return 1;
 }
 
-static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long long timestamp_msec) {
+static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long timestamp_msec) {
 	if (LISTENED_STATUS == s->reliable.m_status) {
 		ListNode_t* cur, *next;
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-			ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+			ReliableDgramHalfConnectPacket_t* halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
 			next = cur->next;
 			if (halfcon->timestamp_msec > timestamp_msec) {
 				update_timestamp(&loop->m_event_msec, halfcon->timestamp_msec);
@@ -657,7 +688,7 @@ static void reactor_socket_reliable_update(NioLoop_t* loop, NioSocket_t* s, long
 		else {
 			ListNode_t* cur;
 			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-				ReliableDataPacket_t* packet = pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode);
+				ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
 				if (packet->seq < s->reliable.m_cwndseq ||
 					packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
 				{
@@ -783,7 +814,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			else if (s->reliable.m_status) {
 				if (0 == res)
 					continue;
-				if (!reactor_socket_reliable_read(s, p_data, res, &saddr, timestamp_msec))
+				if (!reliable_dgram_recv_handler(s, p_data, res, &saddr, timestamp_msec))
 					break;
 			}
 			else {
@@ -859,14 +890,14 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		}
 	}
 	if (ESTABLISHED_STATUS == s->reliable.m_status) {
-		ReliableDataPacket_t* packet;
+		ReliableDgramDataPacket_t* packet;
 		if (nbytes) {
 			unsigned int offset, packetlen, copy_off, i_off;
 			List_t packetlist;
 			listInit(&packetlist);
 			for (i = i_off = offset = 0; offset < nbytes; offset += packetlen) {
 				packetlen = nbytes - offset > s->reliable.mtu ? s->reliable.mtu : nbytes - offset;
-				packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN + packetlen);
+				packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_HDR_LEN + packetlen);
 				if (!packet)
 					break;
 				packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
@@ -908,7 +939,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			}
 		}
 		else {
-			packet = (ReliableDataPacket_t*)malloc(sizeof(ReliableDataPacket_t) + RELIABLE_HDR_LEN);
+			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_HDR_LEN);
 			if (!packet)
 				return NULL;
 			packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
@@ -1060,12 +1091,12 @@ void niosocketFree(NioSocket_t* s) {
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 			next = cur->next;
 			if (LISTENED_STATUS == s->reliable.m_status) {
-				ReliableHalfConnect_t* halfcon = pod_container_of(cur, ReliableHalfConnect_t, m_listnode);
+				ReliableDgramHalfConnectPacket_t* halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
 				socketClose(halfcon->sockfd);
 				free(halfcon);
 			}
 			else {
-				free(pod_container_of(cur, ReliableDataPacket_t, msg.m_listnode));
+				free(pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode));
 			}
 		}
 	}
@@ -1108,7 +1139,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				if (s->keepalive_timeout_sec > 0)
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				if (s->reliable.m_status)
-					reactor_socket_reliable_update(loop, s, timestamp_msec);
+					reliable_dgram_update(loop, s, timestamp_msec);
 				continue;
 			}
 		}
@@ -1201,45 +1232,24 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
-			s->m_sendaction = SEND_SHUTDOWN_ACTION;
-			if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
-				if (!s->m_sendpacketlist.head) {
-					send_fin_packet(loop, s, timestamp_msec);
-				}
-				s->sendprobe_timeout_sec = 0;
-				s->m_sendprobe_msec = 0;
-			}
-			else if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
-				if (SOCK_STREAM == s->socktype) {
+			if (SOCK_STREAM == s->socktype) {
+				if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 					niosocketFree(s);
 				}
-				else {
-					s->m_lastactive_msec = timestamp_msec;
-					s->m_valid = 0;
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
-				}
+			}
+			else {
+				reliable_dgram_shutdown_handler(s, timestamp_msec);
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
-			ReliableDataPacket_t* packet = pod_container_of(message, ReliableDataPacket_t, msg);
+			ReliableDgramDataPacket_t* packet = pod_container_of(message, ReliableDgramDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->m_valid || SEND_SHUTDOWN_ACTION == s->m_sendaction) {
 				free(packet);
 				continue;
 			}
-			*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq);
-			packet->seq = s->reliable.m_sendseq++;
-			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-			if (SEND_OK_ACTION != s->m_sendaction)
-				continue;
-			if (packet->seq >= s->reliable.m_cwndseq &&
-				packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
-			{
-				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
-				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
-			}
+			reliable_dgram_send_packet(s, packet, timestamp_msec);
 		}
 		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
 			unsigned char reconnect_pkg;
