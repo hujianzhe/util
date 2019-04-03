@@ -45,7 +45,7 @@ enum {
 	LAST_ACK_STATUS,
 	CLOSED_STATUS
 };
-#define	RELIABLE_HDR_LEN	5
+#define	RELIABLE_DGRAM_HDR_LEN	5
 #define	HDR_DATA_END_FLAG	0x80
 #define	MSL					30000
 
@@ -195,8 +195,8 @@ static void data_packet_reconnect(NioSocket_t* s, long long timestamp_msec) {
 
 static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	unsigned char hdr_data_end_flag = data[0] & HDR_DATA_END_FLAG;
-	len -= RELIABLE_HDR_LEN;
-	data += RELIABLE_HDR_LEN;
+	len -= RELIABLE_DGRAM_HDR_LEN;
+	data += RELIABLE_DGRAM_HDR_LEN;
 	if (!s->m_inbuf && hdr_data_end_flag) {
 		int decode_len, decode_pkgcnt;
 		data_packet_handler(s, data, len, &decode_len, &decode_pkgcnt, saddr);
@@ -468,7 +468,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 	else if (HDR_ACK == hdr_type) {
 		ListNode_t* cur;
 		unsigned int seq, cwnd_skip, ack_valid;
-		if (len < RELIABLE_HDR_LEN)
+		if (len < RELIABLE_DGRAM_HDR_LEN)
 			return 1;
 		if (ESTABLISHED_STATUS > s->reliable.m_status)
 			return 1;
@@ -524,8 +524,8 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		ListNode_t* cur, *next;
 		ReliableDgramDataPacket_t* packet;
 		unsigned int seq;
-		unsigned char ack[RELIABLE_HDR_LEN];
-		if (len < RELIABLE_HDR_LEN)
+		unsigned char ack[RELIABLE_DGRAM_HDR_LEN];
+		if (len < RELIABLE_DGRAM_HDR_LEN)
 			return 1;
 		if (ESTABLISHED_STATUS > s->reliable.m_status)
 			return 1;
@@ -897,27 +897,27 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			listInit(&packetlist);
 			for (i = i_off = offset = 0; offset < nbytes; offset += packetlen) {
 				packetlen = nbytes - offset > s->reliable.mtu ? s->reliable.mtu : nbytes - offset;
-				packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_HDR_LEN + packetlen);
+				packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_DGRAM_HDR_LEN + packetlen);
 				if (!packet)
 					break;
 				packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
 				packet->s = s;
 				packet->resendtimes = 0;
 				packet->data[0] = HDR_DATA;
-				packet->len = RELIABLE_HDR_LEN + packetlen;
+				packet->len = RELIABLE_DGRAM_HDR_LEN + packetlen;
 
 				copy_off = 0;
 				while (i < iovcnt) {
 					unsigned int copy_len;
 					if (iobufLen(iov + i) - i_off > packetlen - copy_off) {
 						copy_len = packetlen - copy_off;
-						memcpy(packet->data + RELIABLE_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+						memcpy(packet->data + RELIABLE_DGRAM_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
 						i_off += copy_len;
 						break;
 					}
 					else {
 						copy_len = iobufLen(iov + i) - i_off;
-						memcpy(packet->data + RELIABLE_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+						memcpy(packet->data + RELIABLE_DGRAM_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
 						copy_off += copy_len;
 						i_off = 0;
 						++i;
@@ -939,14 +939,14 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			}
 		}
 		else {
-			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_HDR_LEN);
+			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_DGRAM_HDR_LEN);
 			if (!packet)
 				return NULL;
 			packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
 			packet->s = s;
 			packet->resendtimes = 0;
 			packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
-			packet->len = RELIABLE_HDR_LEN;
+			packet->len = RELIABLE_DGRAM_HDR_LEN;
 			nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 		}
 	}
@@ -1051,7 +1051,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	listInit(&s->m_sendpacketlist);
 
 	s->reliable.peer_saddr.ss_family = AF_UNSPEC;
-	s->reliable.mtu = 1464 - RELIABLE_HDR_LEN;
+	s->reliable.mtu = 1464 - RELIABLE_DGRAM_HDR_LEN;
 	s->reliable.rto = 200;
 	s->reliable.resend_maxtimes = 5;
 	s->reliable.cwndsize = 10;
