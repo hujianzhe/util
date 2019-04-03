@@ -177,7 +177,7 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int
 	return 0;
 }
 
-static void data_packet_reconnect(NioSocket_t* s, long long timestamp_msec) {
+static void data_packet_reconnect_push(NioSocket_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 		ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
@@ -426,7 +426,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
 			s->reliable.peer_saddr = *saddr;
-			data_packet_reconnect(s, timestamp_msec);
+			data_packet_reconnect_push(s, timestamp_msec);
 		}
 		reconnect_ack = HDR_RECONNECT_ACK;
 		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
@@ -438,7 +438,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		s->m_sendaction = SEND_OK_ACTION;
 		_xchg16(&s->m_reconnect, 0);
-		data_packet_reconnect(s, timestamp_msec);
+		data_packet_reconnect_push(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -1352,7 +1352,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						s->m_close_timeout_msec = MSL + MSL;
 					}
 					else {
-						s->m_sendprobe_msec = timestamp_msec;
 						immedinate_call_reg = 1;
 					}
 					if (!reactorsocket_read(s))
