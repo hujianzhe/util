@@ -235,7 +235,7 @@ static void reliable_dgram_send_fin_packet(NioSocket_t* s, long long timestamp_m
 	}
 }
 
-static void reliable_dgram_shutdown_handler(NioSocket_t* s, long long timestamp_msec) {
+static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 	if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 		s->m_lastactive_msec = timestamp_msec;
 		s->m_valid = 0;
@@ -1254,7 +1254,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			}
 			else {
-				reliable_dgram_shutdown_handler(s, timestamp_msec);
+				reliable_dgram_shutdown(s, timestamp_msec);
 			}
 		}
 		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
