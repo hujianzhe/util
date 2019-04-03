@@ -268,6 +268,21 @@ static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t
 	}
 }
 
+static void reliable_dgram_reconnect(NioSocket_t* s, long long timestamp_msec) {
+	unsigned char reconnect_pkg;
+	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
+		return;
+	reconnect_pkg = HDR_RECONNECT;
+	socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
+
+	s->m_sendaction = SEND_RECONNECT_ACTION;
+	s->m_lastactive_msec = timestamp_msec;
+	s->m_sendprobe_msec = 0;
+	s->reliable.m_reconnect_times = 0;
+	s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
+	update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_reconnect_msec);
+}
+
 static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
 	unsigned char hdr_type;
 	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
@@ -1252,19 +1267,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			reliable_dgram_send_packet(s, packet, timestamp_msec);
 		}
 		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
-			unsigned char reconnect_pkg;
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
-			if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
-				continue;
-			reconnect_pkg = HDR_RECONNECT;
-			socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
-
-			s->m_sendaction = SEND_RECONNECT_ACTION;
-			s->m_lastactive_msec = timestamp_msec;
-			s->m_sendprobe_msec = 0;
-			s->reliable.m_reconnect_times = 0;
-			s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
-			update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
+			reliable_dgram_reconnect(s, timestamp_msec);
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
