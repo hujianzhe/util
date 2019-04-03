@@ -426,7 +426,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 	}
 	else if (HDR_RECONNECT == hdr_type) {
 		unsigned char reconnect_ack;
-		if (NIOSOCKET_TRANSPORT_SERVER != s->transport_side || SEND_SHUTDOWN_ACTION == s->m_sendaction)
+		if (NIOSOCKET_TRANSPORT_SERVER != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
 			return 1;
 		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
 			s->reliable.peer_saddr = *saddr;
