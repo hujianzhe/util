@@ -455,7 +455,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
-				if (0 == _cmpxchg16(&s->m_shutdown, 2, 0) && !s->m_sendpacketlist.head) {
+				if (0 == _xchg16(&s->m_shutdown, 1) && !s->m_sendpacketlist.head) {
 					reliable_dgram_send_fin_packet(s, timestamp_msec);
 				}
 			}
@@ -993,7 +993,7 @@ void niosocketReconnect(NioSocket_t* s) {
 }
 
 void niosocketShutdown(NioSocket_t* s) {
-	if (_cmpxchg16(&s->m_shutdown, 1, 0))
+	if (_xchg16(&s->m_shutdown, 1))
 		return;
 	else if (s->reliable.m_status || NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
 		nioloop_exec_msg(s->m_loop, &s->m_shutdownmsg.m_listnode);
