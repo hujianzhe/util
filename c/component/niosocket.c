@@ -719,7 +719,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				}
 				if (packet->resendtimes >= s->reliable.resend_maxtimes) {
 					s->m_lastactive_msec = timestamp_msec;
-					if (CLOSE_WAIT_STATUS == s->reliable.m_status) {
+					if (SEND_SHUTDOWN_ACTION == s->m_sendaction) {
 						s->m_valid = 0;
 					}
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
