@@ -1208,9 +1208,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				default:
 					s->m_valid = 0;
 			}
-			if (s->m_valid || s->m_close_timeout_msec > 0)
+			if (s->m_valid)
 				continue;
-
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			if (s->m_close_timeout_msec > 0)
+				continue;
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 			if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
 				niosocketFree(s);
