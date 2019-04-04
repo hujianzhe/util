@@ -721,8 +721,8 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 					s->m_lastactive_msec = timestamp_msec;
 					if (SEND_SHUTDOWN_ACTION == s->m_sendaction) {
 						s->m_valid = 0;
+						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 					}
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 					break;
 				}
 				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
