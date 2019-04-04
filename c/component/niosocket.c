@@ -143,6 +143,21 @@ static int reactorsocket_read(NioSocket_t* s) {
 	return 0;
 }
 
+static int reactorsocket_write(NioSocket_t* s) {
+	struct sockaddr_storage saddr;
+	if (!s->m_writeOl) {
+		s->m_writeOl = reactorMallocOverlapped(REACTOR_WRITE, NULL, 0, 0);
+		if (!s->m_writeOl) {
+			s->m_valid = 0;
+			return 0;
+		}
+	}
+	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeOl, &saddr))
+		return 1;
+	s->m_valid = 0;
+	return 0;
+}
+
 static void free_inbuf(NioSocket_t* s) {
 	free(s->m_inbuf);
 	s->m_inbuf = NULL;
@@ -440,8 +455,11 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
+		if (_cmpxchg16(&s->m_shutdown, 0, 0))
+			return 1;
+		s->m_regerrno = 0;
+		dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
 		s->m_sendaction = SEND_OK_ACTION;
-		_xchg16(&s->m_reconnect, 0);
 		data_packet_reconnect_push(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
@@ -836,21 +854,6 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 	}
 }
 
-static int reactorsocket_write(NioSocket_t* s) {
-	struct sockaddr_storage saddr;
-	if (!s->m_writeOl) {
-		s->m_writeOl = reactorMallocOverlapped(REACTOR_WRITE, NULL, 0, 0);
-		if (!s->m_writeOl) {
-			s->m_valid = 0;
-			return 0;
-		}
-	}
-	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeOl, &saddr))
-		return 1;
-	s->m_valid = 0;
-	return 0;
-}
-
 static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM != s->socktype)
 		return;
@@ -868,7 +871,10 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_sendprobe_msec = timestamp_msec;
 		}
-		dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
+		if (SEND_OK_ACTION == s->m_sendaction)
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
+		else if (SEND_RECONNECT_ACTION == s->m_sendaction)
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
 	}
 	else if (s->m_valid) {
 		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_sendmsg.m_listnode);
@@ -984,7 +990,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 void niosocketReconnect(NioSocket_t* s) {
 	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side)
 		return;
-	else if (_xchg16(&s->m_reconnect, 1))
+	else if (_xchg16(&s->m_shutdown, 1))
 		return;
 	else if (s->reliable.m_status)
 		nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
@@ -1033,11 +1039,11 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reconnect_callback = NULL;
 	s->decode_packet = NULL;
 	s->send_probe = NULL;
+	s->shutdown_callback = NULL;
 	s->close = NULL;
 	s->m_valid = 1;
 	s->m_sendaction = SEND_OK_ACTION;
 	s->m_shutdown = 0;
-	s->m_reconnect = 0;
 	s->m_regcallonce = 0;
 	s->m_regerrno = 0;
 	s->m_close_timeout_msec = 0;
@@ -1086,7 +1092,10 @@ void niosocketFree(NioSocket_t* s) {
 	if (!s)
 		return;
 
-	socketClose(s->fd);
+	if (INVALID_FD_HANDLE != s->fd) {
+		socketClose(s->fd);
+		s->fd = INVALID_FD_HANDLE;
+	}
 	reactorFreeOverlapped(s->m_readOl);
 	reactorFreeOverlapped(s->m_writeOl);
 
@@ -1260,7 +1269,42 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
-			reliable_dgram_reconnect(s, timestamp_msec);
+			if (SOCK_STREAM == s->socktype) {
+				int ok;
+				if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
+					continue;
+				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
+				socketClose(s->fd);
+				do {
+					ok = 0;
+					s->fd = socket(s->domain, s->socktype, s->protocol);
+					if (INVALID_FD_HANDLE == s->fd)
+						break;
+					if (!s->m_writeOl) {
+						s->m_writeOl = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
+						if (!s->m_writeOl)
+							break;
+					}
+					if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeOl, &s->peer_listen_saddr))
+						break;
+					s->m_valid = 1;
+					s->m_regcallonce = 0;
+					s->m_sendaction = SEND_RECONNECT_ACTION;
+					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
+					ok = 1;
+				} while (0);
+				if (!ok) {
+					s->m_valid = 0;
+					s->m_sendaction = SEND_SHUTDOWN_ACTION;
+					socketClose(s->fd);
+					s->fd = INVALID_FD_HANDLE;
+					s->m_regerrno = errnoGet();
+					dataqueuePush(loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+				}
+			}
+			else {
+				reliable_dgram_reconnect(s, timestamp_msec);
+			}
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
@@ -1350,10 +1394,10 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						break;
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
-				reg_ok = 1;
 				if (s->keepalive_timeout_sec > 0) {
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				}
+				reg_ok = 1;
 			} while (0);
 			if (reg_ok) {
 				if (s->reg_callback && immedinate_call_reg) {
@@ -1593,13 +1637,17 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
-			if (s->close) {
-				s->close(s);
-				s->close = NULL;
+			if (s->shutdown_callback) {
+				s->shutdown_callback(s);
+				s->shutdown_callback = NULL;
 			}
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
+			if (s->shutdown_callback) {
+				s->shutdown_callback(s);
+				s->shutdown_callback = NULL;
+			}
 			if (s->close) {
 				s->close(s);
 				s->close = NULL;

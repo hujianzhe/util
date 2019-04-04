@@ -64,6 +64,7 @@ typedef struct NioSocket_t {
 	void(*send_probe)(struct NioSocket_t*);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*reconnect_callback)(struct NioSocket_t*, int);
+	void(*shutdown_callback)(struct NioSocket_t*);
 	void(*close)(struct NioSocket_t*);
 /* private */
 	volatile char m_valid;
