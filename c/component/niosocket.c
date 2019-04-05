@@ -992,10 +992,7 @@ void niosocketReconnect(NioSocket_t* s) {
 		return;
 	else if (_xchg16(&s->m_shutdown, 1))
 		return;
-	else if (s->reliable.m_status)
-		nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
-	else if (SOCK_STREAM == s->socktype)
-		dataqueuePush(&s->m_loop->m_sender->m_dq, &s->m_reconnectmsg.m_listnode);
+	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
 }
 
 void niosocketShutdown(NioSocket_t* s) {
@@ -1296,6 +1293,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_valid = 1;
 					s->m_regcallonce = 0;
 					s->m_sendaction = SEND_RECONNECT_ACTION;
+					free_inbuf(s);
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
 				} while (0);
