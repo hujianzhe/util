@@ -1087,11 +1087,8 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	return s;
 }
 
-void niosocketFree(NioSocket_t* s) {
+static void niosocket_free(NioSocket_t* s) {
 	ListNode_t *cur, *next;
-	if (!s)
-		return;
-
 	if (INVALID_FD_HANDLE != s->fd) {
 		socketClose(s->fd);
 		s->fd = INVALID_FD_HANDLE;
@@ -1121,6 +1118,15 @@ void niosocketFree(NioSocket_t* s) {
 
 	if (s->m_free)
 		s->m_free(s);
+}
+
+void niosocketFree(NioSocket_t* s) {
+	if (s->m_loop) {
+		nioloop_exec_msg(s->m_loop, &s->m_closemsg.m_listnode);
+	}
+	else {
+		niosocket_free(s);
+	}
 }
 
 static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
@@ -1224,7 +1230,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				continue;
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 			if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
-				niosocketFree(s);
+				niosocket_free(s);
 			else
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 		}
@@ -1244,14 +1250,14 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		message = pod_container_of(cur, NioMsg_t, m_listnode);
 		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
-			niosocketFree(s);
+			niosocket_free(s);
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
 			if (SOCK_STREAM == s->socktype) {
 				if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-					niosocketFree(s);
+					niosocket_free(s);
 				}
 			}
 			else {
@@ -1312,7 +1318,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			do {
 				if (!reactorReg(&loop->m_reactor, s->fd))
 					break;
-				s->m_loop = loop;
 				s->m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
 					if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
@@ -1406,8 +1411,13 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			}
 			else {
+				List_t msglist;
+				listInit(&msglist);
+				listInsertNodeBack(&msglist, msglist.tail, &s->m_regmsg.m_listnode);
+				listInsertNodeBack(&msglist, msglist.tail, &s->m_closemsg.m_listnode);
+				s->m_loop = NULL;
 				s->m_regerrno = errnoGet();
-				dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
+				dataqueuePushList(loop->m_msgdq, &msglist);
 			}
 		}
 	}
@@ -1484,6 +1494,7 @@ void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 	List_t list;
 	listInit(&list);
 	for (i = 0; i < n; ++i) {
+		s[i]->m_loop = loop;
 		listInsertNodeBack(&list, list.tail, &s[i]->m_regmsg.m_listnode);
 	}
 	nioloop_exec_msglist(loop, &list);
@@ -1509,7 +1520,7 @@ void nioloopDestroy(NioLoop_t* loop) {
 			HashtableNode_t *cur, *next;
 			for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
 				next = hashtableNextNode(cur);
-				niosocketFree(pod_container_of(cur, NioSocket_t, m_hashnode));
+				niosocket_free(pod_container_of(cur, NioSocket_t, m_hashnode));
 			}
 		} while (0);
 	}
@@ -1652,10 +1663,12 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 				s->close(s);
 				s->close = NULL;
 			}
-			if (s->reliable.m_status)
-				nioloop_exec_msg(s->m_loop, cur);
-			else
-				dataqueuePush(&s->m_loop->m_sender->m_dq, cur);
+			else {
+				if (s->reliable.m_status)
+					nioloop_exec_msg(s->m_loop, cur);
+				else
+					dataqueuePush(&s->m_loop->m_sender->m_dq, cur);
+			}
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
