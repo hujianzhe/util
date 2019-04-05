@@ -14,7 +14,8 @@ enum {
 	NIO_SOCKET_RECONNECT_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE,
-	NIO_SOCKET_RELIABLE_MESSAGE
+	NIO_SOCKET_PACKET_MESSAGE,
+	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
 };
 enum {
 	SEND_OK_ACTION = 0,
@@ -605,7 +606,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				//s->valid = 0;
 				return 0;
 			}
-			packet->msg.type = NIO_SOCKET_USER_MESSAGE;
+			packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
 			packet->s = s;
 			packet->seq = seq;
 			packet->len = len;
@@ -916,7 +917,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 				packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_DGRAM_HDR_LEN + packetlen);
 				if (!packet)
 					break;
-				packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
+				packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
 				packet->s = s;
 				packet->resendtimes = 0;
 				packet->data[0] = HDR_DATA;
@@ -958,7 +959,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + RELIABLE_DGRAM_HDR_LEN);
 			if (!packet)
 				return NULL;
-			packet->msg.type = NIO_SOCKET_RELIABLE_MESSAGE;
+			packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
 			packet->s = s;
 			packet->resendtimes = 0;
 			packet->data[0] = HDR_DATA | HDR_DATA_END_FLAG;
@@ -970,7 +971,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + nbytes);
 		if (!packet)
 			return NULL;
-		packet->msg.type = NIO_SOCKET_USER_MESSAGE;
+		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 		if (saddr && SOCK_STREAM != s->socktype)
 			packet->saddr = *saddr;
 		else
@@ -1261,7 +1262,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				reliable_dgram_shutdown(s, timestamp_msec);
 			}
 		}
-		else if (NIO_SOCKET_RELIABLE_MESSAGE == message->type) {
+		else if (NIO_SOCKET_RELIABLE_PACKET_MESSAGE == message->type) {
 			ReliableDgramDataPacket_t* packet = pod_container_of(message, ReliableDgramDataPacket_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->m_valid || SEND_SHUTDOWN_ACTION == s->m_sendaction) {
@@ -1293,6 +1294,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_valid = 1;
 					s->m_regcallonce = 0;
 					s->m_sendaction = SEND_RECONNECT_ACTION;
+					s->m_lastactive_msec = timestamp_msec;
+					s->m_sendprobe_msec = 0;
 					free_inbuf(s);
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
@@ -1510,8 +1513,11 @@ void nioloopDestroy(NioLoop_t* loop) {
 			for (cur = loop->m_msglist.head; cur; cur = next) {
 				NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 				next = cur->next;
-				if (NIO_SOCKET_RELIABLE_MESSAGE == msgbase->type)
+				if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type ||
+					NIO_SOCKET_RELIABLE_PACKET_MESSAGE == msgbase->type)
+				{
 					free(cur);
+				}
 			}
 		} while (0);
 		do {
@@ -1585,7 +1591,7 @@ void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_ms
 			NioSocket_t* s = pod_container_of(msgbase, NioSocket_t, m_closemsg);
 			nioloop_exec_msg(s->m_loop, cur);
 		}
-		else if (NIO_SOCKET_USER_MESSAGE == msgbase->type) {
+		else if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type) {
 			Packet_t* packet = pod_container_of(msgbase, Packet_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->m_valid || SEND_SHUTDOWN_ACTION == s->m_sendaction)
@@ -1629,7 +1635,7 @@ void niosenderDestroy(NioSender_t* sender) {
 		for (cur = dataqueuePop(&sender->m_dq, 0, ~0); cur; cur = next) {
 			NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
 			next = cur->next;
-			if (NIO_SOCKET_USER_MESSAGE == msgbase->type)
+			if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type)
 				free(pod_container_of(msgbase, Packet_t, msg));
 		}
 		dataqueueDestroy(&sender->m_dq, NULL);
