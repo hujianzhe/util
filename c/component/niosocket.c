@@ -675,6 +675,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 			if (!s->m_regcallonce) {
 				s->m_regcallonce = 1;
 				s->m_regerrno = ETIMEDOUT;
+				s->shutdown_callback = NULL;
 				dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
 			}
 			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
@@ -863,10 +864,12 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		s->m_regerrno = reactorConnectCheckSuccess(s->fd) ? 0 : errnoGet();
 		if (s->m_regerrno) {
 			s->m_valid = 0;
+			s->shutdown_callback = NULL;
 		}
 		else if (!reactorsocket_read(s)) {
 			s->m_regerrno = errnoGet();
 			s->m_valid = 0;
+			s->shutdown_callback = NULL;
 		}
 		else {
 			s->m_lastactive_msec = timestamp_msec;
@@ -1416,6 +1419,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				listInit(&msglist);
 				listInsertNodeBack(&msglist, msglist.tail, &s->m_regmsg.m_listnode);
 				listInsertNodeBack(&msglist, msglist.tail, &s->m_closemsg.m_listnode);
+				s->shutdown_callback = NULL;
 				s->m_loop = NULL;
 				s->m_regerrno = errnoGet();
 				dataqueuePushList(loop->m_msgdq, &msglist);
