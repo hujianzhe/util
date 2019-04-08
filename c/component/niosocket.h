@@ -71,7 +71,6 @@ typedef struct NioSocket_t {
 	NioMsg_t m_shutdownmsg;
 	NioMsg_t m_reconnectmsg;
 	NioMsg_t m_closemsg;
-	NioMsg_t m_sendmsg;
 	HashtableNode_t m_hashnode;
 	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);

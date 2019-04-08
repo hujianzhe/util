@@ -13,7 +13,6 @@ enum {
 	NIO_SOCKET_SHUTDOWN_MESSAGE,
 	NIO_SOCKET_RECONNECT_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
-	NIO_SOCKET_STREAM_WRITEABLE_MESSAGE,
 	NIO_SOCKET_PACKET_MESSAGE,
 	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
 };
@@ -1101,7 +1100,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_reconnectmsg.type = NIO_SOCKET_RECONNECT_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
-	s->m_sendmsg.type = NIO_SOCKET_STREAM_WRITEABLE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
 	s->m_loop = NULL;
 	s->m_free = pfree;
