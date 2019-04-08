@@ -1167,7 +1167,7 @@ static void niosocket_free(NioSocket_t* s) {
 		s->m_free(s);
 }
 
-void niosocketFree(NioSocket_t* s) {
+void niosocketManualFree(NioSocket_t* s) {
 	if (s->m_loop) {
 		nioloop_exec_msg(s->m_loop, &s->m_closemsg.m_listnode);
 	}
