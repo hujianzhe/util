@@ -63,7 +63,6 @@ typedef struct NioSocket_t {
 	volatile char m_valid;
 	volatile char m_sendaction;
 	Atom16_t m_shutdown;
-	int m_regcallonce;
 	int m_regerrno;
 	int m_close_timeout_msec;
 	NioMsg_t m_regmsg;
