@@ -1040,7 +1040,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 	return s;
 }
 
-void niosocketReconnect(NioSocket_t* s) {
+void niosocketClientReconnect(NioSocket_t* s) {
 	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side)
 		return;
 	else if (_xchg16(&s->m_shutdown, 1))
