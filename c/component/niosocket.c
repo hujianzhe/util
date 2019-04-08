@@ -456,8 +456,6 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
-		if (_cmpxchg16(&s->m_shutdown, 0, 0))
-			return 1;
 		s->m_regerrno = 0;
 		dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
 		s->m_sendaction = SEND_OK_ACTION;
