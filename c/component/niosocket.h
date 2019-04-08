@@ -28,11 +28,6 @@ typedef struct NioLoop_t {
 	long long m_event_msec;
 } NioLoop_t;
 
-typedef struct NioSender_t {
-	unsigned char initok;
-	DataQueue_t m_dq;
-} NioSender_t;
-
 typedef struct NioMsg_t {
 	ListNode_t m_listnode;
 	int type;
@@ -126,14 +121,11 @@ __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsi
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketClientReconnect(NioSocket_t* s);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
-__declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sender);
+__declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);
 __declspec_dll int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void nioloopDestroy(NioLoop_t* loop);
-__declspec_dll NioSender_t* niosenderCreate(NioSender_t* sender);
-__declspec_dll void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec);
-__declspec_dll void niosenderDestroy(NioSender_t* sender);
 __declspec_dll void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg);
 __declspec_dll void niomsgClean(DataQueue_t* dq, void(*deleter)(NioMsg_t*));
 

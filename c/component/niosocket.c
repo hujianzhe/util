@@ -1499,7 +1499,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 	return n;
 }
 
-NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sender) {
+NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 	struct sockaddr_storage saddr;
 	loop->initok = 0;
 
@@ -1541,7 +1541,6 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq, NioSender_t* sende
 	}
 
 	loop->m_msgdq = msgdq;
-	loop->m_sender = sender;
 	listInit(&loop->m_msglist);
 	hashtableInit(&loop->m_sockht,
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
@@ -1597,35 +1596,6 @@ void nioloopDestroy(NioLoop_t* loop) {
 				niosocket_free(pod_container_of(cur, NioSocket_t, m_hashnode));
 			}
 		} while (0);
-	}
-}
-
-NioSender_t* niosenderCreate(NioSender_t* sender) {
-	sender->initok = 0;
-	if (!dataqueueInit(&sender->m_dq))
-		return NULL;
-	sender->initok = 1;
-	return sender;
-}
-
-void niosenderHandler(NioSender_t* sender, long long timestamp_msec, int wait_msec) {
-	ListNode_t *cur, *next;
-	for (cur = dataqueuePop(&sender->m_dq, wait_msec, ~0); cur; cur = next) {
-		NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
-		next = cur->next;
-		// TODO session manager and tcp reconnect helper
-	}
-}
-
-void niosenderDestroy(NioSender_t* sender) {
-	if (sender && sender->initok) {
-		ListNode_t *cur, *next;
-		for (cur = dataqueuePop(&sender->m_dq, 0, ~0); cur; cur = next) {
-			NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
-			next = cur->next;
-			// TODO free session item
-		}
-		dataqueueDestroy(&sender->m_dq, NULL);
 	}
 }
 
