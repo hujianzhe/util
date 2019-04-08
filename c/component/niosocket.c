@@ -295,6 +295,7 @@ static void reliable_dgram_reconnect(NioSocket_t* s, long long timestamp_msec) {
 	reconnect_pkg = HDR_RECONNECT;
 	socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
 
+	s->m_valid = 1;
 	s->m_sendaction = SEND_RECONNECT_ACTION;
 	s->m_lastactive_msec = timestamp_msec;
 	s->m_sendprobe_msec = 0;
@@ -772,6 +773,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			int res = socketTcpReadableBytes(s->fd);
 			if (res <= 0) {
 				s->m_valid = 0;
+				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				return;
 			}
 			do {
@@ -786,6 +788,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				if (res <= 0) {
 					free_inbuf(s);
 					s->m_valid = 0;
+					s->m_sendaction = SEND_SHUTDOWN_ACTION;
 					break;
 				}
 				else {
