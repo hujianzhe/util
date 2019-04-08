@@ -12,7 +12,6 @@
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
-struct NioSender_t;
 typedef struct NioLoop_t {
 	unsigned char initok;
 	Atom16_t m_wake;
@@ -20,7 +19,6 @@ typedef struct NioLoop_t {
 	FD_t m_socketpair[2];
 	void* m_readOl;
 	DataQueue_t* m_msgdq;
-	struct NioSender_t* m_sender;
 	CriticalSection_t m_msglistlock;
 	List_t m_msglist;
 	Hashtable_t m_sockht;
