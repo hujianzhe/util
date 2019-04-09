@@ -1317,7 +1317,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 					niosocket_free(s);
 				}
-				else {
+				else if (SEND_OK_ACTION == s->m_sendaction) {
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
 					s->m_sendprobe_msec = 0;
 					socketShutdown(s->fd, SHUT_WR);
