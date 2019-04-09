@@ -773,6 +773,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 		else {
 			int res = socketTcpReadableBytes(s->fd);
 			if (res <= 0) {
+				free_inbuf(s);
 				s->m_valid = 0;
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				return;
