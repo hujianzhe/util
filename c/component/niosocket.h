@@ -21,6 +21,7 @@ typedef struct NioLoop_t {
 	DataQueue_t* m_msgdq;
 	CriticalSection_t m_msglistlock;
 	List_t m_msglist;
+	List_t m_sockcloselist;
 	Hashtable_t m_sockht;
 	HashtableNode_t* m_sockht_bulks[2048];
 	long long m_event_msec;

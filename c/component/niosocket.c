@@ -1194,10 +1194,25 @@ static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
-static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
+static void sockcloselist_update(NioLoop_t* loop, long long timestamp_msec) {
+	ListNode_t* cur, *next;
 	List_t expirelist;
-	HashtableNode_t *cur, *next;
 	listInit(&expirelist);
+	for (cur = loop->m_sockcloselist.head; cur; cur = next) {
+		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_closemsg.m_listnode);
+		next = cur->next;
+		if (s->m_lastactive_msec + s->m_close_timeout_msec > timestamp_msec) {
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+			continue;
+		}
+		listRemoveNode(&loop->m_sockcloselist, cur);
+		listInsertNodeBack(&expirelist, expirelist.tail, cur);
+	}
+	dataqueuePushList(loop->m_msgdq, &expirelist);
+}
+
+static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
+	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&loop->m_sockht); cur; cur = next) {
 		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_hashnode);
 		next = hashtableNextNode(cur);
@@ -1222,14 +1237,9 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				continue;
 			}
 		}
-		if (s->m_lastactive_msec + s->m_close_timeout_msec > timestamp_msec) {
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
-			continue;
-		}
 		hashtableRemoveNode(&loop->m_sockht, cur);
-		listInsertNodeBack(&expirelist, expirelist.tail, &s->m_closemsg.m_listnode);
+		listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 	}
-	dataqueuePushList(loop->m_msgdq, &expirelist);
 }
 
 int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
@@ -1285,11 +1295,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (s->m_valid)
 				continue;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
-			if (s->m_close_timeout_msec > 0)
-				continue;
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-			if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side)
-				niosocket_free(s);
+			if (s->m_close_timeout_msec > 0)
+				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 			else
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 		}
@@ -1316,7 +1324,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (SOCK_STREAM == s->socktype) {
 				if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-					niosocket_free(s);
+					dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 				}
 				else if (SEND_OK_ACTION == s->m_sendaction) {
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
@@ -1512,6 +1520,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 	if (loop->m_event_msec && timestamp_msec >= loop->m_event_msec) {
 		loop->m_event_msec = 0;
 		sockht_update(loop, timestamp_msec);
+		sockcloselist_update(loop, timestamp_msec);
 	}
 	return n;
 }
@@ -1559,6 +1568,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 
 	loop->m_msgdq = msgdq;
 	listInit(&loop->m_msglist);
+	listInit(&loop->m_sockcloselist);
 	hashtableInit(&loop->m_sockht,
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 		sockht_keycmp, sockht_keyhash);
@@ -1654,6 +1664,10 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 		}
 		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
+			if (s->reconnect_callback) {
+				s->reconnect_callback(s, s->m_regerrno);
+				s->reg_callback = NULL;
+			}
 		}
 	}
 }
