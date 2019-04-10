@@ -159,6 +159,21 @@ static int reactorsocket_write(NioSocket_t* s) {
 	return 0;
 }
 
+static void free_io_resource(NioSocket_t* s) {
+	if (INVALID_FD_HANDLE != s->fd) {
+		socketClose(s->fd);
+		s->fd = INVALID_FD_HANDLE;
+	}
+	if (s->m_readOl) {
+		reactorFreeOverlapped(s->m_readOl);
+		s->m_readOl = NULL;
+	}
+	if (s->m_writeOl) {
+		reactorFreeOverlapped(s->m_writeOl);
+		s->m_writeOl = NULL;
+	}
+}
+
 static void free_inbuf(NioSocket_t* s) {
 	free(s->m_inbuf);
 	s->m_inbuf = NULL;
@@ -773,24 +788,19 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 		else {
 			int res = socketTcpReadableBytes(s->fd);
 			if (res <= 0) {
-				free_inbuf(s);
 				s->m_valid = 0;
-				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				return;
 			}
 			do {
 				unsigned char *ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
 				if (!ptr) {
-					free_inbuf(s);
 					s->m_valid = 0;
 					break;
 				}
 				s->m_inbuf = ptr;
 				res = socketRead(s->fd, s->m_inbuf + s->m_inbuflen, res, 0, &saddr);
 				if (res <= 0) {
-					free_inbuf(s);
 					s->m_valid = 0;
-					s->m_sendaction = SEND_SHUTDOWN_ACTION;
 					break;
 				}
 				else {
@@ -1148,16 +1158,9 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 
 static void niosocket_free(NioSocket_t* s) {
 	ListNode_t *cur, *next;
-	if (INVALID_FD_HANDLE != s->fd) {
-		socketClose(s->fd);
-		s->fd = INVALID_FD_HANDLE;
-	}
-	reactorFreeOverlapped(s->m_readOl);
-	reactorFreeOverlapped(s->m_writeOl);
-
+	free_io_resource(s);
 	free_inbuf(s);
-
-	if (s->reliable.enable) {
+	if (SOCK_DGRAM == s->socktype && s->reliable.enable) {
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 			next = cur->next;
 			if (LISTENED_STATUS == s->reliable.m_status) {
@@ -1205,6 +1208,8 @@ static void sockcloselist_update(NioLoop_t* loop, long long timestamp_msec) {
 			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 			continue;
 		}
+		free_io_resource(s);
+		free_inbuf(s);
 		listRemoveNode(&loop->m_sockcloselist, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, cur);
 	}
@@ -1219,6 +1224,9 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 		if (s->m_valid) {
 			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
 				s->m_valid = 0;
+				free_inbuf(s);
+				if (SOCK_STREAM == s->socktype || s->keepalive_timeout_sec * 1000 >= s->m_close_timeout_msec)
+					free_io_resource(s);
 			}
 			else {
 				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side &&
@@ -1294,8 +1302,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			if (s->m_valid)
 				continue;
-			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			free_inbuf(s);
+			if (SOCK_STREAM == s->socktype)
+				free_io_resource(s);
 			if (s->m_close_timeout_msec > 0)
 				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 			else
