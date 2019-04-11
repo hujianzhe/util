@@ -1306,8 +1306,10 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			free_inbuf(s);
-			if (SOCK_STREAM == s->socktype)
+			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
+				s->m_close_timeout_msec = s->keepalive_timeout_sec;
+			}
 			if (s->m_close_timeout_msec > 0)
 				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 			else
