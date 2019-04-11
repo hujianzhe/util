@@ -1101,6 +1101,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->protocol = protocol;
 	s->sendprobe_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
+	s->sessionid = NULL;
 	s->userdata = NULL;
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
@@ -1538,7 +1539,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 
 NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 	struct sockaddr_storage saddr;
-	loop->initok = 0;
+	loop->m_initok = 0;
 
 	if (!socketPair(SOCK_STREAM, loop->m_socketpair))
 		return NULL;
@@ -1583,7 +1584,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 	hashtableInit(&loop->m_sockht,
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 		sockht_keycmp, sockht_keyhash);
-	loop->initok = 1;
+	loop->m_initok = 1;
 	loop->m_wake = 0;
 	loop->m_event_msec = 0;
 	return loop;
@@ -1609,7 +1610,7 @@ void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n) {
 }
 
 void nioloopDestroy(NioLoop_t* loop) {
-	if (loop && loop->initok) {
+	if (loop && loop->m_initok) {
 		reactorFreeOverlapped(loop->m_readOl);
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);

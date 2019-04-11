@@ -13,7 +13,7 @@
 #include "dataqueue.h"
 
 typedef struct NioLoop_t {
-	unsigned char initok;
+	unsigned char m_initok;
 	Atom16_t m_wake;
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
@@ -47,8 +47,9 @@ typedef struct NioSocket_t {
 	int protocol;
 	int sendprobe_timeout_sec;
 	int keepalive_timeout_sec;
+	const char* sessionid;
 	void* userdata;
-	unsigned char transport_side;
+	unsigned int transport_side;
 	union {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
