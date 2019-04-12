@@ -941,10 +941,10 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			s->shutdown_callback = NULL;
 		}
 		else {
-			s->m_sendaction = SEND_OK_ACTION;
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_sendprobe_msec = timestamp_msec;
 			if (SEND_CONNECT_ACTION == sendaction) {
+				s->m_sendaction = SEND_OK_ACTION;
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
 			}
 			else {
