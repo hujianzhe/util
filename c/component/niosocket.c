@@ -51,7 +51,7 @@ enum {
 #define	MSL					30000
 
 typedef struct Packet_t {
-	NioMsg_t msg;
+	NioInternalMsg_t msg;
 	struct sockaddr_storage saddr;
 	NioSocket_t* s;
 	size_t offset;
@@ -69,7 +69,7 @@ typedef struct ReliableDgramHalfConnectPacket_t {
 } ReliableDgramHalfConnectPacket_t;
 
 typedef struct ReliableDgramDataPacket_t {
-	NioMsg_t msg;
+	NioInternalMsg_t msg;
 	long long resend_timestamp_msec;
 	unsigned int resendtimes;
 	NioSocket_t* s;
@@ -195,8 +195,9 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int
 			else if (0 == res)
 				break;
 			if (msgptr) {
-				msgptr->type = NIO_SOCKET_USER_MESSAGE;
-				dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+				msgptr->sock = s;
+				msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &msgptr->internal.m_listnode);
 			}
 			offset += res;
 			*decode_len += res;
@@ -208,8 +209,9 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int
 		msgptr = NULL;
 		s->decode_packet(s, NULL, 0, saddr, &msgptr);
 		if (msgptr) {
-			msgptr->type = NIO_SOCKET_USER_MESSAGE;
-			dataqueuePush(s->m_loop->m_msgdq, &msgptr->m_listnode);
+			msgptr->sock = s;
+			msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+			dataqueuePush(s->m_loop->m_msgdq, &msgptr->internal.m_listnode);
 		}
 	}
 	return 0;
@@ -1326,9 +1328,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 	criticalsectionLeave(&loop->m_msglistlock);
 
 	for (; cur; cur = next) {
-		NioMsg_t* message;
+		NioInternalMsg_t* message;
 		next = cur->next;
-		message = pod_container_of(cur, NioMsg_t, m_listnode);
+		message = pod_container_of(cur, NioInternalMsg_t, m_listnode);
 		if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
 			niosocket_free(s);
@@ -1621,7 +1623,7 @@ void nioloopDestroy(NioLoop_t* loop) {
 		do {
 			ListNode_t* cur, *next;
 			for (cur = loop->m_msglist.head; cur; cur = next) {
-				NioMsg_t* msgbase = pod_container_of(cur, NioMsg_t, m_listnode);
+				NioInternalMsg_t* msgbase = pod_container_of(cur, NioInternalMsg_t, m_listnode);
 				next = cur->next;
 				if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type ||
 					NIO_SOCKET_RELIABLE_PACKET_MESSAGE == msgbase->type)
@@ -1643,10 +1645,10 @@ void nioloopDestroy(NioLoop_t* loop) {
 void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg) {
 	ListNode_t* cur, *next;
 	for (cur = dataqueuePop(dq, max_wait_msec, ~0); cur; cur = next) {
-		NioMsg_t* message = pod_container_of(cur, NioMsg_t, m_listnode);
+		NioInternalMsg_t* message = pod_container_of(cur, NioInternalMsg_t, m_listnode);
 		next = cur->next;
 		if (NIO_SOCKET_USER_MESSAGE == message->type) {
-			user_msg_callback(message, arg);
+			user_msg_callback((NioMsg_t*)message, arg);
 		}
 		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
@@ -1691,10 +1693,10 @@ void niomsgClean(DataQueue_t* dq, void(*deleter)(NioMsg_t*)) {
 	if (deleter) {
 		ListNode_t *next;
 		for (; cur; cur = next) {
-			NioMsg_t* message = pod_container_of(cur, NioMsg_t, m_listnode);
+			NioInternalMsg_t* message = pod_container_of(cur, NioInternalMsg_t, m_listnode);
 			next = cur->next;
 			if (NIO_SOCKET_USER_MESSAGE == message->type)
-				deleter(message);
+				deleter((NioMsg_t*)message);
 		}
 	}
 }

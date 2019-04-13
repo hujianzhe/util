@@ -27,9 +27,14 @@ typedef struct NioLoop_t {
 	long long m_event_msec;
 } NioLoop_t;
 
-typedef struct NioMsg_t {
+typedef struct NioInternalMsg_t {
 	ListNode_t m_listnode;
 	int type;
+} NioInternalMsg_t;
+struct NioSocket_t;
+typedef struct NioMsg_t {
+	NioInternalMsg_t internal;
+	struct NioSocket_t* sock;
 } NioMsg_t;
 
 enum {
@@ -67,10 +72,10 @@ typedef struct NioSocket_t {
 	Atom16_t m_shutdown;
 	int m_regerrno;
 	int m_close_timeout_msec;
-	NioMsg_t m_regmsg;
-	NioMsg_t m_shutdownmsg;
-	NioMsg_t m_reconnectmsg;
-	NioMsg_t m_closemsg;
+	NioInternalMsg_t m_regmsg;
+	NioInternalMsg_t m_shutdownmsg;
+	NioInternalMsg_t m_reconnectmsg;
+	NioInternalMsg_t m_closemsg;
 	HashtableNode_t m_hashnode;
 	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);
