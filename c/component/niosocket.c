@@ -83,7 +83,7 @@ extern "C" {
 #endif
 
 static void update_timestamp(long long* dst, long long timestamp) {
-	if (0 == *dst || *dst > timestamp)
+	if (*dst <= 0 || *dst > timestamp)
 		*dst = timestamp;
 }
 
