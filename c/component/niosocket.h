@@ -17,7 +17,7 @@ typedef struct NioLoop_t {
 	Atom16_t m_wake;
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
-	void* m_readOl;
+	void* m_readol;
 	DataQueue_t* m_msgdq;
 	CriticalSection_t m_msglistlock;
 	List_t m_msglist;
@@ -79,8 +79,8 @@ typedef struct NioSocket_t {
 	HashtableNode_t m_hashnode;
 	NioLoop_t* m_loop;
 	void(*m_free)(struct NioSocket_t*);
-	void* m_readOl;
-	void* m_writeOl;
+	void* m_readol;
+	void* m_writeol;
 	long long m_lastactive_msec;
 	long long m_sendprobe_msec;
 	unsigned char *m_inbuf;
