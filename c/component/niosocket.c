@@ -54,6 +54,7 @@ typedef struct Packet_t {
 	NioInternalMsg_t msg;
 	struct sockaddr_storage saddr;
 	NioSocket_t* s;
+	unsigned int seq;
 	size_t offset;
 	size_t len;
 	unsigned char data[1];
@@ -873,6 +874,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 }
 
 static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
+	packet->seq = s->reliable.m_sendseq;
 	++s->reliable.m_sendseq;
 	if (s->m_sendpacketlist.head || SEND_RECONNECT_ACTION == s->m_sendaction) {
 		packet->offset = 0;
