@@ -1075,7 +1075,22 @@ void niosocketClientReconnect(NioSocket_t* s) {
 		return;
 	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
 }
-
+/*
+void niosocketServerTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
+	List_t sendpacketlist;
+	unsigned int sendseq;
+	// lock old_s
+	sendseq = old_s->reliable.m_sendseq;
+	sendpacketlist = old_s->m_sendpacketlist;
+	listInit(&old_s->m_sendpacketlist);
+	// unlock old_s
+	niosocketShutdown(old_s);
+	// lock new_s
+	new_s->reliable.m_sendseq = sendseq;
+	new_s->m_sendpacketlist = sendpacketlist;
+	// lock new_s
+}
+*/
 void niosocketShutdown(NioSocket_t* s) {
 	if (_xchg16(&s->m_shutdown, 1))
 		return;

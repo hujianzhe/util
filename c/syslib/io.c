@@ -196,11 +196,14 @@ BOOL reactorReg(Reactor_t* reactor, FD_t fd) {
 #endif
 	return TRUE;
 }
-
 /*
 BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CancelIoEx((HANDLE)fd, NULL);
+	if (CancelIoEx((HANDLE)fd, NULL)) {
+		// use GetOverlappedResult wait until all overlapped is completed ???
+		return TRUE;
+	}
+	return GetLastError() == ERROR_NOT_FOUND;
 	// iocp will catch this return and set overlapped.internal a magic number, but header not include that macro
 #elif __linux__
 	struct epoll_event e = { 0 };
