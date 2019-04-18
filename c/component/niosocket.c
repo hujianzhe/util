@@ -874,6 +874,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 }
 
 static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
+	criticalsectionEnter(&s->m_lock);
 	packet->seq = s->reliable.m_sendseq;
 	++s->reliable.m_sendseq;
 	if (s->m_sendpacketlist.head || SEND_RECONNECT_ACTION == s->m_sendaction) {
@@ -884,6 +885,7 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
+				criticalsectionLeave(&s->m_lock);
 				s->m_valid = 0;
 				free(packet);
 				return;
@@ -891,6 +893,7 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 			res = 0;
 		}
 		else if (res >= packet->len) {
+			criticalsectionLeave(&s->m_lock);
 			free(packet);
 			return;
 		}
@@ -898,10 +901,15 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 		reactorsocket_write(s);
 	}
+	criticalsectionLeave(&s->m_lock);
 }
 
 static void stream_send_packet_continue(NioSocket_t* s) {
+	List_t freepacketlist;
 	ListNode_t* cur, *next;
+	listInit(&freepacketlist);
+
+	criticalsectionEnter(&s->m_lock);
 	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 		int res;
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
@@ -917,11 +925,19 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 		packet->offset += res;
 		if (packet->offset >= packet->len) {
 			listRemoveNode(&s->m_sendpacketlist, cur);
-			free(packet);
+			listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
+			//free(packet);
 			continue;
 		}
 		reactorsocket_write(s);
 		break;
+	}
+	criticalsectionLeave(&s->m_lock);
+
+	for (cur = freepacketlist.head; cur; cur = next) {
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		next = cur->next;
+		free(packet);
 	}
 }
 
@@ -1075,22 +1091,32 @@ void niosocketClientReconnect(NioSocket_t* s) {
 		return;
 	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
 }
-/*
-void niosocketServerTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
-	List_t sendpacketlist;
-	unsigned int sendseq;
-	// lock old_s
-	sendseq = old_s->reliable.m_sendseq;
-	sendpacketlist = old_s->m_sendpacketlist;
-	listInit(&old_s->m_sendpacketlist);
-	// unlock old_s
-	niosocketShutdown(old_s);
-	// lock new_s
-	new_s->reliable.m_sendseq = sendseq;
-	new_s->m_sendpacketlist = sendpacketlist;
-	// lock new_s
+
+void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
+	if (new_s->socktype == old_s->socktype && SOCK_STREAM == new_s->socktype) {
+		List_t sendpacketlist;
+		ListNode_t* cur;
+		unsigned int sendseq;
+
+		criticalsectionEnter(&old_s->m_lock);
+		sendseq = old_s->reliable.m_sendseq;
+		sendpacketlist = old_s->m_sendpacketlist;
+		listInit(&old_s->m_sendpacketlist);
+		criticalsectionLeave(&old_s->m_lock);
+
+		niosocketShutdown(old_s);
+		for (cur = sendpacketlist.head; cur; cur = cur->next) {
+			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+			packet->s = new_s;
+		}
+
+		criticalsectionEnter(&new_s->m_lock);
+		new_s->reliable.m_sendseq = sendseq;
+		new_s->m_sendpacketlist = sendpacketlist;
+		criticalsectionLeave(&new_s->m_lock);
+	}
 }
-*/
+
 void niosocketShutdown(NioSocket_t* s) {
 	if (_xchg16(&s->m_shutdown, 1))
 		return;
@@ -1110,9 +1136,22 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 		}
 	}
 	if (!socketNonBlock(fd, TRUE)) {
+		socketClose(fd);
 		if (pfree)
 			pfree(s);
 		return NULL;
+	}
+	if (SOCK_STREAM == s->socktype) {
+		if (!criticalsectionCreate(&s->m_lock)) {
+			socketClose(fd);
+			if (pfree)
+				pfree(s);
+			return NULL;
+		}
+		s->m_lockinit = 1;
+	}
+	else {
+		s->m_lockinit = 0;
 	}
 	s->fd = fd;
 	s->domain = domain;
@@ -1180,7 +1219,11 @@ static void niosocket_free(NioSocket_t* s) {
 	ListNode_t *cur, *next;
 	free_io_resource(s);
 	free_inbuf(s);
-	if (SOCK_DGRAM == s->socktype && s->reliable.enable) {
+	if (SOCK_STREAM == s->socktype && s->m_lockinit) {
+		criticalsectionClose(&s->m_lock);
+		s->m_lockinit = 0;
+	}
+	else if (SOCK_DGRAM == s->socktype && s->reliable.enable) {
 		for (cur = s->m_recvpacketlist.head; cur; cur = next) {
 			next = cur->next;
 			if (LISTENED_STATUS == s->reliable.m_status) {

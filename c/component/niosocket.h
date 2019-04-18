@@ -67,6 +67,8 @@ typedef struct NioSocket_t {
 	void(*shutdown_callback)(struct NioSocket_t*);
 	void(*close)(struct NioSocket_t*);
 /* private */
+	CriticalSection_t m_lock;
+	int m_lockinit;
 	volatile char m_valid;
 	volatile char m_sendaction;
 	Atom16_t m_shutdown;
@@ -122,7 +124,7 @@ __declspec_dll void niosocketManualClose(NioSocket_t* s);
 __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketClientReconnect(NioSocket_t* s);
-//__declspec_dll void niosocketServerTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s);
+__declspec_dll void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);
