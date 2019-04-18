@@ -11,6 +11,7 @@ enum {
 	NIO_SOCKET_USER_MESSAGE,
 	NIO_SOCKET_CLOSE_MESSAGE,
 	NIO_SOCKET_SHUTDOWN_MESSAGE,
+	NIO_SOCKET_SHUTDOWN_POST_MESSAGE,
 	NIO_SOCKET_RECONNECT_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_PACKET_MESSAGE,
@@ -1120,7 +1121,7 @@ void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
 void niosocketShutdown(NioSocket_t* s) {
 	if (_xchg16(&s->m_shutdown, 1))
 		return;
-	nioloop_exec_msg(s->m_loop, &s->m_shutdownmsg.m_listnode);
+	nioloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg.m_listnode);
 }
 
 NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*)) {
@@ -1178,6 +1179,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_close_timeout_msec = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
+	s->m_shutdownpostmsg.type = NIO_SOCKET_SHUTDOWN_POST_MESSAGE;
 	s->m_reconnectmsg.type = NIO_SOCKET_RECONNECT_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
@@ -1397,8 +1399,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
 			niosocket_free(s);
 		}
-		else if (NIO_SOCKET_SHUTDOWN_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownmsg);
+		else if (NIO_SOCKET_SHUTDOWN_POST_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownpostmsg);
 			if (SOCK_STREAM == s->socktype) {
 				if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);

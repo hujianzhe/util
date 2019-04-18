@@ -76,6 +76,7 @@ typedef struct NioSocket_t {
 	int m_close_timeout_msec;
 	NioInternalMsg_t m_regmsg;
 	NioInternalMsg_t m_shutdownmsg;
+	NioInternalMsg_t m_shutdownpostmsg;
 	NioInternalMsg_t m_reconnectmsg;
 	NioInternalMsg_t m_closemsg;
 	HashtableNode_t m_hashnode;
