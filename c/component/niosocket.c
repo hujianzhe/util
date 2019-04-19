@@ -791,48 +791,47 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			s->m_lastactive_msec = timestamp_msec;
 		}
 		else {
+			unsigned char *ptr;
 			int res = socketTcpReadableBytes(s->fd);
 			if (res <= 0) {
 				s->m_valid = 0;
 				return;
 			}
-			do {
-				unsigned char *ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
-				if (!ptr) {
+			ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
+			if (!ptr) {
+				s->m_valid = 0;
+				return;
+			}
+			s->m_inbuf = ptr;
+			res = socketRead(s->fd, s->m_inbuf + s->m_inbuflen, res, 0, &saddr);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK) {
 					s->m_valid = 0;
-					break;
 				}
-				s->m_inbuf = ptr;
-				res = socketRead(s->fd, s->m_inbuf + s->m_inbuflen, res, 0, &saddr);
-				if (res < 0) {
-					if (errnoGet() != EWOULDBLOCK) {
-						s->m_valid = 0;
-					}
-					break;
-				}
-				else if (res == 0) {
-					s->m_valid = 0;
-					break;
+				return;
+			}
+			else if (res == 0) {
+				s->m_valid = 0;
+				return;
+			}
+			else {
+				int decode_len, decode_pkgcnt;
+				s->m_inbuflen += res;
+				s->m_lastactive_msec = timestamp_msec;
+				s->m_sendprobe_msec = timestamp_msec;
+				if (data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset,
+					&decode_len, &decode_pkgcnt, &saddr) < 0)
+				{
+					s->m_inbuflen = s->m_inbufoffset;
 				}
 				else {
-					int decode_len, decode_pkgcnt;
-					s->m_inbuflen += res;
-					s->m_lastactive_msec = timestamp_msec;
-					s->m_sendprobe_msec = timestamp_msec;
-					if (data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset,
-						&decode_len, &decode_pkgcnt, &saddr) < 0)
-					{
-						s->m_inbuflen = s->m_inbufoffset;
+					s->m_inbufoffset += decode_len;
+					if (s->m_inbufoffset >= s->m_inbuflen) {
+						free_inbuf(s);
 					}
-					else {
-						s->m_inbufoffset += decode_len;
-						if (s->m_inbufoffset >= s->m_inbuflen) {
-							free_inbuf(s);
-						}
-					}
-					s->reliable.m_recvseq += decode_pkgcnt;
 				}
-			} while (0);
+				s->reliable.m_recvseq += decode_pkgcnt;
+			}
 		}
 	}
 	else if (SOCK_DGRAM == s->socktype) {
