@@ -1380,7 +1380,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
 				s->m_lastactive_msec = timestamp_msec;
-				if (s->keepalive_timeout_sec) {
+				if (s->keepalive_timeout_sec > 0) {
 					s->m_close_timeout_msec = s->keepalive_timeout_sec * 1000;
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				}
