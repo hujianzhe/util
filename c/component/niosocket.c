@@ -1379,15 +1379,16 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			free_inbuf(s);
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
-				s->m_lastactive_msec = timestamp_msec;
 				if (s->keepalive_timeout_sec > 0) {
 					s->m_close_timeout_msec = s->keepalive_timeout_sec * 1000;
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				}
 				dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
-			if (s->m_close_timeout_msec > 0)
+			if (s->m_close_timeout_msec > 0) {
+				s->m_lastactive_msec = timestamp_msec;
+				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
+			}
 			else
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 		}
