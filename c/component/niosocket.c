@@ -185,10 +185,10 @@ static void free_inbuf(NioSocket_t* s) {
 }
 
 static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* result) {
+	result->is_ack_pkg = 0;
+	result->pkgseq = 0;
 	result->decodelen = 0;
 	result->msgptr = NULL;
-	result->pkgseq = 0;
-	result->is_ack_pkg = 0;
 	return result;
 }
 
