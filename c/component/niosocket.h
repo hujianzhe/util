@@ -46,6 +46,7 @@ enum {
 typedef struct NioSocketDecodeResult_t {
 	int decodelen;
 	unsigned int pkgseq;
+	int is_ack_pkg;
 	NioMsg_t* msgptr;
 } NioSocketDecodeResult_t;
 

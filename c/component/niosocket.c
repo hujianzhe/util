@@ -184,33 +184,38 @@ static void free_inbuf(NioSocket_t* s) {
 	s->m_inbufoffset = 0;
 }
 
+static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* result) {
+	result->decodelen = 0;
+	result->msgptr = NULL;
+	result->pkgseq = 0;
+	result->is_ack_pkg = 0;
+	return result;
+}
+
 static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioSocketDecodeResult_t decode_result;
 	if (len) {
 		int offset = 0;
 		while (offset < len) {
-			decode_result.decodelen = 0;
-			decode_result.msgptr = NULL;
-			decode_result.pkgseq = 0;
-			s->decode_packet(s, data + offset, len - offset, saddr, &decode_result);
+			s->decode_packet(s, data + offset, len - offset, saddr, reset_decode_result(&decode_result));
 			if (decode_result.decodelen < 0)
 				return decode_result.decodelen;
 			else if (0 == decode_result.decodelen)
 				return offset;
+			offset += decode_result.decodelen;
 			if (decode_result.msgptr) {
 				decode_result.msgptr->sock = s;
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
-			offset += decode_result.decodelen;
+			if (SOCK_STREAM == s->socktype && s->reliable.enable && decode_result.is_ack_pkg) {
+				// TODO delete packet cache from sendpacketlist
+			}
 		}
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		decode_result.decodelen = 0;
-		decode_result.msgptr = NULL;
-		decode_result.pkgseq = 0;
-		s->decode_packet(s, NULL, 0, saddr, &decode_result);
+		s->decode_packet(s, NULL, 0, saddr, reset_decode_result(&decode_result));
 		if (decode_result.msgptr) {
 			decode_result.msgptr->sock = s;
 			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
