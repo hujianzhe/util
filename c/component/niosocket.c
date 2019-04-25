@@ -3,6 +3,7 @@
 //
 
 #include "../syslib/error.h"
+#include "../syslib/time.h"
 #include "niosocket.h"
 #include <stdlib.h>
 #include <string.h>
@@ -183,37 +184,37 @@ static void free_inbuf(NioSocket_t* s) {
 	s->m_inbufoffset = 0;
 }
 
-static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, int* decode_len, int* decode_pkgcnt, const struct sockaddr_storage* saddr) {
-	NioMsg_t* msgptr;
-	*decode_len = 0;
-	*decode_pkgcnt = 0;
+static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+	NioSocketDecodeResult_t decode_result;
 	if (len) {
-		int res, offset = 0;
+		int offset = 0;
 		while (offset < len) {
-			msgptr = NULL;
-			res = s->decode_packet(s, data + offset, len - offset, saddr, &msgptr);
-			if (res < 0)
-				return res;
-			else if (0 == res)
-				break;
-			if (msgptr) {
-				msgptr->sock = s;
-				msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
-				dataqueuePush(s->m_loop->m_msgdq, &msgptr->internal.m_listnode);
+			decode_result.decodelen = 0;
+			decode_result.msgptr = NULL;
+			decode_result.pkgseq = 0;
+			s->decode_packet(s, data + offset, len - offset, saddr, &decode_result);
+			if (decode_result.decodelen < 0)
+				return decode_result.decodelen;
+			else if (0 == decode_result.decodelen)
+				return offset;
+			if (decode_result.msgptr) {
+				decode_result.msgptr->sock = s;
+				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
-			offset += res;
-			*decode_len += res;
-			(*decode_pkgcnt)++;
+			offset += decode_result.decodelen;
 		}
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		msgptr = NULL;
-		s->decode_packet(s, NULL, 0, saddr, &msgptr);
-		if (msgptr) {
-			msgptr->sock = s;
-			msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
-			dataqueuePush(s->m_loop->m_msgdq, &msgptr->internal.m_listnode);
+		decode_result.decodelen = 0;
+		decode_result.msgptr = NULL;
+		decode_result.pkgseq = 0;
+		s->decode_packet(s, NULL, 0, saddr, &decode_result);
+		if (decode_result.msgptr) {
+			decode_result.msgptr->sock = s;
+			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+			dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 		}
 	}
 	return 0;
@@ -240,8 +241,7 @@ static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int
 	len -= RELIABLE_DGRAM_HDR_LEN;
 	data += RELIABLE_DGRAM_HDR_LEN;
 	if (!s->m_inbuf && hdr_data_end_flag) {
-		int decode_len, decode_pkgcnt;
-		data_packet_handler(s, data, len, &decode_len, &decode_pkgcnt, saddr);
+		data_packet_handler(s, data, len, saddr);
 	}
 	else {
 		unsigned char* ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + len);
@@ -252,8 +252,7 @@ static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int
 			if (!hdr_data_end_flag)
 				return;
 			else {
-				int decode_len, decode_pkgcnt;
-				data_packet_handler(s, s->m_inbuf, s->m_inbuflen, &decode_len, &decode_pkgcnt, saddr);
+				data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
 			}
 		}
 		free_inbuf(s);
@@ -821,22 +820,20 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				return;
 			}
 			else {
-				int decode_len, decode_pkgcnt;
+				int decodelen;
 				s->m_inbuflen += res;
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_sendprobe_msec = timestamp_msec;
-				if (data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset,
-					&decode_len, &decode_pkgcnt, &saddr) < 0)
-				{
+				decodelen = data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
+				if (decodelen < 0) {
 					s->m_inbuflen = s->m_inbufoffset;
 				}
 				else {
-					s->m_inbufoffset += decode_len;
+					s->m_inbufoffset += decodelen;
 					if (s->m_inbufoffset >= s->m_inbuflen) {
 						free_inbuf(s);
 					}
 				}
-				s->reliable.m_recvseq += decode_pkgcnt;
 			}
 		}
 	}
@@ -878,8 +875,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					break;
 			}
 			else {
-				int decode_len, decode_pkgcnt;
-				data_packet_handler(s, p_data, res, &decode_len, &decode_pkgcnt, &saddr);
+				data_packet_handler(s, p_data, res, &saddr);
 				s->m_lastactive_msec = timestamp_msec;
 			}
 		}

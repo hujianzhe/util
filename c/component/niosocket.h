@@ -8,7 +8,6 @@
 #include "../syslib/atomic.h"
 #include "../syslib/io.h"
 #include "../syslib/socket.h"
-#include "../syslib/time.h"
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
@@ -44,6 +43,12 @@ enum {
 	NIOSOCKET_TRANSPORT_LISTEN
 };
 
+typedef struct NioSocketDecodeResult_t {
+	int decodelen;
+	unsigned int pkgseq;
+	NioMsg_t* msgptr;
+} NioSocketDecodeResult_t;
+
 typedef struct NioSocket_t {
 /* public */
 	FD_t fd;
@@ -60,7 +65,7 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage peer_listen_saddr;
 	};
 	void(*accept_callback)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
-	int(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioMsg_t**);
+	void(*decode_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
 	void(*send_probe)(struct NioSocket_t*);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*reconnect_callback)(struct NioSocket_t*, int);
