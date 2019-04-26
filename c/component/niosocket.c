@@ -208,8 +208,13 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
-			if (SOCK_STREAM == s->socktype && s->reliable.enable && decode_result.is_ack_pkg) {
-				// TODO delete packet cache from sendpacketlist
+			if (SOCK_STREAM == s->socktype && s->reliable.enable) {
+				if (decode_result.is_ack_pkg) {
+					// TODO delete packet cache from sendpacketlist
+				}
+				else {
+					// TODO confirm packet
+				}
 			}
 		}
 		return offset;
