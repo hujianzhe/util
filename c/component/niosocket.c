@@ -184,7 +184,10 @@ static void free_inbuf(NioSocket_t* s) {
 }
 
 static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* result) {
-	result->decodelen = 0;
+	result->err = 0;
+	result->incomplete = 0;
+	result->headlen = 0;
+	result->bodylen = 0;
 	result->msgptr = NULL;
 	return result;
 }
@@ -281,22 +284,27 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 					}
 				}
 			}
-			s->decode_packet(s, data + offset, len - offset, saddr, reset_decode_result(&decode_result));
-			if (decode_result.decodelen < 0)
-				return decode_result.decodelen;
-			else if (0 == decode_result.decodelen)
+			s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
+			if (decode_result.err)
+				return -1;
+			else if (decode_result.incomplete)
 				return offset;
-			offset += decode_result.decodelen;
-			if (decode_result.msgptr) {
-				decode_result.msgptr->sock = s;
-				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
-				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
+			offset += decode_result.headlen;
+			if (packet_is_valid) {
+				decode_result.err = decode_result.incomplete = 0;
+				s->recv_packet(s, data + offset, decode_result.bodylen, saddr, &decode_result);
+				if (decode_result.msgptr) {
+					decode_result.msgptr->sock = s;
+					decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+					dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
+				}
 			}
+			offset += decode_result.bodylen;
 		}
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		s->decode_packet(s, NULL, 0, saddr, reset_decode_result(&decode_result));
+		s->recv_packet(s, NULL, 0, saddr, reset_decode_result(&decode_result));
 		if (decode_result.msgptr) {
 			decode_result.msgptr->sock = s;
 			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
@@ -1278,6 +1286,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reg_callback = NULL;
 	s->reconnect_callback = NULL;
 	s->decode_packet = NULL;
+	s->recv_packet = NULL;
 	s->send_probe = NULL;
 	s->shutdown_callback = NULL;
 	s->close = NULL;
