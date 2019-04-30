@@ -192,45 +192,28 @@ static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* res
 	return result;
 }
 
-static int reliable_stream_recv_inner_handler(NioSocket_t* s, unsigned char hdr_type, unsigned int seq) {
-	if (HDR_DATA == hdr_type) {
-		ListNode_t* cur;
-		Packet_t* packet = NULL;
-		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-			packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-			if (packet->offset < packet->len)
-				break;
-		}
-		if (!packet || s->m_sendpacketlist.tail == &packet->msg.m_listnode) {
-			int res;
-			unsigned char ack[RELIABLE_DGRAM_HDR_LEN];
-			ack[0] = HDR_ACK;
-			*(unsigned int*)(ack + 1) = seq;
-			res = socketWrite(s->fd, ack, sizeof(ack), 0, NULL);
-			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK) {
-					s->m_valid = 0;
-					return 0;
-				}
-				res = 0;
+static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
+	ListNode_t* cur;
+	Packet_t* packet = NULL;
+	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		if (packet->offset < packet->len)
+			break;
+	}
+	if (!packet || s->m_sendpacketlist.tail == &packet->msg.m_listnode) {
+		int res;
+		unsigned char ack[RELIABLE_DGRAM_HDR_LEN];
+		ack[0] = HDR_ACK;
+		*(unsigned int*)(ack + 1) = seq;
+		res = socketWrite(s->fd, ack, sizeof(ack), 0, NULL);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				s->m_valid = 0;
+				return 0;
 			}
-			if (res < sizeof(ack)) {
-				packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
-				if (!packet) {
-					s->m_valid = 0;
-					return 0;
-				}
-				packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
-				packet->saddr.ss_family = AF_UNSPEC;
-				packet->s = s;
-				packet->offset = res;
-				packet->len = RELIABLE_DGRAM_HDR_LEN;
-				memcpy(packet->data, ack, RELIABLE_DGRAM_HDR_LEN);
-				listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-				reactorsocket_write(s);
-			}
+			res = 0;
 		}
-		else {
+		if (res < sizeof(ack)) {
 			packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
 			if (!packet) {
 				s->m_valid = 0;
@@ -239,18 +222,33 @@ static int reliable_stream_recv_inner_handler(NioSocket_t* s, unsigned char hdr_
 			packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 			packet->saddr.ss_family = AF_UNSPEC;
 			packet->s = s;
-			packet->offset = 0;
+			packet->offset = res;
 			packet->len = RELIABLE_DGRAM_HDR_LEN;
-			packet->data[0] = HDR_ACK;
-			*(unsigned int*)(packet->data + 1) = seq;
+			memcpy(packet->data, ack, RELIABLE_DGRAM_HDR_LEN);
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+			reactorsocket_write(s);
 		}
 	}
-	else if (HDR_ACK == hdr_type) {
-		seq = ntohl(seq);
-		// TODO remove packet from sendpacketlist, continue send cache packet
+	else {
+		packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
+		if (!packet) {
+			s->m_valid = 0;
+			return 0;
+		}
+		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
+		packet->saddr.ss_family = AF_UNSPEC;
+		packet->s = s;
+		packet->offset = 0;
+		packet->len = RELIABLE_DGRAM_HDR_LEN;
+		packet->data[0] = HDR_ACK;
+		*(unsigned int*)(packet->data + 1) = seq;
+		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	}
 	return 1;
+}
+
+static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
+	
 }
 
 static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
@@ -264,20 +262,25 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			break;
 		}
 		offset += RELIABLE_DGRAM_HDR_LEN;
+
 		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
 		seq = *(unsigned int*)(data + 1);
-		if (!reliable_stream_recv_inner_handler(s, hdr_type, seq))
-			return -1;
-		else if (offset >= len)
-			return offset;
-		else if (HDR_ACK == hdr_type)
-			continue;
-		else if (HDR_DATA == hdr_type) {
+		if (HDR_DATA == hdr_type) {
+			if (!reliable_stream_reply_ack(s, seq))
+				return -1;
 			seq = ntohl(seq);
 			if (seq < s->reliable.m_recvseq)
 				packet_is_valid = 0;
 			else
 				s->reliable.m_recvseq = seq;
+		}
+		else if (HDR_ACK == hdr_type) {
+			reliable_stream_do_ack(s, seq);
+			continue;
+		}
+		
+		if (offset >= len) {
+			return offset;
 		}
 		s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
 		if (decode_result.err)
@@ -932,14 +935,16 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				return;
 			}
 			else {
+				int(*handler)(NioSocket_t*, unsigned char*, int, const struct sockaddr_storage*);
 				int decodelen;
 				s->m_inbuflen += res;
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_sendprobe_msec = timestamp_msec;
 				if (s->reliable.enable)
-					decodelen = reliable_stream_data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
+					handler = reliable_stream_data_packet_handler;
 				else
-					decodelen = data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
+					handler = data_packet_handler;
+				decodelen = handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
 				if (decodelen < 0) {
 					s->m_inbuflen = s->m_inbufoffset;
 				}
