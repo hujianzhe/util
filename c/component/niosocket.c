@@ -192,7 +192,7 @@ static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* res
 	return result;
 }
 
-static int reliable_stream_recv_handler(NioSocket_t* s, unsigned char hdr_type, unsigned int seq) {
+static int reliable_stream_recv_inner_handler(NioSocket_t* s, unsigned char hdr_type, unsigned int seq) {
 	if (HDR_DATA == hdr_type) {
 		ListNode_t* cur;
 		Packet_t* packet = NULL;
@@ -253,53 +253,71 @@ static int reliable_stream_recv_handler(NioSocket_t* s, unsigned char hdr_type, 
 	return 1;
 }
 
+static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+	NioSocketDecodeResult_t decode_result;
+	int offset = 0, bodylen;
+	while (offset < len) {
+		int packet_is_valid = 1;
+		unsigned char hdr_type;
+		unsigned int seq;
+		if (len - offset < RELIABLE_DGRAM_HDR_LEN) {
+			break;
+		}
+		offset += RELIABLE_DGRAM_HDR_LEN;
+		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
+		seq = *(unsigned int*)(data + 1);
+		if (!reliable_stream_recv_inner_handler(s, hdr_type, seq))
+			return -1;
+		else if (offset >= len)
+			return offset;
+		else if (HDR_ACK == hdr_type)
+			continue;
+		else if (HDR_DATA == hdr_type) {
+			seq = ntohl(seq);
+			if (seq < s->reliable.m_recvseq)
+				packet_is_valid = 0;
+			else
+				s->reliable.m_recvseq = seq;
+		}
+		s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
+		if (decode_result.err)
+			return -1;
+		else if (decode_result.incomplete)
+			return offset;
+		offset += decode_result.headlen;
+		bodylen = decode_result.bodylen;
+		if (packet_is_valid) {
+			s->recv_packet(s, data + offset, bodylen, saddr, &decode_result);
+			if (decode_result.msgptr) {
+				decode_result.msgptr->sock = s;
+				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
+			}
+		}
+		offset += bodylen;
+	}
+	return offset;
+}
+
 static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioSocketDecodeResult_t decode_result;
 	if (len) {
-		int offset = 0;
+		int offset = 0, bodylen;
 		while (offset < len) {
-			int packet_is_valid = 1;
-			if (SOCK_STREAM == s->socktype && s->reliable.enable) {
-				unsigned char hdr_type;
-				unsigned int seq;
-				if (len - offset < RELIABLE_DGRAM_HDR_LEN) {
-					break;
-				}
-				offset += RELIABLE_DGRAM_HDR_LEN;
-				hdr_type = data[0] & (~HDR_DATA_END_FLAG);
-				seq = *(unsigned int*)(data + 1);
-				if (!reliable_stream_recv_handler(s, hdr_type, seq))
-					return -1;
-				else if (offset >= len)
-					return offset;
-				else if (HDR_ACK == hdr_type)
-					continue;
-				else if (HDR_DATA == hdr_type) {
-					seq = ntohl(seq);
-					if (seq < s->reliable.m_recvseq) {
-						packet_is_valid = 0;
-					}
-					else {
-						s->reliable.m_recvseq = seq;
-					}
-				}
-			}
 			s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
 			if (decode_result.err)
 				return -1;
 			else if (decode_result.incomplete)
 				return offset;
 			offset += decode_result.headlen;
-			if (packet_is_valid) {
-				decode_result.err = decode_result.incomplete = 0;
-				s->recv_packet(s, data + offset, decode_result.bodylen, saddr, &decode_result);
-				if (decode_result.msgptr) {
-					decode_result.msgptr->sock = s;
-					decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
-					dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
-				}
+			bodylen = decode_result.bodylen;
+			s->recv_packet(s, data + offset, bodylen, saddr, &decode_result);
+			if (decode_result.msgptr) {
+				decode_result.msgptr->sock = s;
+				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
+				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
-			offset += decode_result.bodylen;
+			offset += bodylen;
 		}
 		return offset;
 	}
@@ -918,7 +936,10 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				s->m_inbuflen += res;
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_sendprobe_msec = timestamp_msec;
-				decodelen = data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
+				if (s->reliable.enable)
+					decodelen = reliable_stream_data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
+				else
+					decodelen = data_packet_handler(s, s->m_inbuf + s->m_inbufoffset, s->m_inbuflen - s->m_inbufoffset, &saddr);
 				if (decodelen < 0) {
 					s->m_inbuflen = s->m_inbufoffset;
 				}
