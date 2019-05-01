@@ -192,9 +192,88 @@ static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* res
 	return result;
 }
 
+static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
+	criticalsectionEnter(&s->m_lock);
+	if (s->reliable.enable) {
+		*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq++);
+	}
+	if (s->m_sendpacketlist.head) {
+		packet->offset = 0;
+		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+	}
+	else if (SEND_OK_ACTION == s->m_sendaction) {
+		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				criticalsectionLeave(&s->m_lock);
+				s->m_valid = 0;
+				free(packet);
+				return;
+			}
+			res = 0;
+		}
+		else if (res >= packet->len && !s->reliable.enable) {
+			criticalsectionLeave(&s->m_lock);
+			free(packet);
+			return;
+		}
+		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+		packet->offset = res;
+		if (res < packet->len)
+			reactorsocket_write(s);
+	}
+	criticalsectionLeave(&s->m_lock);
+}
+
+static void stream_send_packet_continue(NioSocket_t* s) {
+	List_t freepacketlist;
+	ListNode_t* cur, *next;
+	listInit(&freepacketlist);
+
+	criticalsectionEnter(&s->m_lock);
+	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
+		int res;
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		next = cur->next;
+		if (packet->offset >= packet->len) {
+			continue;
+		}
+		res = socketWrite(s->fd, packet->data + packet->offset, packet->len - packet->offset, 0, NULL);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				s->m_valid = 0;
+				break;
+			}
+			res = 0;
+		}
+		packet->offset += res;
+		if (packet->offset >= packet->len) {
+			if (s->reliable.enable && HDR_ACK != packet->data[0]) {
+				break;
+			}
+			else {
+				listRemoveNode(&s->m_sendpacketlist, cur);
+				listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
+				//free(packet);
+				continue;
+			}
+		}
+		reactorsocket_write(s);
+		break;
+	}
+	criticalsectionLeave(&s->m_lock);
+
+	for (cur = freepacketlist.head; cur; cur = next) {
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		next = cur->next;
+		free(packet);
+	}
+}
+
 static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 	ListNode_t* cur;
 	Packet_t* packet = NULL;
+	criticalsectionEnter(&s->m_lock);
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 		if (packet->offset < packet->len)
@@ -208,6 +287,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		res = socketWrite(s->fd, ack, sizeof(ack), 0, NULL);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
+				criticalsectionLeave(&s->m_lock);
 				s->m_valid = 0;
 				return 0;
 			}
@@ -216,6 +296,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		if (res < sizeof(ack)) {
 			packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
 			if (!packet) {
+				criticalsectionLeave(&s->m_lock);
 				s->m_valid = 0;
 				return 0;
 			}
@@ -232,6 +313,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 	else {
 		packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
 		if (!packet) {
+			criticalsectionLeave(&s->m_lock);
 			s->m_valid = 0;
 			return 0;
 		}
@@ -244,11 +326,36 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		*(unsigned int*)(packet->data + 1) = seq;
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	}
+	criticalsectionLeave(&s->m_lock);
 	return 1;
 }
 
 static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
-	
+	int send_continue = 0;
+	ListNode_t* cur, *next;
+	Packet_t* packet = NULL;
+	criticalsectionEnter(&s->m_lock);
+	for (cur = s->m_sendpacketlist.head; cur; cur = next, packet = NULL) {
+		unsigned char pkg_hdr_type;
+		unsigned int pkg_seq;
+		next = cur->next;
+		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		pkg_hdr_type = packet->data[0] & (~HDR_DATA_END_FLAG);
+		if (HDR_DATA != pkg_hdr_type)
+			continue;
+		pkg_seq = *(unsigned int*)(packet->data + 1);
+		if (pkg_seq != seq)
+			continue;
+		if (cur == s->m_sendpacketlist.head)
+			send_continue = 1;
+		listRemoveNode(&s->m_sendpacketlist, cur);
+		break;
+	}
+	criticalsectionLeave(&s->m_lock);
+	free(packet);
+	if (send_continue) {
+		stream_send_packet_continue(s);
+	}
 }
 
 static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
@@ -999,84 +1106,6 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				s->m_lastactive_msec = timestamp_msec;
 			}
 		}
-	}
-}
-
-static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
-	criticalsectionEnter(&s->m_lock);
-	if (s->reliable.enable) {
-		*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq++);
-	}
-	if (s->m_sendpacketlist.head) {
-		packet->offset = 0;
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-	}
-	else if (SEND_OK_ACTION == s->m_sendaction) {
-		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				criticalsectionLeave(&s->m_lock);
-				s->m_valid = 0;
-				free(packet);
-				return;
-			}
-			res = 0;
-		}
-		else if (res >= packet->len && !s->reliable.enable) {
-			criticalsectionLeave(&s->m_lock);
-			free(packet);
-			return;
-		}
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-		packet->offset = res;
-		if (res < packet->len)
-			reactorsocket_write(s);
-	}
-	criticalsectionLeave(&s->m_lock);
-}
-
-static void stream_send_packet_continue(NioSocket_t* s) {
-	List_t freepacketlist;
-	ListNode_t* cur, *next;
-	listInit(&freepacketlist);
-
-	criticalsectionEnter(&s->m_lock);
-	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
-		int res;
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		next = cur->next;
-		if (packet->offset >= packet->len) {
-			continue;
-		}
-		res = socketWrite(s->fd, packet->data + packet->offset, packet->len - packet->offset, 0, NULL);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				s->m_valid = 0;
-				break;
-			}
-			res = 0;
-		}
-		packet->offset += res;
-		if (packet->offset >= packet->len) {
-			if (s->reliable.enable && HDR_ACK != packet->data[0]) {
-				break;
-			}
-			else {
-				listRemoveNode(&s->m_sendpacketlist, cur);
-				listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
-				//free(packet);
-				continue;
-			}
-		}
-		reactorsocket_write(s);
-		break;
-	}
-	criticalsectionLeave(&s->m_lock);
-
-	for (cur = freepacketlist.head; cur; cur = next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		next = cur->next;
-		free(packet);
 	}
 }
 
