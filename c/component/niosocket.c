@@ -264,9 +264,8 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 	criticalsectionLeave(&s->m_lock);
 
 	for (cur = freepacketlist.head; cur; cur = next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 		next = cur->next;
-		free(packet);
+		free(pod_container_of(cur, Packet_t, msg.m_listnode));
 	}
 }
 
@@ -331,9 +330,10 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 }
 
 static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
-	int send_continue = 0;
-	ListNode_t* cur, *next;
 	Packet_t* packet = NULL;
+	ListNode_t* cur, *next;
+	List_t freepacketlist;
+	listInit(&freepacketlist);
 	criticalsectionEnter(&s->m_lock);
 	for (cur = s->m_sendpacketlist.head; cur; cur = next, packet = NULL) {
 		unsigned char pkg_hdr_type;
@@ -344,17 +344,18 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		if (HDR_DATA != pkg_hdr_type)
 			continue;
 		pkg_seq = *(unsigned int*)(packet->data + 1);
-		if (pkg_seq != seq)
-			continue;
-		if (cur == s->m_sendpacketlist.head)
-			send_continue = 1;
 		listRemoveNode(&s->m_sendpacketlist, cur);
-		break;
+		listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
+		if (pkg_seq == seq)
+			break;
 	}
 	criticalsectionLeave(&s->m_lock);
-	free(packet);
-	if (send_continue) {
-		stream_send_packet_continue(s);
+	if (freepacketlist.head) {
+		for (cur = freepacketlist.head; cur; cur = next) {
+			next = cur->next;
+			free(pod_container_of(cur, Packet_t, msg.m_listnode));
+		}
+		// TODO stream_send_packet_continue(s);
 	}
 }
 
