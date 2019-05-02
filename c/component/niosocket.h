@@ -92,6 +92,7 @@ typedef struct NioSocket_t {
 	void(*m_free)(struct NioSocket_t*);
 	void* m_readol;
 	void* m_writeol;
+	int m_writeol_has_commit;
 	long long m_lastactive_msec;
 	long long m_sendprobe_msec;
 	unsigned char *m_inbuf;

@@ -148,6 +148,8 @@ static int reactorsocket_read(NioSocket_t* s) {
 
 static int reactorsocket_write(NioSocket_t* s) {
 	struct sockaddr_storage saddr;
+	if (s->m_writeol_has_commit)
+		return 1;
 	if (!s->m_writeol) {
 		s->m_writeol = reactorMallocOverlapped(REACTOR_WRITE, NULL, 0, 0);
 		if (!s->m_writeol) {
@@ -155,8 +157,10 @@ static int reactorsocket_write(NioSocket_t* s) {
 			return 0;
 		}
 	}
-	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeol, &saddr))
+	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeol, &saddr)) {
+		s->m_writeol_has_commit = 1;
 		return 1;
+	}
 	s->m_valid = 0;
 	return 0;
 }
@@ -355,7 +359,8 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 			next = cur->next;
 			free(pod_container_of(cur, Packet_t, msg.m_listnode));
 		}
-		// TODO stream_send_packet_continue(s);
+		if (!s->m_writeol_has_commit)
+			stream_send_packet_continue(s);
 	}
 }
 
@@ -1113,6 +1118,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM != s->socktype)
 		return;
+	s->m_writeol_has_commit = 0;
 	if (SEND_CONNECT_ACTION == s->m_sendaction ||
 		SEND_RECONNECT_ACTION == s->m_sendaction)
 	{
@@ -1136,13 +1142,13 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			if (s->sendprobe_timeout_sec > 0) {
 				update_timestamp(&s->m_loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
 			}
-			if (SEND_CONNECT_ACTION == sendaction) {
-				dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
-			}
-			else {
-				_xchg16(&s->m_shutdown, 0);
-				dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
-			}
+		}
+		if (SEND_CONNECT_ACTION == sendaction) {
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
+		}
+		else {
+			_xchg16(&s->m_shutdown, 0);
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
 		}
 	}
 	else if (SEND_OK_ACTION == s->m_sendaction && s->m_valid) {
@@ -1361,6 +1367,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_free = pfree;
 	s->m_readol = NULL;
 	s->m_writeol = NULL;
+	s->m_writeol_has_commit = 0;
 	s->m_lastactive_msec = 0;
 	s->m_sendprobe_msec = 0;
 	s->m_inbuf = NULL;
@@ -1688,6 +1695,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							}
 							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol, &s->peer_listen_saddr))
 								break;
+							s->m_writeol_has_commit = 1;
 							s->m_sendaction = SEND_CONNECT_ACTION;
 						}
 					}
