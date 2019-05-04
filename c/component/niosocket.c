@@ -347,6 +347,8 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		pkg_hdr_type = packet->data[0] & (~HDR_DATA_END_FLAG);
 		if (HDR_DATA != pkg_hdr_type)
 			continue;
+		if (packet->offset < packet->len)
+			break;
 		pkg_seq = *(unsigned int*)(packet->data + 1);
 		listRemoveNode(&s->m_sendpacketlist, cur);
 		listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
