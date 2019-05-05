@@ -1320,6 +1320,7 @@ void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
 		for (cur = sendpacketlist.head; cur; cur = cur->next) {
 			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 			packet->s = new_s;
+			packet->offset = 0;
 		}
 
 		criticalsectionEnter(&new_s->m_lock);
