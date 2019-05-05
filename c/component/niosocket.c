@@ -376,6 +376,9 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		if (packet->offset < packet->len)
 			break;
 		pkg_seq = *(unsigned int*)(packet->data + 1);
+		pkg_seq = ntohl(pkg_seq);
+		if (seq < pkg_seq)
+			break;
 		listRemoveNode(&s->m_sendpacketlist, cur);
 		listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
 		if (pkg_seq == seq)
@@ -416,6 +419,7 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 				s->reliable.m_recvseq = seq;
 		}
 		else if (HDR_ACK == hdr_type) {
+			seq = ntohl(seq);
 			reliable_stream_do_ack(s, seq);
 			continue;
 		}
