@@ -101,6 +101,7 @@ typedef struct NioSocket_t {
 	unsigned short m_recvpacket_maxcnt;
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
+	List_t m_sendpacketlist_bak;
 	struct {
 	/* public */
 		struct sockaddr_storage peer_saddr;

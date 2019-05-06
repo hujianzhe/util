@@ -289,14 +289,21 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 	}
 }
 
-static void stream_reset_packet(NioSocket_t* s) {
+static void stream_bak_sendpacket(NioSocket_t* s) {
 	ListNode_t* cur;
 	criticalsectionEnter(&s->m_lock);
-	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		packet->offset = 0;
-	}
+	s->m_sendpacketlist_bak = s->m_sendpacketlist;
+	listInit(&s->m_sendpacketlist);
 	criticalsectionLeave(&s->m_lock);
+	for (cur = s->m_sendpacketlist_bak.head; cur; cur = cur->next) {
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		if (packet->offset) {
+			packet->offset = 0;
+		}
+		else {
+			break;
+		}
+	}
 }
 
 static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
@@ -1409,6 +1416,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_recvpacket_maxcnt = 8;
 	listInit(&s->m_recvpacketlist);
 	listInit(&s->m_sendpacketlist);
+	listInit(&s->m_sendpacketlist_bak);
 
 	s->reliable.peer_saddr.ss_family = AF_UNSPEC;
 	s->reliable.mtu = 1464 - RELIABLE_DGRAM_HDR_LEN;
@@ -1667,8 +1675,10 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
 					continue;
 				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-				socketClose(s->fd);
+				free_io_resource(s);
+				free_inbuf(s);
 				s->m_writeol_has_commit = 0;
+				s->m_sendprobe_msec = 0;
 				do {
 					ok = 0;
 					s->fd = socket(s->domain, s->socktype, s->protocol);
@@ -1685,25 +1695,30 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_writeol_has_commit = 1;
 					s->m_sendaction = SEND_RECONNECT_ACTION;
 					s->m_lastactive_msec = timestamp_msec;
-					s->m_sendprobe_msec = 0;
 					if (s->reliable.enable) {
-						stream_reset_packet(s);
+						stream_bak_sendpacket(s);
 					}
 					else {
 						stream_clear_send_packet(s);
 					}
-					free_inbuf(s);
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
 				} while (0);
 				if (!ok) {
 					s->m_valid = 0;
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
-					socketClose(s->fd);
-					s->fd = INVALID_FD_HANDLE;
 					s->m_regerrno = errnoGet();
-					dataqueuePush(loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+					free_io_resource(s);
 					stream_clear_send_packet(s);
+					dataqueuePush(loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+
+					if (s->m_close_timeout_msec > 0) {
+						s->m_lastactive_msec = timestamp_msec;
+						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+						listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
+					}
+					else
+						dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 				}
 			}
 			else {
