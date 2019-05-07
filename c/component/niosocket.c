@@ -402,6 +402,53 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 	}
 }
 
+static int reliable_stream_do_reconnect(NioSocket_t* s) {
+	int res;
+	unsigned char pkg[RELIABLE_DGRAM_HDR_LEN];
+	pkg[0] = HDR_RECONNECT;
+	if (s->m_sendpacketlist_bak.head) {
+		Packet_t* packet = pod_container_of(s->m_sendpacketlist_bak.head, Packet_t, msg.m_listnode);
+		*(unsigned int*)(pkg + 1) = *(unsigned int*)(packet->data + 1);
+	}
+	else {
+		*(unsigned int*)(pkg + 1) = 0;
+	}
+	res = socketWrite(s->fd, pkg, sizeof(pkg), 0, NULL);
+	if (res < 0) {
+		s->m_regerrno = errnoGet();
+		if (s->m_regerrno != EWOULDBLOCK) {
+			s->m_valid = 0;
+			return 0;
+		}
+		else {
+			s->m_regerrno = 0;
+		}
+		res = 0;
+	}
+	if (res < sizeof(pkg)) {
+		Packet_t* packet = malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
+		if (!packet) {
+			s->m_valid = 0;
+			return 0;
+		}
+		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
+		packet->saddr.ss_family = AF_UNSPEC;
+		packet->s = s;
+		packet->offset = res;
+		packet->len = RELIABLE_DGRAM_HDR_LEN;
+		memcpy(packet->data, pkg, sizeof(pkg));
+		criticalsectionEnter(&s->m_lock);
+		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+		criticalsectionLeave(&s->m_lock);
+		reactorsocket_write(s);
+	}
+	return 1;
+}
+
+static void reliable_stream_do_reconnect_ack(NioSocket_t* s, unsigned int seq) {
+	
+}
+
 static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioSocketDecodeResult_t decode_result;
 	int offset = 0, bodylen;
@@ -429,6 +476,16 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			seq = ntohl(seq);
 			reliable_stream_do_ack(s, seq);
 			continue;
+		}
+		else if (HDR_RECONNECT == hdr_type) {
+			seq = ntohl(seq);
+			s->reliable.m_recvseq = seq;
+			reliable_stream_do_reconnect_ack(s, seq);
+		}
+		else if (HDR_RECONNECT_ACK == hdr_type) {
+			seq = ntohl(seq);
+			s->reliable.m_recvseq = seq;
+			reliable_stream_do_reconnect_ack(s, seq);
 		}
 		
 		if (offset >= len) {
@@ -1186,6 +1243,9 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
 		}
 		else {
+			if (0 == s->m_regerrno && s->reliable.enable) {
+				reliable_stream_do_reconnect(s);
+			}
 			_xchg16(&s->m_shutdown, 0);
 			dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
 		}
