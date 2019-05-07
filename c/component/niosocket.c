@@ -1464,6 +1464,10 @@ static void niosocket_free(NioSocket_t* s) {
 		next = cur->next;
 		free(cur);
 	}
+	for (cur = s->m_sendpacketlist_bak.head; cur; cur = next) {
+		next = cur->next;
+		free(cur);
+	}
 
 	if (s->m_free)
 		s->m_free(s);
