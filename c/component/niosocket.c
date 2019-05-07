@@ -48,6 +48,7 @@ enum {
 	LAST_ACK_STATUS,
 	CLOSED_STATUS
 };
+#define	RELIABLE_STREAM_HDR_LEN	5
 #define	RELIABLE_DGRAM_HDR_LEN	5
 #define	HDR_DATA_END_FLAG	0x80
 #define	MSL					30000
@@ -317,7 +318,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 	}
 	if (!packet || s->m_sendpacketlist.tail == &packet->msg.m_listnode) {
 		int res;
-		unsigned char ack[RELIABLE_DGRAM_HDR_LEN];
+		unsigned char ack[RELIABLE_STREAM_HDR_LEN];
 		ack[0] = HDR_ACK;
 		*(unsigned int*)(ack + 1) = seq;
 		res = socketWrite(s->fd, ack, sizeof(ack), 0, NULL);
@@ -330,7 +331,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 			res = 0;
 		}
 		if (res < sizeof(ack)) {
-			packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
+			packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_STREAM_HDR_LEN);
 			if (!packet) {
 				criticalsectionLeave(&s->m_lock);
 				s->m_valid = 0;
@@ -340,14 +341,14 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 			packet->saddr.ss_family = AF_UNSPEC;
 			packet->s = s;
 			packet->offset = res;
-			packet->len = RELIABLE_DGRAM_HDR_LEN;
-			memcpy(packet->data, ack, RELIABLE_DGRAM_HDR_LEN);
+			packet->len = RELIABLE_STREAM_HDR_LEN;
+			memcpy(packet->data, ack, sizeof(ack));
 			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 			reactorsocket_write(s);
 		}
 	}
 	else {
-		packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
+		packet = (Packet_t*)malloc(sizeof(Packet_t) + RELIABLE_STREAM_HDR_LEN);
 		if (!packet) {
 			criticalsectionLeave(&s->m_lock);
 			s->m_valid = 0;
@@ -357,7 +358,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		packet->saddr.ss_family = AF_UNSPEC;
 		packet->s = s;
 		packet->offset = 0;
-		packet->len = RELIABLE_DGRAM_HDR_LEN;
+		packet->len = RELIABLE_STREAM_HDR_LEN;
 		packet->data[0] = HDR_ACK;
 		*(unsigned int*)(packet->data + 1) = seq;
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
@@ -404,7 +405,7 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 
 static int reliable_stream_do_reconnect(NioSocket_t* s) {
 	int res;
-	unsigned char pkg[RELIABLE_DGRAM_HDR_LEN];
+	unsigned char pkg[RELIABLE_STREAM_HDR_LEN];
 	pkg[0] = HDR_RECONNECT;
 	if (s->m_sendpacketlist_bak.head) {
 		Packet_t* packet = pod_container_of(s->m_sendpacketlist_bak.head, Packet_t, msg.m_listnode);
@@ -426,7 +427,7 @@ static int reliable_stream_do_reconnect(NioSocket_t* s) {
 		res = 0;
 	}
 	if (res < sizeof(pkg)) {
-		Packet_t* packet = malloc(sizeof(Packet_t) + RELIABLE_DGRAM_HDR_LEN);
+		Packet_t* packet = malloc(sizeof(Packet_t) + RELIABLE_STREAM_HDR_LEN);
 		if (!packet) {
 			s->m_valid = 0;
 			return 0;
@@ -435,7 +436,7 @@ static int reliable_stream_do_reconnect(NioSocket_t* s) {
 		packet->saddr.ss_family = AF_UNSPEC;
 		packet->s = s;
 		packet->offset = res;
-		packet->len = RELIABLE_DGRAM_HDR_LEN;
+		packet->len = RELIABLE_STREAM_HDR_LEN;
 		memcpy(packet->data, pkg, sizeof(pkg));
 		criticalsectionEnter(&s->m_lock);
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
@@ -456,10 +457,10 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 		int packet_is_valid = 1;
 		unsigned char hdr_type;
 		unsigned int seq;
-		if (len - offset < RELIABLE_DGRAM_HDR_LEN) {
+		if (len - offset < RELIABLE_STREAM_HDR_LEN) {
 			break;
 		}
-		offset += RELIABLE_DGRAM_HDR_LEN;
+		offset += RELIABLE_STREAM_HDR_LEN;
 
 		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
 		seq = *(unsigned int*)(data + 1);
@@ -1280,7 +1281,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		}
 	}
 	if (SOCK_STREAM == s->socktype || !s->reliable.enable) {
-		unsigned int hdrlen = s->reliable.enable ? RELIABLE_DGRAM_HDR_LEN : 0;
+		unsigned int hdrlen = s->reliable.enable ? RELIABLE_STREAM_HDR_LEN : 0;
 		Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + nbytes);
 		if (!packet)
 			return NULL;
