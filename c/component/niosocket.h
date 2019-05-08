@@ -69,7 +69,8 @@ typedef struct NioSocket_t {
 	void(*accept_callback)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
 	void(*decode_packet)(unsigned char*, size_t, NioSocketDecodeResult_t*);
 	void(*recv_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
-	void(*send_probe)(struct NioSocket_t*);
+	void(*send_probe_to_server)(struct NioSocket_t*);
+	void(*tell_server_rebuild_transform)(struct NioSocket_t*, unsigned int, unsigned int);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*reconnect_callback)(struct NioSocket_t*, int);
 	void(*shutdown_callback)(struct NioSocket_t*);
