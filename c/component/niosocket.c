@@ -1201,7 +1201,7 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 				else {
 					send_seq = 0;
 				}
-				s->tell_server_rebuild_transform(s, s->reliable.m_recvseq, send_seq);
+				s->send_retransport_to_server(s, s->reliable.m_recvseq, send_seq);
 			}
 			_xchg16(&s->m_shutdown, 0);
 			dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
@@ -1329,11 +1329,11 @@ void niosocketClientReconnect(NioSocket_t* s) {
 	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
 }
 
-void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s) {
+void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int recvseq, int sendseq) {
 	if (new_s->socktype == old_s->socktype && SOCK_STREAM == new_s->socktype) {
 		List_t sendpacketlist;
 		ListNode_t* cur;
-		unsigned int sendseq;
+		unsigned int sendseq, can_replace = 1;
 
 		criticalsectionEnter(&old_s->m_lock);
 		sendseq = old_s->reliable.m_sendseq;
@@ -1407,7 +1407,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->decode_packet = NULL;
 	s->recv_packet = NULL;
 	s->send_probe_to_server = NULL;
-	s->tell_server_rebuild_transform = NULL;
+	s->send_retransport_to_server = NULL;
 	s->shutdown_callback = NULL;
 	s->close = NULL;
 	s->m_valid = 1;

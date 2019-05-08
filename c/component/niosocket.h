@@ -70,7 +70,7 @@ typedef struct NioSocket_t {
 	void(*decode_packet)(unsigned char*, size_t, NioSocketDecodeResult_t*);
 	void(*recv_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
 	void(*send_probe_to_server)(struct NioSocket_t*);
-	void(*tell_server_rebuild_transform)(struct NioSocket_t*, unsigned int, unsigned int);
+	void(*send_retransport_to_server)(struct NioSocket_t*, unsigned int, unsigned int);
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*reconnect_callback)(struct NioSocket_t*, int);
 	void(*shutdown_callback)(struct NioSocket_t*);
@@ -136,7 +136,7 @@ __declspec_dll void niosocketManualClose(NioSocket_t* s);
 __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketClientReconnect(NioSocket_t* s);
-__declspec_dll void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s);
+__declspec_dll void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int recvseq, int sendseq);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);
