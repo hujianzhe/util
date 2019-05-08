@@ -307,6 +307,21 @@ static void stream_bak_sendpacket(NioSocket_t* s) {
 	}
 }
 
+static unsigned int reliable_stream_sendpacket_firstseq(NioSocket_t* s) {
+	ListNode_t* cur;
+	unsigned int seq = 0;
+	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		unsigned char hdrtype = packet->data[0];
+		if (HDR_ACK == hdrtype)
+			continue;
+		seq = *(unsigned int*)(packet->data + 1);
+		seq = ntohl(seq);
+		break;
+	}
+	return seq;
+}
+
 static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 	ListNode_t* cur;
 	Packet_t* packet = NULL;
@@ -1329,29 +1344,41 @@ void niosocketClientReconnect(NioSocket_t* s) {
 	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
 }
 
-void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int recvseq, int sendseq) {
-	if (new_s->socktype == old_s->socktype && SOCK_STREAM == new_s->socktype) {
-		List_t sendpacketlist;
-		ListNode_t* cur;
-		unsigned int sendseq, can_replace = 1;
-
-		criticalsectionEnter(&old_s->m_lock);
-		sendseq = old_s->reliable.m_sendseq;
-		sendpacketlist = old_s->m_sendpacketlist;
+int niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq) {
+	List_t old_sendpacketlist;
+	ListNode_t* cur;
+	unsigned int can_replace, old_sendseq;
+	if (old_s->transport_side != new_s->transport_side || old_s->transport_side != NIOSOCKET_TRANSPORT_SERVER)
+		return 0;
+	if (new_s->socktype != old_s->socktype || SOCK_STREAM != new_s->socktype)
+		return 0;
+	can_replace = 0;
+	criticalsectionEnter(&old_s->m_lock);
+	do {
+		unsigned int first_sendseq;
+		if (new_sendseq > old_s->reliable.m_recvseq)
+			break;
+		first_sendseq = reliable_stream_sendpacket_firstseq(old_s);
+		if (first_sendseq > new_recvseq)
+			break;
+		can_replace = 1;
+		old_sendseq = old_s->reliable.m_sendseq;
+		old_sendpacketlist = old_s->m_sendpacketlist;
 		listInit(&old_s->m_sendpacketlist);
-		criticalsectionLeave(&old_s->m_lock);
-
-		for (cur = sendpacketlist.head; cur; cur = cur->next) {
+	} while (0);
+	criticalsectionLeave(&old_s->m_lock);
+	if (can_replace) {
+		for (cur = old_sendpacketlist.head; cur; cur = cur->next) {
 			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 			packet->s = new_s;
 			packet->offset = 0;
 		}
-
 		criticalsectionEnter(&new_s->m_lock);
-		new_s->reliable.m_sendseq = sendseq;
-		new_s->m_sendpacketlist = sendpacketlist;
+		new_s->reliable.m_sendseq = old_sendseq;
+		new_s->m_sendpacketlist = old_sendpacketlist;
 		criticalsectionLeave(&new_s->m_lock);
 	}
+	return can_replace;
 }
 
 void niosocketShutdown(NioSocket_t* s) {
