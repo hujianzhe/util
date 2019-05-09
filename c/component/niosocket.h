@@ -44,8 +44,10 @@ enum {
 };
 
 typedef struct NioSocketDecodeResult_t {
-	short err;
-	short incomplete;
+	char err;
+	char incomplete;
+	char is_reconnect_reply;
+	char reconnect_reply_ok;
 	int headlen;
 	int bodylen;
 	NioMsg_t* msgptr;
@@ -70,9 +72,10 @@ typedef struct NioSocket_t {
 	void(*decode_packet)(unsigned char*, size_t, NioSocketDecodeResult_t*);
 	void(*recv_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
 	void(*send_probe_to_server)(struct NioSocket_t*);
-	void(*send_retransport_to_server)(struct NioSocket_t*, unsigned int, unsigned int);
+	void(*send_retransport_req_to_server)(struct NioSocket_t*, unsigned int, unsigned int);
+	void(*send_retransport_ret_to_client)(struct NioSocket_t*, int);
 	void(*reg_callback)(struct NioSocket_t*, int);
-	void(*reconnect_callback)(struct NioSocket_t*, int);
+	void(*net_reconnect_callback)(struct NioSocket_t*, int);
 	void(*shutdown_callback)(struct NioSocket_t*);
 	void(*close)(struct NioSocket_t*);
 /* private */
@@ -86,7 +89,7 @@ typedef struct NioSocket_t {
 	NioInternalMsg_t m_regmsg;
 	NioInternalMsg_t m_shutdownmsg;
 	NioInternalMsg_t m_shutdownpostmsg;
-	NioInternalMsg_t m_reconnectmsg;
+	NioInternalMsg_t m_netreconnectmsg;
 	NioInternalMsg_t m_closemsg;
 	HashtableNode_t m_hashnode;
 	NioLoop_t* m_loop;
@@ -124,6 +127,7 @@ typedef struct NioSocket_t {
 		unsigned int m_cwndseq;
 		unsigned int m_recvseq;
 		unsigned int m_sendseq;
+		unsigned int m_recvseq_bak;
 	} reliable;
 } NioSocket_t;
 
@@ -136,7 +140,7 @@ __declspec_dll void niosocketManualClose(NioSocket_t* s);
 __declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
 __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
 __declspec_dll void niosocketClientReconnect(NioSocket_t* s);
-__declspec_dll int niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq);
+__declspec_dll void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
 __declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);

@@ -13,7 +13,8 @@ enum {
 	NIO_SOCKET_CLOSE_MESSAGE,
 	NIO_SOCKET_SHUTDOWN_MESSAGE,
 	NIO_SOCKET_SHUTDOWN_POST_MESSAGE,
-	NIO_SOCKET_RECONNECT_MESSAGE,
+	NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE,
+	NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_PACKET_MESSAGE,
 	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
@@ -61,6 +62,13 @@ typedef struct Packet_t {
 	size_t len;
 	unsigned char data[1];
 } Packet_t;
+
+typedef struct StreamReplaceMessage_t {
+	NioInternalMsg_t msg;
+	NioSocket_t* s;
+	unsigned int recvseq;
+	List_t sendpacketlist;
+} StreamReplaceMessage_t;
 
 typedef struct ReliableDgramHalfConnectPacket_t {
 	ListNode_t m_listnode;
@@ -191,6 +199,8 @@ static void free_inbuf(NioSocket_t* s) {
 static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* result) {
 	result->err = 0;
 	result->incomplete = 0;
+	result->is_reconnect_reply = 0;
+	result->reconnect_reply_ok = 0;
 	result->headlen = 0;
 	result->bodylen = 0;
 	result->msgptr = NULL;
@@ -310,12 +320,12 @@ static void stream_bak_sendpacket(NioSocket_t* s) {
 	}
 }
 
-static unsigned int reliable_stream_sendpacket_firstseq(NioSocket_t* s) {
+static unsigned int reliable_stream_sendpacket_firstseq(List_t* sendpacketlist) {
 	ListNode_t* cur;
 	unsigned int seq = 0;
-	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+	for (cur = sendpacketlist->head; cur; cur = cur->next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		unsigned char hdrtype = packet->data[0];
+		unsigned char hdrtype = packet->data[0] & (~HDR_DATA_END_FLAG);
 		if (HDR_ACK == hdrtype)
 			continue;
 		seq = *(unsigned int*)(packet->data + 1);
@@ -463,6 +473,27 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			return -1;
 		else if (decode_result.incomplete)
 			return offset;
+		else if (decode_result.is_reconnect_reply && NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
+			if (decode_result.reconnect_reply_ok) {
+				if (s->m_sendpacketlist_bak.tail) {
+					Packet_t* last_datapacket = pod_container_of(s->m_sendpacketlist_bak.tail, Packet_t, msg.m_listnode);
+					unsigned int sendseq = *(unsigned int*)(last_datapacket->data + 1);
+					sendseq = ntohl(sendseq);
+					s->reliable.m_sendseq = sendseq + 1;
+				}
+				else {
+					s->reliable.m_sendseq = 0;
+				}
+				s->reliable.m_recvseq = s->reliable.m_recvseq_bak;
+				criticalsectionEnter(&s->m_lock);
+				s->m_sendpacketlist = s->m_sendpacketlist_bak;
+				listInit(&s->m_sendpacketlist_bak);
+				criticalsectionLeave(&s->m_lock);
+			}
+			else {
+				// TODO clear sendpacketlist_bak
+			}
+		}
 		offset += decode_result.headlen;
 		bodylen = decode_result.bodylen;
 		if (packet_is_valid) {
@@ -774,7 +805,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		s->m_sendaction = SEND_OK_ACTION;
 		s->m_regerrno = 0;
 		_xchg16(&s->m_shutdown, 0);
-		dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+		dataqueuePush(s->m_loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 		data_packet_reconnect_push(s, timestamp_msec);
 	}
 	else if (HDR_FIN == hdr_type) {
@@ -1030,7 +1061,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
 				s->m_regerrno = ETIMEDOUT;
-				dataqueuePush(loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+				dataqueuePush(loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 			}
 			else {
 				unsigned char reconnect_pkg = HDR_RECONNECT;
@@ -1211,18 +1242,12 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		}
 		else {
 			if (0 == s->m_regerrno && s->reliable.enable) {
-				unsigned int send_seq;
-				if (s->m_sendpacketlist_bak.head) {
-					Packet_t* packet = pod_container_of(s->m_sendpacketlist_bak.head, Packet_t, msg.m_listnode);
-					send_seq = *(unsigned int*)(packet->data + 1);
-				}
-				else {
-					send_seq = 0;
-				}
-				s->send_retransport_to_server(s, s->reliable.m_recvseq, send_seq);
+				unsigned int first_sendseq = reliable_stream_sendpacket_firstseq(&s->m_sendpacketlist_bak);
+				s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
+				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, first_sendseq);
 			}
 			_xchg16(&s->m_shutdown, 0);
-			dataqueuePush(s->m_loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 		}
 	}
 	else if (SEND_OK_ACTION == s->m_sendaction && s->m_valid) {
@@ -1344,30 +1369,35 @@ void niosocketClientReconnect(NioSocket_t* s) {
 		return;
 	else if (_xchg16(&s->m_shutdown, 1))
 		return;
-	nioloop_exec_msg(s->m_loop, &s->m_reconnectmsg.m_listnode);
+	nioloop_exec_msg(s->m_loop, &s->m_netreconnectmsg.m_listnode);
 }
 
-int niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq) {
+void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq) {
+	StreamReplaceMessage_t* replacemsg;
 	List_t old_sendpacketlist;
 	ListNode_t* cur;
-	unsigned int can_replace, old_sendseq;
+	unsigned int can_replace;
+	unsigned int old_recvseq;
 	if (old_s->transport_side != new_s->transport_side || old_s->transport_side != NIOSOCKET_TRANSPORT_SERVER)
-		return 0;
+		return;
 	if (new_s->socktype != old_s->socktype || SOCK_STREAM != new_s->socktype)
-		return 0;
+		return;
 	can_replace = 0;
 	criticalsectionEnter(&old_s->m_lock);
 	do {
 		unsigned int first_sendseq;
 		if (new_sendseq > old_s->reliable.m_recvseq)
 			break;
-		first_sendseq = reliable_stream_sendpacket_firstseq(old_s);
+		first_sendseq = reliable_stream_sendpacket_firstseq(&old_s->m_sendpacketlist);
 		if (first_sendseq > new_recvseq)
 			break;
-		can_replace = 1;
-		old_sendseq = old_s->reliable.m_sendseq;
+		replacemsg = (StreamReplaceMessage_t*)malloc(sizeof(StreamReplaceMessage_t));
+		if (!replacemsg)
+			break;
 		old_sendpacketlist = old_s->m_sendpacketlist;
 		listInit(&old_s->m_sendpacketlist);
+		old_recvseq = old_s->reliable.m_recvseq;
+		can_replace = 1;
 	} while (0);
 	criticalsectionLeave(&old_s->m_lock);
 	if (can_replace) {
@@ -1385,12 +1415,16 @@ int niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new
 				packet->offset = 0;
 			}
 		}
-		criticalsectionEnter(&new_s->m_lock);
-		new_s->reliable.m_sendseq = old_sendseq;
-		new_s->m_sendpacketlist = old_sendpacketlist;
-		criticalsectionLeave(&new_s->m_lock);
+		new_s->send_retransport_ret_to_client(new_s, 1);
+		replacemsg->msg.type = NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE;
+		replacemsg->s = new_s;
+		replacemsg->recvseq = old_recvseq;
+		replacemsg->sendpacketlist = old_sendpacketlist;
+		nioloop_exec_msg(new_s->m_loop, &replacemsg->msg.m_listnode);
 	}
-	return can_replace;
+	else {
+		new_s->send_retransport_ret_to_client(new_s, 0);
+	}
 }
 
 void niosocketShutdown(NioSocket_t* s) {
@@ -1442,11 +1476,12 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->accept_callback = NULL;
 	s->reg_callback = NULL;
-	s->reconnect_callback = NULL;
+	s->net_reconnect_callback = NULL;
 	s->decode_packet = NULL;
 	s->recv_packet = NULL;
 	s->send_probe_to_server = NULL;
-	s->send_retransport_to_server = NULL;
+	s->send_retransport_req_to_server = NULL;
+	s->send_retransport_ret_to_client = NULL;
 	s->shutdown_callback = NULL;
 	s->close = NULL;
 	s->m_valid = 1;
@@ -1457,7 +1492,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_shutdownpostmsg.type = NIO_SOCKET_SHUTDOWN_POST_MESSAGE;
-	s->m_reconnectmsg.type = NIO_SOCKET_RECONNECT_MESSAGE;
+	s->m_netreconnectmsg.type = NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE;
 	s->m_closemsg.type = NIO_SOCKET_CLOSE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
 	s->m_loop = NULL;
@@ -1493,6 +1528,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reliable.m_cwndseq = 0;
 	s->reliable.m_recvseq = 0;
 	s->reliable.m_sendseq = 0;
+	s->reliable.m_recvseq_bak = 0;
 	return s;
 }
 
@@ -1729,8 +1765,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			reliable_dgram_send_packet(s, packet, timestamp_msec);
 		}
-		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
+		else if (NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_netreconnectmsg);
 			if (SOCK_STREAM == s->socktype) {
 				int ok;
 				if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
@@ -1771,7 +1807,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_regerrno = errnoGet();
 					free_io_resource(s);
 					stream_clear_send_packet(s);
-					dataqueuePush(loop->m_msgdq, &s->m_reconnectmsg.m_listnode);
+					dataqueuePush(loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 
 					if (s->m_close_timeout_msec > 0) {
 						s->m_lastactive_msec = timestamp_msec;
@@ -1784,6 +1820,28 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			else {
 				reliable_dgram_reconnect(s, timestamp_msec);
+			}
+		}
+		else if (NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE == message->type) {
+			StreamReplaceMessage_t* replacemsg = pod_container_of(message, StreamReplaceMessage_t, msg);
+			NioSocket_t* s = replacemsg->s;
+			List_t sendpacketlist = replacemsg->sendpacketlist;
+			s->reliable.m_recvseq = replacemsg->recvseq;
+			free(replacemsg);
+			if (sendpacketlist.tail) {
+				Packet_t* lastdatapacket = pod_container_of(sendpacketlist.tail, Packet_t, msg.m_listnode);
+				unsigned int sendseq = *(unsigned int*)(lastdatapacket->data + 1);
+				sendseq = ntohl(sendseq);
+				s->reliable.m_sendseq = sendseq + 1;
+				criticalsectionEnter(&s->m_lock);
+				listMerge(&s->m_sendpacketlist, &sendpacketlist);
+				criticalsectionLeave(&s->m_lock);
+				if (!s->m_writeol_has_commit) {
+					stream_send_packet_continue(s);
+				}
+			}
+			else {
+				s->reliable.m_sendseq = 0;
 			}
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
@@ -2050,10 +2108,10 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 				s->reg_callback = NULL;
 			}
 		}
-		else if (NIO_SOCKET_RECONNECT_MESSAGE == message->type) {
-			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectmsg);
-			if (s->reconnect_callback) {
-				s->reconnect_callback(s, s->m_regerrno);
+		else if (NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE == message->type) {
+			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_netreconnectmsg);
+			if (s->net_reconnect_callback) {
+				s->net_reconnect_callback(s, s->m_regerrno);
 				s->reg_callback = NULL;
 			}
 		}
