@@ -442,37 +442,14 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			break;
 		}
 		offset += RELIABLE_STREAM_DATA_HDR_LEN;
-
 		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
 		seq = *(unsigned int*)(data + 1);
-		if (HDR_DATA == hdr_type) {
-			seq = ntohl(seq);
-			if (seq < s->reliable.m_recvseq)
-				packet_is_valid = 0;
-			else if (seq == s->reliable.m_recvseq)
-				++s->reliable.m_recvseq;
-			else {
-				//s->reliable.m_recvseq = seq;
-				s->m_valid = 0;
-				return -1;
-			}
-			if (!reliable_stream_reply_ack(s, seq))
-				return -1;
-		}
-		else if (HDR_ACK == hdr_type) {
-			seq = ntohl(seq);
-			reliable_stream_do_ack(s, seq);
-			continue;
-		}
-		
-		if (offset >= len) {
-			return offset;
-		}
+
 		s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
 		if (decode_result.err)
 			return -1;
 		else if (decode_result.incomplete)
-			return offset;
+			return offset - RELIABLE_STREAM_DATA_HDR_LEN;
 		else if (decode_result.is_reconnect_reply && NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
 			if (decode_result.reconnect_reply_ok) {
 				if (s->m_sendpacketlist_bak.tail) {
@@ -487,12 +464,34 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 				s->reliable.m_recvseq = s->reliable.m_recvseq_bak;
 				criticalsectionEnter(&s->m_lock);
 				s->m_sendpacketlist = s->m_sendpacketlist_bak;
-				listInit(&s->m_sendpacketlist_bak);
 				criticalsectionLeave(&s->m_lock);
 			}
 			else {
-				// TODO clear sendpacketlist_bak
+				ListNode_t* cur, *next;
+				for (cur = s->m_sendpacketlist_bak.head; cur; cur = next) {
+					next = cur->next;
+					free(pod_container_of(cur, Packet_t, msg.m_listnode));
+				}
 			}
+			listInit(&s->m_sendpacketlist_bak);
+		}
+		else if (HDR_DATA == hdr_type) {
+			seq = ntohl(seq);
+			if (seq < s->reliable.m_recvseq)
+				packet_is_valid = 0;
+			else if (seq == s->reliable.m_recvseq)
+				++s->reliable.m_recvseq;
+			else {
+				s->m_valid = 0;
+				return -1;
+			}
+			if (!reliable_stream_reply_ack(s, seq))
+				return -1;
+		}
+		else if (HDR_ACK == hdr_type) {
+			seq = ntohl(seq);
+			reliable_stream_do_ack(s, seq);
+			continue;
 		}
 		offset += decode_result.headlen;
 		bodylen = decode_result.bodylen;
