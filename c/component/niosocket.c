@@ -351,7 +351,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		int res;
 		unsigned char ack[RELIABLE_STREAM_DATA_HDR_LEN];
 		ack[0] = HDR_ACK;
-		*(unsigned int*)(ack + 1) = seq;
+		*(unsigned int*)(ack + 1) = htonl(seq);
 		res = socketWrite(s->fd, ack, sizeof(ack), 0, NULL);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
@@ -391,7 +391,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		packet->offset = 0;
 		packet->len = RELIABLE_STREAM_DATA_HDR_LEN;
 		packet->data[0] = HDR_ACK;
-		*(unsigned int*)(packet->data + 1) = seq;
+		*(unsigned int*)(packet->data + 1) = htonl(seq);
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	}
 	criticalsectionLeave(&s->m_lock);
@@ -446,8 +446,8 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 		offset += RELIABLE_STREAM_DATA_HDR_LEN;
 		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
 		seq = *(unsigned int*)(data + 1);
+		seq = ntohl(seq);
 		if (HDR_ACK == hdr_type) {
-			seq = ntohl(seq);
 			reliable_stream_do_ack(s, seq);
 			continue;
 		}
@@ -483,7 +483,6 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			listInit(&s->m_sendpacketlist_bak);
 		}
 		else if (HDR_DATA == hdr_type) {
-			seq = ntohl(seq);
 			if (seq < s->reliable.m_recvseq)
 				packet_is_valid = 0;
 			else if (seq == s->reliable.m_recvseq)
