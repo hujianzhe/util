@@ -259,6 +259,9 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 static void stream_send_packet_continue(NioSocket_t* s) {
 	List_t freepacketlist;
 	ListNode_t* cur, *next;
+	if (s->m_writeol_has_commit) {
+		return;
+	}
 	listInit(&freepacketlist);
 
 	criticalsectionEnter(&s->m_lock);
@@ -426,8 +429,7 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 			next = cur->next;
 			free(pod_container_of(cur, Packet_t, msg.m_listnode));
 		}
-		if (!s->m_writeol_has_commit)
-			stream_send_packet_continue(s);
+		stream_send_packet_continue(s);
 	}
 }
 
@@ -444,7 +446,11 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 		offset += RELIABLE_STREAM_DATA_HDR_LEN;
 		hdr_type = data[0] & (~HDR_DATA_END_FLAG);
 		seq = *(unsigned int*)(data + 1);
-
+		if (HDR_ACK == hdr_type) {
+			seq = ntohl(seq);
+			reliable_stream_do_ack(s, seq);
+			continue;
+		}
 		s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
 		if (decode_result.err)
 			return -1;
@@ -465,6 +471,7 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 				criticalsectionEnter(&s->m_lock);
 				s->m_sendpacketlist = s->m_sendpacketlist_bak;
 				criticalsectionLeave(&s->m_lock);
+
 			}
 			else {
 				ListNode_t* cur, *next;
@@ -487,11 +494,6 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			}
 			if (!reliable_stream_reply_ack(s, seq))
 				return -1;
-		}
-		else if (HDR_ACK == hdr_type) {
-			seq = ntohl(seq);
-			reliable_stream_do_ack(s, seq);
-			continue;
 		}
 		offset += decode_result.headlen;
 		bodylen = decode_result.bodylen;
@@ -1835,9 +1837,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				criticalsectionEnter(&s->m_lock);
 				listMerge(&s->m_sendpacketlist, &sendpacketlist);
 				criticalsectionLeave(&s->m_lock);
-				if (!s->m_writeol_has_commit) {
-					stream_send_packet_continue(s);
-				}
+				stream_send_packet_continue(s);
 			}
 			else {
 				s->reliable.m_sendseq = 0;
