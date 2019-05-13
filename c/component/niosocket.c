@@ -1369,8 +1369,6 @@ void niosocketClientReconnect(NioSocket_t* s) {
 
 void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq) {
 	StreamReplaceMessage_t* replacemsg;
-	unsigned int can_replace;
-	unsigned int old_recvseq;
 	if (old_s->transport_side != new_s->transport_side || old_s->transport_side != NIOSOCKET_TRANSPORT_SERVER)
 		return;
 	if (new_s->socktype != old_s->socktype || SOCK_STREAM != new_s->socktype)
@@ -1822,12 +1820,19 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->reliable.m_recvseq = replacemsg->old_recvseq;
 				free(replacemsg);
 				if (sendpacketlist.tail) {
-					ListNode_t* cur;
+					ListNode_t* cur, *next;
 					Packet_t* packet = pod_container_of(sendpacketlist.tail, Packet_t, msg.m_listnode);
 					s->reliable.m_sendseq = packet->seq + 1;
-					for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+					for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 						packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-						packet->need_ack = 0;
+						next = cur->next;
+						if (packet->offset >= packet->len) {
+							listRemoveNode(&s->m_sendpacketlist, cur);
+							free(packet);
+						}
+						else {
+							packet->need_ack = 0;
+						}
 					}
 					listMerge(&s->m_sendpacketlist, &sendpacketlist);
 					stream_send_packet_continue(s);
