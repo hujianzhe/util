@@ -467,10 +467,8 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 		else if (decode_result.is_reconnect_reply && NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
 			if (decode_result.reconnect_reply_ok) {
 				if (s->m_sendpacketlist_bak.tail) {
-					Packet_t* last_datapacket = pod_container_of(s->m_sendpacketlist_bak.tail, Packet_t, msg.m_listnode);
-					unsigned int sendseq = *(unsigned int*)(last_datapacket->data + 1);
-					sendseq = ntohl(sendseq);
-					s->reliable.m_sendseq = sendseq + 1;
+					Packet_t* packet = pod_container_of(s->m_sendpacketlist_bak.tail, Packet_t, msg.m_listnode);
+					s->reliable.m_sendseq = packet->seq + 1;
 				}
 				else {
 					s->reliable.m_sendseq = 0;
