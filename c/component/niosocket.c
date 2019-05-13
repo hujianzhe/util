@@ -58,6 +58,9 @@ typedef struct Packet_t {
 	NioInternalMsg_t msg;
 	struct sockaddr_storage saddr;
 	NioSocket_t* s;
+	unsigned short type;
+	unsigned short need_ack;
+	unsigned int seq;
 	size_t offset;
 	size_t len;
 	unsigned char data[1];
@@ -226,7 +229,8 @@ static void stream_clear_send_packet(NioSocket_t* s) {
 static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 	criticalsectionEnter(&s->m_lock);
 	if (s->reliable.enable) {
-		*(unsigned int*)(packet->data + 1) = htonl(s->reliable.m_sendseq++);
+		packet->seq = s->reliable.m_sendseq++;
+		*(unsigned int*)(packet->data + 1) = htonl(packet->seq);
 	}
 	if (s->m_sendpacketlist.head) {
 		packet->offset = 0;
@@ -243,7 +247,7 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 			}
 			res = 0;
 		}
-		else if (res >= packet->len && !s->reliable.enable) {
+		else if (res >= packet->len && !packet->need_ack) {
 			criticalsectionLeave(&s->m_lock);
 			free(packet);
 			return;
@@ -282,7 +286,7 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 		}
 		packet->offset += res;
 		if (packet->offset >= packet->len) {
-			if (s->reliable.enable && HDR_ACK != packet->data[0]) {
+			if (packet->need_ack) {
 				break;
 			}
 			else {
@@ -311,7 +315,7 @@ static void stream_bak_sendpacket(NioSocket_t* s) {
 	criticalsectionLeave(&s->m_lock);
 	for (cur = s->m_sendpacketlist_bak.head; cur; cur = next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		unsigned char hdrtype = packet->data[0] & (~HDR_DATA_END_FLAG);
+		unsigned char hdrtype = packet->type;
 		next = cur->next;
 		if (HDR_DATA != hdrtype) {
 			listRemoveNode(&s->m_sendpacketlist_bak, cur);
@@ -328,11 +332,10 @@ static unsigned int reliable_stream_sendpacket_firstseq(List_t* sendpacketlist) 
 	unsigned int seq = 0;
 	for (cur = sendpacketlist->head; cur; cur = cur->next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		unsigned char hdrtype = packet->data[0] & (~HDR_DATA_END_FLAG);
+		unsigned char hdrtype = packet->type;
 		if (HDR_ACK == hdrtype)
 			continue;
-		seq = *(unsigned int*)(packet->data + 1);
-		seq = ntohl(seq);
+		seq = packet->seq;
 		break;
 	}
 	return seq;
@@ -371,6 +374,9 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 			packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 			packet->saddr.ss_family = AF_UNSPEC;
 			packet->s = s;
+			packet->type = HDR_ACK;
+			packet->need_ack = 0;
+			packet->seq = seq;
 			packet->offset = res;
 			packet->len = RELIABLE_STREAM_DATA_HDR_LEN;
 			memcpy(packet->data, ack, sizeof(ack));
@@ -388,6 +394,9 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 		packet->saddr.ss_family = AF_UNSPEC;
 		packet->s = s;
+		packet->type = HDR_ACK;
+		packet->need_ack = 0;
+		packet->seq = seq;
 		packet->offset = 0;
 		packet->len = RELIABLE_STREAM_DATA_HDR_LEN;
 		packet->data[0] = HDR_ACK;
@@ -409,13 +418,12 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		unsigned int pkg_seq;
 		next = cur->next;
 		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		pkg_hdr_type = packet->data[0] & (~HDR_DATA_END_FLAG);
+		pkg_hdr_type = packet->type;
 		if (HDR_DATA != pkg_hdr_type)
 			continue;
 		if (packet->offset < packet->len)
 			break;
-		pkg_seq = *(unsigned int*)(packet->data + 1);
-		pkg_seq = ntohl(pkg_seq);
+		pkg_seq = packet->seq;
 		if (seq < pkg_seq)
 			break;
 		listRemoveNode(&s->m_sendpacketlist, cur);
@@ -1286,6 +1294,9 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			return NULL;
 		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 		packet->s = s;
+		packet->type = HDR_DATA;
+		packet->need_ack = 1;
+		packet->seq = 0;
 		packet->offset = 0;
 		packet->len = hdrlen + nbytes;
 		if (saddr && SOCK_STREAM != s->socktype)
@@ -1404,7 +1415,7 @@ void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int ne
 		ListNode_t* next;
 		for (cur = old_sendpacketlist.head; cur; cur = next) {
 			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-			unsigned int hdrtype = packet->data[0] & (~HDR_DATA_END_FLAG);
+			unsigned int hdrtype = packet->type;
 			next = cur->next;
 			if (HDR_DATA != hdrtype) {
 				listRemoveNode(&old_sendpacketlist, cur);
@@ -1829,13 +1840,18 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			s->reliable.m_recvseq = replacemsg->recvseq;
 			free(replacemsg);
 			if (sendpacketlist.tail) {
-				Packet_t* lastdatapacket = pod_container_of(sendpacketlist.tail, Packet_t, msg.m_listnode);
-				unsigned int sendseq = *(unsigned int*)(lastdatapacket->data + 1);
-				sendseq = ntohl(sendseq);
-				s->reliable.m_sendseq = sendseq + 1;
+				ListNode_t* cur;
+				Packet_t* packet = pod_container_of(sendpacketlist.tail, Packet_t, msg.m_listnode);
+				s->reliable.m_sendseq = packet->seq + 1;
+
 				criticalsectionEnter(&s->m_lock);
+				for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+					packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+					packet->need_ack = 0;
+				}
 				listMerge(&s->m_sendpacketlist, &sendpacketlist);
 				criticalsectionLeave(&s->m_lock);
+
 				stream_send_packet_continue(s);
 			}
 			else {
