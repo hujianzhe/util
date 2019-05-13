@@ -79,8 +79,6 @@ typedef struct NioSocket_t {
 	void(*shutdown_callback)(struct NioSocket_t*);
 	void(*close)(struct NioSocket_t*);
 /* private */
-	CriticalSection_t m_lock;
-	int m_lockinit;
 	volatile char m_valid;
 	volatile char m_sendaction;
 	Atom16_t m_shutdown;
