@@ -72,7 +72,7 @@ typedef struct StreamReplaceMessage_t {
 	int is_success;
 	NioSocket_t* s;
 	unsigned int new_recvseq;
-	unsigned int new_sendseq;
+	unsigned int new_cwndseq;
 	unsigned int old_recvseq;
 	List_t old_sendpacketlist;
 	Mutex_t m_blocklock;
@@ -322,7 +322,7 @@ static void stream_bak_sendpacket(NioSocket_t* s) {
 	}
 }
 
-static unsigned int reliable_stream_sendpacket_firstseq(List_t* sendpacketlist) {
+static unsigned int reliable_stream_sendpacket_cwndseq(List_t* sendpacketlist) {
 	ListNode_t* cur;
 	unsigned int seq = 0;
 	for (cur = sendpacketlist->head; cur; cur = cur->next) {
@@ -1234,9 +1234,9 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		}
 		else {
 			if (0 == s->m_regerrno && s->reliable.enable) {
-				unsigned int first_sendseq = reliable_stream_sendpacket_firstseq(&s->m_sendpacketlist_bak);
+				unsigned int cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist_bak);
 				s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
-				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, first_sendseq);
+				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, cwndseq);
 			}
 			_xchg16(&s->m_shutdown, 0);
 			dataqueuePush(s->m_loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
@@ -1367,7 +1367,7 @@ void niosocketClientReconnect(NioSocket_t* s) {
 	nioloop_exec_msg(s->m_loop, &s->m_netreconnectmsg.m_listnode);
 }
 
-void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_sendseq) {
+void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_cwndseq) {
 	StreamReplaceMessage_t* replacemsg;
 	if (old_s->transport_side != new_s->transport_side || old_s->transport_side != NIOSOCKET_TRANSPORT_SERVER)
 		return;
@@ -1386,7 +1386,7 @@ void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int ne
 	replacemsg->is_success = 0;
 	replacemsg->s = old_s;
 	replacemsg->new_recvseq = new_recvseq;
-	replacemsg->new_sendseq = new_sendseq;
+	replacemsg->new_cwndseq = new_cwndseq;
 	nioloop_exec_msg(old_s->m_loop, &replacemsg->msg.m_listnode);
 
 	mutexLock(&replacemsg->m_blocklock);
@@ -1802,11 +1802,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (replacemsg->req_stage) {
 				replacemsg->req_stage = 0;
 				do {
-					unsigned int first_sendseq;
-					if (replacemsg->new_sendseq > s->reliable.m_recvseq)
+					unsigned int cwndseq;
+					if (replacemsg->new_cwndseq > s->reliable.m_recvseq)
 						break;
-					first_sendseq = reliable_stream_sendpacket_firstseq(&s->m_sendpacketlist);
-					if (first_sendseq > replacemsg->new_recvseq)
+					cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist);
+					if (cwndseq > replacemsg->new_recvseq)
 						break;
 					replacemsg->old_recvseq = s->reliable.m_recvseq;
 					replacemsg->old_sendpacketlist = s->m_sendpacketlist;
