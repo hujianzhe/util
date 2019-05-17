@@ -620,13 +620,18 @@ static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t
 	}
 }
 
+static void reliable_dgram_send_reconnect_packet(NioSocket_t* s) {
+	unsigned char reconnect_pkg[9];
+	reconnect_pkg[0] = HDR_RECONNECT;
+	*(unsigned int*)(reconnect_pkg + 1) = htonl(s->reliable.m_recvseq);
+	*(unsigned int*)(reconnect_pkg + 5) = htonl(s->reliable.m_cwndseq);
+	socketWrite(s->fd, reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
+}
+
 static void reliable_dgram_reconnect(NioSocket_t* s, long long timestamp_msec) {
-	unsigned char reconnect_pkg;
 	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
 		return;
-	reconnect_pkg = HDR_RECONNECT;
-	socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
-
+	reliable_dgram_send_reconnect_packet(s);
 	s->m_valid = 1;
 	s->m_sendaction = SEND_RECONNECT_ACTION;
 	s->m_lastactive_msec = timestamp_msec;
@@ -780,12 +785,19 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 	}
 	else if (HDR_RECONNECT == hdr_type) {
 		unsigned char reconnect_ack;
+		unsigned int peer_recvseq, peer_cwndseq;
+		if (len < 9)
+			return 1;
 		if (NIOSOCKET_TRANSPORT_SERVER != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
 			return 1;
-		else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr))) {
-			s->reliable.peer_saddr = *saddr;
-			data_packet_reconnect_push(s, timestamp_msec);
-		}
+		peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
+		if (peer_recvseq != s->reliable.m_cwndseq)
+			return 1;
+		peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
+		if (peer_cwndseq != s->reliable.m_recvseq)
+			return 1;
+		s->reliable.peer_saddr = *saddr;
+		data_packet_reconnect_push(s, timestamp_msec);
 		reconnect_ack = HDR_RECONNECT_ACK;
 		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
 	}
@@ -848,6 +860,8 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		if (ESTABLISHED_STATUS > s->reliable.m_status)
 			return 1;
+		if (SEND_RECONNECT_ACTION == s->m_sendaction)
+			return 1;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
 
@@ -904,6 +918,8 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		if (len < RELIABLE_DGRAM_DATA_HDR_LEN)
 			return 1;
 		if (ESTABLISHED_STATUS > s->reliable.m_status)
+			return 1;
+		if (SEND_RECONNECT_ACTION == s->m_sendaction)
 			return 1;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
@@ -1056,8 +1072,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				dataqueuePush(loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 			}
 			else {
-				unsigned char reconnect_pkg = HDR_RECONNECT;
-				socketWrite(s->fd, &reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
+				reliable_dgram_send_reconnect_packet(s);
 				++s->reliable.m_reconnect_times;
 				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
