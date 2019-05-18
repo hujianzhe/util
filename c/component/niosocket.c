@@ -101,6 +101,8 @@ typedef struct ReliableDgramDataPacket_t {
 extern "C" {
 #endif
 
+#define seq1_before_seq2(seq1, seq2)	((int)(seq1 - seq2) < 0)
+
 static void update_timestamp(long long* dst, long long timestamp) {
 	if (*dst <= 0 || *dst > timestamp)
 		*dst = timestamp;
@@ -413,7 +415,7 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		if (packet->offset < packet->len)
 			break;
 		pkg_seq = packet->seq;
-		if (seq < pkg_seq)
+		if (seq1_before_seq2(seq, pkg_seq))
 			break;
 		listRemoveNode(&s->m_sendpacketlist, cur);
 		listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
@@ -475,7 +477,7 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			listInit(&s->m_sendpacketlist_bak);
 		}
 		else if (HDR_DATA == hdr_type) {
-			if (seq < s->reliable.m_recvseq)
+			if (seq1_before_seq2(seq, s->reliable.m_recvseq))
 				packet_is_valid = 0;
 			else if (seq == s->reliable.m_recvseq)
 				++s->reliable.m_recvseq;
@@ -874,9 +876,9 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 			ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
-			if (seq < packet->seq)
+			if (seq1_before_seq2(seq, packet->seq))
 				break;
-			if (packet->seq == seq) {
+			if (seq == packet->seq) {
 				ListNode_t* next = cur->next;
 				listRemoveNode(&s->m_sendpacketlist, cur);
 				free(packet);
@@ -931,7 +933,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		socketWrite(s->fd, ack, sizeof(ack), 0, saddr);
 
 		seq = ntohl(seq);
-		if (seq < s->reliable.m_recvseq)
+		if (seq1_before_seq2(seq, s->reliable.m_recvseq))
 			return 1;
 		else if (seq == s->reliable.m_recvseq) {
 			s->reliable.m_recvseq++;
@@ -950,7 +952,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		else {
 			for (cur = s->m_recvpacketlist.head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
-				if (packet->seq > seq)
+				if (seq1_before_seq2(seq, packet->seq))
 					break;
 				else if (packet->seq == seq)
 					return 1;
