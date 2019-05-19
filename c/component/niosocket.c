@@ -777,8 +777,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			s->m_regerrno = 0;
 			dataqueuePush(s->m_loop->m_msgdq, &s->m_regmsg.m_listnode);
 		}
-		if (memcmp(&s->peer_listen_saddr, &s->reliable.peer_saddr, sizeof(s->reliable.peer_saddr)))
-			socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
+		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 		s->m_lastactive_msec = timestamp_msec;
 		s->m_sendprobe_msec = timestamp_msec;
 		if (s->sendprobe_timeout_sec > 0) {
