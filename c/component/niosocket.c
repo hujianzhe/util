@@ -1868,6 +1868,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				if (SOCK_STREAM == s->socktype) {
 					if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
 						BOOL has_connected;
+						s->reliable.peer_saddr = s->peer_listen_saddr;
 						if (!socketIsConnected(s->fd, &has_connected))
 							break;
 						if (has_connected) {
