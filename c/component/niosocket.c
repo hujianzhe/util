@@ -31,6 +31,7 @@ enum {
 	HDR_SYN_ACK_ACK,
 	HDR_RECONNECT,
 	HDR_RECONNECT_ACK,
+	HDR_RECONNECT_ERR,
 	HDR_FIN,
 	HDR_FIN_ACK,
 	HDR_DATA,
@@ -785,22 +786,32 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		}
 	}
 	else if (HDR_RECONNECT == hdr_type) {
-		unsigned char reconnect_ack;
-		unsigned int peer_recvseq, peer_cwndseq;
+		int ok;
 		if (len < 9)
 			return 1;
 		if (NIOSOCKET_TRANSPORT_SERVER != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
 			return 1;
-		peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
-		if (peer_recvseq != s->reliable.m_cwndseq)
-			return 1;
-		peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
-		if (peer_cwndseq != s->reliable.m_recvseq)
-			return 1;
-		s->reliable.peer_saddr = *saddr;
-		data_packet_reconnect_push(s, timestamp_msec);
-		reconnect_ack = HDR_RECONNECT_ACK;
-		socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
+		ok = 0;
+		do {
+			unsigned int peer_recvseq, peer_cwndseq;
+			peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
+			if (peer_recvseq != s->reliable.m_cwndseq)
+				break;
+			peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
+			if (peer_cwndseq != s->reliable.m_recvseq)
+				break;
+			ok = 1;
+		} while (0);
+		if (ok) {
+			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
+			socketWrite(s->fd, &reconnect_ack, sizeof(reconnect_ack), 0, saddr);
+			s->reliable.peer_saddr = *saddr;
+			data_packet_reconnect_push(s, timestamp_msec);
+		}
+		else {
+			unsigned char reconnect_err = HDR_RECONNECT_ERR;
+			socketWrite(s->fd, &reconnect_err, sizeof(reconnect_err), 0, saddr);
+		}
 	}
 	else if (HDR_RECONNECT_ACK == hdr_type) {
 		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
@@ -812,6 +823,17 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		_xchg16(&s->m_shutdown, 0);
 		dataqueuePush(s->m_loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 		data_packet_reconnect_push(s, timestamp_msec);
+	}
+	else if (HDR_RECONNECT_ERR == hdr_type) {
+		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
+			return 1;
+		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
+			return 1;
+		s->m_valid = 0;
+		s->reliable.m_status = TIME_WAIT_STATUS;
+		s->m_sendaction = SEND_SHUTDOWN_ACTION;
+		s->m_regerrno = EWOULDBLOCK;
+		dataqueuePush(s->m_loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
