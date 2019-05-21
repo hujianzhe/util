@@ -212,8 +212,9 @@ static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* res
 	result->incomplete = 0;
 	result->is_reconnect_reply = 0;
 	result->reconnect_reply_ok = 0;
-	result->headlen = 0;
+	result->decodelen = 0;
 	result->bodylen = 0;
+	result->bodyptr = NULL;
 	result->msgptr = NULL;
 	return result;
 }
@@ -434,7 +435,7 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 
 static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioSocketDecodeResult_t decode_result;
-	int offset = 0, bodylen;
+	int offset = 0;
 	while (offset < len) {
 		int packet_is_valid = 1;
 		unsigned char hdr_type;
@@ -489,17 +490,15 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			if (!reliable_stream_reply_ack(s, seq))
 				return -1;
 		}
-		offset += decode_result.headlen;
-		bodylen = decode_result.bodylen;
+		offset += decode_result.decodelen;
 		if (packet_is_valid) {
-			s->recv_packet(s, data + offset, bodylen, saddr, &decode_result);
+			s->recv_packet(s, saddr, &decode_result);
 			if (decode_result.msgptr) {
 				decode_result.msgptr->sock = s;
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
 		}
-		offset += bodylen;
 	}
 	return offset;
 }
@@ -507,27 +506,25 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	NioSocketDecodeResult_t decode_result;
 	if (len) {
-		int offset = 0, bodylen;
+		int offset = 0;
 		while (offset < len) {
 			s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
 			if (decode_result.err)
 				return -1;
 			else if (decode_result.incomplete)
 				return offset;
-			offset += decode_result.headlen;
-			bodylen = decode_result.bodylen;
-			s->recv_packet(s, data + offset, bodylen, saddr, &decode_result);
+			offset += decode_result.decodelen;
+			s->recv_packet(s, saddr, &decode_result);
 			if (decode_result.msgptr) {
 				decode_result.msgptr->sock = s;
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 				dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 			}
-			offset += bodylen;
 		}
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		s->recv_packet(s, NULL, 0, saddr, reset_decode_result(&decode_result));
+		s->recv_packet(s, saddr, reset_decode_result(&decode_result));
 		if (decode_result.msgptr) {
 			decode_result.msgptr->sock = s;
 			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;

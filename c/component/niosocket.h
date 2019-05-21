@@ -48,8 +48,9 @@ typedef struct NioSocketDecodeResult_t {
 	char incomplete;
 	char is_reconnect_reply;
 	char reconnect_reply_ok;
-	int headlen;
+	int decodelen;
 	int bodylen;
+	unsigned char* bodyptr;
 	NioMsg_t* msgptr;
 } NioSocketDecodeResult_t;
 
@@ -70,7 +71,7 @@ typedef struct NioSocket_t {
 	};
 	void(*accept_callback)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
 	void(*decode_packet)(unsigned char*, size_t, NioSocketDecodeResult_t*);
-	void(*recv_packet)(struct NioSocket_t*, unsigned char*, size_t, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
+	void(*recv_packet)(struct NioSocket_t*, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
 	void(*send_probe_to_server)(struct NioSocket_t*);
 	void(*send_retransport_req_to_server)(struct NioSocket_t*, unsigned int, unsigned int);
 	void(*send_retransport_ret_to_client)(struct NioSocket_t*, int);
