@@ -642,10 +642,7 @@ static void reliable_dgram_reconnect(NioSocket_t* s, long long timestamp_msec) {
 }
 
 static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
-	unsigned char hdr_type;
-	if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
-		return 1;
-	hdr_type = buffer[0] & (~HDR_DATA_END_FLAG);
+	unsigned char hdr_type = buffer[0] & (~HDR_DATA_END_FLAG);
 	if (HDR_SYN == hdr_type) {
 		unsigned char syn_ack[3];
 		if (s->m_shutdown)
@@ -1223,6 +1220,8 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				break;
 			}
 			else if (s->reliable.m_status) {
+				if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
+					break;
 				if (0 == res)
 					continue;
 				if (!reliable_dgram_recv_handler(s, p_data, res, &saddr, timestamp_msec))
