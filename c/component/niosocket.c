@@ -721,7 +721,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				if (socketRead(halfcon->sockfd, NULL, 0, 0, &peer_addr))
 					break;
 				listRemoveNode(&s->m_recvpacketlist, cur);
-				s->accept_callback(s, halfcon->sockfd, &peer_addr);
+				s->accept(s, halfcon->sockfd, &peer_addr);
 				free(halfcon);
 				break;
 			}
@@ -1121,8 +1121,8 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				connfd != INVALID_FD_HANDLE;
 				connfd = reactorAcceptNext(s->fd, &saddr))
 			{
-				if (s->accept_callback)
-					s->accept_callback(s, connfd, &saddr);
+				if (s->accept)
+					s->accept(s, connfd, &saddr);
 				else
 					socketClose(connfd);
 			}
@@ -1473,7 +1473,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
-	s->accept_callback = NULL;
+	s->accept = NULL;
 	s->reg_callback = NULL;
 	s->net_reconnect_callback = NULL;
 	s->decode_packet = NULL;
@@ -1482,7 +1482,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->send_retransport_req_to_server = NULL;
 	s->send_retransport_ret_to_client = NULL;
 	s->shutdown_callback = NULL;
-	s->close = NULL;
+	s->close_callback = NULL;
 	s->m_valid = 1;
 	s->m_sendaction = SEND_SHUTDOWN_ACTION;
 	s->m_shutdown = 0;
@@ -1939,7 +1939,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 								if (!socketGetLocalAddr(s->fd, &s->local_listen_saddr))
 									break;
 							}
-							if (s->accept_callback) {
+							if (s->accept) {
 								s->reliable.m_status = LISTENED_STATUS;
 								if (s->m_recvpacket_maxcnt < 200)
 									s->m_recvpacket_maxcnt = 200;
@@ -2120,9 +2120,9 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 				s->shutdown_callback(s);
 				s->shutdown_callback = NULL;
 			}
-			if (s->close) {
-				s->close(s);
-				s->close = NULL;
+			if (s->close_callback) {
+				s->close_callback(s);
+				s->close_callback = NULL;
 			}
 			else {
 				nioloop_exec_msg(s->m_loop, cur);

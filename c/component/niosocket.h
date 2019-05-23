@@ -69,7 +69,7 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
 	};
-	void(*accept_callback)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
+	void(*accept)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
 	void(*decode_packet)(unsigned char*, size_t, NioSocketDecodeResult_t*);
 	void(*recv_packet)(struct NioSocket_t*, const struct sockaddr_storage*, NioSocketDecodeResult_t*);
 	void(*send_probe_to_server)(struct NioSocket_t*);
@@ -78,7 +78,7 @@ typedef struct NioSocket_t {
 	void(*reg_callback)(struct NioSocket_t*, int);
 	void(*net_reconnect_callback)(struct NioSocket_t*, int);
 	void(*shutdown_callback)(struct NioSocket_t*);
-	void(*close)(struct NioSocket_t*);
+	void(*close_callback)(struct NioSocket_t*);
 /* private */
 	volatile char m_valid;
 	volatile char m_sendaction;
