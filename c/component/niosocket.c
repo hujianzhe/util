@@ -628,19 +628,6 @@ static void reliable_dgram_send_reconnect_packet(NioSocket_t* s) {
 	socketWrite(s->fd, reconnect_pkg, sizeof(reconnect_pkg), 0, &s->reliable.peer_saddr);
 }
 
-static void reliable_dgram_reconnect(NioSocket_t* s, long long timestamp_msec) {
-	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction || ESTABLISHED_STATUS != s->reliable.m_status)
-		return;
-	reliable_dgram_send_reconnect_packet(s);
-	s->m_valid = 1;
-	s->m_sendaction = SEND_RECONNECT_ACTION;
-	s->m_lastactive_msec = timestamp_msec;
-	s->m_sendprobe_msec = 0;
-	s->reliable.m_reconnect_times = 0;
-	s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
-	update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_reconnect_msec);
-}
-
 static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
 	unsigned char hdr_type = buffer[0] & (~HDR_DATA_END_FLAG);
 	if (HDR_SYN == hdr_type) {
@@ -1775,10 +1762,10 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_netreconnectmsg);
+			if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
+				continue;
 			if (SOCK_STREAM == s->socktype) {
 				int ok;
-				if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_OK_ACTION != s->m_sendaction)
-					continue;
 				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 				free_io_resource(s);
 				free_inbuf(s);
@@ -1826,8 +1813,15 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 				}
 			}
-			else {
-				reliable_dgram_reconnect(s, timestamp_msec);
+			else if (ESTABLISHED_STATUS == s->reliable.m_status) {
+				reliable_dgram_send_reconnect_packet(s);
+				s->m_valid = 1;
+				s->m_sendaction = SEND_RECONNECT_ACTION;
+				s->m_lastactive_msec = timestamp_msec;
+				s->m_sendprobe_msec = 0;
+				s->reliable.m_reconnect_times = 0;
+				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
+				update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_reconnect_msec);
 			}
 		}
 		else if (NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE == message->type) {
