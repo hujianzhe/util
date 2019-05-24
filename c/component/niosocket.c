@@ -451,7 +451,7 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			reliable_stream_do_ack(s, seq);
 			continue;
 		}
-		s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
+		s->decode(data + offset, len - offset, reset_decode_result(&decode_result));
 		if (decode_result.err)
 			return -1;
 		else if (decode_result.incomplete)
@@ -492,7 +492,7 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 		}
 		offset += decode_result.decodelen;
 		if (packet_is_valid) {
-			s->recv_packet(s, saddr, &decode_result);
+			s->recv(s, saddr, &decode_result);
 			if (decode_result.msgptr) {
 				decode_result.msgptr->sock = s;
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
@@ -508,13 +508,13 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 	if (len) {
 		int offset = 0;
 		while (offset < len) {
-			s->decode_packet(data + offset, len - offset, reset_decode_result(&decode_result));
+			s->decode(data + offset, len - offset, reset_decode_result(&decode_result));
 			if (decode_result.err)
 				return -1;
 			else if (decode_result.incomplete)
 				return offset;
 			offset += decode_result.decodelen;
-			s->recv_packet(s, saddr, &decode_result);
+			s->recv(s, saddr, &decode_result);
 			if (decode_result.msgptr) {
 				decode_result.msgptr->sock = s;
 				decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
@@ -524,7 +524,7 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		s->recv_packet(s, saddr, reset_decode_result(&decode_result));
+		s->recv(s, saddr, reset_decode_result(&decode_result));
 		if (decode_result.msgptr) {
 			decode_result.msgptr->sock = s;
 			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
@@ -1476,8 +1476,8 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->accept = NULL;
 	s->reg_callback = NULL;
 	s->net_reconnect_callback = NULL;
-	s->decode_packet = NULL;
-	s->recv_packet = NULL;
+	s->decode = NULL;
+	s->recv = NULL;
 	s->send_probe_to_server = NULL;
 	s->send_retransport_req_to_server = NULL;
 	s->send_retransport_ret_to_client = NULL;
