@@ -62,6 +62,7 @@ typedef struct NioSocket_t {
 	int protocol;
 	int sendprobe_timeout_sec;
 	int keepalive_timeout_sec;
+	int close_timeout_msec;
 	const char* sessionid;
 	void* userdata;
 	unsigned int transport_side;
@@ -86,7 +87,6 @@ typedef struct NioSocket_t {
 	volatile char m_sendaction;
 	Atom16_t m_shutdown;
 	int m_errno;
-	int m_close_timeout_msec;
 	NioInternalMsg_t m_regmsg;
 	NioInternalMsg_t m_shutdownmsg;
 	NioInternalMsg_t m_shutdownpostmsg;

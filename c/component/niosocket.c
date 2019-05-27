@@ -642,7 +642,7 @@ static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 	if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 		s->m_lastactive_msec = timestamp_msec;
 		s->m_valid = 0;
-		update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+		update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 	}
 	else if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side || NIOSOCKET_TRANSPORT_SERVER == s->transport_side) {
 		s->m_sendaction = SEND_SHUTDOWN_ACTION;
@@ -1083,7 +1083,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 			s->m_errno = ETIMEDOUT;
 			s->shutdown_callback = NULL;
 			dataqueuePush(loop->m_msgdq, &s->m_regmsg.m_listnode);
@@ -1103,7 +1103,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 		else if (s->reliable.m_fin_times >= s->reliable.resend_maxtimes) {
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 		}
 		else {
 			unsigned char fin = HDR_FIN;
@@ -1123,7 +1123,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_valid = 0;
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
-				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 				s->m_errno = ETIMEDOUT;
 				dataqueuePush(loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 			}
@@ -1151,7 +1151,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 					s->m_lastactive_msec = timestamp_msec;
 					if (SEND_SHUTDOWN_ACTION == s->m_sendaction) {
 						s->m_valid = 0;
-						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 					}
 					break;
 				}
@@ -1253,7 +1253,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
 					if (s->reliable.m_status) {
 						s->m_lastactive_msec = timestamp_msec;
-						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 					}
 				}
 				break;
@@ -1566,6 +1566,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->protocol = protocol;
 	s->sendprobe_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
+	s->close_timeout_msec = 0;
 	s->sessionid = NULL;
 	s->userdata = NULL;
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
@@ -1587,7 +1588,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_sendaction = SEND_SHUTDOWN_ACTION;
 	s->m_shutdown = 0;
 	s->m_errno = 0;
-	s->m_close_timeout_msec = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_shutdownpostmsg.type = NIO_SOCKET_SHUTDOWN_POST_MESSAGE;
@@ -1683,8 +1683,8 @@ static void sockcloselist_update(NioLoop_t* loop, long long timestamp_msec) {
 	for (cur = loop->m_sockcloselist.head; cur; cur = next) {
 		NioSocket_t* s = pod_container_of(cur, NioSocket_t, m_closemsg.m_listnode);
 		next = cur->next;
-		if (s->m_lastactive_msec + s->m_close_timeout_msec > timestamp_msec) {
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+		if (s->m_lastactive_msec + s->close_timeout_msec > timestamp_msec) {
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 			continue;
 		}
 		free_io_resource(s);
@@ -1704,7 +1704,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
 				s->m_valid = 0;
 				free_inbuf(s);
-				if (SOCK_STREAM == s->socktype || s->keepalive_timeout_sec * 1000 >= s->m_close_timeout_msec)
+				if (SOCK_STREAM == s->socktype || s->keepalive_timeout_sec * 1000 >= s->close_timeout_msec)
 					free_io_resource(s);
 			}
 			else {
@@ -1788,14 +1788,16 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			free_inbuf(s);
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
+				/*
 				if (s->keepalive_timeout_sec > 0) {
-					s->m_close_timeout_msec = s->keepalive_timeout_sec * 1000;
+					s->close_timeout_msec = s->keepalive_timeout_sec * 1000;
 				}
+				*/
 				dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
-			if (s->m_close_timeout_msec > 0) {
+			if (s->close_timeout_msec > 0) {
 				s->m_lastactive_msec = timestamp_msec;
-				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 			}
 			else
@@ -1904,9 +1906,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					stream_clear_send_packet(s);
 					dataqueuePush(loop->m_msgdq, &s->m_netreconnectmsg.m_listnode);
 
-					if (s->m_close_timeout_msec > 0) {
+					if (s->close_timeout_msec > 0) {
 						s->m_lastactive_msec = timestamp_msec;
-						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->m_close_timeout_msec);
+						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 						listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 					}
 					else
@@ -2055,7 +2057,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							s->m_sendprobe_msec = timestamp_msec;
 							immedinate_call_reg = 1;
 						}
-						s->m_close_timeout_msec = MSL + MSL;
+						if (s->close_timeout_msec < MSL + MSL) {
+							s->close_timeout_msec = MSL + MSL;
+						}
 					}
 					else {
 						s->m_sendaction = SEND_OK_ACTION;
