@@ -1579,7 +1579,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->recv = NULL;
 	s->hdrlen = NULL;
 	s->encode = NULL;
-	s->send_probe_to_server = NULL;
+	s->send_heartbeat_to_server = NULL;
 	s->send_retransport_req_to_server = NULL;
 	s->send_retransport_ret_to_client = NULL;
 	s->shutdown_callback = NULL;
@@ -1708,12 +1708,12 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 					free_io_resource(s);
 			}
 			else {
-				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side &&
-					s->m_sendprobe_msec > 0 && s->send_probe_to_server && s->sendprobe_timeout_sec > 0)
+				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side && s->send_heartbeat_to_server &&
+					s->m_sendprobe_msec > 0 && s->sendprobe_timeout_sec > 0)
 				{
 					if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
 						s->m_sendprobe_msec = timestamp_msec;
-						s->send_probe_to_server(s);
+						s->send_heartbeat_to_server(s);
 					}
 					update_timestamp(&loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
 				}
