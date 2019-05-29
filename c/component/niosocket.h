@@ -70,7 +70,7 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
 	};
-	int(*idle)(struct NioSocket_t*);
+	int(*zombie)(struct NioSocket_t*);
 	void(*accept)(struct NioSocket_t*, FD_t, const struct sockaddr_storage*);
 	void(*decode)(unsigned char*, size_t, NioSocketDecodeResult_t*);
 	void(*recv)(struct NioSocket_t*, const struct sockaddr_storage*, NioSocketDecodeResult_t*);

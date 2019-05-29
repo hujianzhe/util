@@ -1572,7 +1572,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
-	s->idle = NULL;
+	s->zombie = NULL;
 	s->accept = NULL;
 	s->decode = NULL;
 	s->recv = NULL;
@@ -1703,7 +1703,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
 			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
-				if (s->idle && s->idle(s)) {
+				if (s->zombie && s->zombie(s)) {
 					s->m_lastactive_msec = timestamp_msec;
 					continue;
 				}
