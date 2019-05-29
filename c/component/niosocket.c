@@ -1703,7 +1703,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
 			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
-				if (s->zombie && s->zombie(s)) {
+				if (SEND_OK_ACTION == s->m_sendaction && s->zombie && s->zombie(s)) {
 					s->m_lastactive_msec = timestamp_msec;
 					continue;
 				}
