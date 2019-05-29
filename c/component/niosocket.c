@@ -1704,9 +1704,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 		if (s->m_valid) {
 			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
 				if (s->idle && s->idle(s)) {
-					if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
-						// TODO reconnect
-					}
+					s->m_lastactive_msec = timestamp_msec;
 					continue;
 				}
 				s->m_valid = 0;
