@@ -1729,6 +1729,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				continue;
 			}
 		}
+		s->m_sendaction = SEND_SHUTDOWN_ACTION;
 		hashtableRemoveNode(&loop->m_sockht, cur);
 		listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
 		_xchg16(&s->m_shutdown, 1);
