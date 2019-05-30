@@ -1831,8 +1831,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_shutdownpostmsg);
 			if (SOCK_STREAM == s->socktype) {
 				if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
-					hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
-					dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
+					if (s->m_valid) {
+						s->m_valid = 0;
+						hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
+						dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
+					}
 				}
 				else if (SEND_OK_ACTION == s->m_sendaction) {
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
