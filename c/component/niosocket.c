@@ -390,26 +390,26 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		}
 	}
 	else {
-		packet = (Packet_t*)malloc(sizeof(Packet_t) + sizeof_ack);
-		if (!packet) {
+		Packet_t* ack_packet = (Packet_t*)malloc(sizeof(Packet_t) + sizeof_ack);
+		if (!ack_packet) {
 			s->m_valid = 0;
 			return 0;
 		}
-		packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
-		packet->saddr.ss_family = AF_UNSPEC;
-		packet->s = s;
-		packet->type = HDR_ACK;
-		packet->need_ack = 0;
-		packet->hdrlen = hdrlen;
-		packet->seq = seq;
-		packet->offset = 0;
-		packet->len = sizeof_ack;
+		ack_packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
+		ack_packet->saddr.ss_family = AF_UNSPEC;
+		ack_packet->s = s;
+		ack_packet->type = HDR_ACK;
+		ack_packet->need_ack = 0;
+		ack_packet->hdrlen = hdrlen;
+		ack_packet->seq = seq;
+		ack_packet->offset = 0;
+		ack_packet->len = sizeof_ack;
 		if (hdrlen && s->encode) {
-			s->encode(packet->data, RELIABLE_STREAM_DATA_HDR_LEN);
+			s->encode(ack_packet->data, RELIABLE_STREAM_DATA_HDR_LEN);
 		}
-		packet->data[hdrlen] = HDR_ACK;
-		*(unsigned int*)(packet->data + hdrlen + 1) = htonl(seq);
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+		ack_packet->data[hdrlen] = HDR_ACK;
+		*(unsigned int*)(ack_packet->data + hdrlen + 1) = htonl(seq);
+		listInsertNodeBack(&s->m_sendpacketlist, &packet->msg.m_listnode, &ack_packet->msg.m_listnode);
 	}
 	return 1;
 }
