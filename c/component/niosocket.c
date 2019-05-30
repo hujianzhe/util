@@ -639,13 +639,15 @@ static void reliable_dgram_send_fin_packet(NioSocket_t* s, long long timestamp_m
 }
 
 static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
+	if (SEND_SHUTDOWN_ACTION == s->m_sendaction)
+		return;
+	s->m_sendaction = SEND_SHUTDOWN_ACTION;
 	if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side) {
 		s->m_lastactive_msec = timestamp_msec;
 		s->m_valid = 0;
 		update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 	}
 	else if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side || NIOSOCKET_TRANSPORT_SERVER == s->transport_side) {
-		s->m_sendaction = SEND_SHUTDOWN_ACTION;
 		if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
 			if (!s->m_sendpacketlist.head) {
 				reliable_dgram_send_fin_packet(s, timestamp_msec);
