@@ -652,8 +652,8 @@ static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 			if (!s->m_sendpacketlist.head) {
 				reliable_dgram_send_fin_packet(s, timestamp_msec);
 			}
-			s->sendprobe_timeout_sec = 0;
-			s->m_sendprobe_msec = 0;
+			s->heartbeat_timeout_sec = 0;
+			s->m_heartbeat_msec = 0;
 		}
 	}
 }
@@ -785,9 +785,9 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				return 1;
 			s->m_sendaction = SEND_OK_ACTION;
 			s->m_lastactive_msec = timestamp_msec;
-			s->m_sendprobe_msec = timestamp_msec;
-			if (s->sendprobe_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+			s->m_heartbeat_msec = timestamp_msec;
+			if (s->heartbeat_timeout_sec > 0) {
+				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 			s->reliable.m_status = ESTABLISHED_STATUS;
 		}
@@ -814,9 +814,9 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		}
 		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 		s->m_lastactive_msec = timestamp_msec;
-		s->m_sendprobe_msec = timestamp_msec;
-		if (s->sendprobe_timeout_sec > 0) {
-			update_timestamp(&s->m_loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+		s->m_heartbeat_msec = timestamp_msec;
+		if (s->heartbeat_timeout_sec > 0) {
+			update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 		}
 	}
 	else if (HDR_RECONNECT == hdr_type) {
@@ -893,8 +893,8 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				_xchg16(&s->m_shutdown, 1);
 				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
-			s->m_sendprobe_msec = 0;
-			s->sendprobe_timeout_sec = 0;
+			s->m_heartbeat_msec = 0;
+			s->heartbeat_timeout_sec = 0;
 		}
 	}
 	else if (HDR_FIN_ACK == hdr_type) {
@@ -923,7 +923,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 
 		s->m_lastactive_msec = timestamp_msec;
-		s->m_sendprobe_msec = timestamp_msec;
+		s->m_heartbeat_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		seq = ntohl(seq);
 		cwnd_skip = 0;
@@ -1211,7 +1211,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 				int decodelen;
 				s->m_inbuflen += res;
 				s->m_lastactive_msec = timestamp_msec;
-				s->m_sendprobe_msec = timestamp_msec;
+				s->m_heartbeat_msec = timestamp_msec;
 				if (s->reliable.enable)
 					handler = reliable_stream_data_packet_handler;
 				else
@@ -1303,9 +1303,9 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		else {
 			s->m_sendaction = SEND_OK_ACTION;
 			s->m_lastactive_msec = timestamp_msec;
-			s->m_sendprobe_msec = timestamp_msec;
-			if (s->sendprobe_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+			s->m_heartbeat_msec = timestamp_msec;
+			if (s->heartbeat_timeout_sec > 0) {
+				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
 		if (SEND_CONNECT_ACTION == sendaction) {
@@ -1566,7 +1566,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->sendprobe_timeout_sec = 0;
+	s->heartbeat_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->close_timeout_msec = 0;
 	s->sessionid = NULL;
@@ -1603,7 +1603,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_writeol = NULL;
 	s->m_writeol_has_commit = 0;
 	s->m_lastactive_msec = 0;
-	s->m_sendprobe_msec = 0;
+	s->m_heartbeat_msec = 0;
 	s->m_inbuf = NULL;
 	s->m_inbufoffset = 0;
 	s->m_inbuflen = 0;
@@ -1716,13 +1716,13 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 			}
 			else {
 				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side && s->send_heartbeat_to_server &&
-					s->m_sendprobe_msec > 0 && s->sendprobe_timeout_sec > 0)
+					s->m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0)
 				{
-					if (s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000 <= timestamp_msec) {
-						s->m_sendprobe_msec = timestamp_msec;
+					if (s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000 <= timestamp_msec) {
+						s->m_heartbeat_msec = timestamp_msec;
 						s->send_heartbeat_to_server(s);
 					}
-					update_timestamp(&loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+					update_timestamp(&loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 				}
 				if (s->keepalive_timeout_sec > 0)
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
@@ -1836,7 +1836,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				else if (SEND_OK_ACTION == s->m_sendaction) {
 					s->m_sendaction = SEND_SHUTDOWN_ACTION;
-					s->m_sendprobe_msec = 0;
+					s->m_heartbeat_msec = 0;
 					socketShutdown(s->fd, SHUT_WR);
 				}
 			}
@@ -1878,7 +1878,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				free_io_resource(s);
 				free_inbuf(s);
 				s->m_writeol_has_commit = 0;
-				s->m_sendprobe_msec = 0;
+				s->m_heartbeat_msec = 0;
 				do {
 					ok = 0;
 					s->fd = socket(s->domain, s->socktype, s->protocol);
@@ -1926,7 +1926,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->m_valid = 1;
 				s->m_sendaction = SEND_RECONNECT_ACTION;
 				s->m_lastactive_msec = timestamp_msec;
-				s->m_sendprobe_msec = 0;
+				s->m_heartbeat_msec = 0;
 				s->reliable.m_reconnect_times = 0;
 				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_reconnect_msec);
@@ -1994,7 +1994,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						if (has_connected) {
 							if (!reactorsocket_read(s))
 								break;
-							s->m_sendprobe_msec = timestamp_msec;
+							s->m_heartbeat_msec = timestamp_msec;
 							s->m_sendaction = SEND_OK_ACTION;
 							immedinate_call_reg = 1;
 						}
@@ -2024,7 +2024,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						}
 						else {
 							s->m_sendaction = SEND_OK_ACTION;
-							s->m_sendprobe_msec = timestamp_msec;
+							s->m_heartbeat_msec = timestamp_msec;
 						}
 						if (!reactorsocket_read(s))
 							break;
@@ -2060,7 +2060,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						else {
 							s->m_sendaction = SEND_OK_ACTION;
 							s->reliable.m_status = ESTABLISHED_STATUS;
-							s->m_sendprobe_msec = timestamp_msec;
+							s->m_heartbeat_msec = timestamp_msec;
 							immedinate_call_reg = 1;
 						}
 						if (s->close_timeout_msec < MSL + MSL) {
@@ -2075,8 +2075,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						break;
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
-				if (s->m_sendprobe_msec > 0 && s->sendprobe_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->m_sendprobe_msec + s->sendprobe_timeout_sec * 1000);
+				if (s->m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 				}
 				if (s->keepalive_timeout_sec > 0) {
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);

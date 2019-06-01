@@ -60,7 +60,7 @@ typedef struct NioSocket_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int sendprobe_timeout_sec;
+	int heartbeat_timeout_sec;
 	int keepalive_timeout_sec;
 	int close_timeout_msec;
 	const char* sessionid;
@@ -100,7 +100,7 @@ typedef struct NioSocket_t {
 	void* m_writeol;
 	int m_writeol_has_commit;
 	long long m_lastactive_msec;
-	long long m_sendprobe_msec;
+	long long m_heartbeat_msec;
 	unsigned char *m_inbuf;
 	size_t m_inbufoffset;
 	size_t m_inbuflen;
