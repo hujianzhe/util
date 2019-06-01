@@ -1796,11 +1796,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			free_inbuf(s);
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
-				/*
-				if (s->keepalive_timeout_sec > 0) {
-					s->close_timeout_msec = s->keepalive_timeout_sec * 1000;
-				}
-				*/
 				dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
 			if (s->close_timeout_msec > 0) {
