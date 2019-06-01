@@ -71,6 +71,7 @@ typedef struct NioSocket_t {
 		struct sockaddr_storage peer_listen_saddr;
 	};
 	int(*zombie)(struct NioSocket_t* self);
+	void(*reg)(struct NioSocket_t* self, int err, int regtimes);
 	void(*accept)(struct NioSocket_t* self, FD_t newfd, const struct sockaddr_storage* peeraddr);
 	void(*decode)(unsigned char* buf, size_t buflen, NioSocketDecodeResult_t* result);
 	void(*recv)(struct NioSocket_t* self, const struct sockaddr_storage* addr, NioSocketDecodeResult_t* result);
@@ -79,8 +80,6 @@ typedef struct NioSocket_t {
 	void(*send_heartbeat_to_server)(struct NioSocket_t* self);
 	void(*send_retransport_req_to_server)(struct NioSocket_t* self, unsigned int recvseq, unsigned int cwndseq);
 	void(*send_retransport_ret_to_client)(struct NioSocket_t* self, int success);
-	void(*reg_callback)(struct NioSocket_t* self, int err);
-	void(*net_reconnect_callback)(struct NioSocket_t* self, int err);
 	void(*shutdown_callback)(struct NioSocket_t* self);
 	void(*close_callback)(struct NioSocket_t* self);
 /* private */
@@ -88,6 +87,7 @@ typedef struct NioSocket_t {
 	volatile char m_sendaction;
 	Atom16_t m_shutdown;
 	int m_errno;
+	int m_regtimes;
 	NioInternalMsg_t m_regmsg;
 	NioInternalMsg_t m_shutdownmsg;
 	NioInternalMsg_t m_shutdownpostmsg;
