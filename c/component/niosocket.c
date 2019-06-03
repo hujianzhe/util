@@ -1307,11 +1307,13 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			}
 		}
 		if (SEND_RECONNECT_ACTION == sendaction) {
+			/*
 			if (0 == s->m_errno && s->reliable.enable) {
 				unsigned int cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist_bak);
 				s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
 				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, cwndseq);
 			}
+			*/
 			_xchg16(&s->m_shutdown, 0);
 		}
 		s->reg(s, s->m_errno, s->m_regtimes++);
@@ -1484,18 +1486,18 @@ void niosocketClientReconnect(NioSocket_t* s) {
 	nioloop_exec_msg(s->m_loop, &s->m_netreconnectmsg.m_listnode);
 }
 
-void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_cwndseq) {
+int niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int new_recvseq, int new_cwndseq) {
 	StreamReplaceMessage_t* replacemsg;
 	if (old_s->transport_side != new_s->transport_side || old_s->transport_side != NIOSOCKET_TRANSPORT_SERVER)
-		return;
+		return 0;
 	if (new_s->socktype != old_s->socktype || SOCK_STREAM != new_s->socktype)
-		return;
+		return 0;
 	replacemsg = (StreamReplaceMessage_t*)malloc(sizeof(StreamReplaceMessage_t));
 	if (!replacemsg)
-		return;
+		return 0;
 	if (!mutexCreate(&replacemsg->m_blocklock)) {
 		free(replacemsg);
-		return;
+		return 0;
 	}
 	mutexLock(&replacemsg->m_blocklock);
 	replacemsg->msg.type = NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE;
@@ -1524,13 +1526,13 @@ void niosocketTcpTransportReplace(NioSocket_t* old_s, NioSocket_t* new_s, int ne
 				packet->offset = 0;
 			}
 		}
-		new_s->send_retransport_ret_to_client(new_s, 1);
 		replacemsg->s = new_s;
 		nioloop_exec_msg(new_s->m_loop, &replacemsg->msg.m_listnode);
+		return 1;
 	}
 	else {
-		new_s->send_retransport_ret_to_client(new_s, 0);
 		free(replacemsg);
+		return 0;
 	}
 }
 
@@ -1578,8 +1580,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->hdrlen = NULL;
 	s->encode = NULL;
 	s->send_heartbeat_to_server = NULL;
-	s->send_retransport_req_to_server = NULL;
-	s->send_retransport_ret_to_client = NULL;
 	s->shutdown_callback = NULL;
 	s->close_callback = NULL;
 	s->m_valid = 1;
