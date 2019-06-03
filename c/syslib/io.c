@@ -549,7 +549,8 @@ int reactorEventOpcode(const NioEv_t* e) {
 	else
 		return REACTOR_NOP;
 #elif __linux__
-	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {/* epoll must catch this event */
+	/* epoll must catch this event */
+	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP))
 		return (e->data.fd & 0x80000000) ? REACTOR_WRITE : REACTOR_READ;
 	/* we use __epfd to filter EPOLLOUT event */
 	else if (e->events & EPOLLIN)
