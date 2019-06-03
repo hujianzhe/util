@@ -1755,8 +1755,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		for (i = 0; i < n; ++i) {
 			HashtableNode_t* find_node;
 			NioSocket_t* s;
-			int event;
-			void* ol;
 			FD_t fd = reactorEventFD(e + i);
 			if (fd == loop->m_socketpair[0]) {
 				struct sockaddr_storage saddr;
@@ -1766,14 +1764,16 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				_xchg16(&loop->m_wake, 0);
 				continue;
 			}
+			if (!reactorEventOverlapped(e + i)) {
+				continue;
+			}
 			find_node = hashtableSearchKey(&loop->m_sockht, &fd);
 			if (!find_node)
 				continue;
 			s = pod_container_of(find_node, NioSocket_t, m_hashnode);
 			if (!s->m_valid)
 				continue;
-			reactorEventOpcodeAndOverlapped(e + i, &event, &ol);
-			switch (event) {
+			switch (reactorEventOpcode(e + i)) {
 				case REACTOR_READ:
 					reactor_socket_do_read(s, timestamp_msec);
 					reactorsocket_read(s);

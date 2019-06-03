@@ -225,6 +225,7 @@ BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 typedef struct IocpOverlapped {
 	OVERLAPPED ol;
+	unsigned short free;
 	unsigned short opcode;
 } IocpOverlapped;
 typedef struct IocpReadOverlapped {
@@ -301,10 +302,13 @@ void reactorFreeOverlapped(void* ol) {
 	if (iocp_ol) {
 		if (REACTOR_ACCEPT == iocp_ol->opcode) {
 			IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
-			if (INVALID_SOCKET != iocp_acceptex->accpetsocket)
+			if (INVALID_SOCKET != iocp_acceptex->accpetsocket) {
 				closesocket(iocp_acceptex->accpetsocket);
+				iocp_acceptex->accpetsocket = INVALID_SOCKET;
+			}
 		}
-		free(iocp_ol);
+		/*free(iocp_ol);*/
+		iocp_ol->free = 1;
 	}
 #endif
 }
@@ -515,48 +519,52 @@ FD_t reactorEventFD(const NioEv_t* e) {
 #endif
 }
 
-void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_ol) {
+void* reactorEventOverlapped(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
-	*p_ol = (void*)iocp_ol;
+	if (iocp_ol->free) {
+		free(iocp_ol);
+		return NULL;
+	}
+	return iocp_ol;
+#else
+	return (void*)(size_t)-1;
+#endif
+}
+
+int reactorEventOpcode(const NioEv_t* e) {
+#if defined(_WIN32) || defined(_WIN64)
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (REACTOR_ACCEPT == iocp_ol->opcode)
-		*p_opcode = REACTOR_READ;
+		return REACTOR_READ;
 	else if (REACTOR_CONNECT == iocp_ol->opcode)
-		*p_opcode = REACTOR_WRITE;
+		return REACTOR_WRITE;
 	else if (REACTOR_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
 		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-		*p_opcode = REACTOR_READ;
+		return REACTOR_READ;
 	}
 	else if (REACTOR_WRITE == iocp_ol->opcode)
-		*p_opcode = REACTOR_WRITE;
+		return REACTOR_WRITE;
 	else
-		*p_opcode = REACTOR_NOP;
+		return REACTOR_NOP;
 #elif __linux__
-	*p_ol = NULL;
 	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {/* epoll must catch this event */
-		*p_opcode = (e->data.fd & 0x80000000) ? REACTOR_WRITE : REACTOR_READ;
-	}
-	else {
-		/* we use __epfd to filter EPOLLOUT event */
-		if (e->events & EPOLLIN) {
-			*p_opcode = REACTOR_READ;
-		}
-		else if (e->events & EPOLLOUT) {
-			*p_opcode = REACTOR_WRITE;
-		}
-		else {
-			*p_opcode = REACTOR_NOP;
-		}
-	}
+		return (e->data.fd & 0x80000000) ? REACTOR_WRITE : REACTOR_READ;
+	/* we use __epfd to filter EPOLLOUT event */
+	else if (e->events & EPOLLIN)
+		return REACTOR_READ;
+	else if (e->events & EPOLLOUT)
+		return REACTOR_WRITE;
+	else
+		return REACTOR_NOP;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	*p_ol = NULL;
 	if (EVFILT_READ == e->filter)
-		*p_opcode = REACTOR_READ;
+		return REACTOR_READ;
 	else if (EVFILT_WRITE == e->filter)
-		*p_opcode = REACTOR_WRITE;
+		return REACTOR_WRITE;
 	else /* program don't run here... */
-		*p_opcode = REACTOR_NOP;
+		return REACTOR_NOP;
 #endif
 }
 

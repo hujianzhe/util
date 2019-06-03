@@ -83,8 +83,9 @@ __declspec_dll void* reactorMallocOverlapped(int opcode, const void* refbuf, uns
 __declspec_dll void reactorFreeOverlapped(void* ol);
 __declspec_dll BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr_storage* saddr);
 __declspec_dll int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+__declspec_dll void* reactorEventOverlapped(const NioEv_t* e);
 __declspec_dll FD_t reactorEventFD(const NioEv_t* e);
-__declspec_dll void reactorEventOpcodeAndOverlapped(const NioEv_t* e, int* p_opcode, void** p_ol);
+__declspec_dll int reactorEventOpcode(const NioEv_t* e);
 __declspec_dll int reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
 __declspec_dll BOOL reactorConnectCheckSuccess(FD_t sockfd);
 __declspec_dll FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr);
