@@ -597,7 +597,6 @@ static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int
 			decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 			dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 		}
-		//data_packet_handler(s, data, len, saddr);
 	}
 	else {
 		unsigned char* ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + len);
@@ -617,7 +616,6 @@ static void reliable_dgram_packet_merge(NioSocket_t* s, unsigned char* data, int
 					decode_result.msgptr->internal.type = NIO_SOCKET_USER_MESSAGE;
 					dataqueuePush(s->m_loop->m_msgdq, &decode_result.msgptr->internal.m_listnode);
 				}
-				//data_packet_handler(s, s->m_inbuf, s->m_inbuflen, saddr);
 			}
 		}
 		free_inbuf(s);
@@ -1342,8 +1340,9 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		for (nbytes = 0, i = 0; i < iovcnt; ++i)
 			nbytes += iobufLen(iov + i);
 		if (0 == nbytes) {
-			if (SOCK_STREAM == s->socktype && !s->reliable.enable)
+			if (SOCK_STREAM == s->socktype && !s->reliable.enable && (!s->hdrlen || !s->hdrlen(0))) {
 				return s;
+			}
 			iovcnt = 0;
 		}
 	}
