@@ -1880,6 +1880,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->fd = socket(s->domain, s->socktype, s->protocol);
 					if (INVALID_FD_HANDLE == s->fd)
 						break;
+					if (!reactorReg(&loop->m_reactor, s->fd))
+						break;
 					if (!s->m_writeol) {
 						s->m_writeol = reactorMallocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
 						if (!s->m_writeol)
