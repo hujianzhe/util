@@ -323,15 +323,21 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		if (saddr) {
 			int slen = sizeof(iocp_ol->saddr);
 			DWORD Flags = 0;
-			if (!WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
-				WSAGetLastError() == WSA_IO_PENDING)
-			{
+			if (!WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL)) {
+				iocp_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (WSAGetLastError() == WSA_IO_PENDING) {
 				iocp_ol->base.commit = 1;
 				return TRUE;
 			}
 		}
 		else {
-			if (ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING) {
+			if (ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL)) {
+				iocp_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (GetLastError() == ERROR_IO_PENDING) {
 				iocp_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -342,15 +348,21 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 		if (saddr) {
 			WSABUF wsabuf = { 0 };
-			if (!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)ol, NULL) ||
-				WSAGetLastError() == WSA_IO_PENDING)
-			{
+			if (!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)ol, NULL)) {
+				iocp_ol->commit = 1;
+				return TRUE;
+			}
+			else if (WSAGetLastError() == WSA_IO_PENDING) {
 				iocp_ol->commit = 1;
 				return TRUE;
 			}
 		}
 		else {
-			if (WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING) {
+			if (WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL)) {
+				iocp_ol->commit = 1;
+				return TRUE;
+			}
+			else if (GetLastError() == ERROR_IO_PENDING) {
 				iocp_ol->commit = 1;
 				return TRUE;
 			}
@@ -379,9 +391,12 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		}
 		if (lpfnAcceptEx((SOCKET)fd, iocp_ol->accpetsocket, iocp_ol->saddrs, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
-			NULL, (LPOVERLAPPED)ol) ||
-			WSAGetLastError() == ERROR_IO_PENDING)
+			NULL, (LPOVERLAPPED)ol))
 		{
+			iocp_ol->base.commit = 1;
+			return TRUE;
+		}
+		else if (WSAGetLastError() == ERROR_IO_PENDING) {
 			iocp_ol->base.commit = 1;
 			return TRUE;
 		}
@@ -392,7 +407,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		}
 	}
 	else if (REACTOR_CONNECT == opcode) {
-		struct sockaddr_storage _sa = {0};
+		struct sockaddr_storage _sa = { 0 };
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		int slen;
 		/* ConnectEx must get really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
@@ -422,9 +437,11 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		if (bind((SOCKET)fd, (struct sockaddr*)&_sa, sizeof(_sa))) {
 			return FALSE;
 		}
-		if (lpfnConnectEx((SOCKET)fd, (struct sockaddr*)saddr, slen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol) ||
-			WSAGetLastError() == ERROR_IO_PENDING)
-		{
+		if (lpfnConnectEx((SOCKET)fd, (struct sockaddr*)saddr, slen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol)) {
+			((IocpOverlapped*)ol)->commit = 1;
+			return TRUE;
+		}
+		else if (WSAGetLastError() == ERROR_IO_PENDING) {
 			((IocpOverlapped*)ol)->commit = 1;
 			return TRUE;
 		}
