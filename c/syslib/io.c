@@ -225,7 +225,8 @@ BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 typedef struct IocpOverlapped {
 	OVERLAPPED ol;
-	unsigned short free;
+	unsigned char commit;
+	unsigned char free;
 	unsigned short opcode;
 } IocpOverlapped;
 typedef struct IocpReadOverlapped {
@@ -307,8 +308,10 @@ void reactorFreeOverlapped(void* ol) {
 				iocp_acceptex->accpetsocket = INVALID_SOCKET;
 			}
 		}
-		/*free(iocp_ol);*/
-		iocp_ol->free = 1;
+		if (iocp_ol->commit)
+			iocp_ol->free = 1;
+		else
+			free(iocp_ol);
 	}
 #endif
 }
@@ -320,26 +323,43 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		if (saddr) {
 			int slen = sizeof(iocp_ol->saddr);
 			DWORD Flags = 0;
-			return !WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
-					WSAGetLastError() == WSA_IO_PENDING;
+			if (!WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL) ||
+				WSAGetLastError() == WSA_IO_PENDING)
+			{
+				iocp_ol->base.commit = 1;
+				return TRUE;
+			}
 		}
 		else {
-			return ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+			if (ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING) {
+				iocp_ol->base.commit = 1;
+				return TRUE;
+			}
 		}
+		return FALSE;
 	}
 	else if (REACTOR_WRITE == opcode) {
+		IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 		if (saddr) {
 			WSABUF wsabuf = { 0 };
-			return	!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)ol, NULL) ||
-					WSAGetLastError() == WSA_IO_PENDING;
+			if (!WSASendTo((SOCKET)fd, &wsabuf, 1, NULL, 0, (struct sockaddr*)saddr, sizeof(*saddr), (LPWSAOVERLAPPED)ol, NULL) ||
+				WSAGetLastError() == WSA_IO_PENDING)
+			{
+				iocp_ol->commit = 1;
+				return TRUE;
+			}
 		}
 		else {
-			return WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING;
+			if (WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL) || GetLastError() == ERROR_IO_PENDING) {
+				iocp_ol->commit = 1;
+				return TRUE;
+			}
 		}
+		return FALSE;
 	}
 	else if (REACTOR_ACCEPT == opcode) {
-		IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
+		IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 		if (!lpfnAcceptEx) {
 			DWORD dwBytes;
 			GUID GuidAcceptEx = WSAID_ACCEPTEX;
@@ -362,6 +382,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 			NULL, (LPOVERLAPPED)ol) ||
 			WSAGetLastError() == ERROR_IO_PENDING)
 		{
+			iocp_ol->base.commit = 1;
 			return TRUE;
 		}
 		else {
@@ -392,7 +413,8 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 			if (WSAIoctl((SOCKET)fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
 				&GuidConnectEx, sizeof(GuidConnectEx),
 				&lpfnConnectEx, sizeof(lpfnConnectEx),
-				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnConnectEx) {
+				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnConnectEx)
+			{
 				return FALSE;
 			}
 		}
@@ -400,8 +422,13 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 		if (bind((SOCKET)fd, (struct sockaddr*)&_sa, sizeof(_sa))) {
 			return FALSE;
 		}
-		return lpfnConnectEx((SOCKET)fd, (struct sockaddr*)saddr, slen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol) ||
-				WSAGetLastError() == ERROR_IO_PENDING;
+		if (lpfnConnectEx((SOCKET)fd, (struct sockaddr*)saddr, slen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol) ||
+			WSAGetLastError() == ERROR_IO_PENDING)
+		{
+			((IocpOverlapped*)ol)->commit = 1;
+			return TRUE;
+		}
+		return FALSE;
 	}
 	else {
 		SetLastError(ERROR_INVALID_PARAMETER);
@@ -526,7 +553,10 @@ void* reactorEventOverlapped(const NioEv_t* e) {
 		free(iocp_ol);
 		return NULL;
 	}
-	return iocp_ol;
+	else {
+		iocp_ol->commit = 0;
+		return iocp_ol;
+	}
 #else
 	return (void*)(size_t)-1;
 #endif
