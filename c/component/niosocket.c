@@ -237,10 +237,6 @@ static void stream_clear_send_packet(NioSocket_t* s) {
 }
 
 static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
-	if (s->reliable.enable) {
-		packet->seq = s->reliable.m_sendseq++;
-		*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
-	}
 	if (s->m_sendpacketlist.head) {
 		packet->offset = 0;
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
@@ -657,8 +653,6 @@ static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 }
 
 static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t* packet, long long timestamp_msec) {
-	packet->seq = s->reliable.m_sendseq++;
-	*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
 	listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	if (SEND_OK_ACTION != s->m_sendaction)
 		return;
@@ -1567,7 +1561,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->heartbeat_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->close_timeout_msec = 0;
-	s->sessionid = NULL;
 	s->userdata = NULL;
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
@@ -1847,8 +1840,13 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				free(packet);
 				continue;
 			}
-			if (SOCK_STREAM == s->socktype)
+			if (SOCK_STREAM == s->socktype) {
+				if (s->reliable.enable) {
+					packet->seq = s->reliable.m_sendseq++;
+					*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
+				}
 				stream_send_packet(packet->s, packet);
+			}
 			else {
 				struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
 				socketWrite(s->fd, packet->data, packet->len, 0, saddrptr);
@@ -1862,6 +1860,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				free(packet);
 				continue;
 			}
+			packet->seq = s->reliable.m_sendseq++;
+			*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
 			reliable_dgram_send_packet(s, packet, timestamp_msec);
 		}
 		else if (NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE == message->type) {

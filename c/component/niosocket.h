@@ -63,7 +63,6 @@ typedef struct NioSocket_t {
 	int heartbeat_timeout_sec;
 	int keepalive_timeout_sec;
 	int close_timeout_msec;
-	const char* sessionid;
 	void* userdata;
 	unsigned int transport_side;
 	union {
