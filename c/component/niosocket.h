@@ -124,7 +124,9 @@ typedef struct NioSocket_t {
 		unsigned int m_cwndseq;
 		unsigned int m_recvseq;
 		unsigned int m_sendseq;
+		unsigned int m_cwndseq_bak;
 		unsigned int m_recvseq_bak;
+		unsigned int m_sendseq_bak;
 	} reliable;
 } NioSocket_t;
 

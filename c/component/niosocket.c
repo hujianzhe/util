@@ -305,7 +305,7 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 	}
 }
 
-static void stream_bak_sendpacket(NioSocket_t* s) {
+static void reliable_stream_bak(NioSocket_t* s) {
 	ListNode_t* cur, *next;
 	s->m_sendpacketlist_bak = s->m_sendpacketlist;
 	listInit(&s->m_sendpacketlist);
@@ -321,20 +321,9 @@ static void stream_bak_sendpacket(NioSocket_t* s) {
 			packet->offset = 0;
 		}
 	}
-}
-
-static unsigned int reliable_stream_sendpacket_cwndseq(List_t* sendpacketlist) {
-	ListNode_t* cur;
-	unsigned int seq = 0;
-	for (cur = sendpacketlist->head; cur; cur = cur->next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
-		unsigned char hdrtype = packet->type;
-		if (HDR_ACK == hdrtype)
-			continue;
-		seq = packet->seq;
-		break;
-	}
-	return seq;
+	s->reliable.m_cwndseq_bak = s->reliable.m_cwndseq;
+	s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
+	s->reliable.m_sendseq_bak = s->reliable.m_sendseq;
 }
 
 static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
@@ -413,7 +402,7 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 	ListNode_t* cur, *next;
 	List_t freepacketlist;
 	listInit(&freepacketlist);
-	for (cur = s->m_sendpacketlist.head; cur; cur = next, packet = NULL) {
+	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 		unsigned char pkg_hdr_type;
 		unsigned int pkg_seq;
 		next = cur->next;
@@ -426,6 +415,12 @@ static void reliable_stream_do_ack(NioSocket_t* s, unsigned int seq) {
 		pkg_seq = packet->seq;
 		if (seq1_before_seq2(seq, pkg_seq))
 			break;
+		if (next) {
+			packet = pod_container_of(next, Packet_t, msg.m_listnode);
+			s->reliable.m_cwndseq = packet->seq;
+		}
+		else
+			s->reliable.m_cwndseq++;
 		listRemoveNode(&s->m_sendpacketlist, cur);
 		listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
 		if (pkg_seq == seq)
@@ -1273,8 +1268,9 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		SEND_RECONNECT_ACTION == s->m_sendaction)
 	{
 		int sendaction = s->m_sendaction;
-		int err = reactorConnectCheckSuccess(s->fd) ? 0 : errnoGet();
-		if (err) {
+		int err;
+		if (!reactorConnectCheckSuccess(s->fd)) {
+			err = errnoGet();
 			s->m_valid = 0;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			s->shutdown_callback = NULL;
@@ -1286,6 +1282,7 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			s->shutdown_callback = NULL;
 		}
 		else {
+			err = 0;
 			s->m_sendaction = SEND_OK_ACTION;
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_heartbeat_msec = timestamp_msec;
@@ -1294,13 +1291,6 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			}
 		}
 		if (SEND_RECONNECT_ACTION == sendaction) {
-			/*
-			if (0 == err && s->reliable.enable) {
-				unsigned int cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist_bak);
-				s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
-				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, cwndseq);
-			}
-			*/
 			_xchg16(&s->m_shutdown, 0);
 		}
 		s->connect(s, err, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
@@ -1615,7 +1605,9 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->reliable.m_cwndseq = 0;
 	s->reliable.m_recvseq = 0;
 	s->reliable.m_sendseq = 0;
+	s->reliable.m_cwndseq_bak = 0;
 	s->reliable.m_recvseq_bak = 0;
+	s->reliable.m_sendseq_bak = 0;
 	return s;
 }
 
@@ -1890,7 +1882,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					s->m_sendaction = SEND_RECONNECT_ACTION;
 					s->m_lastactive_msec = timestamp_msec;
 					if (s->reliable.enable) {
-						stream_bak_sendpacket(s);
+						reliable_stream_bak(s);
 					}
 					else {
 						stream_clear_send_packet(s);
@@ -1931,11 +1923,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			if (replacemsg->req_stage) {
 				replacemsg->req_stage = 0;
 				do {
-					unsigned int cwndseq;
 					if (replacemsg->new_cwndseq > s->reliable.m_recvseq)
 						break;
-					cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist);
-					if (cwndseq > replacemsg->new_recvseq)
+					if (s->reliable.m_cwndseq > replacemsg->new_recvseq)
 						break;
 					replacemsg->old_recvseq = s->reliable.m_recvseq;
 					replacemsg->old_sendpacketlist = s->m_sendpacketlist;
