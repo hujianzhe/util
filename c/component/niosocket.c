@@ -1471,8 +1471,11 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 }
 
 void niosocketClientReconnect(NioSocket_t* s) {
-	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side)
+	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side ||
+		(SOCK_DGRAM == s->socktype && !s->reliable.enable))
+	{
 		return;
+	}
 	else if (_xchg16(&s->m_shutdown, 1))
 		return;
 	nioloop_exec_msg(s->m_loop, &s->m_netreconnectmsg.m_listnode);
