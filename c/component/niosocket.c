@@ -799,8 +799,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			}
 			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->m_sendaction = SEND_OK_ACTION;
-			s->m_errno = 0;
-			s->reg(s, 0, s->m_regtimes++);
+			s->connect(s, 0, s->m_connect_times++, 0, 0);
 		}
 		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
 		s->m_lastactive_msec = timestamp_msec;
@@ -843,10 +842,9 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
 		s->m_sendaction = SEND_OK_ACTION;
-		s->m_errno = 0;
 		_xchg16(&s->m_shutdown, 0);
-		s->reg(s, 0, s->m_regtimes++);
-		reliable_dgram_reconnect_push(s, timestamp_msec);
+		s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+		//reliable_dgram_reconnect_push(s, timestamp_msec);
 	}
 	else if (HDR_RECONNECT_ERR == hdr_type) {
 		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
@@ -856,8 +854,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		s->m_valid = 0;
 		s->reliable.m_status = TIME_WAIT_STATUS;
 		s->m_sendaction = SEND_SHUTDOWN_ACTION;
-		s->m_errno = EWOULDBLOCK;
-		s->reg(s, EWOULDBLOCK, s->m_regtimes++);
+		s->connect(s, EWOULDBLOCK, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -1076,9 +1073,8 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 			s->m_valid = 0;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-			s->m_errno = ETIMEDOUT;
 			s->shutdown_callback = NULL;
-			s->reg(s, ETIMEDOUT, s->m_regtimes++);
+			s->connect(s, ETIMEDOUT, s->m_connect_times++, 0, 0);
 		}
 		else {
 			unsigned char syn = HDR_SYN;
@@ -1116,8 +1112,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				s->m_valid = 0;
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-				s->m_errno = ETIMEDOUT;
-				s->reg(s, ETIMEDOUT, s->m_regtimes++);
+				s->connect(s, ETIMEDOUT, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 			}
 			else {
 				reliable_dgram_send_reconnect_packet(s);
@@ -1278,14 +1273,14 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		SEND_RECONNECT_ACTION == s->m_sendaction)
 	{
 		int sendaction = s->m_sendaction;
-		s->m_errno = reactorConnectCheckSuccess(s->fd) ? 0 : errnoGet();
-		if (s->m_errno) {
+		int err = reactorConnectCheckSuccess(s->fd) ? 0 : errnoGet();
+		if (err) {
 			s->m_valid = 0;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			s->shutdown_callback = NULL;
 		}
 		else if (!reactorsocket_read(s)) {
-			s->m_errno = errnoGet();
+			err = errnoGet();
 			s->m_valid = 0;
 			s->m_sendaction = SEND_SHUTDOWN_ACTION;
 			s->shutdown_callback = NULL;
@@ -1300,7 +1295,7 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		}
 		if (SEND_RECONNECT_ACTION == sendaction) {
 			/*
-			if (0 == s->m_errno && s->reliable.enable) {
+			if (0 == err && s->reliable.enable) {
 				unsigned int cwndseq = reliable_stream_sendpacket_cwndseq(&s->m_sendpacketlist_bak);
 				s->reliable.m_recvseq_bak = s->reliable.m_recvseq;
 				s->send_retransport_req_to_server(s, s->reliable.m_recvseq, cwndseq);
@@ -1308,7 +1303,7 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 			*/
 			_xchg16(&s->m_shutdown, 0);
 		}
-		s->reg(s, s->m_errno, s->m_regtimes++);
+		s->connect(s, err, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 	}
 	else if (SEND_OK_ACTION == s->m_sendaction && s->m_valid) {
 		stream_send_packet_continue(s);
@@ -1568,6 +1563,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->zombie = NULL;
 	s->reg = NULL;
+	s->connect = NULL;
 	s->accept = NULL;
 	s->decode = NULL;
 	s->recv = NULL;
@@ -1579,8 +1575,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->m_valid = 1;
 	s->m_sendaction = SEND_SHUTDOWN_ACTION;
 	s->m_shutdown = 0;
-	s->m_errno = 0;
-	s->m_regtimes = 0;
+	s->m_connect_times = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
 	s->m_shutdownpostmsg.type = NIO_SOCKET_SHUTDOWN_POST_MESSAGE;
@@ -1904,12 +1899,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					ok = 1;
 				} while (0);
 				if (!ok) {
-					s->m_valid = 0;
-					s->m_sendaction = SEND_SHUTDOWN_ACTION;
-					s->m_errno = errnoGet();
-					s->reg(s, errnoGet(), s->m_regtimes++);
 					free_io_resource(s);
 					stream_clear_send_packet(s);
+					s->m_valid = 0;
+					s->m_sendaction = SEND_SHUTDOWN_ACTION;
+					s->connect(s, errnoGet(), s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 
 					if (s->close_timeout_msec > 0) {
 						s->m_lastactive_msec = timestamp_msec;
@@ -1979,7 +1973,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
-			int reg_ok = 0, immedinate_call_reg = 0;
+			int reg_ok = 0, immedinate_call = 0;
 			do {
 				if (!reactorReg(&loop->m_reactor, s->fd))
 					break;
@@ -1995,7 +1989,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 								break;
 							s->m_heartbeat_msec = timestamp_msec;
 							s->m_sendaction = SEND_OK_ACTION;
-							immedinate_call_reg = 1;
+							immedinate_call = 1;
 						}
 						else {
 							if (!s->m_writeol) {
@@ -2027,7 +2021,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						}
 						if (!reactorsocket_read(s))
 							break;
-						immedinate_call_reg = 1;
+						immedinate_call = 1;
 					}
 				}
 				else {
@@ -2050,7 +2044,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 								s->reliable.m_status = LISTENED_STATUS;
 								if (s->m_recvpacket_maxcnt < 200)
 									s->m_recvpacket_maxcnt = 200;
-								immedinate_call_reg = 1;
+								immedinate_call = 1;
 							}
 							else {
 								s->reliable.m_status = SYN_RCVD_STATUS;
@@ -2060,7 +2054,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 							s->m_sendaction = SEND_OK_ACTION;
 							s->reliable.m_status = ESTABLISHED_STATUS;
 							s->m_heartbeat_msec = timestamp_msec;
-							immedinate_call_reg = 1;
+							immedinate_call = 1;
 						}
 						if (s->close_timeout_msec < MSL + MSL) {
 							s->close_timeout_msec = MSL + MSL;
@@ -2068,7 +2062,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					}
 					else {
 						s->m_sendaction = SEND_OK_ACTION;
-						immedinate_call_reg = 1;
+						immedinate_call = 1;
 					}
 					if (!reactorsocket_read(s))
 						break;
@@ -2083,15 +2077,20 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				reg_ok = 1;
 			} while (0);
 			if (reg_ok) {
-				if (s->reg && immedinate_call_reg) {
-					s->reg(s, 0, s->m_regtimes++);
+				if (immedinate_call) {
+					if (s->connect)
+						s->connect(s, 0, s->m_connect_times++, 0, 0);
+					else if (s->reg)
+						s->reg(s, 0);
 				}
 			}
 			else {
 				s->m_sendaction = SEND_SHUTDOWN_ACTION;
 				s->shutdown_callback = NULL;
-				s->m_errno = errnoGet();
-				s->reg(s, errnoGet(), s->m_regtimes++);
+				if (s->connect)
+					s->connect(s, errnoGet(), s->m_connect_times++, 0, 0);
+				else if (s->reg)
+					s->reg(s, errnoGet());
 				dataqueuePush(loop->m_msgdq, &s->m_closemsg.m_listnode);
 			}
 		}
