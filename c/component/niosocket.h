@@ -46,8 +46,6 @@ enum {
 typedef struct NioSocketDecodeResult_t {
 	char err;
 	char incomplete;
-	char is_reconnect_reply;
-	char reconnect_reply_ok;
 	int decodelen;
 	int bodylen;
 	unsigned char* bodyptr;

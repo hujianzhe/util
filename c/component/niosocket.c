@@ -213,8 +213,6 @@ static void free_inbuf(NioSocket_t* s) {
 static NioSocketDecodeResult_t* reset_decode_result(NioSocketDecodeResult_t* result) {
 	result->err = 0;
 	result->incomplete = 0;
-	result->is_reconnect_reply = 0;
-	result->reconnect_reply_ok = 0;
 	result->decodelen = 0;
 	result->bodylen = 0;
 	result->bodyptr = NULL;
