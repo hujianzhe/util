@@ -1455,7 +1455,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 	return s;
 }
 
-void niosocketClientReconnect(NioSocket_t* s) {
+void niosocketClientNetReconnect(NioSocket_t* s) {
 	if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side ||
 		(SOCK_DGRAM == s->socktype && !s->reliable.enable))
 	{
