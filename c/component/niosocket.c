@@ -792,6 +792,8 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		if (memcmp(saddr, &s->peer_listen_saddr, sizeof(s->peer_listen_saddr)))
 			return 1;
+		if (SYN_SENT_STATUS != s->reliable.m_status && ESTABLISHED_STATUS != s->reliable.m_status)
+			return 1;
 		syn_ack_ack = HDR_SYN_ACK_ACK;
 		realible_dgram_inner_packet_send(s, &syn_ack_ack, sizeof(syn_ack_ack), saddr);
 		if (SYN_SENT_STATUS == s->reliable.m_status) {
@@ -839,24 +841,22 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			realible_dgram_inner_packet_send(s, &reconnect_err, sizeof(reconnect_err), saddr);
 		}
 	}
-	else if (HDR_RECONNECT_ACK == hdr_type) {
+	else if (HDR_RECONNECT_ACK == hdr_type || HDR_RECONNECT_ERR == hdr_type) {
 		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
 			return 1;
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
-		s->m_sendaction = SEND_OK_ACTION;
-		_xchg16(&s->m_shutdown, 0);
-		s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
-	}
-	else if (HDR_RECONNECT_ERR == hdr_type) {
-		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
-			return 1;
-		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
-			return 1;
-		s->m_valid = 0;
-		s->reliable.m_status = TIME_WAIT_STATUS;
-		s->m_sendaction = SEND_SHUTDOWN_ACTION;
-		s->connect(s, ECONNREFUSED, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+		if (HDR_RECONNECT_ACK == hdr_type) {
+			s->m_sendaction = SEND_OK_ACTION;
+			_xchg16(&s->m_shutdown, 0);
+			s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+		}
+		else {
+			s->m_valid = 0;
+			s->reliable.m_status = TIME_WAIT_STATUS;
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			s->connect(s, ECONNREFUSED, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+		}
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
