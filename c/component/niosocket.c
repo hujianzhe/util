@@ -44,6 +44,7 @@ enum {
 	LISTENED_STATUS,
 	SYN_SENT_STATUS,
 	SYN_RCVD_STATUS,
+	RECONNECT_STATUS,
 	ESTABLISHED_STATUS,
 	FIN_WAIT_1_STATUS,
 	FIN_WAIT_2_STATUS,
@@ -648,9 +649,8 @@ static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 			if (!s->m_sendpacketlist.head) {
 				reliable_dgram_send_fin_packet(s, timestamp_msec);
 			}
-			s->heartbeat_timeout_sec = 0;
-			s->m_heartbeat_msec = 0;
 		}
+		s->m_heartbeat_msec = 0;
 	}
 }
 
@@ -859,31 +859,32 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		}
 	}
 	else if (HDR_FIN == hdr_type) {
+		unsigned char fin_ack;
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
 			return 1;
-		else {
-			unsigned char fin_ack = HDR_FIN_ACK;
+		else if (ESTABLISHED_STATUS == s->reliable.m_status) {
+			fin_ack = HDR_FIN_ACK;
 			realible_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
-			if (ESTABLISHED_STATUS == s->reliable.m_status) {
-				s->reliable.m_status = CLOSE_WAIT_STATUS;
-				s->m_lastactive_msec = timestamp_msec;
-				s->m_sendaction = SEND_SHUTDOWN_ACTION;
-				if (0 == _xchg16(&s->m_shutdown, 1) && !s->m_sendpacketlist.head) {
-					reliable_dgram_send_fin_packet(s, timestamp_msec);
-				}
-				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
-			}
-			else if (FIN_WAIT_1_STATUS == s->reliable.m_status ||
-				FIN_WAIT_2_STATUS == s->reliable.m_status)
-			{
-				s->reliable.m_status = TIME_WAIT_STATUS;
-				s->m_lastactive_msec = timestamp_msec;
-				s->m_valid = 0;
-				_xchg16(&s->m_shutdown, 1);
-				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
-			}
+			s->reliable.m_status = CLOSE_WAIT_STATUS;
+			s->m_lastactive_msec = timestamp_msec;
 			s->m_heartbeat_msec = 0;
-			s->heartbeat_timeout_sec = 0;
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			if (0 == _xchg16(&s->m_shutdown, 1) && !s->m_sendpacketlist.head) {
+				reliable_dgram_send_fin_packet(s, timestamp_msec);
+			}
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
+		}
+		else if (FIN_WAIT_1_STATUS == s->reliable.m_status ||
+				FIN_WAIT_2_STATUS == s->reliable.m_status)
+		{
+			fin_ack = HDR_FIN_ACK;
+			realible_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
+			s->reliable.m_status = TIME_WAIT_STATUS;
+			s->m_lastactive_msec = timestamp_msec;
+			s->m_valid = 0;
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			_xchg16(&s->m_shutdown, 1);
+			dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 		}
 	}
 	else if (HDR_FIN_ACK == hdr_type) {
