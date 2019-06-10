@@ -549,7 +549,7 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 	return 0;
 }
 
-static void reliable_dgram_reconnect_push(NioSocket_t* s, long long timestamp_msec) {
+static void reliable_dgram_send_again(NioSocket_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
 		ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
@@ -667,7 +667,7 @@ static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t
 	}
 }
 
-static void reliable_dgram_send_reconnect_packet(NioSocket_t* s) {
+static void reliable_dgram_do_reconnect(NioSocket_t* s) {
 	unsigned char reconnect_pkg[9];
 	reconnect_pkg[0] = HDR_RECONNECT;
 	*(unsigned int*)(reconnect_pkg + 1) = htonl(s->reliable.m_recvseq);
@@ -833,7 +833,6 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
 			realible_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
 			s->reliable.peer_saddr = *saddr;
-			//reliable_dgram_reconnect_push(s, timestamp_msec);
 		}
 		else {
 			unsigned char reconnect_err = HDR_RECONNECT_ERR;
@@ -848,7 +847,6 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		s->m_sendaction = SEND_OK_ACTION;
 		_xchg16(&s->m_shutdown, 0);
 		s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
-		//reliable_dgram_reconnect_push(s, timestamp_msec);
 	}
 	else if (HDR_RECONNECT_ERR == hdr_type) {
 		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || SEND_RECONNECT_ACTION != s->m_sendaction)
@@ -858,7 +856,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		s->m_valid = 0;
 		s->reliable.m_status = TIME_WAIT_STATUS;
 		s->m_sendaction = SEND_SHUTDOWN_ACTION;
-		s->connect(s, EWOULDBLOCK, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+		s->connect(s, ECONNREFUSED, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 	}
 	else if (HDR_FIN == hdr_type) {
 		if (memcmp(saddr, &s->reliable.peer_saddr, sizeof(*saddr)))
@@ -1119,7 +1117,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				s->connect(s, ETIMEDOUT, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 			}
 			else {
-				reliable_dgram_send_reconnect_packet(s);
+				reliable_dgram_do_reconnect(s);
 				++s->reliable.m_reconnect_times;
 				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
@@ -1927,7 +1925,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 			}
 			else if (ESTABLISHED_STATUS == s->reliable.m_status) {
-				reliable_dgram_send_reconnect_packet(s);
+				reliable_dgram_do_reconnect(s);
 				s->m_valid = 1;
 				s->m_sendaction = SEND_RECONNECT_ACTION;
 				s->m_lastactive_msec = timestamp_msec;
@@ -1941,17 +1939,15 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectrecoverymsg);
 			if (SEND_OK_ACTION != s->m_sendaction)
 				continue;
-			if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
-				if (SOCK_STREAM == s->socktype)
+			else if (SOCK_STREAM == s->socktype) {
+				if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
 					reliable_stream_bak_recovery(s);
-				else {
-					// TODO 
 				}
-			}
-			if (SOCK_STREAM == s->socktype)
 				stream_send_packet_continue(s);
-			else
-				reliable_dgram_reconnect_push(s, timestamp_msec);
+			}
+			else {
+				reliable_dgram_send_again(s, timestamp_msec);
+			}
 		}
 		else if (NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE == message->type) {
 			StreamReplaceMessage_t* replacemsg = pod_container_of(message, StreamReplaceMessage_t, msg);
