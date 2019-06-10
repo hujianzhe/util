@@ -847,6 +847,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
 		if (HDR_RECONNECT_ACK == hdr_type) {
+			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->m_sendaction = SEND_OK_ACTION;
 			_xchg16(&s->m_shutdown, 0);
 			s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
@@ -1104,52 +1105,50 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 			update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
 		}
 	}
-	else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
-		if (SEND_RECONNECT_ACTION == s->m_sendaction) {
-			if (s->reliable.m_reconnect_msec > timestamp_msec) {
-				update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
-			}
-			else if (s->reliable.m_reconnect_times >= s->reliable.resend_maxtimes) {
-				s->reliable.m_status = TIME_WAIT_STATUS;
-				s->m_lastactive_msec = timestamp_msec;
-				s->m_valid = 0;
-				s->m_sendaction = SEND_SHUTDOWN_ACTION;
-				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-				s->connect(s, ETIMEDOUT, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
-			}
-			else {
-				reliable_dgram_do_reconnect(s);
-				++s->reliable.m_reconnect_times;
-				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
-			}
+	else if (RECONNECT_STATUS == s->reliable.m_status) {
+		if (s->reliable.m_reconnect_msec > timestamp_msec) {
+			update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
+		}
+		else if (s->reliable.m_reconnect_times >= s->reliable.resend_maxtimes) {
+			s->reliable.m_status = TIME_WAIT_STATUS;
+			s->m_lastactive_msec = timestamp_msec;
+			s->m_valid = 0;
+			s->m_sendaction = SEND_SHUTDOWN_ACTION;
+			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+			s->connect(s, ETIMEDOUT, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 		}
 		else {
-			ListNode_t* cur;
-			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-				ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
-				if (packet->seq < s->reliable.m_cwndseq ||
-					packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
-				{
-					break;
-				}
-				if (packet->resend_timestamp_msec > timestamp_msec) {
-					update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
-					continue;
-				}
-				if (packet->resendtimes >= s->reliable.resend_maxtimes) {
-					s->m_lastactive_msec = timestamp_msec;
-					if (SEND_SHUTDOWN_ACTION == s->m_sendaction) {
-						s->m_valid = 0;
-						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-					}
-					break;
-				}
-				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
-				packet->resendtimes++;
-				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
-				update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
+			reliable_dgram_do_reconnect(s);
+			++s->reliable.m_reconnect_times;
+			s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
+			update_timestamp(&loop->m_event_msec, s->reliable.m_reconnect_msec);
+		}
+	}
+	else if (ESTABLISHED_STATUS == s->reliable.m_status || CLOSE_WAIT_STATUS == s->reliable.m_status) {
+		ListNode_t* cur;
+		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
+			ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+			if (packet->seq < s->reliable.m_cwndseq ||
+				packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
+			{
+				break;
 			}
+			if (packet->resend_timestamp_msec > timestamp_msec) {
+				update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
+				continue;
+			}
+			if (packet->resendtimes >= s->reliable.resend_maxtimes) {
+				s->m_lastactive_msec = timestamp_msec;
+				if (SEND_SHUTDOWN_ACTION == s->m_sendaction) {
+					s->m_valid = 0;
+					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+				}
+				break;
+			}
+			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+			packet->resendtimes++;
+			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
+			update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
 		}
 	}
 }
@@ -1931,6 +1930,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				s->m_sendaction = SEND_RECONNECT_ACTION;
 				s->m_lastactive_msec = timestamp_msec;
 				s->m_heartbeat_msec = 0;
+				s->reliable.m_status = RECONNECT_STATUS;
 				s->reliable.m_reconnect_times = 0;
 				s->reliable.m_reconnect_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_reconnect_msec);
