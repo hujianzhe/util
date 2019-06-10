@@ -239,7 +239,7 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 		packet->offset = 0;
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	}
-	else if (SEND_OK_ACTION == s->m_sendaction) {
+	else {
 		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
