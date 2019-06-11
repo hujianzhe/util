@@ -486,29 +486,6 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 					}
 				}
 			}
-			else if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side) {
-				if (HDR_RECONNECT_ACK == hdr_type) {
-					if (s->m_sendpacketlist_bak.tail) {
-						Packet_t* packet = pod_container_of(s->m_sendpacketlist_bak.tail, Packet_t, msg.m_listnode);
-						s->reliable.m_sendseq = packet->seq + 1;
-					}
-					else {
-						s->reliable.m_sendseq = 0;
-					}
-					s->reliable.m_recvseq = s->reliable.m_recvseq_bak;
-					s->m_sendpacketlist = s->m_sendpacketlist_bak;
-					listInit(&s->m_sendpacketlist_bak);
-					stream_send_packet_continue(s);
-				}
-				else if (HDR_RECONNECT_ERR == hdr_type) {
-					ListNode_t* cur, *next;
-					for (cur = s->m_sendpacketlist_bak.head; cur; cur = next) {
-						next = cur->next;
-						free(pod_container_of(cur, Packet_t, msg.m_listnode));
-					}
-					listInit(&s->m_sendpacketlist_bak);
-				}
-			}
 		}
 	}
 	return offset;
