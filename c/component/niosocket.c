@@ -561,7 +561,7 @@ static void reliable_dgram_send_again(NioSocket_t* s, long long timestamp_msec) 
 	}
 }
 
-static int realible_dgram_inner_packet_send(NioSocket_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
+static int reliable_dgram_inner_packet_send(NioSocket_t* s, const unsigned char* data, int len, const struct sockaddr_storage* saddr) {
 	size_t hdrlen = s->hdrlen ? s->hdrlen(len) : 0;
 	if (hdrlen && s->encode) {
 		Iobuf_t iov[2] = {
@@ -623,7 +623,7 @@ static void reliable_dgram_check_send_fin_packet(NioSocket_t* s, long long times
 		return;
 	else {
 		unsigned char fin = HDR_FIN;
-		realible_dgram_inner_packet_send(s, &fin, sizeof(fin), &s->reliable.peer_saddr);
+		reliable_dgram_inner_packet_send(s, &fin, sizeof(fin), &s->reliable.peer_saddr);
 		s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, s->reliable.m_fin_msec);
 		if (ESTABLISHED_FIN_STATUS == s->reliable.m_status)
@@ -664,7 +664,7 @@ static void reliable_dgram_do_reconnect(NioSocket_t* s) {
 	reconnect_pkg[0] = HDR_RECONNECT;
 	*(unsigned int*)(reconnect_pkg + 1) = htonl(s->reliable.m_recvseq);
 	*(unsigned int*)(reconnect_pkg + 5) = htonl(s->reliable.m_cwndseq);
-	realible_dgram_inner_packet_send(s, reconnect_pkg, sizeof(reconnect_pkg), &s->reliable.peer_saddr);
+	reliable_dgram_inner_packet_send(s, reconnect_pkg, sizeof(reconnect_pkg), &s->reliable.peer_saddr);
 }
 
 static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, int len, const struct sockaddr_storage* saddr, long long timestamp_msec) {
@@ -730,7 +730,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				syn_ack[0] = HDR_SYN_ACK;
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
 			}
-			realible_dgram_inner_packet_send(s, syn_ack, sizeof(syn_ack), saddr);
+			reliable_dgram_inner_packet_send(s, syn_ack, sizeof(syn_ack), saddr);
 			s->m_lastactive_msec = timestamp_msec;
 		}
 		else if (SYN_RCVD_STATUS == s->reliable.m_status) {
@@ -742,7 +742,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			else if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 				return 1;
 			syn_ack[0] = HDR_SYN_ACK;
-			realible_dgram_inner_packet_send(s, syn_ack, 1, saddr);
+			reliable_dgram_inner_packet_send(s, syn_ack, 1, saddr);
 			s->m_lastactive_msec = timestamp_msec;
 		}
 	}
@@ -790,7 +790,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		}
 		syn_ack_ack = HDR_SYN_ACK_ACK;
-		realible_dgram_inner_packet_send(s, &syn_ack_ack, sizeof(syn_ack_ack), saddr);
+		reliable_dgram_inner_packet_send(s, &syn_ack_ack, sizeof(syn_ack_ack), saddr);
 		if (SYN_SENT_STATUS == s->reliable.m_status) {
 			if (len >= 3) {
 				unsigned short peer_port;
@@ -829,29 +829,35 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		} while (0);
 		if (ok) {
 			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
-			realible_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
+			reliable_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
 			s->reliable.peer_saddr = *saddr;
+			s->m_lastactive_msec = timestamp_msec;
+			reliable_dgram_send_again(s, timestamp_msec);
 		}
 		else {
 			unsigned char reconnect_err = HDR_RECONNECT_ERR;
-			realible_dgram_inner_packet_send(s, &reconnect_err, sizeof(reconnect_err), saddr);
+			reliable_dgram_inner_packet_send(s, &reconnect_err, sizeof(reconnect_err), saddr);
 		}
 	}
-	else if (HDR_RECONNECT_ACK == hdr_type || HDR_RECONNECT_ERR == hdr_type) {
+	else if (HDR_RECONNECT_ACK == hdr_type) {
 		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || RECONNECT_STATUS != s->reliable.m_status)
 			return 1;
 		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
 			return 1;
-		if (HDR_RECONNECT_ACK == hdr_type) {
-			s->reliable.m_status = ESTABLISHED_STATUS;
-			_xchg16(&s->m_shutdown, 0);
-			s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
-		}
-		else {
-			s->m_valid = 0;
-			s->reliable.m_status = TIME_WAIT_STATUS;
-			s->connect(s, ECONNREFUSED, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
-		}
+		s->reliable.m_status = ESTABLISHED_STATUS;
+		_xchg16(&s->m_shutdown, 0);
+		s->m_lastactive_msec = timestamp_msec;
+		reliable_dgram_send_again(s, timestamp_msec);
+		s->connect(s, 0, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
+	}
+	else if (HDR_RECONNECT_ERR == hdr_type) {
+		if (NIOSOCKET_TRANSPORT_CLIENT != s->transport_side || RECONNECT_STATUS != s->reliable.m_status)
+			return 1;
+		if (memcmp(&s->reliable.peer_saddr, saddr, sizeof(*saddr)))
+			return 1;
+		s->m_valid = 0;
+		s->reliable.m_status = TIME_WAIT_STATUS;
+		s->connect(s, ECONNREFUSED, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 	}
 	else if (HDR_FIN == hdr_type) {
 		unsigned char fin_ack;
@@ -859,7 +865,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			return 1;
 		else if (ESTABLISHED_STATUS == s->reliable.m_status) {
 			fin_ack = HDR_FIN_ACK;
-			realible_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
+			reliable_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
 			s->reliable.m_status = CLOSE_WAIT_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_heartbeat_msec = 0;
@@ -871,7 +877,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				FIN_WAIT_2_STATUS == s->reliable.m_status)
 		{
 			fin_ack = HDR_FIN_ACK;
-			realible_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
+			reliable_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->reliable.peer_saddr);
 			s->reliable.m_status = TIME_WAIT_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
@@ -963,7 +969,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		seq = *(unsigned int*)(buffer + 1);
 		ack[0] = HDR_ACK;
 		*(unsigned int*)(ack + 1) = seq;
-		realible_dgram_inner_packet_send(s, ack, sizeof(ack), saddr);
+		reliable_dgram_inner_packet_send(s, ack, sizeof(ack), saddr);
 
 		seq = ntohl(seq);
 		if (seq1_before_seq2(seq, s->reliable.m_recvseq))
@@ -1028,7 +1034,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				unsigned char syn_ack[3];
 				syn_ack[0] = HDR_SYN_ACK;
 				*(unsigned short*)(syn_ack + 1) = htons(halfcon->local_port);
-				realible_dgram_inner_packet_send(s, syn_ack, sizeof(syn_ack), &halfcon->peer_addr);
+				reliable_dgram_inner_packet_send(s, syn_ack, sizeof(syn_ack), &halfcon->peer_addr);
 				++halfcon->resend_times;
 				halfcon->timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&loop->m_event_msec, halfcon->timestamp_msec);
@@ -1048,7 +1054,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 		}
 		else {
 			unsigned char syn_ack = HDR_SYN_ACK;
-			realible_dgram_inner_packet_send(s, &syn_ack, 1, &s->reliable.peer_saddr);
+			reliable_dgram_inner_packet_send(s, &syn_ack, 1, &s->reliable.peer_saddr);
 			++s->reliable.m_synrcvd_times;
 			s->reliable.m_synrcvd_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_event_msec, s->reliable.m_synrcvd_msec);
@@ -1067,7 +1073,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 		}
 		else {
 			unsigned char syn = HDR_SYN;
-			realible_dgram_inner_packet_send(s, &syn, 1, &s->peer_listen_saddr);
+			reliable_dgram_inner_packet_send(s, &syn, 1, &s->peer_listen_saddr);
 			++s->reliable.m_synsent_times;
 			s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_event_msec, s->reliable.m_synsent_msec);
@@ -1083,7 +1089,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 		}
 		else {
 			unsigned char fin = HDR_FIN;
-			realible_dgram_inner_packet_send(s, &fin, 1, &s->reliable.peer_saddr);
+			reliable_dgram_inner_packet_send(s, &fin, 1, &s->reliable.peer_saddr);
 			++s->reliable.m_fin_times;
 			s->reliable.m_fin_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_event_msec, s->reliable.m_fin_msec);
@@ -1924,9 +1930,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				stream_send_packet_continue(s);
 			}
-			else {
-				reliable_dgram_send_again(s, timestamp_msec);
-			}
 		}
 		else if (NIO_SOCKET_SERVER_SESSION_REPLACE_MESSAGE == message->type) {
 			StreamReplaceMessage_t* replacemsg = pod_container_of(message, StreamReplaceMessage_t, msg);
@@ -2030,7 +2033,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					if (s->reliable.enable) {
 						if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side && s->peer_listen_saddr.ss_family != AF_UNSPEC) {
 							unsigned char syn = HDR_SYN;
-							realible_dgram_inner_packet_send(s, &syn, 1, &s->peer_listen_saddr);
+							reliable_dgram_inner_packet_send(s, &syn, 1, &s->peer_listen_saddr);
 							s->reliable.m_status = SYN_SENT_STATUS;
 							s->reliable.peer_saddr = s->peer_listen_saddr;
 							s->reliable.m_synsent_msec = timestamp_msec + s->reliable.rto;
