@@ -86,6 +86,12 @@ typedef struct ReliableDgramDataPacket_t {
 	unsigned char data[1];
 } ReliableDgramDataPacket_t;
 
+typedef struct NioSocketTransportStatusGrabMsg_t {
+	NioInternalMsg_t msg;
+	NioSocket_t* s;
+	NioSocketTransportStatus_t status;
+} NioSocketTransportStatusGrabMsg_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1436,15 +1442,19 @@ void niosocketReconnectRecovery(NioSocket_t* s) {
 	}
 }
 
-void niosocketTransportStatusGrab(NioSocket_t* s, NioSocketTransportStatus_t* ts) {
-	ts->m_msg.internal.type = NIO_SOCKET_TRANSPORT_GRAB_MESSAGE;
-	ts->m_msg.sock = s;
-	ts->m_cwndseq = 0;
-	ts->m_recvseq = 0;
-	ts->m_sendseq = 0;
-	listInit(&ts->m_recvpacketlist);
-	listInit(&ts->m_sendpacketlist);
-	nioloop_exec_msg(s->m_loop, &ts->m_msg.internal.m_listnode);
+int niosocketTransportStatusGrab(NioSocket_t* s) {
+	NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
+	if (!ts)
+		return 0;
+	ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_MESSAGE;
+	ts->s = s;
+	ts->status.m_cwndseq = 0;
+	ts->status.m_recvseq = 0;
+	ts->status.m_sendseq = 0;
+	listInit(&ts->status.m_recvpacketlist);
+	listInit(&ts->status.m_sendpacketlist);
+	nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
+	return 1;
 }
 
 void niosocketShutdown(NioSocket_t* s) {
@@ -1858,19 +1868,19 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 		}
 		else if (NIO_SOCKET_TRANSPORT_GRAB_MESSAGE == message->type) {
-			NioSocketTransportStatus_t* status = pod_container_of(message, NioSocketTransportStatus_t, m_msg.internal);
-			NioSocket_t* s = status->m_msg.sock;
-			status->m_cwndseq = s->reliable.m_cwndseq;
-			status->m_recvseq = s->reliable.m_recvseq;
-			status->m_sendseq = s->reliable.m_sendseq;
-			status->m_recvpacketlist = s->m_recvpacketlist;
-			status->m_sendpacketlist = s->m_sendpacketlist;
+			NioSocketTransportStatusGrabMsg_t* req = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
+			NioSocket_t* s = req->s;
+			req->status.m_cwndseq = s->reliable.m_cwndseq;
+			req->status.m_recvseq = s->reliable.m_recvseq;
+			req->status.m_sendseq = s->reliable.m_sendseq;
+			req->status.m_recvpacketlist = s->m_recvpacketlist;
+			req->status.m_sendpacketlist = s->m_sendpacketlist;
 			s->reliable.m_cwndseq = 0;
 			s->reliable.m_recvseq = 0;
 			s->reliable.m_sendseq = 0;
 			listInit(&s->m_recvpacketlist);
 			listInit(&s->m_sendpacketlist);
-			dataqueuePush(loop->m_msgdq, &status->m_msg.internal.m_listnode);
+			dataqueuePush(loop->m_msgdq, &req->msg.m_listnode);
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
@@ -2134,7 +2144,9 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 			}
 		}
 		else if (NIO_SOCKET_TRANSPORT_GRAB_MESSAGE == message->type) {
+			NioSocketTransportStatusGrabMsg_t* req = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
 			// TODO
+			free(req);
 		}
 	}
 }
