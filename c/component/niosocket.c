@@ -1248,8 +1248,12 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			}
 			else if (s->reliable.enable) {
 				NioSocketDecodeResult_t decode_result;
-				if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
+				if (TIME_WAIT_STATUS == s->reliable.m_status ||
+					CLOSED_STATUS == s->reliable.m_status ||
+					NO_STATUS == s->reliable.m_status)
+				{
 					break;
+				}
 				if (0 == res)
 					continue;
 				s->decode(p_data, res, reset_decode_result(&decode_result));
