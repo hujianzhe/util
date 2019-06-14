@@ -471,7 +471,8 @@ static int reliable_stream_data_packet_handler(NioSocket_t* s, unsigned char* da
 			unsigned int seq = *(unsigned int*)(decode_result.bodyptr + 1);
 			seq = ntohl(seq);
 			if (HDR_ACK == hdr_type) {
-				reliable_stream_do_ack(s, seq);
+				if (ESTABLISHED_STATUS == s->reliable.m_status)
+					reliable_stream_do_ack(s, seq);
 				continue;
 			}
 			else if (HDR_DATA == hdr_type || HDR_RECONNECT == hdr_type) {
