@@ -795,8 +795,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		if (memcmp(saddr, &s->peer_listen_saddr, sizeof(s->peer_listen_saddr)))
 			return 1;
 		if (SYN_SENT_STATUS != s->reliable.m_status &&
-			ESTABLISHED_STATUS != s->reliable.m_status &&
-			ESTABLISHED_FIN_STATUS != s->reliable.m_status)
+			ESTABLISHED_STATUS != s->reliable.m_status)
 		{
 			return 1;
 		}
@@ -811,15 +810,13 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			}
 			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->connect(s, 0, s->m_connect_times++, 0, 0);
-		}
-		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
-		s->m_lastactive_msec = timestamp_msec;
-		if (ESTABLISHED_FIN_STATUS != s->reliable.m_status) {
 			s->m_heartbeat_msec = timestamp_msec;
 			if (s->heartbeat_timeout_sec > 0) {
 				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
+		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
+		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_RECONNECT == hdr_type) {
 		int ok;
@@ -1242,14 +1239,14 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					s->m_valid = 0;
-					if (s->reliable.m_status) {
+					if (s->reliable.enable) {
 						s->m_lastactive_msec = timestamp_msec;
 						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
 					}
 				}
 				break;
 			}
-			else if (s->reliable.m_status) {
+			else if (s->reliable.enable) {
 				NioSocketDecodeResult_t decode_result;
 				if (TIME_WAIT_STATUS == s->reliable.m_status || CLOSED_STATUS == s->reliable.m_status)
 					break;
@@ -1686,7 +1683,7 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 				}
 				if (s->keepalive_timeout_sec > 0)
 					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
-				if (s->reliable.m_status) {
+				if (SOCK_DGRAM == s->socktype && s->reliable.enable) {
 					reliable_dgram_update(loop, s, timestamp_msec);
 					if (s->m_valid)
 						continue;
