@@ -1192,6 +1192,7 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			}
 			else if (res == 0) {
 				s->m_valid = 0;
+				dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 				return;
 			}
 			else {
@@ -1756,7 +1757,6 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			free_inbuf(s);
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
-				dataqueuePush(loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
 			}
 			if (s->close_timeout_msec > 0) {
 				s->m_lastactive_msec = timestamp_msec;
