@@ -126,7 +126,7 @@ static NioLoop_t* nioloop_exec_msg(NioLoop_t* loop, ListNode_t* msgnode) {
 	criticalsectionLeave(&loop->m_msglistlock);
 	if (need_wake) {
 		char c;
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
 	}
 	else {
 		nioloopWake(loop);
@@ -142,7 +142,7 @@ static NioLoop_t* nioloop_exec_msglist(NioLoop_t* loop, List_t* msglist) {
 	criticalsectionLeave(&loop->m_msglistlock);
 	if (need_wake) {
 		char c;
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
 	}
 	else {
 		nioloopWake(loop);
@@ -252,7 +252,7 @@ static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
 		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	}
 	else {
-		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL);
+		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				s->m_valid = 0;
@@ -287,7 +287,7 @@ static void stream_send_packet_continue(NioSocket_t* s) {
 		if (packet->offset >= packet->len) {
 			continue;
 		}
-		res = socketWrite(s->fd, packet->data + packet->offset, packet->len - packet->offset, 0, NULL);
+		res = socketWrite(s->fd, packet->data + packet->offset, packet->len - packet->offset, 0, NULL, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				s->m_valid = 0;
@@ -364,7 +364,7 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 		}
 		ack[hdrlen] = HDR_ACK;
 		*(unsigned int*)(ack + hdrlen + 1) = htonl(seq);
-		res = socketWrite(s->fd, ack, sizeof_ack, 0, NULL);
+		res = socketWrite(s->fd, ack, sizeof_ack, 0, NULL, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				s->m_valid = 0;
@@ -566,7 +566,7 @@ static void reliable_dgram_send_again(NioSocket_t* s, long long timestamp_msec) 
 		{
 			break;
 		}
-		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+		socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
 		packet->resendtimes = 0;
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
@@ -581,10 +581,10 @@ static int reliable_dgram_inner_packet_send(NioSocket_t* s, const unsigned char*
 			iobufStaticInit(data, len)
 		};
 		s->encode(iobufPtr(&iov[0]), len);
-		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, saddr);
+		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, (struct sockaddr*)saddr, sockaddrLength((struct sockaddr*)saddr));
 	}
 	else {
-		return socketWrite(s->fd, data, len, 0, saddr);
+		return socketWrite(s->fd, data, len, 0, (struct sockaddr*)saddr, sockaddrLength((struct sockaddr*)saddr));
 	}
 }
 
@@ -666,7 +666,7 @@ static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t
 	if (packet->seq >= s->reliable.m_cwndseq &&
 		packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
 	{
-		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+		socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 	}
@@ -817,7 +817,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
-		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr);
+		socketWrite(s->fd, NULL, 0, 0, ((struct sockaddr*)&s->reliable.peer_saddr), sockaddrLength(((struct sockaddr*)&s->reliable.peer_saddr)));
 		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_RECONNECT == hdr_type) {
@@ -954,7 +954,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				{
 					break;
 				}
-				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+				socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
 				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 			}
@@ -1145,7 +1145,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 				}
 				break;
 			}
-			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr);
+			socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
 			packet->resendtimes++;
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
@@ -1838,8 +1838,12 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				stream_send_packet(packet->s, packet);
 			}
 			else {
-				struct sockaddr_storage* saddrptr = (packet->saddr.ss_family != AF_UNSPEC ? &packet->saddr : NULL);
-				socketWrite(s->fd, packet->data, packet->len, 0, saddrptr);
+				struct sockaddr* saddrptr;
+				if (packet->saddr.ss_family != AF_UNSPEC)
+					saddrptr = (struct sockaddr*)(&packet->saddr);
+				else
+					saddrptr = NULL;
+				socketWrite(s->fd, packet->data, packet->len, 0, saddrptr, sockaddrLength(saddrptr));
 				free(packet);
 			}
 		}
@@ -2164,7 +2168,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 NioLoop_t* nioloopWake(NioLoop_t* loop) {
 	if (0 == _cmpxchg16(&loop->m_wake, 1, 0)) {
 		char c;
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL);
+		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
 	}
 	return loop;
 }

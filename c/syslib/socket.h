@@ -111,11 +111,12 @@ __declspec_dll BOOL networkCleanEnv(void);
 __declspec_dll NetworkInterfaceInfo_t* networkInterfaceInfo(void);
 __declspec_dll void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info);
 /* SOCKET ADDRESS */
-__declspec_dll int sockaddrIPType(const struct sockaddr_storage* sa);
+__declspec_dll int sockaddrIPType(const struct sockaddr* sa);
 __declspec_dll const char* ipstrGetLoopback(int family);
 __declspec_dll BOOL ipstrIsLoopback(const char* ip);
 __declspec_dll BOOL ipstrIsInner(const char* ip);
 __declspec_dll int ipstrFamily(const char* ip);
+__declspec_dll int sockaddrLength(const struct sockaddr* saddr);
 __declspec_dll BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port);
 __declspec_dll BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
@@ -129,9 +130,9 @@ __declspec_dll BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* sadd
 #define	socketClose(sockfd)	(close(sockfd) == 0)
 #endif
 __declspec_dll int socketError(FD_t sockfd);
-__declspec_dll BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr);
+#define socketUdpConnect(sockfd, saddr, addrlen)	(connect(sockfd, saddr, addrlen) == 0)
 __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);
-__declspec_dll FD_t socketTcpConnect(const struct sockaddr_storage* saddr, int msec);
+__declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, int msec);
 __declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
 __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
@@ -139,9 +140,9 @@ __declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_sto
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
 __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
 __declspec_dll int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
-__declspec_dll int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to);
+#define socketWrite	sendto
 __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-__declspec_dll int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr);
+__declspec_dll int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 #define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)
@@ -155,8 +156,8 @@ __declspec_dll BOOL socketSetSendTimeout(FD_t sockfd, int msec);
 __declspec_dll BOOL socketSetRecvTimeout(FD_t sockfd, int msec);
 __declspec_dll BOOL socketSetUnicastTTL(FD_t sockfd, int family, unsigned char ttl);
 __declspec_dll BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl);
-__declspec_dll BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp);
-__declspec_dll BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp);
+__declspec_dll BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr* grp);
+__declspec_dll BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr* grp);
 __declspec_dll BOOL socketUdpMcastEnableLoop(FD_t sockfd, int family, BOOL bool_val);
 
 #ifdef	__cplusplus

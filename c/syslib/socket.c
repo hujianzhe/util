@@ -392,8 +392,8 @@ void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
 }
 
 /* SOCKET ADDRESS */
-int sockaddrIPType(const struct sockaddr_storage* sa) {
-	if (AF_INET == sa->ss_family) {
+int sockaddrIPType(const struct sockaddr* sa) {
+	if (AF_INET == sa->sa_family) {
 		unsigned int saddr = ntohl(((const struct sockaddr_in*)sa)->sin_addr.s_addr);
 		if ((saddr >> 31) == 0)
 			return IPv4_TYPE_A;
@@ -407,7 +407,7 @@ int sockaddrIPType(const struct sockaddr_storage* sa) {
 			return IPv4_TYPE_E;
 		return IP_TYPE_UNKNOW;
 	}
-	else if (AF_INET6 == sa->ss_family) {
+	else if (AF_INET6 == sa->sa_family) {
 		const unsigned char* saddr = ((const struct sockaddr_in6*)sa)->sin6_addr.s6_addr;
 		if (0xfe == saddr[0] && 0x80 == saddr[1]) {
 			int i;
@@ -478,6 +478,23 @@ int ipstrFamily(const char* ip) {
 		++ip;
 	}
 	return AF_UNSPEC;
+}
+
+int sockaddrLength(const struct sockaddr* saddr) {
+	int socklen;
+	if (saddr) {
+		if (AF_INET == saddr->sa_family)
+			socklen = sizeof(struct sockaddr_in);
+		else if (AF_INET6 == saddr->sa_family)
+			socklen = sizeof(struct sockaddr_in6);
+		else {
+			__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
+			socklen = -1;
+		}
+		return socklen;
+	}
+	else
+		return 0;
 }
 
 BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
@@ -631,48 +648,25 @@ int socketError(FD_t sockfd) {
 	return error;
 }
 
-BOOL socketUdpConnect(FD_t sockfd, const struct sockaddr_storage* saddr) {
-	int socklen;
-	if (AF_INET == saddr->ss_family)
-		socklen = sizeof(struct sockaddr_in);
-	else if (AF_INET6 == saddr->ss_family)
-		socklen = sizeof(struct sockaddr_in6);
-	else {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-		return FALSE;
-	}
-	return connect(sockfd, (struct sockaddr*)saddr, socklen) == 0;
-}
-
 BOOL socketUdpDisconnect(FD_t sockfd) {
 	int res;
-	struct sockaddr sa = {0};
+	struct sockaddr sa = { 0 };
 	sa.sa_family = AF_UNSPEC;
 	res = connect(sockfd, &sa, sizeof(sa));
 	return (res == 0 || __GetErrorCode() == SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 }
 
-FD_t socketTcpConnect(const struct sockaddr_storage* addr, int msec) {
-	FD_t sockfd;
-	int res, error, socklen;
-	/* socklen */
-	if (AF_INET == addr->ss_family)
-		socklen = sizeof(struct sockaddr_in);
-	else if (AF_INET6 == addr->ss_family)
-		socklen = sizeof(struct sockaddr_in6);
-	else {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-		return INVALID_SOCKET;
-	}
+FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, int msec) {
+	int res, error;
 	/* create a TCP socket */
-	sockfd = socket(addr->ss_family, SOCK_STREAM, 0);
+	FD_t sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
 	if (sockfd == INVALID_SOCKET)
 		goto end;
 	/* if set timedout,must set sockfd nonblock */
 	if (msec >= 0)
 		socketNonBlock(sockfd, 1);
 	/* try connect */
-	res = connect(sockfd, (struct sockaddr*)addr, socklen);
+	res = connect(sockfd, addr, addrlen);
 	if (!res) {
 		/* connect success,destination maybe localhost */
 	}
@@ -877,26 +871,6 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
-int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr_storage* to) {
-	int socklen;
-	if (to) {
-#if defined(__FreeBSD__) || defined(__APPLE__)
-		if (AF_INET == to->ss_family)
-			socklen = sizeof(struct sockaddr_in);
-		else if (AF_INET6 == to->ss_family)
-			socklen = sizeof(struct sockaddr_in6);
-		else
-			socklen = sizeof(*to);
-#else
-		socklen = sizeof(*to);
-#endif
-	}
-	else
-		socklen = 0;
-
-	return sendto(sockfd, (const char*)buf, nbytes, flags, (struct sockaddr*)to, socklen);
-}
-
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
@@ -921,30 +895,14 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif	
 }
 
-int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr_storage* saddr) {
+int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
-	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, (struct sockaddr*)saddr, saddr ? sizeof(*saddr) : 0, NULL, NULL) ? -1 : realbytes;
+	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = {0};
-	int socklen;
-	if (saddr) {
-#if defined(__FreeBSD__) || defined(__APPLE__)
-		if (AF_INET == saddr->ss_family)
-			socklen = sizeof(struct sockaddr_in);
-		else if (AF_INET6 == saddr->ss_family)
-			socklen = sizeof(struct sockaddr_in6);
-		else
-			socklen = sizeof(*saddr);
-#else
-		socklen = sizeof(*saddr);
-#endif
-	}
-	else
-		socklen = 0;
-
-	msghdr.msg_name = (struct sockaddr*)saddr;
-	msghdr.msg_namelen = socklen;
+	msghdr.msg_name = (struct sockaddr*)to;
+	msghdr.msg_namelen = tolen;
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
 	return sendmsg(sockfd, &msghdr, flags);
@@ -1093,14 +1051,14 @@ BOOL socketSetMulticastTTL(FD_t sockfd, int family, int ttl) {
 	return FALSE;
 }
 
-BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
-	if (grp->ss_family == AF_INET) {/* IPv4 */
+BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr* grp) {
+	if (grp->sa_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
 		req.imr_multiaddr = ((struct sockaddr_in*)grp)->sin_addr;
 		return setsockopt(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&req, sizeof(req)) == 0;
 	}
-	else if (grp->ss_family == AF_INET6) {/* IPv6 */
+	else if (grp->sa_family == AF_INET6) {/* IPv6 */
 		struct ipv6_mreq req = {0};
 		req.ipv6mr_interface = 0;
 		req.ipv6mr_multiaddr = ((struct sockaddr_in6*)grp)->sin6_addr;
@@ -1110,14 +1068,14 @@ BOOL socketUdpMcastGroupJoin(FD_t sockfd, const struct sockaddr_storage* grp) {
 	return FALSE;
 }
 
-BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr_storage* grp) {
-	if (grp->ss_family == AF_INET) {/* IPv4 */
+BOOL socketUdpMcastGroupLeave(FD_t sockfd, const struct sockaddr* grp) {
+	if (grp->sa_family == AF_INET) {/* IPv4 */
 		struct ip_mreq req = {0};
 		req.imr_interface.s_addr = htonl(INADDR_ANY);
 		req.imr_multiaddr = ((struct sockaddr_in*)grp)->sin_addr;
 		return setsockopt(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char*)&req, sizeof(req)) == 0;
 	}
-	else if (grp->ss_family == AF_INET6) {/* IPv6 */
+	else if (grp->sa_family == AF_INET6) {/* IPv6 */
 		struct ipv6_mreq req = {0};
 		req.ipv6mr_interface = 0;
 		req.ipv6mr_multiaddr = ((struct sockaddr_in6*)grp)->sin6_addr;
