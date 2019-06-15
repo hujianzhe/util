@@ -80,7 +80,6 @@ typedef struct NioSocket_t {
 	void(*close_callback)(struct NioSocket_t* self);
 /* private */
 	volatile char m_valid;
-	unsigned char m_delayclose;
 	Atom16_t m_shutdown;
 	int m_connect_times;
 	NioInternalMsg_t m_regmsg;

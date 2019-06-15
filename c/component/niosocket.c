@@ -16,8 +16,10 @@ enum {
 	NIO_SOCKET_SHUTDOWN_POST_MESSAGE,
 	NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE,
 	NIO_SOCKET_RECONNECT_RECOVERY_MESSAGE,
+	/*
 	NIO_SOCKET_TRANSPORT_GRAB_REQ_MESSAGE,
 	NIO_SOCKET_TRANSPORT_GRAB_RET_MESSAGE,
+	*/
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_PACKET_MESSAGE,
 	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
@@ -1487,6 +1489,7 @@ void niosocketReconnectRecovery(NioSocket_t* s) {
 }
 
 int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned int recvseq, unsigned int cwndseq) {
+	/*
 	NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
 	if (!ts)
 		return 0;
@@ -1504,6 +1507,7 @@ int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned
 		s->m_delayclose = 1;
 	}
 	nioloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
+	*/
 	return 1;
 }
 
@@ -1554,7 +1558,6 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->shutdown_callback = NULL;
 	s->close_callback = NULL;
 	s->m_valid = 1;
-	s->m_delayclose = 0;
 	s->m_shutdown = 0;
 	s->m_connect_times = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
@@ -1624,8 +1627,10 @@ static void niosocket_free(NioSocket_t* s) {
 
 void niosocketManualClose(NioSocket_t* s) {
 	if (s->m_loop) {
+		/*
 		if (s->m_delayclose)
 			return;
+		*/
 		nioloop_exec_msg(s->m_loop, &s->m_closemsg.m_listnode);
 	}
 	else {
@@ -1923,6 +1928,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			stream_send_packet_continue(s);
 		}
+		/*
 		else if (NIO_SOCKET_TRANSPORT_GRAB_REQ_MESSAGE == message->type) {
 			NioSocketTransportStatusGrabMsg_t* req = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
 			NioSocket_t* target_s = req->target_s;
@@ -1970,6 +1976,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			free(ret);
 		}
+		*/
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
 			int reg_ok = 0, immedinate_call = 0;
@@ -2227,7 +2234,12 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 				s->close_callback(s);
 				s->close_callback = NULL;
 			}
+			/*
 			else if (!s->m_delayclose) {
+				nioloop_exec_msg(s->m_loop, cur);
+			}
+			*/
+			else {
 				nioloop_exec_msg(s->m_loop, cur);
 			}
 		}
