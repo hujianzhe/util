@@ -47,6 +47,12 @@
 #endif
 
 typedef char IPString_t[INET6_ADDRSTRLEN];
+typedef union Sockaddr_t {
+	struct sockaddr sa;
+	struct sockaddr_in in;
+	struct sockaddr_in6 in6;
+	struct sockaddr_storage st;
+} Sockaddr_t;
 enum {
 	IP_TYPE_UNKNOW,
 	IPv4_TYPE_A,
@@ -121,7 +127,7 @@ __declspec_dll BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const
 __declspec_dll BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port);
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port);
 /* SOCKET */
-__declspec_dll BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr);
+__declspec_dll BOOL socketBindAddr(FD_t sockfd, const struct sockaddr* saddr, int addrlen);
 __declspec_dll BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 __declspec_dll BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 #if defined(_WIN32) || defined(_WIN64)

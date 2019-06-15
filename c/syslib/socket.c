@@ -597,9 +597,8 @@ BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
 	return TRUE;
 }
 
-BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
+BOOL socketBindAddr(FD_t sockfd, const struct sockaddr* saddr, int addrlen) {
 	int on = 1;
-	int socklen;
 /*
 #ifdef  SO_REUSEPORT
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on)) < 0)
@@ -608,15 +607,7 @@ BOOL socketBindAddr(FD_t sockfd, const struct sockaddr_storage* saddr) {
 */
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) < 0)
 		return FALSE;
-	if (AF_INET == saddr->ss_family)
-		socklen = sizeof(struct sockaddr_in);
-	else if (AF_INET6 == saddr->ss_family)
-		socklen = sizeof(struct sockaddr_in6);
-	else {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-		return FALSE;
-	}
-	return bind(sockfd, (struct sockaddr*)saddr, socklen) == 0;
+	return bind(sockfd, saddr, addrlen) == 0;
 }
 
 BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr) {

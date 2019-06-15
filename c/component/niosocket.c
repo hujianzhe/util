@@ -157,7 +157,6 @@ static int reactorsocket_read(NioSocket_t* s) {
 		return 0;
 	else if (NIOSOCKET_TRANSPORT_LISTEN == s->transport_side && SOCK_STREAM == s->socktype) {
 		opcode = REACTOR_ACCEPT;
-		saddr.ss_family = s->domain;
 	}
 	else {
 		opcode = REACTOR_READ;
@@ -169,8 +168,12 @@ static int reactorsocket_read(NioSocket_t* s) {
 			return 0;
 		}
 	}
-	if (reactorCommit(&s->m_loop->m_reactor, s->fd, opcode, s->m_readol, &saddr))
+	saddr.ss_family = s->domain;
+	if (reactorCommit(&s->m_loop->m_reactor, s->fd, opcode, s->m_readol,
+		(struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr)))
+	{
 		return 1;
+	}
 	s->m_valid = 0;
 	return 0;
 }
@@ -186,7 +189,10 @@ static int reactorsocket_write(NioSocket_t* s) {
 			return 0;
 		}
 	}
-	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeol, &saddr)) {
+	saddr.ss_family = s->domain;
+	if (reactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeol,
+		(struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr)))
+	{
 		s->m_writeol_has_commit = 1;
 		return 1;
 	}
@@ -710,7 +716,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				new_fd = socket(s->domain, s->socktype, s->protocol);
 				if (new_fd == INVALID_FD_HANDLE)
 					return 1;
-				if (!socketBindAddr(new_fd, &local_saddr)) {
+				if (!socketBindAddr(new_fd, (struct sockaddr*)&local_saddr, sockaddrLength((struct sockaddr*)&local_saddr))) {
 					socketClose(new_fd);
 					return 1;
 				}
@@ -1280,6 +1286,10 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 		RECONNECT_STATUS == s->reliable.m_status)
 	{
 		int err;
+		if (s->m_writeol) {
+			reactorFreeOverlapped(s->m_writeol);
+			s->m_writeol = NULL;
+		}
 		if (!reactorConnectCheckSuccess(s->fd)) {
 			err = errnoGet();
 			s->m_valid = 0;
@@ -1312,12 +1322,12 @@ static void reactor_socket_do_write(NioSocket_t* s, long long timestamp_msec) {
 	}
 }
 
-NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr) {
+NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr* to, int tolen) {
 	Iobuf_t iov = iobufStaticInit(data, len);
-	return niosocketSendv(s, &iov, 1, saddr);
+	return niosocketSendv(s, &iov, 1, to, tolen);
 }
 
-NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr) {
+NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr* to, int tolen) {
 	unsigned int i, nbytes;
 	if (!s->m_valid || s->m_shutdown)
 		return NULL;
@@ -1451,8 +1461,9 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		packet->offset = 0;
 		packet->hdrlen = hdrlen;
 		packet->len = hdrlen + nbytes;
-		if (saddr && SOCK_STREAM != s->socktype)
-			packet->saddr = *saddr;
+		if (to && SOCK_STREAM != s->socktype) {
+			memcpy(&packet->saddr, to, tolen);
+		}
 		else
 			packet->saddr.ss_family = AF_UNSPEC;
 		if (hdrlen && s->encode) {
@@ -1736,7 +1747,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				struct sockaddr_storage saddr;
 				char c[512];
 				socketRead(fd, c, sizeof(c), 0, NULL);
-				reactorCommit(&loop->m_reactor, fd, REACTOR_READ, loop->m_readol, &saddr);
+				saddr.ss_family = AF_INET;
+				reactorCommit(&loop->m_reactor, fd, REACTOR_READ, loop->m_readol, (struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr));
 				_xchg16(&loop->m_wake, 0);
 				continue;
 			}
@@ -1881,8 +1893,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 						if (!s->m_writeol)
 							break;
 					}
-					if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol, &s->peer_listen_saddr))
+					if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol,
+						(struct sockaddr*)(&s->peer_listen_saddr), sockaddrLength((struct sockaddr*)(&s->peer_listen_saddr))))
+					{
 						break;
+					}
 					s->m_writeol_has_commit = 1;
 					s->reliable.m_status = RECONNECT_STATUS;
 					s->m_lastactive_msec = timestamp_msec;
@@ -2007,8 +2022,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 								if (!s->m_writeol)
 									break;
 							}
-							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol, &s->peer_listen_saddr))
+							if (!reactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol,
+								(struct sockaddr*)(&s->peer_listen_saddr), sockaddrLength((struct sockaddr*)(&s->peer_listen_saddr))))
+							{
 								break;
+							}
 							s->m_writeol_has_commit = 1;
 							s->reliable.m_status = SYN_SENT_STATUS;
 						}
@@ -2118,6 +2136,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 
 	if (!socketPair(SOCK_STREAM, loop->m_socketpair))
 		return NULL;
+	saddr.ss_family = AF_INET;
 
 	loop->m_readol = reactorMallocOverlapped(REACTOR_READ, NULL, 0, 0);
 	if (!loop->m_readol) {
@@ -2136,7 +2155,8 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 	if (!socketNonBlock(loop->m_socketpair[0], TRUE) ||
 		!socketNonBlock(loop->m_socketpair[1], TRUE) ||
 		!reactorReg(&loop->m_reactor, loop->m_socketpair[0]) ||
-		!reactorCommit(&loop->m_reactor, loop->m_socketpair[0], REACTOR_READ, loop->m_readol, &saddr))
+		!reactorCommit(&loop->m_reactor, loop->m_socketpair[0], REACTOR_READ, loop->m_readol,
+			(struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr)))
 	{
 		reactorFreeOverlapped(loop->m_readol);
 		socketClose(loop->m_socketpair[0]);

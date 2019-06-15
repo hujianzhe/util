@@ -137,8 +137,8 @@ extern "C" {
 __declspec_dll NioSocket_t* niosocketCreate(FD_t fd, int domain, int type, int protocol, NioSocket_t*(*pmalloc)(void), void(*pfree)(NioSocket_t*));
 __declspec_dll void niosocketManualClose(NioSocket_t* s);
 __declspec_dll void niosocketShutdown(NioSocket_t* s);
-__declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr_storage* saddr);
-__declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr_storage* saddr);
+__declspec_dll NioSocket_t* niosocketSend(NioSocket_t* s, const void* data, unsigned int len, const struct sockaddr* to, int tolen);
+__declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr* to, int tolen);
 __declspec_dll void niosocketClientNetReconnect(NioSocket_t* s);
 __declspec_dll void niosocketReconnectRecovery(NioSocket_t* s);
 __declspec_dll int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned int recvseq, unsigned int cwndseq);
