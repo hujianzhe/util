@@ -1213,6 +1213,10 @@ static void reactor_socket_do_read(NioSocket_t* s, long long timestamp_msec) {
 			int res = socketTcpReadableBytes(s->fd);
 			if (res <= 0) {
 				s->m_valid = 0;
+				if (0 == res) {
+					s->reliable.m_status = CLOSE_WAIT_STATUS;
+					dataqueuePush(s->m_loop->m_msgdq, &s->m_shutdownmsg.m_listnode);
+				}
 				return;
 			}
 			ptr = (unsigned char*)realloc(s->m_inbuf, s->m_inbuflen + res);
