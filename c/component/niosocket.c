@@ -240,15 +240,36 @@ static void clear_packetlist(List_t* packetlist) {
 }
 
 static void socket_replace_transport_status(NioSocket_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
+	if (SOCK_STREAM == s->socktype) {
+		Packet_t* packet;
+		ListNode_t* cur, *next;
+		for (cur = s->m_sendpacketlist.head; cur; cur = next) {
+			packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+			next = cur->next;
+			if (packet->offset >= packet->len) {
+				listRemoveNode(&s->m_sendpacketlist, cur);
+				free(packet);
+			}
+		}
+		if (s->m_sendpacketlist.head) {
+			for (cur = s->m_sendpacketlist.head->next; cur; cur = next) {
+				next = cur->next;
+				listRemoveNode(&s->m_sendpacketlist, cur);
+				free(cur);
+			}
+		}
+	}
+	else {
+		clear_packetlist(&s->m_sendpacketlist);
+	}
 	clear_packetlist(&s->m_recvpacketlist);
-	clear_packetlist(&s->m_sendpacketlist);
 	s->reliable.m_recvseq = msg->target_status.m_recvseq;
 	s->reliable.m_sendseq = msg->target_status.m_sendseq;
 	s->reliable.m_cwndseq = msg->target_status.m_cwndseq;
 	s->m_recvpacketlist = msg->target_status.m_recvpacketlist;
-	s->m_sendpacketlist = msg->target_status.m_sendpacketlist;
+	//s->m_sendpacketlist = msg->target_status.m_sendpacketlist;
+	listMerge(&s->m_sendpacketlist, &msg->target_status.m_sendpacketlist);
 	listInit(&msg->target_status.m_recvpacketlist);
-	listInit(&msg->target_status.m_sendpacketlist);
 }
 
 static void socket_grab_transport_status(NioSocket_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
@@ -1671,10 +1692,6 @@ static void niosocket_free(NioSocket_t* s) {
 
 void niosocketManualClose(NioSocket_t* s) {
 	if (s->m_loop) {
-		/*
-		if (s->m_delayclose)
-			return;
-		*/
 		nioloop_exec_msg(s->m_loop, &s->m_closemsg.m_listnode);
 	}
 	else {
@@ -2258,19 +2275,16 @@ void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)
 		}
 		else if (NIO_SOCKET_CLOSE_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_closemsg);
+			/*
 			if (s->shutdown_callback) {
 				s->shutdown_callback(s);
 				s->shutdown_callback = NULL;
 			}
+			*/
 			if (s->close_callback) {
 				s->close_callback(s);
 				s->close_callback = NULL;
 			}
-			/*
-			else if (!s->m_delayclose) {
-				nioloop_exec_msg(s->m_loop, cur);
-			}
-			*/
 			else {
 				nioloop_exec_msg(s->m_loop, cur);
 			}
