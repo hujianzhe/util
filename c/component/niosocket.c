@@ -16,10 +16,8 @@ enum {
 	NIO_SOCKET_SHUTDOWN_POST_MESSAGE,
 	NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE,
 	NIO_SOCKET_RECONNECT_RECOVERY_MESSAGE,
-	/*
-	NIO_SOCKET_TRANSPORT_GRAB_REQ_MESSAGE,
-	NIO_SOCKET_TRANSPORT_GRAB_RET_MESSAGE,
-	*/
+	NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE,
+	NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
 	NIO_SOCKET_PACKET_MESSAGE,
 	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
@@ -100,8 +98,8 @@ typedef struct NioSocketTransportStatus_t {
 typedef struct NioSocketTransportStatusGrabMsg_t {
 	NioInternalMsg_t msg;
 	NioSocket_t* s;
-	NioSocket_t* target_s;
 	NioSocketTransportStatus_t target_status;
+	Mutex_t blocklock;
 	unsigned int recvseq;
 	unsigned int cwndseq;
 	int success;
@@ -242,6 +240,7 @@ static void clear_packetlist(List_t* packetlist) {
 }
 
 static void socket_replace_transport_status(NioSocket_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
+	clear_packetlist(&s->m_recvpacketlist);
 	clear_packetlist(&s->m_sendpacketlist);
 	s->reliable.m_recvseq = msg->target_status.m_recvseq;
 	s->reliable.m_sendseq = msg->target_status.m_sendseq;
@@ -250,6 +249,19 @@ static void socket_replace_transport_status(NioSocket_t* s, NioSocketTransportSt
 	s->m_sendpacketlist = msg->target_status.m_sendpacketlist;
 	listInit(&msg->target_status.m_recvpacketlist);
 	listInit(&msg->target_status.m_sendpacketlist);
+}
+
+static void socket_grab_transport_status(NioSocket_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
+	msg->target_status.m_cwndseq = s->reliable.m_cwndseq;
+	msg->target_status.m_recvseq = s->reliable.m_recvseq;
+	msg->target_status.m_sendseq = s->reliable.m_sendseq;
+	msg->target_status.m_recvpacketlist = s->m_recvpacketlist;
+	msg->target_status.m_sendpacketlist = s->m_sendpacketlist;
+	s->reliable.m_cwndseq = 0;
+	s->reliable.m_recvseq = 0;
+	s->reliable.m_sendseq = 0;
+	listInit(&s->m_recvpacketlist);
+	listInit(&s->m_sendpacketlist);
 }
 
 static void stream_send_packet(NioSocket_t* s, Packet_t* packet) {
@@ -1495,30 +1507,50 @@ void niosocketReconnectRecovery(NioSocket_t* s) {
 	else if (NIOSOCKET_TRANSPORT_CLIENT == s->transport_side ||
 			NIOSOCKET_TRANSPORT_SERVER == s->transport_side)
 	{
+		if (_xchg16(&s->m_reconnectrecovery, 1))
+			return;
 		nioloop_exec_msg(s->m_loop, &s->m_reconnectrecoverymsg.m_listnode);
 	}
 }
 
 int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned int recvseq, unsigned int cwndseq) {
-	/*
 	NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
 	if (!ts)
 		return 0;
-	ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_REQ_MESSAGE;
-	ts->s = s;
-	ts->recvseq = recvseq;
-	ts->cwndseq = cwndseq;
-	ts->target_s = target_s;
-	ts->target_status.m_cwndseq = 0;
-	ts->target_status.m_recvseq = 0;
-	ts->target_status.m_sendseq = 0;
-	listInit(&ts->target_status.m_recvpacketlist);
-	listInit(&ts->target_status.m_sendpacketlist);
-	if (target_s->m_loop != s->m_loop) {
-		s->m_delayclose = 1;
+	else if (threadEqual(target_s->m_loop->m_runthread, threadSelf())) {
+		if (recvseq != target_s->reliable.m_cwndseq || cwndseq != target_s->reliable.m_recvseq)
+			return 0;
+		socket_grab_transport_status(target_s, ts);
+		ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
+		ts->s = s;
+		nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
+		return 1;
 	}
-	nioloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
-	*/
+	else {
+		if (!mutexCreate(&ts->blocklock)) {
+			free(ts);
+			return 0;
+		}
+		mutexLock(&ts->blocklock);
+		ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE;
+		ts->s = target_s;
+		ts->recvseq = recvseq;
+		ts->cwndseq = cwndseq;
+		nioloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
+		mutexLock(&ts->blocklock);
+		mutexUnlock(&ts->blocklock);
+		mutexClose(&ts->blocklock);
+		if (ts->success) {
+			ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
+			ts->s = s;
+			nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
+			return 1;
+		}
+		else {
+			free(ts);
+			return 0;
+		}
+	}
 	return 1;
 }
 
@@ -1570,6 +1602,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->close_callback = NULL;
 	s->m_valid = 1;
 	s->m_shutdown = 0;
+	s->m_reconnectrecovery = 0;
 	s->m_connect_times = 0;
 	s->m_regmsg.type = NIO_SOCKET_REG_MESSAGE;
 	s->m_shutdownmsg.type = NIO_SOCKET_SHUTDOWN_MESSAGE;
@@ -1720,6 +1753,10 @@ static void sockht_update(NioLoop_t* loop, long long timestamp_msec) {
 
 int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
 	ListNode_t *cur, *next;
+	if (!loop->m_runthreadhasbind) {
+		loop->m_runthread = threadSelf();
+		loop->m_runthreadhasbind = 1;
+	}
 	if (loop->m_event_msec > timestamp_msec) {
 		int checkexpire_wait_msec = loop->m_event_msec - timestamp_msec;
 		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
@@ -1939,6 +1976,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 		}
 		else if (NIO_SOCKET_RECONNECT_RECOVERY_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_reconnectrecoverymsg);
+			_xchg16(&s->m_reconnectrecovery, 0);
 			if (RECONNECT_STATUS != s->reliable.m_status)
 				continue;
 			s->reliable.m_status = ESTABLISHED_STATUS;
@@ -1947,55 +1985,24 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			}
 			stream_send_packet_continue(s);
 		}
-		/*
-		else if (NIO_SOCKET_TRANSPORT_GRAB_REQ_MESSAGE == message->type) {
-			NioSocketTransportStatusGrabMsg_t* req = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
-			NioSocket_t* target_s = req->target_s;
-			if (req->recvseq != target_s->reliable.m_cwndseq ||
-				req->cwndseq != target_s->reliable.m_recvseq)
-			{
-				req->success = 0;
+		else if (NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE == message->type) {
+			NioSocketTransportStatusGrabMsg_t* ts = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
+			NioSocket_t* s = ts->s;
+			if (ts->recvseq != s->reliable.m_cwndseq || ts->cwndseq != s->reliable.m_recvseq) {
+				ts->success = 0;
 			}
 			else {
-				req->success = 1;
-				req->target_status.m_cwndseq = target_s->reliable.m_cwndseq;
-				req->target_status.m_recvseq = target_s->reliable.m_recvseq;
-				req->target_status.m_sendseq = target_s->reliable.m_sendseq;
-				req->target_status.m_recvpacketlist = target_s->m_recvpacketlist;
-				req->target_status.m_sendpacketlist = target_s->m_sendpacketlist;
-				target_s->reliable.m_cwndseq = 0;
-				target_s->reliable.m_recvseq = 0;
-				target_s->reliable.m_sendseq = 0;
-				listInit(&target_s->m_recvpacketlist);
-				listInit(&target_s->m_sendpacketlist);
+				ts->success = 1;
+				socket_grab_transport_status(s, ts);
 			}
-			if (req->s->m_loop != loop) {
-				req->msg.type = NIO_SOCKET_TRANSPORT_GRAB_RET_MESSAGE;
-				nioloop_exec_msg(req->s->m_loop, &req->msg.m_listnode);
-			}
-			else {
-				if (req->success) {
-					socket_replace_transport_status(req->s, req);
-				}
-				free(req);
-			}
+			mutexUnlock(&ts->blocklock);
 		}
-		else if (NIO_SOCKET_TRANSPORT_GRAB_RET_MESSAGE == message->type) {
-			NioSocketTransportStatusGrabMsg_t* ret = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
-			NioSocket_t* s = ret->s;
-			s->m_delayclose = 0;
-			if (NO_STATUS == s->reliable.m_status) {
-				niosocket_free(s);
-			}
-			else if (ret->success) {
-				socket_replace_transport_status(s, ret);
-			}
-			else {
-				// TODO
-			}
-			free(ret);
+		else if (NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE == message->type) {
+			NioSocketTransportStatusGrabMsg_t* ts = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
+			NioSocket_t* s = ts->s;
+			socket_replace_transport_status(s, ts);
+			free(ts);
 		}
-		*/
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
 			int reg_ok = 0, immedinate_call = 0;
@@ -2180,6 +2187,7 @@ NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq) {
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 		sockht_keycmp, sockht_keyhash);
 	loop->m_initok = 1;
+	loop->m_runthreadhasbind = 0;
 	loop->m_wake = 0;
 	loop->m_event_msec = 0;
 	return loop;

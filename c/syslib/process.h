@@ -22,7 +22,10 @@
 		HANDLE handle;
 		DWORD id;
 	} Process_t;
-	typedef HANDLE					Thread_t;
+	typedef struct {
+		HANDLE handle;
+		unsigned int id;
+	} Thread_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
 	#define	__declspec_tls			__declspec(thread)
@@ -40,7 +43,9 @@
 	typedef struct {
 		pid_t id;
 	} Process_t;
-	typedef pthread_t				Thread_t;
+	typedef struct {
+		pthread_t id;
+	} Thread_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
 	#define	__declspec_tls			__thread
@@ -64,20 +69,16 @@ extern "C" {
 __declspec_dll BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
 __declspec_dll BOOL processCancel(Process_t* process);
 __declspec_dll size_t processId(void);
-__declspec_dll BOOL processWait(Process_t* process, unsigned char* retcode);
-__declspec_dll BOOL processTryWait(Process_t* process, unsigned char* retcode);
+__declspec_dll BOOL processWait(Process_t process, unsigned char* retcode);
+__declspec_dll BOOL processTryWait(Process_t process, unsigned char* retcode);
 /* thread operator */
 __declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
 __declspec_dll BOOL threadDetach(Thread_t thread);
 __declspec_dll BOOL threadJoin(Thread_t thread, unsigned int* retcode);
 __declspec_dll void threadExit(unsigned int retcode);
-#if defined(_WIN32) || defined(_WIN64)
-#define	threadSelf()		GetCurrentThread()
-#define	threadPause()		SuspendThread(GetCurrentThread())
-#else
-#define	threadSelf()		pthread_self()
-#define	threadPause()		pause()
-#endif
+__declspec_dll BOOL threadEqual(Thread_t t1, Thread_t t2);
+__declspec_dll Thread_t threadSelf(void);
+__declspec_dll void threadPause(void);
 __declspec_dll void threadSleepMillsecond(unsigned int msec);
 __declspec_dll void threadYield(void);
 __declspec_dll BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index);

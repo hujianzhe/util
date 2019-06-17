@@ -114,19 +114,19 @@ size_t processId(void) {
 #endif
 }
 
-BOOL processWait(Process_t* process, unsigned char* retcode) {
+BOOL processWait(Process_t process, unsigned char* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _code;
-	if (WaitForSingleObject(process->handle, INFINITE) == WAIT_OBJECT_0) {
-		if (retcode && GetExitCodeProcess(process->handle, &_code)) {
+	if (WaitForSingleObject(process.handle, INFINITE) == WAIT_OBJECT_0) {
+		if (retcode && GetExitCodeProcess(process.handle, &_code)) {
 			*retcode = (unsigned char)_code;
 		}
-		return CloseHandle(process->handle);
+		return CloseHandle(process.handle);
 	}
 	return FALSE;
 #else
 	int status = 0;
-	if (waitpid(process->id, &status, 0) > 0) {
+	if (waitpid(process.id, &status, 0) > 0) {
 		if (WIFEXITED(status)) {
 			*retcode = WEXITSTATUS(status);
 			return TRUE;
@@ -136,19 +136,19 @@ BOOL processWait(Process_t* process, unsigned char* retcode) {
 #endif
 }
 
-BOOL processTryWait(Process_t* process, unsigned char* retcode) {
+BOOL processTryWait(Process_t process, unsigned char* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _code;
-	if (WaitForSingleObject(process->handle, 0) == WAIT_OBJECT_0) {
-		if (retcode && GetExitCodeProcess(process->handle, &_code)) {
+	if (WaitForSingleObject(process.handle, 0) == WAIT_OBJECT_0) {
+		if (retcode && GetExitCodeProcess(process.handle, &_code)) {
 			*retcode = (unsigned char)_code;
 		}
-		return CloseHandle(process->handle);
+		return CloseHandle(process.handle);
 	}
 	return FALSE;
 #else
 	int status = 0;
-	if (waitpid(process->id, &status, WNOHANG) > 0) {
+	if (waitpid(process.id, &status, WNOHANG) > 0) {
 		if (WIFEXITED(status)) {
 			*retcode = WEXITSTATUS(status);
 			return TRUE;
@@ -161,16 +161,14 @@ BOOL processTryWait(Process_t* process, unsigned char* retcode) {
 /* thread operator */
 BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = (HANDLE)_beginthreadex(NULL, 0, entry, arg, 0, NULL);
+	HANDLE handle = (HANDLE)_beginthreadex(NULL, 0, entry, arg, 0, &p_thread->id);
 	if ((HANDLE)-1 == handle) {
 		return FALSE;
 	}
-	if (p_thread) {
-		*p_thread = handle;
-	}
+	p_thread->handle = handle;
 	return TRUE;
 #else
-	int res = pthread_create(p_thread, NULL, (void*(*)(void*))entry, arg);
+	int res = pthread_create(&p_thread->id, NULL, (void*(*)(void*))entry, arg);
 	if (res) {
 		errno = res;
 		return FALSE;
@@ -181,9 +179,9 @@ BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), 
 
 BOOL threadDetach(Thread_t thread) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(thread);
+	return CloseHandle(thread.handle);
 #else
-	int res = pthread_detach(thread);
+	int res = pthread_detach(thread.id);
 	if (res) {
 		errno = res;
 		return FALSE;
@@ -194,16 +192,16 @@ BOOL threadDetach(Thread_t thread) {
 
 BOOL threadJoin(Thread_t thread, unsigned int* retcode) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0) {
-		if (retcode && !GetExitCodeThread(thread, (DWORD*)retcode)) {
+	if (WaitForSingleObject(thread.handle, INFINITE) == WAIT_OBJECT_0) {
+		if (retcode && !GetExitCodeThread(thread.handle, (DWORD*)retcode)) {
 			return FALSE;
 		}
-		return CloseHandle(thread);
+		return CloseHandle(thread.handle);
 	}
 	return FALSE;
 #else
 	void* _retcode;
-	int res = pthread_join(thread, &_retcode);
+	int res = pthread_join(thread.id, &_retcode);
 	if (res) {
 		errno = res;
 		return FALSE;
@@ -220,6 +218,33 @@ void threadExit(unsigned int retcode) {
 	_endthreadex(retcode);
 #else
 	pthread_exit((void*)(size_t)retcode);
+#endif
+}
+
+BOOL threadEqual(Thread_t t1, Thread_t t2) {
+#if defined(_WIN32) || defined(_WIN64)
+	return t1.id == t2.id;
+#else
+	return pthread_equal(t1.id, t2.id);
+#endif
+}
+
+Thread_t threadSelf(void) {
+	Thread_t cur;
+#if defined(_WIN32) || defined(_WIN64)
+	cur.handle = GetCurrentThread();
+	cur.id = GetCurrentThreadId();
+#else
+	cur.id = pthread_self();
+#endif
+	return cur;
+}
+
+void threadPause(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	SuspendThread(GetCurrentThread());
+#else
+	pause();
 #endif
 }
 
@@ -250,13 +275,13 @@ BOOL threadSetAffinity(Thread_t thread, unsigned int processor_index) {
 	/* processor_index start 0...n */
 #if defined(_WIN32) || defined(_WIN64)
 	processor_index %= 32;
-	return SetThreadAffinityMask(thread, ((DWORD_PTR)1) << processor_index) != 0;
+	return SetThreadAffinityMask(thread.handle, ((DWORD_PTR)1) << processor_index) != 0;
 #elif defined(_GNU_SOURCE)
 	int res;
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
 	CPU_SET(processor_index, &cpuset);
-	if ((res = pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset))) {
+	if ((res = pthread_setaffinity_np(thread.id, sizeof(cpuset), &cpuset))) {
 		errno = res;
 		return FALSE;
 	}

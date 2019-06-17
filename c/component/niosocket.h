@@ -7,12 +7,15 @@
 
 #include "../syslib/atomic.h"
 #include "../syslib/io.h"
+#include "../syslib/process.h"
 #include "../syslib/socket.h"
 #include "../datastruct/hashtable.h"
 #include "dataqueue.h"
 
 typedef struct NioLoop_t {
 	unsigned char m_initok;
+	unsigned char m_runthreadhasbind;
+	Thread_t m_runthread;
 	Atom16_t m_wake;
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
@@ -81,6 +84,7 @@ typedef struct NioSocket_t {
 /* private */
 	volatile char m_valid;
 	Atom16_t m_shutdown;
+	Atom16_t m_reconnectrecovery;
 	int m_connect_times;
 	NioInternalMsg_t m_regmsg;
 	NioInternalMsg_t m_shutdownmsg;
