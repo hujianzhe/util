@@ -1535,44 +1535,58 @@ void niosocketReconnectRecovery(NioSocket_t* s) {
 }
 
 int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned int recvseq, unsigned int cwndseq) {
-	NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
-	if (!ts)
-		return 0;
-	else if (threadEqual(target_s->m_loop->m_runthread, threadSelf())) {
+	if (threadEqual(s->m_loop->m_runthread, threadSelf()) &&
+		threadEqual(target_s->m_loop->m_runthread, threadSelf()))
+	{
+		NioSocketTransportStatusGrabMsg_t ts;
 		if (recvseq != target_s->reliable.m_cwndseq || cwndseq != target_s->reliable.m_recvseq)
 			return 0;
-		socket_grab_transport_status(target_s, ts);
-		ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
-		ts->s = s;
-		nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
+		socket_grab_transport_status(target_s, &ts);
+		socket_replace_transport_status(s, &ts);
 		return 1;
 	}
 	else {
-		if (!mutexCreate(&ts->blocklock)) {
+		NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
+		if (!ts)
+			return 0;
+		else if (!mutexCreate(&ts->blocklock)) {
 			free(ts);
 			return 0;
 		}
+		else if (threadEqual(target_s->m_loop->m_runthread, threadSelf())) {
+			if (recvseq != target_s->reliable.m_cwndseq || cwndseq != target_s->reliable.m_recvseq)
+				return 0;
+			socket_grab_transport_status(target_s, ts);
+		}
+		else {
+			mutexLock(&ts->blocklock);
+			ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE;
+			ts->s = target_s;
+			ts->recvseq = recvseq;
+			ts->cwndseq = cwndseq;
+			nioloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
+			mutexLock(&ts->blocklock);
+			mutexUnlock(&ts->blocklock);
+			if (!ts->success) {
+				mutexClose(&ts->blocklock);
+				free(ts);
+				return 0;
+			}
+			else if (threadEqual(s->m_loop->m_runthread, threadSelf())) {
+				socket_replace_transport_status(s, ts);
+				return 1;
+			}
+		}
 		mutexLock(&ts->blocklock);
-		ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE;
-		ts->s = target_s;
-		ts->recvseq = recvseq;
-		ts->cwndseq = cwndseq;
-		nioloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
+		ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
+		ts->s = s;
+		nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
 		mutexLock(&ts->blocklock);
 		mutexUnlock(&ts->blocklock);
 		mutexClose(&ts->blocklock);
-		if (ts->success) {
-			ts->msg.type = NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
-			ts->s = s;
-			nioloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
-			return 1;
-		}
-		else {
-			free(ts);
-			return 0;
-		}
+		free(ts);
+		return 1;
 	}
-	return 1;
 }
 
 void niosocketShutdown(NioSocket_t* s) {
@@ -2018,7 +2032,7 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocketTransportStatusGrabMsg_t* ts = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
 			NioSocket_t* s = ts->s;
 			socket_replace_transport_status(s, ts);
-			free(ts);
+			mutexUnlock(&ts->blocklock);
 		}
 		else if (NIO_SOCKET_REG_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_regmsg);
