@@ -33,6 +33,7 @@
 		#include <linux/rtnetlink.h>
 	#endif
 	#include <sys/select.h>
+	#include <sys/un.h>
 	#include <poll.h>
 	#include <netdb.h>
 	#include <arpa/inet.h>
