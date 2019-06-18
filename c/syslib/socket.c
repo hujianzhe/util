@@ -489,6 +489,10 @@ int sockaddrLength(const struct sockaddr* saddr) {
 			socklen = sizeof(struct sockaddr_in6);
 		else if (AF_UNSPEC == saddr->sa_family)
 			socklen = 0;
+#if !defined(_WIN32) && !defined(_WIN64)
+		else if (AF_UNIX == saddr->sa_family)
+			socklen = sizeof(struct sockaddr_un);
+#endif
 		else {
 			__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 			socklen = -1;
