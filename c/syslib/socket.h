@@ -52,6 +52,9 @@ typedef union Sockaddr_t {
 	struct sockaddr_in in;
 	struct sockaddr_in6 in6;
 	struct sockaddr_storage st;
+#if !defined(_WIN32) && !defined(_WIN64)
+	struct sockaddr_un un;
+#endif
 } Sockaddr_t;
 enum {
 	IP_TYPE_UNKNOW,
