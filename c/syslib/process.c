@@ -3,6 +3,7 @@
 //
 
 #include "process.h"
+#include "assert.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -338,6 +339,108 @@ BOOL threadFreeLocalKey(Tls_t key) {
 	}
 	return TRUE;
 #endif
+}
+
+/* fiber operator */
+#if defined(_WIN32) || defined(_WIN64)
+static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
+	Fiber_t* fiber = (Fiber_t*)lpFiberParameter;
+	fiber->m_entry(fiber);
+}
+#else
+static void __get_thread_fiber(ucontext_t* temp_ctx, ucontext_t* thread_fiber_ctx) {
+	swapcontext(temp_ctx, thread_fiber_ctx);
+	while (1);
+}
+#endif
+
+Fiber_t* fiberFromThread(void) {
+	Fiber_t* fiber;
+#if defined(_WIN32) || defined(_WIN64)
+	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	if (!fiber)
+		return NULL;
+	fiber->m_ctx = ConvertThreadToFiberEx(fiber, FIBER_FLAG_FLOAT_SWITCH);
+	if (!fiber->m_ctx) {
+		free(fiber);
+		return NULL;
+	}
+	fiber->arg = NULL;
+	fiber->m_entry = NULL;
+	fiber->is_threadfiber = 1;
+	return fiber;
+#else
+	unsigned char stack[512];
+	ucontext_t temp_ctx;
+	if (-1 == getcontext(&temp_ctx))
+		return NULL;
+	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	if (!fiber)
+		return NULL;
+	fiber->arg = NULL;
+	temp_ctx.uc_stack.ss_size = sizeof(stack);
+	temp_ctx.uc_stack.ss_sp = stack;
+	temp_ctx.uc_link = NULL;
+	makecontext(&temp_ctx, (void*)__get_thread_fiber, 2, &temp_ctx, &fiber->m_ctx);
+	swapcontext(&fiber->m_ctx, &temp_ctx);
+	return fiber;
+#endif
+}
+
+Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
+	Fiber_t* fiber;
+#if defined(_WIN32) || defined(_WIN64)
+	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	if (!fiber)
+		return NULL;
+	fiber->m_ctx = CreateFiberEx(0, stack_size, FIBER_FLAG_FLOAT_SWITCH, __fiber_start_routine, fiber);
+	if (!fiber->m_ctx) {
+		free(fiber);
+		return NULL;
+	}
+	fiber->arg = NULL;
+	fiber->m_entry = entry;
+	fiber->is_threadfiber = 0;
+	return fiber;
+#else
+	if (0 == stack_size)
+		stack_size = 0xffff;
+	fiber = (Fiber_t*)malloc(sizeof(Fiber_t) + stack_size);
+	if (!fiber)
+		return NULL;
+	if (-1 == getcontext(&fiber->m_ctx)) {
+		free(fiber);
+		return NULL;
+	}
+	fiber->m_ctx.uc_stack.ss_size = stack_size;
+	fiber->m_ctx.uc_stack.ss_sp = fiber->m_stack;
+	fiber->m_ctx.uc_link = NULL;
+	makecontext(&fiber->m_ctx, (void*)entry, 1, fiber);
+	fiber->arg = NULL;
+	return fiber;
+#endif
+}
+
+void FiberSwitch(Fiber_t* from, Fiber_t* to) {
+#if defined(_WIN32) || defined(_WIN64)
+	assertTRUE(from->m_ctx == GetCurrentFiber());
+	SwitchToFiber(to->m_ctx);
+#else
+	assertTRUE(from == to);
+	swapcontext(&from->m_ctx, &to->m_ctx);
+#endif
+}
+
+void FiberFree(Fiber_t* fiber) {
+#if defined(_WIN32) || defined(_WIN64)
+	if (fiber->is_threadfiber) {
+		assertTRUE(ConvertFiberToThread());
+	}
+	else {
+		DeleteFiber(fiber->m_ctx);
+	}
+#endif
+	free(fiber);
 }
 
 #ifdef	__cplusplus

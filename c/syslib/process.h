@@ -9,6 +9,9 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <process.h>
+	#ifndef FIBER_FLAG_FLOAT_SWITCH
+		#error "No such macro FIBER_FLAG_FLOAT_SWITCH"
+	#endif
 /*
 	#ifdef _MSC_VER
 		#pragma warning(disable:4091)// avoid bug(dbghelp.h warning C4091: "typedef ")
@@ -26,6 +29,12 @@
 		HANDLE handle;
 		unsigned int id;
 	} Thread_t;
+	typedef struct Fiber_t {
+		void* arg;
+		void(*m_entry)(struct Fiber_t*);
+		LPVOID m_ctx;
+		int is_threadfiber;
+	} Fiber_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
 	#define	__declspec_tls			__declspec(thread)
@@ -36,9 +45,9 @@
 	#include <sys/select.h>
 	#include <sys/time.h>
 	#include <sys/wait.h>
-/*
-	#include <execinfo.h>
 	#include <ucontext.h>
+/*
+	#include <execinfo.h>	
 */
 	typedef struct {
 		pid_t id;
@@ -46,6 +55,11 @@
 	typedef struct {
 		pthread_t id;
 	} Thread_t;
+	typedef struct {
+		void* arg;
+		ucontext_t m_ctx;
+		unsigned char m_stack;
+	} Fiber_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
 	#define	__declspec_tls			__thread
@@ -87,6 +101,11 @@ __declspec_dll BOOL threadAllocLocalKey(Tls_t* key);
 __declspec_dll BOOL threadSetLocalValue(Tls_t key, void* value);
 __declspec_dll void* threadGetLocalValue(Tls_t key);
 __declspec_dll BOOL threadFreeLocalKey(Tls_t key);
+/* fiber operator */
+__declspec_dll Fiber_t* fiberFromThread(void);
+__declspec_dll Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*));
+__declspec_dll void FiberSwitch(Fiber_t* from, Fiber_t* to);
+__declspec_dll void FiberFree(Fiber_t* fiber);
 
 #ifdef	__cplusplus
 }
