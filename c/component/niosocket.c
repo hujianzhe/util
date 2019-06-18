@@ -1970,15 +1970,15 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 					{
 						break;
 					}
-					s->m_writeol_has_commit = 1;
-					s->reliable.m_status = RECONNECT_STATUS;
-					s->m_lastactive_msec = timestamp_msec;
-					if (s->reliable.enable) {
+					if (s->reliable.enable && ESTABLISHED_STATUS == s->reliable.m_status) {
 						reliable_stream_bak(s);
 					}
 					else {
 						clear_packetlist(&s->m_sendpacketlist);
 					}
+					s->m_writeol_has_commit = 1;
+					s->reliable.m_status = RECONNECT_STATUS;
+					s->m_lastactive_msec = timestamp_msec;
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
 				} while (0);
