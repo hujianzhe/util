@@ -423,10 +423,10 @@ Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
 
 void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 #if defined(_WIN32) || defined(_WIN64)
-	assertTRUE(from->m_ctx == GetCurrentFiber());
+	assertTRUE(from->m_ctx == GetCurrentFiber() && from->m_ctx != to->m_ctx);
 	SwitchToFiber(to->m_ctx);
 #else
-	assertTRUE(from == to);
+	assertTRUE(from != to);
 	swapcontext(&from->m_ctx, &to->m_ctx);
 #endif
 }
