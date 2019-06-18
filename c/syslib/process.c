@@ -421,7 +421,7 @@ Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
 #endif
 }
 
-void FiberSwitch(Fiber_t* from, Fiber_t* to) {
+void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 #if defined(_WIN32) || defined(_WIN64)
 	assertTRUE(from->m_ctx == GetCurrentFiber());
 	SwitchToFiber(to->m_ctx);
@@ -431,7 +431,7 @@ void FiberSwitch(Fiber_t* from, Fiber_t* to) {
 #endif
 }
 
-void FiberFree(Fiber_t* fiber) {
+void fiberFree(Fiber_t* fiber) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (fiber->is_threadfiber) {
 		assertTRUE(ConvertFiberToThread());

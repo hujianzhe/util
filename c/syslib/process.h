@@ -104,8 +104,8 @@ __declspec_dll BOOL threadFreeLocalKey(Tls_t key);
 /* fiber operator */
 __declspec_dll Fiber_t* fiberFromThread(void);
 __declspec_dll Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*));
-__declspec_dll void FiberSwitch(Fiber_t* from, Fiber_t* to);
-__declspec_dll void FiberFree(Fiber_t* fiber);
+__declspec_dll void fiberSwitch(Fiber_t* from, Fiber_t* to);
+__declspec_dll void fiberFree(Fiber_t* fiber);
 
 #ifdef	__cplusplus
 }
