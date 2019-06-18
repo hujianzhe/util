@@ -58,7 +58,7 @@
 	typedef struct {
 		void* arg;
 		ucontext_t m_ctx;
-		unsigned char m_stack;
+		unsigned char m_stack[1];
 	} Fiber_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
