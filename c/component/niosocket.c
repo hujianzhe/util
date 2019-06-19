@@ -1946,6 +1946,8 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_netreconnectmsg);
 			if (!s->m_valid || NIOSOCKET_TRANSPORT_CLIENT != s->transport_side)
 				continue;
+			if (ESTABLISHED_STATUS != s->reliable.m_status && RECONNECT_STATUS != s->reliable.m_status)
+				continue;
 			if (SOCK_STREAM == s->socktype) {
 				int ok;
 				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
