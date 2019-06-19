@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 __declspec_dll ptrlen_t strLen(const char* s);
+__declspec_dll char* strReverse(char* s, ptrlen_t len);
 __declspec_dll char* strChr(const char* s, ptrlen_t len, const char c);
 __declspec_dll char* strStr(const char* s1, ptrlen_t s1len, const char* s2, ptrlen_t s2len);
 __declspec_dll char* strSplit(char** s, const char* delim);

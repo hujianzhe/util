@@ -19,6 +19,18 @@ ptrlen_t strLen(const char* s) {
 	}
 }
 
+char* strReverse(char* s, ptrlen_t len) {
+	ptrlen_t i, half_len = len >> 1;
+	if (!s)
+		return (char*)0;
+	for (i = 0; i < half_len; ++i) {
+		char temp = s[i];
+		s[i] = s[len - i - 1];
+		s[len - i - 1] = temp;
+	}
+	return s;
+}
+
 char* strChr(const char* s, ptrlen_t len, const char c) {
 	if (!s)
 		return (char*)0;
