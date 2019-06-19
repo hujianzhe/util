@@ -152,7 +152,7 @@ __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
 __declspec_dll int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
 #define socketWrite	sendto
 __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr);
-__declspec_dll int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
+__declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 #define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)

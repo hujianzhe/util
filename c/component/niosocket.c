@@ -56,27 +56,25 @@ enum {
 
 typedef struct Packet_t {
 	NioInternalMsg_t msg;
-	struct sockaddr_storage saddr;
 	NioSocket_t* s;
-	unsigned short type;
-	unsigned short need_ack;
+	union {
+		/* udp use */
+		struct {
+			unsigned int resendtimes;
+			long long resend_timestamp_msec;
+		};
+		/* tcp use */
+		struct {
+			unsigned short type;
+			unsigned short need_ack;
+			size_t offset;
+		};
+	};
 	unsigned int seq;
 	size_t hdrlen;
-	size_t offset;
 	size_t len;
 	unsigned char data[1];
 } Packet_t;
-
-typedef struct ReliableDgramDataPacket_t {
-	NioInternalMsg_t msg;
-	long long resend_timestamp_msec;
-	unsigned int resendtimes;
-	NioSocket_t* s;
-	unsigned int seq;
-	size_t hdrlen;
-	size_t len;
-	unsigned char data[1];
-} ReliableDgramDataPacket_t;
 
 typedef struct ReliableDgramHalfConnectPacket_t {
 	ListNode_t m_listnode;
@@ -418,7 +416,6 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 				return 0;
 			}
 			packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
-			packet->saddr.ss_family = AF_UNSPEC;
 			packet->s = s;
 			packet->type = HDR_ACK;
 			packet->need_ack = 0;
@@ -438,7 +435,6 @@ static int reliable_stream_reply_ack(NioSocket_t* s, unsigned int seq) {
 			return 0;
 		}
 		ack_packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
-		ack_packet->saddr.ss_family = AF_UNSPEC;
 		ack_packet->s = s;
 		ack_packet->type = HDR_ACK;
 		ack_packet->need_ack = 0;
@@ -599,7 +595,7 @@ static int data_packet_handler(NioSocket_t* s, unsigned char* data, int len, con
 static void reliable_dgram_send_again(NioSocket_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
 	for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-		ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 		if (packet->seq < s->reliable.m_cwndseq ||
 			packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
 		{
@@ -700,7 +696,7 @@ static void reliable_dgram_shutdown(NioSocket_t* s, long long timestamp_msec) {
 	}
 }
 
-static void reliable_dgram_send_packet(NioSocket_t* s, ReliableDgramDataPacket_t* packet, long long timestamp_msec) {
+static void reliable_dgram_send_packet(NioSocket_t* s, Packet_t* packet, long long timestamp_msec) {
 	listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
 	if (packet->seq >= s->reliable.m_cwndseq &&
 		packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
@@ -965,7 +961,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		ack_valid = 0;
 
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-			ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 			if (seq1_before_seq2(seq, packet->seq))
 				break;
 			if (seq == packet->seq) {
@@ -974,7 +970,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				free(packet);
 				if (seq == s->reliable.m_cwndseq) {
 					if (next) {
-						packet = pod_container_of(next, ReliableDgramDataPacket_t, msg.m_listnode);
+						packet = pod_container_of(next, Packet_t, msg.m_listnode);
 						s->reliable.m_cwndseq = packet->seq;
 						cwnd_skip = 1;
 					}
@@ -987,7 +983,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		}
 		if (cwnd_skip) {
 			for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-				ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+				Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 				if (packet->seq < s->reliable.m_cwndseq ||
 					packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
 				{
@@ -1004,7 +1000,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 	}
 	else if (HDR_DATA == hdr_type) {
 		ListNode_t* cur, *next;
-		ReliableDgramDataPacket_t* packet;
+		Packet_t* packet;
 		unsigned int seq;
 		unsigned char ack[RELIABLE_DGRAM_DATA_HDR_LEN];
 		if (len < RELIABLE_DGRAM_DATA_HDR_LEN)
@@ -1027,7 +1023,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 			s->reliable.m_recvseq++;
 			reliable_dgram_packet_merge(s, buffer, len, saddr);
 			for (cur = s->m_recvpacketlist.head; cur; cur = next) {
-				packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+				packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 				if (packet->seq != s->reliable.m_recvseq)
 					break;
 				next = cur->next;
@@ -1039,13 +1035,13 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 		}
 		else {
 			for (cur = s->m_recvpacketlist.head; cur; cur = cur->next) {
-				packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+				packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 				if (seq1_before_seq2(seq, packet->seq))
 					break;
 				else if (packet->seq == seq)
 					return 1;
 			}
-			packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + len);
+			packet = (Packet_t*)malloc(sizeof(Packet_t) + len);
 			if (!packet) {
 				//s->valid = 0;
 				return 0;
@@ -1167,7 +1163,7 @@ static void reliable_dgram_update(NioLoop_t* loop, NioSocket_t* s, long long tim
 	{
 		ListNode_t* cur;
 		for (cur = s->m_sendpacketlist.head; cur; cur = cur->next) {
-			ReliableDgramDataPacket_t* packet = pod_container_of(cur, ReliableDgramDataPacket_t, msg.m_listnode);
+			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 			if (packet->seq < s->reliable.m_cwndseq ||
 				packet->seq - s->reliable.m_cwndseq >= s->reliable.cwndsize)
 			{
@@ -1368,6 +1364,12 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 	unsigned int i, nbytes;
 	if (!s->m_valid || s->m_shutdown)
 		return NULL;
+	if (SOCK_STREAM != s->socktype && !s->reliable.enable) {
+		if (socketWritev(s->fd, iov, iovcnt, 0, to, tolen) < 0) {
+			return NULL;
+		}
+		return s;
+	}
 	if (!iov || !iovcnt) {
 		if (SOCK_STREAM == s->socktype)
 			return s;
@@ -1397,7 +1399,6 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			packet->seq = 0;
 			packet->offset = 0;
 			packet->hdrlen = hdrlen;
-			packet->saddr.ss_family = AF_UNSPEC;
 			packet->len = hdrlen + RELIABLE_STREAM_DATA_HDR_LEN + nbytes;
 			packet->data[hdrlen] = HDR_DATA | HDR_DATA_END_FLAG;
 			if (hdrlen && s->encode) {
@@ -1410,7 +1411,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			nioloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 		}
 		else if (ESTABLISHED_STATUS == s->reliable.m_status) {
-			ReliableDgramDataPacket_t* packet;
+			Packet_t* packet;
 			size_t hdrlen;
 			if (nbytes) {
 				unsigned int offset, packetlen, copy_off, i_off;
@@ -1423,7 +1424,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 						packetlen = s->reliable.mtu - hdrlen - RELIABLE_DGRAM_DATA_HDR_LEN;
 						hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN + packetlen) : 0;
 					}
-					packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
+					packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
 					if (!packet)
 						break;
 					packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
@@ -1469,7 +1470,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 			}
 			else {
 				hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN) : 0;
-				packet = (ReliableDgramDataPacket_t*)malloc(sizeof(ReliableDgramDataPacket_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN);
+				packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN);
 				if (!packet)
 					return NULL;
 				packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
@@ -1498,11 +1499,6 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 		packet->offset = 0;
 		packet->hdrlen = hdrlen;
 		packet->len = hdrlen + nbytes;
-		if (to && SOCK_STREAM != s->socktype) {
-			memcpy(&packet->saddr, to, tolen);
-		}
-		else
-			packet->saddr.ss_family = AF_UNSPEC;
 		if (hdrlen && s->encode) {
 			s->encode(packet->data, nbytes);
 		}
@@ -1921,18 +1917,9 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				stream_send_packet(packet->s, packet);
 			}
-			else {
-				struct sockaddr* saddrptr;
-				if (packet->saddr.ss_family != AF_UNSPEC)
-					saddrptr = (struct sockaddr*)(&packet->saddr);
-				else
-					saddrptr = NULL;
-				socketWrite(s->fd, packet->data, packet->len, 0, saddrptr, sockaddrLength(saddrptr));
-				free(packet);
-			}
 		}
 		else if (NIO_SOCKET_RELIABLE_PACKET_MESSAGE == message->type) {
-			ReliableDgramDataPacket_t* packet = pod_container_of(message, ReliableDgramDataPacket_t, msg);
+			Packet_t* packet = pod_container_of(message, Packet_t, msg);
 			NioSocket_t* s = packet->s;
 			if (!s->m_valid || ESTABLISHED_STATUS != s->reliable.m_status) {
 				free(packet);

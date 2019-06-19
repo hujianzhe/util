@@ -892,15 +892,15 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif	
 }
 
-int socketWritev(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
+int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
-	return WSASendTo(sockfd, iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
+	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = {0};
 	msghdr.msg_name = (struct sockaddr*)to;
 	msghdr.msg_namelen = tolen;
-	msghdr.msg_iov = iov;
+	msghdr.msg_iov = (struct iovec*)iov;
 	msghdr.msg_iovlen = iovcnt;
 	return sendmsg(sockfd, &msghdr, flags);
 #endif
