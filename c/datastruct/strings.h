@@ -11,15 +11,14 @@
 extern "C" {
 #endif
 
-__declspec_dll ptrlen_t strLen(const char* s);
-__declspec_dll char* strReverse(char* s, ptrlen_t len);
-__declspec_dll char* strChr(const char* s, ptrlen_t len, const char c);
+__declspec_dll void memSwap(void* p1, void* p2, ptrlen_t n);
+__declspec_dll unsigned char* memByteFind(const void* p, ptrlen_t n, unsigned char b);
+__declspec_dll void* memZero(void* p, ptrlen_t n);
+__declspec_dll void* memReverse(void* s, ptrlen_t len);
+__declspec_dll char* strSkipByte(const char* s, const char* delim);
 __declspec_dll char* strStr(const char* s1, ptrlen_t s1len, const char* s2, ptrlen_t s2len);
 __declspec_dll char* strSplit(char** s, const char* delim);
-__declspec_dll void strTrim(const char* str, ptrlen_t len, char** newstr, ptrlen_t* newlen);
-__declspec_dll ptrlen_t strLenUtf8(const char* s);
-__declspec_dll char* strCopy(char* dst, ptrlen_t dst_len, const char* src, ptrlen_t src_len);
-__declspec_dll int strCmp(const char* s1, const char* s2, ptrlen_t n);
+__declspec_dll ptrlen_t strLenUtf8(const char* s, ptrlen_t s_bytelen);
 __declspec_dll int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n);
 
 #ifdef	__cplusplus

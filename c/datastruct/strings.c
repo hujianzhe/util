@@ -8,37 +8,57 @@
 extern "C" {
 #endif
 
-ptrlen_t strLen(const char* s) {
-	if (!s)
-		return 0;
-	else {
-		const char* p = s;
-		while (*p)
-			++p;
-		return p - s;
+void memSwap(void* p1, void* p2, ptrlen_t n) {
+	unsigned char* _p1 = (unsigned char*)p1;
+	unsigned char* _p2 = (unsigned char*)p2;
+	while (n--) {
+		unsigned char b = *_p1;
+		*(_p1++) = *_p2;
+		*(_p2++) = b;
 	}
 }
 
-char* strReverse(char* s, ptrlen_t len) {
+unsigned char* memByteFind(const void* p, ptrlen_t n, unsigned char b) {
+	const unsigned char* ptr = (const unsigned char*)p;
+	while (n--) {
+		if (*ptr == b)
+			return (unsigned char*)ptr;
+		++ptr;
+	}
+	return (unsigned char*)0;
+}
+
+void* memZero(void* p, ptrlen_t n) {
+	unsigned char* _p = (unsigned char*)p;
+	while (n--)
+		*(_p++) = 0;
+	return p;
+}
+
+void* memReverse(void* p, ptrlen_t len) {
+	unsigned char* _p = (unsigned char*)p;
 	ptrlen_t i, half_len = len >> 1;
-	if (!s)
-		return (char*)0;
 	for (i = 0; i < half_len; ++i) {
-		char temp = s[i];
-		s[i] = s[len - i - 1];
-		s[len - i - 1] = temp;
+		unsigned char temp = _p[i];
+		_p[i] = _p[len - i - 1];
+		_p[len - i - 1] = temp;
 	}
-	return s;
+	return p;
 }
 
-char* strChr(const char* s, ptrlen_t len, const char c) {
-	if (!s)
-		return (char*)0;
-	while (len && *s && *s != c) {
-		--len;
+char* strSkipByte(const char* s, const char* delim) {
+	while (*s) {
+		const char* p = delim;
+		while (*p) {
+			if (*p == *s)
+				break;
+			++p;
+		}
+		if (0 == *p)
+			break;
 		++s;
 	}
-	return len && *s ? (char*)s : (char*)0;
+	return (char*)s;
 }
 
 char* strStr(const char* s1, ptrlen_t s1len, const char* s2, ptrlen_t s2len) {
@@ -82,39 +102,10 @@ char* strSplit(char** s, const char* delim) {
 	return ss != sp ? ss : (char*)0;
 }
 
-void strTrim(const char* str, ptrlen_t len, char** newstr, ptrlen_t* newlen) {
-	const char* end;
-	if (!str) {
-		*newstr = (char*)0;
-		*newlen = 0;
-		return;
-	}
-	if (-1 == len) {
-		const char* p;
-		for (p = str, len = 0; *p; ++p, ++len);
-	}
-	end = str + len;
-	while (str < end) {
-		if (*str == ' ' || *str == '\r' || *str == '\n' || *str == '\f' || *str == '\b' || *str == '\t' || *end == '\v')
-			++str;
-		else
-			break;
-	}
-	while (end > str) {
-		if (*end == ' ' || *end == '\r' || *end == '\n' || *end == '\f' || *end == '\b' || *end == '\t' || *end == '\v')
-			--end;
-		else
-			break;
-	}
-	*newstr = (char*)str;
-	*newlen = end - str;
-}
-
-ptrlen_t strLenUtf8(const char* s) {
+ptrlen_t strLenUtf8(const char* s, ptrlen_t s_bytelen) {
 	ptrlen_t u8_len = 0;
-	ptrlen_t byte_len = strLen(s);
 	ptrlen_t i;
-	for (i = 0; i < byte_len; ++i) {
+	for (i = 0; i < s_bytelen; ++i) {
 		unsigned char c = s[i];
 		if (c >= 0x80) {
 			if (c < 0xc0 || c >= 0xf8) {/* not UTF-8 */
@@ -134,48 +125,6 @@ ptrlen_t strLenUtf8(const char* s) {
 		++u8_len;
 	}
 	return u8_len;
-}
-
-char* strCopy(char* dst, ptrlen_t dst_len, const char* src, ptrlen_t src_len) {
-	ptrlen_t i;
-	ptrlen_t len = dst_len > src_len ? src_len : dst_len;
-	if (-1 == len)
-		return (char*)0;
-	for (i = 0; i < len; ++i) {
-		dst[i] = src[i];
-		if (0 == dst[i]) {
-			return dst;
-		}
-	}
-	if (len) {
-		if (len < dst_len) {
-			dst[len] = 0;
-			return dst;
-		}
-		else {
-			dst[dst_len - 1] = 0;
-			return dst;
-		}
-	}
-	return dst;
-}
-
-int strCmp(const char* s1, const char* s2, ptrlen_t n) {
-	if (!n || !s1 || !s2)
-		return 0;
-	if (-1 != n) {
-		while (n-- && *s1 && *s1 == *s2) {
-			++s1;
-			++s2;
-		}
-	}
-	else {
-		while (*s1 && *s1 == *s2) {
-			++s1;
-			++s2;
-		}
-	}
-	return *s1 - *s2;
 }
 
 static int alphabet_ignore_case_delta(const char c) {
