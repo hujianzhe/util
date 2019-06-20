@@ -595,7 +595,7 @@ static int reliable_dgram_inner_packet_send(NioSocket_t* s, const unsigned char*
 			iobufStaticInit(alloca(hdrlen), hdrlen),
 			iobufStaticInit(data, len)
 		};
-		s->encode(iobufPtr(&iov[0]), len);
+		s->encode((unsigned char*)iobufPtr(&iov[0]), len);
 		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, (struct sockaddr*)saddr, sockaddrLength((struct sockaddr*)saddr));
 	}
 	else {
@@ -1423,13 +1423,13 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 						unsigned int copy_len;
 						if (iobufLen(iov + i) - i_off > packetlen - copy_off) {
 							copy_len = packetlen - copy_off;
-							memcpy(packet->data + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+							memcpy(packet->data + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + copy_off, ((char*)iobufPtr(iov + i)) + i_off, copy_len);
 							i_off += copy_len;
 							break;
 						}
 						else {
 							copy_len = iobufLen(iov + i) - i_off;
-							memcpy(packet->data + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + copy_off, iobufPtr(iov + i) + i_off, copy_len);
+							memcpy(packet->data + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + copy_off, ((char*)iobufPtr(iov + i)) + i_off, copy_len);
 							copy_off += copy_len;
 							i_off = 0;
 							++i;

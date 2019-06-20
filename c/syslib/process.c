@@ -381,7 +381,7 @@ Fiber_t* fiberFromThread(void) {
 	temp_ctx.uc_stack.ss_size = sizeof(stack);
 	temp_ctx.uc_stack.ss_sp = stack;
 	temp_ctx.uc_link = NULL;
-	makecontext(&temp_ctx, (void*)__get_thread_fiber, 2, &temp_ctx, &fiber->m_ctx);
+	makecontext(&temp_ctx, (void(*)(void))__get_thread_fiber, 2, &temp_ctx, &fiber->m_ctx);
 	swapcontext(&fiber->m_ctx, &temp_ctx);
 	return fiber;
 #endif
@@ -415,7 +415,7 @@ Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
 	fiber->m_ctx.uc_stack.ss_size = stack_size;
 	fiber->m_ctx.uc_stack.ss_sp = fiber->m_stack;
 	fiber->m_ctx.uc_link = NULL;
-	makecontext(&fiber->m_ctx, (void*)entry, 1, fiber);
+	makecontext(&fiber->m_ctx, (void(*)(void))entry, 1, fiber);
 	fiber->arg = NULL;
 	return fiber;
 #endif
