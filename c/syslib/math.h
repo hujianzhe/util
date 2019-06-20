@@ -77,69 +77,6 @@ __declspec_dll float* mathQuatConjugate(float r[4], const float q[4]);
 __declspec_dll float* mathQuatMulQuat(float r[4], const float q1[4], const float q2[4]);
 __declspec_dll float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]);
 
-__declspec_dll void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float vec_to_p[3], float np[3]);
-__declspec_dll int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]);
-__declspec_dll void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance);
-
-__declspec_dll float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]);
-__declspec_dll int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]);
-__declspec_dll int mathSegmentHasPoint(float ls[2][3], const float p[3]);
-__declspec_dll int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p_v);
-__declspec_dll int mathSphereHasPoint(const float o[3], float radius, const float p[3]);
-__declspec_dll int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]);
-__declspec_dll int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]);
-
-__declspec_dll float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]);
-
-__declspec_dll int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float distance[2]);
-__declspec_dll int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const float plane_v[3], const float plane_normal[3], float* distance);
-__declspec_dll int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]);
-__declspec_dll int mathSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]);
-__declspec_dll int mathSegmentIntersectPlane(float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
-__declspec_dll int mathSegmentIntersectCapsule(float ls[2][3], const float o[3], const float axis[3], float radius, float half_height, float p[3]);
-__declspec_dll int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]);
-__declspec_dll int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], float p[3]);
-__declspec_dll int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
-__declspec_dll int mathSphereIntersectTrianglesPlane(const float o[3], float radius, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt);
-__declspec_dll int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], float r2, float p[3]);
-__declspec_dll int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, float p[3]);
-__declspec_dll int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float p[3]);
-__declspec_dll int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt);
-__declspec_dll int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axis[3], float cp1_radius, float cp1_half_height, const float cp2_o[3], const float cp2_axis[3], float cp2_radius, float cp2_half_height);
-__declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
-__declspec_dll int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3]);
-__declspec_dll int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float radius);
-__declspec_dll int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height);
-typedef struct CCTResult_t {
-	float distance;
-	int hit_point_cnt;
-	float hit_point[3];
-	float hit_normal[3];
-} CCTResult_t;
-__declspec_dll CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], float ls[2][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], float tri[3][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathRaycastCapsule(const float o[3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSegmentcastSegment(float ls1[2][3], const float dir[3], float ls2[2][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSegmentcastTriangle(float ls[2][3], const float dir[3], float tri[3][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSegmentcastSphere(float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathTrianglecastPlane(float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], const float dir[3], float tri2[3][3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], const float dir[3], const float o2[3], const float half2[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const float dir[3], const float o2[3], float r2, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathSpherecastCapsule(const float sp_o[3], float sp_radius, const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCapsulecastTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCapsulecastAABB(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result);
-__declspec_dll CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3], float cp1_radius, float cp1_half_height, const float dir[3], const float cp2_o[3], const float cp2_axis[3], float cp2_radius, float cp2_half_height, CCTResult_t* result);
-
 #ifdef	__cplusplus
 }
 #endif
