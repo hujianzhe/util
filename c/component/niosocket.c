@@ -19,8 +19,7 @@ enum {
 	NIO_SOCKET_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE,
 	NIO_SOCKET_TRANSPORT_GRAB_ASYNC_RET_MESSAGE,
 	NIO_SOCKET_REG_MESSAGE,
-	NIO_SOCKET_PACKET_MESSAGE,
-	NIO_SOCKET_RELIABLE_PACKET_MESSAGE
+	NIO_SOCKET_PACKET_MESSAGE
 };
 enum {
 	HDR_SYN,
@@ -1046,7 +1045,7 @@ static int reliable_dgram_recv_handler(NioSocket_t* s, unsigned char* buffer, in
 				//s->valid = 0;
 				return 0;
 			}
-			packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
+			packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 			packet->s = s;
 			packet->seq = seq;
 			packet->hdrlen = 0;
@@ -1427,7 +1426,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 					packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
 					if (!packet)
 						break;
-					packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
+					packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 					packet->s = s;
 					packet->resendtimes = 0;
 					packet->hdrlen = hdrlen;
@@ -1473,7 +1472,7 @@ NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], unsigned int io
 				packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN);
 				if (!packet)
 					return NULL;
-				packet->msg.type = NIO_SOCKET_RELIABLE_PACKET_MESSAGE;
+				packet->msg.type = NIO_SOCKET_PACKET_MESSAGE;
 				packet->s = s;
 				packet->resendtimes = 0;
 				packet->hdrlen = hdrlen;
@@ -1917,17 +1916,11 @@ int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec
 				}
 				stream_send_packet(packet->s, packet);
 			}
-		}
-		else if (NIO_SOCKET_RELIABLE_PACKET_MESSAGE == message->type) {
-			Packet_t* packet = pod_container_of(message, Packet_t, msg);
-			NioSocket_t* s = packet->s;
-			if (!s->m_valid || ESTABLISHED_STATUS != s->reliable.m_status) {
-				free(packet);
-				continue;
+			else {
+				packet->seq = s->reliable.m_sendseq++;
+				*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
+				reliable_dgram_send_packet(s, packet, timestamp_msec);
 			}
-			packet->seq = s->reliable.m_sendseq++;
-			*(unsigned int*)(packet->data + packet->hdrlen + 1) = htonl(packet->seq);
-			reliable_dgram_send_packet(s, packet, timestamp_msec);
 		}
 		else if (NIO_SOCKET_CLIENT_NET_RECONNECT_MESSAGE == message->type) {
 			NioSocket_t* s = pod_container_of(message, NioSocket_t, m_netreconnectmsg);
@@ -2248,11 +2241,8 @@ void nioloopDestroy(NioLoop_t* loop) {
 			for (cur = loop->m_msglist.head; cur; cur = next) {
 				NioInternalMsg_t* msgbase = pod_container_of(cur, NioInternalMsg_t, m_listnode);
 				next = cur->next;
-				if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type ||
-					NIO_SOCKET_RELIABLE_PACKET_MESSAGE == msgbase->type)
-				{
+				if (NIO_SOCKET_PACKET_MESSAGE == msgbase->type)
 					free(cur);
-				}
 			}
 		} while (0);
 		do {
