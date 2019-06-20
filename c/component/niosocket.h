@@ -7,10 +7,11 @@
 
 #include "../syslib/atomic.h"
 #include "../syslib/io.h"
+#include "../syslib/ipc.h"
 #include "../syslib/process.h"
 #include "../syslib/socket.h"
+#include "../datastruct/list.h"
 #include "../datastruct/hashtable.h"
-#include "dataqueue.h"
 
 typedef struct NioLoop_t {
 	unsigned char m_initok;
@@ -20,7 +21,6 @@ typedef struct NioLoop_t {
 	Reactor_t m_reactor;
 	FD_t m_socketpair[2];
 	void* m_readol;
-	DataQueue_t* m_msgdq;
 	CriticalSection_t m_msglistlock;
 	List_t m_msglist;
 	List_t m_sockcloselist;
@@ -29,15 +29,15 @@ typedef struct NioLoop_t {
 	long long m_event_msec;
 } NioLoop_t;
 
+enum {
+	NIO_SOCKET_USER_MESSAGE,
+	NIO_SOCKET_SHUTDOWN_MESSAGE,
+	NIO_SOCKET_CLOSE_MESSAGE,
+};
 typedef struct NioInternalMsg_t {
 	ListNode_t m_listnode;
 	int type;
 } NioInternalMsg_t;
-struct NioSocket_t;
-typedef struct NioMsg_t {
-	NioInternalMsg_t internal;
-	struct NioSocket_t* sock;
-} NioMsg_t;
 
 enum {
 	NIOSOCKET_TRANSPORT_NOSIDE,
@@ -52,7 +52,6 @@ typedef struct NioSocketDecodeResult_t {
 	int decodelen;
 	int bodylen;
 	unsigned char* bodyptr;
-	NioMsg_t* msgptr;
 } NioSocketDecodeResult_t;
 
 typedef struct NioSocket_t {
@@ -79,15 +78,16 @@ typedef struct NioSocket_t {
 	size_t(*hdrlen)(size_t bodylen);
 	void(*encode)(unsigned char* hdrptr, size_t bodylen);
 	void(*send_heartbeat_to_server)(struct NioSocket_t* self);
-	void(*shutdown_callback)(struct NioSocket_t* self);
-	void(*close_callback)(struct NioSocket_t* self);
+	void(*shutdown)(struct NioSocket_t* self);
+	void(*close)(struct NioSocket_t* self);
+	NioInternalMsg_t shutdownmsg;
+	NioInternalMsg_t closemsg;
 /* private */
 	volatile char m_valid;
-	Atom16_t m_shutdown;
+	Atom16_t m_shutdownflag;
 	Atom16_t m_reconnectrecovery;
 	int m_connect_times;
 	NioInternalMsg_t m_regmsg;
-	NioInternalMsg_t m_shutdownmsg;
 	NioInternalMsg_t m_shutdownpostmsg;
 	NioInternalMsg_t m_netreconnectmsg;
 	NioInternalMsg_t m_reconnectrecoverymsg;
@@ -146,13 +146,11 @@ __declspec_dll NioSocket_t* niosocketSendv(NioSocket_t* s, const Iobuf_t iov[], 
 __declspec_dll void niosocketClientNetReconnect(NioSocket_t* s);
 __declspec_dll void niosocketReconnectRecovery(NioSocket_t* s);
 __declspec_dll int niosocketTransportStatusGrab(NioSocket_t* s, NioSocket_t* target_s, unsigned int recvseq, unsigned int cwndseq);
-__declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop, DataQueue_t* msgdq);
+__declspec_dll NioLoop_t* nioloopCreate(NioLoop_t* loop);
 __declspec_dll NioLoop_t* nioloopWake(NioLoop_t* loop);
 __declspec_dll int nioloopHandler(NioLoop_t* loop, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void nioloopReg(NioLoop_t* loop, NioSocket_t* s[], size_t n);
 __declspec_dll void nioloopDestroy(NioLoop_t* loop);
-__declspec_dll void niomsgHandler(DataQueue_t* dq, int max_wait_msec, void (*user_msg_callback)(NioMsg_t*, void*), void* arg);
-__declspec_dll void niomsgClean(DataQueue_t* dq, void(*deleter)(NioMsg_t*));
 
 #ifdef __cplusplus
 }
