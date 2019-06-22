@@ -852,6 +852,46 @@ static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], fl
 	}
 }
 
+static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicecnt, CCTResult_t* result) {
+	int i;
+	if (!mathRaycastPlane(o, dir, vertices[indices[0]], plane_n, result))
+		return NULL;
+	while (i < indicecnt) {
+		float tri[3][3];
+		mathVec3Copy(tri[0], vertices[indices[i++]]);
+		mathVec3Copy(tri[1], vertices[indices[i++]]);
+		mathVec3Copy(tri[2], vertices[indices[i++]]);
+		if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+			return result;
+	}
+	return NULL;
+}
+
+static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
+	if (mathAABBHasPoint(aabb_o, aabb_half, o)) {
+		result->distance = 0.0;
+		result->hit_point_cnt = 1;
+		mathVec3Copy(result->hit_point, o);
+		return result;
+	}
+	else {
+		CCTResult_t *p_result = NULL;
+		int i, j;
+		float v[8][3];
+		AABBVertices(aabb_o, aabb_half, v);
+		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
+			CCTResult_t result_temp;
+			if (mathRaycastTrianglesPlane(o, dir, AABB_Plane_Normal[j], v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
+				(!p_result || p_result->distance > result_temp.distance))
+			{
+				copy_result(result, &result_temp);
+				p_result = result;
+			}
+		}
+		return p_result;
+	}
+}
+
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
 	float radius2 = sp_radius * sp_radius;
 	float d, dr2, oc2, dir_d;
@@ -1744,6 +1784,11 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 	else if (COLLISION_BODY_RAY == b1->type) {
 		const CollisionBodyRay_t* one = (const CollisionBodyRay_t*)b1;
 		switch (b2->type) {
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathRaycastAABB(one->pos, dir, two->pos, two->half, result);
+			}
 			case COLLISION_BODY_SPHERE:
 			{
 				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
@@ -1758,6 +1803,11 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 			{
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathRaycastPlane(one->pos, dir, two->vertice, two->normal, result);
+			}
+			case COLLISION_BODY_TRIANGLES_PLANE:
+			{
+				const CollisionBodyTrianglesPlane_t* two = (const CollisionBodyTrianglesPlane_t*)b2;
+				return mathRaycastTrianglesPlane(one->pos, dir, two->normal, two->vertices, two->indices, two->indicescnt, result);
 			}
 			default:
 				return NULL;
