@@ -856,6 +856,7 @@ static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[
 	int i;
 	if (!mathRaycastPlane(o, dir, vertices[indices[0]], plane_n, result))
 		return NULL;
+	i = 0;
 	while (i < indicecnt) {
 		float tri[3][3];
 		mathVec3Copy(tri[0], vertices[indices[i++]]);
