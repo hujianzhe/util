@@ -75,6 +75,7 @@ typedef union CollisionBody_t {
 extern "C" {
 #endif
 
+__declspec_dll int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2);
 __declspec_dll CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3], const CollisionBody_t* b2, CCTResult_t* result);
 
 #ifdef	__cplusplus

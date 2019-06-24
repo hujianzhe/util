@@ -367,13 +367,16 @@ static int mathSphereIntersectPlane(const float o[3], float radius, const float 
 	cmp = fcmpf(ppolensq, radius * radius, CCT_EPSILON);
 	if (cmp > 0)
 		return 0;
-	mathVec3Copy(new_o, pp);
+	if (new_o)
+		mathVec3Copy(new_o, pp);
 	if (0 == cmp) {
-		*new_r = 0.0f;
+		if (new_r)
+			*new_r = 0.0f;
 		return 1;
 	}
 	else {
-		*new_r = sqrtf(radius * radius - ppolensq);
+		if (new_r)
+			*new_r = sqrtf(radius * radius - ppolensq);
 		return 2;
 	}
 }
@@ -417,8 +420,10 @@ static int mathSphereIntersectSphere(const float o1[3], float r1, const float o2
 	if (cmp < 0)
 		return 2;
 	else {
-		mathVec3Normalized(o1o2, o1o2);
-		mathVec3AddScalar(mathVec3Copy(p, o1), o1o2, r1);
+		if (p) {
+			mathVec3Normalized(o1o2, o1o2);
+			mathVec3AddScalar(mathVec3Copy(p, o1), o1o2, r1);
+		}
 		return 1;
 	}
 }
@@ -443,11 +448,13 @@ static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, cons
 		if (cmp < 0)
 			return 2;
 		else {
-			float pl[3];
-			mathVec3AddScalar(mathVec3Copy(pl, cp), cp_axis, dot);
-			mathVec3Sub(v, pl, sp_o);
-			mathVec3Normalized(v, v);
-			mathVec3AddScalar(mathVec3Copy(p, sp_o), v, sp_radius);
+			if (p) {
+				float pl[3];
+				mathVec3AddScalar(mathVec3Copy(pl, cp), cp_axis, dot);
+				mathVec3Sub(v, pl, sp_o);
+				mathVec3Normalized(v, v);
+				mathVec3AddScalar(mathVec3Copy(p, sp_o), v, sp_radius);
+			}
 			return 1;
 		}
 	}
@@ -649,11 +656,13 @@ static int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3]
 	if (0 == cmp[0] && 0 == cmp[1])
 		return 2;
 	else if (0 == cmp[0]) {
-		mathVec3AddScalar(mathVec3Copy(p, sphere_o[0]), plane_n, d[0]);
+		if (p)
+			mathVec3AddScalar(mathVec3Copy(p, sphere_o[0]), plane_n, d[0]);
 		return 1;
 	}
 	else if (0 == cmp[1]) {
-		mathVec3AddScalar(mathVec3Copy(p, sphere_o[1]), plane_n, d[1]);
+		if (p)
+			mathVec3AddScalar(mathVec3Copy(p, sphere_o[1]), plane_n, d[1]);
 		return 1;
 	}
 	cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
@@ -1776,6 +1785,115 @@ static CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1
 			return NULL;
 		}
 	}
+}
+
+int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2) {
+	if (b1 == b2)
+		return 0;
+	else if (COLLISION_BODY_AABB == b1->type) {
+		const CollisionBodyAABB_t* one = (const CollisionBodyAABB_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBIntersectAABB(one->pos, one->half, two->pos, two->half);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathAABBIntersectSphere(one->pos, one->half, two->pos, two->radius);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathAABBIntersectCapsule(one->pos, one->half, two->pos, two->axis, two->radius, two->half_height);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathAABBIntersectPlane(one->pos, one->half, two->vertice, two->normal);
+			}
+			default:
+				return 0;
+		}
+	}
+	else if (COLLISION_BODY_SPHERE == b1->type) {
+		const CollisionBodySphere_t* one = (const CollisionBodySphere_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBIntersectSphere(two->pos, two->half, one->pos, one->radius);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathSphereIntersectSphere(one->pos, one->radius, two->pos, two->radius, NULL);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathSphereIntersectCapsule(one->pos, one->radius, two->pos, two->axis, two->radius, two->half_height, NULL);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathSphereIntersectPlane(one->pos, one->radius, two->vertice, two->normal, NULL, NULL);
+			}
+			default:
+				return 0;
+		}
+	}
+	else if (COLLISION_BODY_CAPSULE == b1->type) {
+		const CollisionBodyCapsule_t* one = (const CollisionBodyCapsule_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBIntersectCapsule(two->pos, two->half, one->pos, one->axis, one->radius, one->half_height);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathSphereIntersectCapsule(two->pos, two->radius, one->pos, one->axis, one->radius, one->half_height, NULL);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathCapsuleIntersectCapsule(one->pos, one->axis, one->radius, one->half_height, two->pos, two->axis, two->radius, two->half_height);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathCapsuleIntersectPlane(one->pos, one->axis, one->radius, one->half_height, two->vertice, two->normal, NULL);
+			}
+			default:
+				return 0;
+		}
+	}
+	else if (COLLISION_BODY_PLANE == b1->type) {
+		const CollisionBodyPlane_t* one = (const CollisionBodyPlane_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBIntersectPlane(two->pos, two->half, one->vertice, one->normal);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathSphereIntersectPlane(two->pos, two->radius, one->vertice, one->normal, NULL, NULL);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathCapsuleIntersectPlane(two->pos, two->axis, two->radius, two->half_height, one->vertice, one->normal, NULL);
+			}
+			default:
+				return 0;
+		}
+	}
+	return 0;
 }
 
 CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3], const CollisionBody_t* b2, CCTResult_t* result) {
