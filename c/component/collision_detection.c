@@ -703,7 +703,10 @@ static int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float c
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON)) {
 			float d;
 			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, NULL, &d);
+			d /= cos_theta;
 			mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, d);
+			if (!mathPlaneHasPoint(vertices[indices[0]], plane_n, center))
+				mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, -d);
 		}
 		else {
 			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, center, NULL);
