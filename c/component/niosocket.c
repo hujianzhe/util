@@ -1602,6 +1602,7 @@ NioSocket_t* niosocketCreate(FD_t fd, int domain, int socktype, int protocol, Ni
 	s->heartbeat_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->close_timeout_msec = 0;
+	s->sessionid = NULL;
 	s->userdata = NULL;
 	s->transport_side = NIOSOCKET_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
