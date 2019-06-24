@@ -705,8 +705,10 @@ static int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float c
 			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, NULL, &d);
 			d /= cos_theta;
 			mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, d);
-			if (!mathPlaneHasPoint(vertices[indices[0]], plane_n, center))
-				mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, -d);
+			if (!mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, center)) {
+				mathVec3AddScalar(mathVec3Copy(center, cp_o), cp_axis, d >= CCT_EPSILON ? cp_half_height : -cp_half_height);
+				return mathSphereIntersectTrianglesPlane(center, cp_radius, plane_n, vertices, indices, indicescnt);
+			}
 		}
 		else {
 			mathPointProjectionPlane(cp_o, vertices[indices[0]], plane_n, center, NULL);
