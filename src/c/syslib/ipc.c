@@ -400,10 +400,12 @@ void rwlockClose(RWLock_t* rwlock) {
 Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short val) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = CreateSemaphoreA(NULL, val, 0x7fffffff, name);
+	/*
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
 		assertTRUE(CloseHandle(handle));
 		return NULL;
 	}
+	*/
 	if (handle != NULL) {
 		*sem = handle;
 		return sem;
@@ -412,14 +414,15 @@ Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short 
 #else
 	/* max init value at last SEM_VALUE_MAX(32767) */
 	/* mac os x has deprecated sem_init */
-	sem_t* semid = sem_open(name, O_CREAT | O_EXCL, 0666, val);
+	/* sem_t* semid = sem_open(name, O_CREAT | O_EXCL, 0666, val); */
+	sem_t* semid = sem_open(name, O_CREAT, 0666, val);
 	if (SEM_FAILED == semid)
 		return NULL;
 	*sem = semid;
 	return sem;
 #endif
 }
-
+/*
 Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
@@ -436,7 +439,7 @@ Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name) {
 	return sem;
 #endif
 }
-
+*/
 BOOL semaphoreTryWait(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(*sem, 0) == WAIT_OBJECT_0;
@@ -473,7 +476,7 @@ BOOL semaphoreUnlink(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TRUE;
 #else
-	return sem_unlink(name) == 0;
+	return sem_unlink(name) == 0 || ENOENT == errno;
 #endif
 }
 
