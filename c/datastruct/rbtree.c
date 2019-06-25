@@ -122,17 +122,17 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-static int __default_keycmp(const struct RBTreeNode_t* node, const void* key)
+static int __default_keycmp(const void* node_key, const void* key)
 {
-	if (key == node->key)
+	if (key == node_key)
 		return 0;
-	else if (key < node->key)
+	else if (key < node_key)
 		return -1;
 	else
 		return 1;
 }
 
-struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const struct RBTreeNode_t*, const void*))
+struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const void*, const void*))
 {
 	root->rb_tree_node = (struct RBTreeNode_t*)0;
 	root->keycmp = keycmp ? keycmp : __default_keycmp;
@@ -143,7 +143,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 {
 	struct RBTreeNode_t* parent = root->rb_tree_node;
 	while (parent) {
-		int res = root->keycmp(parent, node->key);
+		int res = root->keycmp(parent->key, node->key);
 		if (res < 0) {
 			if (parent->rb_left) {
 				parent = parent->rb_left;

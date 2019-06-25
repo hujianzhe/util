@@ -13,18 +13,16 @@
 extern "C" {
 #endif
 
-static int header_keycmp(const struct HashtableNode_t* node, const void* key) {
-	const char* sk = *(const char**)key;
-	return strcmp(pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->key, sk);
+static int header_keycmp(const void* node_key, const void* key) {
+	return strcmp((const char*)node_key, (const char*)key);
 }
 
 static unsigned int header_keyhash(const void* key) {
-	const char* sk = *(const char**)key;
-	return hashBKDR(sk);
+	return hashBKDR((const char*)key);
 }
 
 const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {
-	HashtableNode_t* node = hashtableSearchKey(&frame->headers, &key);
+	HashtableNode_t* node = hashtableSearchKey(&frame->headers, key);
 	if (node)
 		return pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value;
 	else
@@ -238,7 +236,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 			p[keylen + valuelen + 1] = 0;
 			field->value = p + keylen + 1;
 
-			field->m_hashnode.key = &field->key;
+			field->m_hashnode.key = field->key;
 			exist_node = hashtableInsertNode(&frame->headers, &field->m_hashnode);
 			if (exist_node != &field->m_hashnode) {
 				hashtableReplaceNode(exist_node, &field->m_hashnode);

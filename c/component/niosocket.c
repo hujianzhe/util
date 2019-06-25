@@ -1698,8 +1698,8 @@ void niosocketManualClose(NioSocket_t* s) {
 	}
 }
 
-static int sockht_keycmp(const struct HashtableNode_t* node, const void* key) {
-	return pod_container_of(node, NioSocket_t, m_hashnode)->fd != *(FD_t*)key;
+static int sockht_keycmp(const void* node_key, const void* key) {
+	return *(FD_t*)node_key != *(FD_t*)key;
 }
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }

@@ -67,8 +67,8 @@ public:
 	typedef iterator	const_iterator;
 
 private:
-	static int keycmp(const ::HashtableNode_t* _n, const void* key) {
-		return ((Xnode*)_n)->v.first != *(key_type*)key;
+	static int keycmp(const void* node_key, const void* key) {
+		return *(key_type*)node_key != *(key_type*)key;
 	}
 
 	static unsigned int __key_hash(const std::string& s) {

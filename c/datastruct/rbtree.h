@@ -19,14 +19,14 @@ typedef struct RBTreeNode_t {
 
 typedef struct RBTree_t {
 	struct RBTreeNode_t *rb_tree_node;
-	int (*keycmp)(const struct RBTreeNode_t*, const void*);
+	int (*keycmp)(const void*, const void*);
 } RBTree_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-__declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const struct RBTreeNode_t*, const void*));
+__declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const void*, const void*));
 
 __declspec_dll struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node);
 __declspec_dll void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node);
