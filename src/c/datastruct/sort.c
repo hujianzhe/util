@@ -52,11 +52,11 @@ void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, co
 	}
 }
 
-int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptrlen_t esize, const void*(*cmp)(const void*, const void*)) {
+int sortInsertTopN(void* p_, ptrlen_t* picnt, ptrlen_t topn, const void* new_, ptrlen_t esize, const void*(*cmp)(const void*, const void*)) {
 	unsigned char* p = (unsigned char*)p_;
 	unsigned char* pp = p;
 	unsigned char* pnew = (unsigned char*)new_;
-	ptrlen_t i;
+	ptrlen_t i, icnt = *picnt;
 	for (i = 0; i < icnt; ++i, p += esize) {
 		if (cmp(p, pnew) == pnew)
 			break;
@@ -65,6 +65,8 @@ int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptr
 		pp += esize * icnt;
 		if (icnt >= topn)
 			pp -= esize;
+		else
+			(*picnt)++;
 		while (pp != p) {
 			__byte_copy(pp, pp - esize, esize);
 			pp -= esize;
@@ -74,6 +76,7 @@ int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptr
 	}
 	else if (icnt < topn) {
 		__byte_copy(p, pnew, esize);
+		(*picnt)++;
 		return 1;
 	}
 	return 0;
