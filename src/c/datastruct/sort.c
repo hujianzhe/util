@@ -52,13 +52,13 @@ void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, co
 	}
 }
 
-int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptrlen_t esize, int(*less)(const void*, const void*)) {
+int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptrlen_t esize, const void*(*cmp)(const void*, const void*)) {
 	unsigned char* p = (unsigned char*)p_;
 	unsigned char* pp = p;
 	unsigned char* pnew = (unsigned char*)new_;
 	ptrlen_t i;
 	for (i = 0; i < icnt; ++i, p += esize) {
-		if (!less(p, pnew))
+		if (cmp(p, pnew) == pnew)
 			break;
 	}
 	if (i < icnt) {
