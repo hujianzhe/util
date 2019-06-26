@@ -52,6 +52,33 @@ void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, co
 	}
 }
 
+int sortInsertTopN(void* p_, ptrlen_t icnt, ptrlen_t topn, const void* new_, ptrlen_t esize, int(*less)(const void*, const void*)) {
+	unsigned char* p = (unsigned char*)p_;
+	unsigned char* pp = p;
+	unsigned char* pnew = (unsigned char*)new_;
+	ptrlen_t i;
+	for (i = 0; i < icnt; ++i, p += esize) {
+		if (!less(p, pnew))
+			break;
+	}
+	if (i < icnt) {
+		pp += esize * icnt;
+		if (icnt >= topn)
+			pp -= esize;
+		while (pp != p) {
+			__byte_copy(pp, pp - esize, esize);
+			pp -= esize;
+		}
+		__byte_copy(p, pnew, esize);
+		return icnt < topn;
+	}
+	else if (icnt < topn) {
+		__byte_copy(p, pnew, esize);
+		return 1;
+	}
+	return 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif
