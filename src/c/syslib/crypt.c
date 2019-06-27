@@ -253,7 +253,7 @@ BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1) {
 	*/
 	SHA1_CTX ctx;
 	SHA1Init(&ctx);
-	SHA1Update(&ctx, data, len);
+	SHA1Update(&ctx, (const unsigned char*)data, len);
 	SHA1Final(sha1, &ctx);
 	return TRUE;
 #endif
