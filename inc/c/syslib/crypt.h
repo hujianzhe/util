@@ -6,6 +6,7 @@
 #define	UTIL_C_SYSLIB_CRYPT_H
 
 #include "../platform_define.h"
+#include "../datastruct/sha1.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#pragma comment(lib, "Advapi32.lib")
@@ -16,10 +17,9 @@
 	#ifdef	__APPLE__
 		#include <CommonCrypto/CommonCrypto.h>
 	#else
-		#include <openssl/md5.h>
-		#include <openssl/sha.h>
-		#define	CC_SHA1_DIGEST_LENGTH	SHA_DIGEST_LENGTH
-		#define	CC_MD5_DIGEST_LENGTH	MD5_DIGEST_LENGTH
+		/*#include <openssl/md5.h>*/
+		#define	CC_SHA1_DIGEST_LENGTH	20
+		#define	CC_MD5_DIGEST_LENGTH	16
 	#endif
 #endif
 
@@ -32,7 +32,7 @@ __declspec_dll unsigned int cryptCRC32Update(unsigned int crc, const unsigned ch
 __declspec_dll size_t cryptBase64Encode(const unsigned char* src, size_t srclen, char* dst);
 #define	cryptBase64DecodeLength(len)	(((len) + 3) / 4 * 3)
 __declspec_dll size_t cryptBase64Decode(const char* src, size_t srclen, unsigned char* dst);
-__declspec_dll BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5);
+/*__declspec_dll BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5);*/
 __declspec_dll BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1);
 
 #ifdef	__cplusplus
