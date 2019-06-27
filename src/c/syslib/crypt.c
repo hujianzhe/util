@@ -196,7 +196,6 @@ static BOOL __win32_crypt_clean(struct __WIN32_CRYPT_CTX* ctx) {
 #endif
 
 /* md5 */
-/*
 BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5) {
 #if defined(_WIN32) || defined(_WIN64)
 	__WIN32_CRYPT_CTX ctx;
@@ -223,7 +222,6 @@ BOOL cryptMD5Encode(const void* data, size_t len, unsigned char* md5) {
 	return MD5_Init(&ctx) && MD5_Update(&ctx, data, len) && MD5_Final(md5, &ctx);
 #endif
 }
-*/
 
 /* sha1 */
 BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1) {
@@ -247,15 +245,15 @@ BOOL cryptSHA1Encode(const void* data, size_t len, unsigned char* sha1) {
 	CC_SHA1_CTX ctx;
 	return CC_SHA1_Init(&ctx) && CC_SHA1_Update(&ctx, data, len) && CC_SHA1_Final(sha1, &ctx);
 #else
-	/*
 	SHA_CTX ctx;
 	return SHA1_Init(&ctx) && SHA1_Update(&ctx, data, len) && SHA1_Final(sha1, &ctx);
-	*/
+	/*
 	SHA1_CTX ctx;
 	SHA1Init(&ctx);
 	SHA1Update(&ctx, (const unsigned char*)data, len);
 	SHA1Final(sha1, &ctx);
 	return TRUE;
+	*/
 #endif
 }
 
