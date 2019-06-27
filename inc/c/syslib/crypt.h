@@ -19,7 +19,7 @@
 	#else
 		#include <openssl/md5.h>
 		#include <openssl/sha.h>
-		#define	CC_SHA1_DIGEST_LENGTH	SHA1_DIGEST_LENGTH
+		#define	CC_SHA1_DIGEST_LENGTH	20
 		#define	CC_MD5_DIGEST_LENGTH	MD5_DIGEST_LENGTH
 	#endif
 #endif
