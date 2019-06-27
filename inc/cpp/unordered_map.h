@@ -5,11 +5,13 @@
 #ifndef UTIL_CPP_UNORDERED_MAP_H
 #define	UTIL_CPP_UNORDERED_MAP_H
 
+#ifdef __cplusplus
+
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <unordered_map>
 #else
-#include "../c/datastruct/hashtable.h"
+#include "../datastruct/hashtable.h"
 #include <cstddef>
 #include <utility>
 #include <string>
@@ -195,6 +197,8 @@ private:
 	size_t m_size;
 };
 }
+#endif
+
 #endif
 
 #endif

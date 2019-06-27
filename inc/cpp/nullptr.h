@@ -5,6 +5,8 @@
 #ifndef	UTIL_CPP_NULLPTR_H
 #define	UTIL_CPP_NULLPTR_H
 
+#ifdef __cplusplus
+
 #include "cpp_compiler_define.h"
 #include <cstddef>
 #if	__CPP_VERSION < 2011
@@ -24,6 +26,8 @@ private:
 } nullptr_t;
 }
 #define	nullptr		(std::nullptr_t())
+#endif
+
 #endif
 
 #endif

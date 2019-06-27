@@ -5,11 +5,9 @@
 #ifndef UTIL_CPP_CPP_COMPILER_DEFINE_H
 #define	UTIL_CPP_CPP_COMPILER_DEFINE_H
 
-#ifndef __cplusplus
-	#error "Compiler isn't a C++"
-#endif
+#ifdef __cplusplus
 
-#include "../c/compiler_define.h"
+#include "../compiler_define.h"
 
 #ifdef _MSC_VER
 	#if	_MSC_VER >= 1900
@@ -36,6 +34,8 @@
 	#define constexpr
 	#define	override
 	#define noexcept
+#endif
+
 #endif
 
 #endif

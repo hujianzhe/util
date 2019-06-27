@@ -5,6 +5,8 @@
 #ifndef UTIL_CPP_EXCEPTION_H
 #define UTIL_CPP_EXCEPTION_H
 
+#ifdef __cplusplus
+
 #include "cpp_compiler_define.h"
 #include <stdio.h>
 #include <exception>
@@ -21,5 +23,7 @@ char _str[512];\
 snprintf(_str, sizeof(_str), __FILE__"(" MACRO_TOSTRING(__LINE__) "): %s\r\n" fmt "\r\n", #exp, ##__VA_ARGS__);\
 throw std::logic_error(_str);\
 }
+
+#endif
 
 #endif

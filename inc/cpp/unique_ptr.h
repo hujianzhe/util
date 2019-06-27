@@ -5,6 +5,8 @@
 #ifndef UTIL_CPP_UNIQUE_PTR_H
 #define	UTIL_CPP_UNIQUE_PTR_H
 
+#ifdef __cplusplus
+
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <memory>
@@ -131,6 +133,8 @@ bool operator!=(nullptr_t p, const unique_ptr<T, D>& x) { return x.get() != p; }
 template <class T, class D>
 bool operator!=(const unique_ptr<T, D>& x, nullptr_t p) { return x.get() != p; }
 }
+#endif
+
 #endif
 
 #endif
