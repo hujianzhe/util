@@ -111,9 +111,9 @@ int aioSuspend(const AioCtx_t* ctx, int msec) {
 
 BOOL aioCancel(FD_t fd, AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CancelIoEx((HANDLE)fd, &ctx->ol);
+	return CancelIoEx((HANDLE)fd, ctx ? &ctx->ol : NULL) || ERROR_OPERATION_ABORTED == GetLastError();
 #else
-	int res = aio_cancel(fd, &ctx->cb);
+	int res = aio_cancel(fd, ctx ? &ctx->cb : NULL);
 	if (AIO_CANCELED == res || AIO_ALLDONE == res)
 		return TRUE;
 	else if (AIO_NOTCANCELED == res)
