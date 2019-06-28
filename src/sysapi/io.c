@@ -41,18 +41,20 @@ static void posix_aio_callback(union sigval v) {
 */
 BOOL aioCommit(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	ctx->ol.Offset = ctx->cb.aio_offset;
+	DWORD realbytes;
+	ctx->ol.Offset = (DWORD)ctx->cb.aio_offset;
 	ctx->ol.OffsetHigh = ctx->cb.aio_offset >> 32;
 	if (LIO_READ == ctx->cb.aio_lio_opcode) {
-		return ReadFileEx((HANDLE)(ctx->cb.aio_fildes),
+		return ReadFile((HANDLE)(ctx->cb.aio_fildes),
 			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
-			&ctx->ol, NULL) ||
-			GetLastError() == ERROR_IO_PENDING;
+			&realbytes, &ctx->ol) ||
+			GetLastError() == ERROR_IO_PENDING ||
+			GetLastError() == ERROR_HANDLE_EOF;
 	}
 	else if (LIO_WRITE == ctx->cb.aio_lio_opcode) {
-		return WriteFileEx((HANDLE)(ctx->cb.aio_fildes),
+		return WriteFile((HANDLE)(ctx->cb.aio_fildes),
 			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
-			&ctx->ol, NULL) ||
+			&realbytes, &ctx->ol) ||
 			GetLastError() == ERROR_IO_PENDING;
 	}
 #else
@@ -127,7 +129,11 @@ BOOL aioCancel(FD_t fd, AioCtx_t* ctx) {
 
 int aioError(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return ctx->ol.Internal;
+	DWORD realbytes, err;
+	if (GetOverlappedResult((HANDLE)ctx->cb.aio_fildes, &ctx->ol, &realbytes, FALSE))
+		return 0;
+	err = GetLastError();
+	return ERROR_HANDLE_EOF == err ? 0 : err;
 #else
 	return aio_error(&ctx->cb);
 #endif
@@ -135,7 +141,8 @@ int aioError(AioCtx_t* ctx) {
 
 int aioNumberOfBytesTransfered(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	return ctx->ol.InternalHigh;
+	DWORD realbytes;
+	return GetOverlappedResult((HANDLE)ctx->cb.aio_fildes, &ctx->ol, &realbytes, FALSE) ? realbytes : 0;
 #else
 	return aio_return(&ctx->cb);
 #endif
