@@ -30,7 +30,7 @@ util/
 				random			随机数算法,提供rand48与MT19937算法  
 				strings			一些安全的字符串操作接口  
 				tree			类型无关的普通树  
-				sort			合并有序数组与topN统计接口  
+				sort			合并有序数组,topN统计接口  
 				url				URL解析  
 				sha1			SHA1编解码,来源于Redis源码  
 				value_type		通用类型结构  
@@ -41,7 +41,7 @@ util/
 				crypt			提供CRC32,MD5,SHA1,BASE64编解码(类unix平台需要基于openssl库)  
 				error			提供统一的系统错误码接口  
 				file			提供统一的文件与目录操作接口  
-				io				提供统一的NIO接口(包含iocp/epoll/kevent,reactor模式)  
+				io				提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
 				ipc				提供统一的同步接口  
 				math			一些实用的数学运算接口  
 				mmap			提供统一的文件内存映射与共享内存接口  

@@ -56,7 +56,7 @@ typedef struct Packet_t {
 	union {
 		/* udp use */
 		struct {
-			unsigned int resendtimes;
+			unsigned char resendtimes;
 			long long resend_timestamp_msec;
 		};
 		/* tcp use */
@@ -76,7 +76,7 @@ typedef struct ReliableDgramHalfConnectPacket_t {
 	ListNode_t m_listnode;
 	FD_t sockfd;
 	long long timestamp_msec;
-	unsigned short resend_times;
+	unsigned char resend_times;
 	unsigned short local_port;
 	struct sockaddr_storage peer_addr;
 } ReliableDgramHalfConnectPacket_t;
