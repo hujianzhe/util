@@ -19,134 +19,119 @@ extern "C" {
 #endif
 
 /* aiocb */
-void aioInit(struct aiocb* cb, size_t udata) {
-	memset(cb, 0, sizeof(*cb));
-	cb->aio_lio_opcode = LIO_NOP;
-	cb->aio_fildes = INVALID_FD_HANDLE;
-	cb->aio_sigevent.sigev_value.sival_ptr = (void*)udata;
-#if !defined(_WIN32) && !defined(_WIN64)
-	cb->aio_sigevent.sigev_notify = SIGEV_NONE;
+void aioInit(AioCtx_t* ctx) {
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->cb.aio_lio_opcode = LIO_NOP;
+	ctx->cb.aio_fildes = INVALID_FD_HANDLE;
+}
+
+#if defined(_WIN32) || defined(_WIN64)
+static VOID WINAPI win32_aio_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
+	AioCtx_t* ctx = (AioCtx_t*)lpOverlapped;
+	ctx->callback(dwErrorCode, dwNumberOfBytesTransfered, ctx);
+}
+#else
+static void posix_aio_callback(union sigval v) {
+	AioCtx_t* ctx = v.sival_ptr;
+	int error = aio_error(&ctx->cb);
+	ssize_t nbytes = aio_return(&ctx->cb);
+	ctx->callback(error, nbytes, ctx);
+}
+#endif
+
+BOOL aioCommit(AioCtx_t* ctx) {
+#if defined(_WIN32) || defined(_WIN64)
+	ctx->ol.Offset = ctx->cb.aio_offset;
+	ctx->ol.OffsetHigh = ctx->cb.aio_offset >> 32;
+	if (LIO_READ == ctx->cb.aio_lio_opcode) {
+		return ReadFileEx((HANDLE)(ctx->cb.aio_fildes),
+			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
+			&ctx->ol, ctx->callback ? win32_aio_callback : NULL) ||
+			GetLastError() == ERROR_IO_PENDING;
+	}
+	else if (LIO_WRITE == ctx->cb.aio_lio_opcode) {
+		return WriteFileEx((HANDLE)(ctx->cb.aio_fildes),
+			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
+			&ctx->ol, ctx->callback ? win32_aio_callback : NULL) ||
+			GetLastError() == ERROR_IO_PENDING;
+	}
+#else
+	if (ctx->callback) {
+		ctx->cb.aio_sigevent.sigev_value.sival_ptr = ctx;
+		ctx->cb.aio_sigevent.sigev_notify = SIGEV_THREAD;
+		ctx->cb.aio_sigevent.sigev_notify_function = posix_aio_callback;
+	}
+	else {
+		ctx->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
+	}
+	if (LIO_READ == ctx->cb.aio_lio_opcode) {
+		return aio_read(&ctx->cb) == 0;
+	}
+	else if (LIO_WRITE == ctx->cb.aio_lio_opcode) {
+		return aio_write(&ctx->cb) == 0;
+	}
+#endif
+	return FALSE;
+}
+
+BOOL aioHasCompleted(const AioCtx_t* ctx) {
+#if defined(_WIN32) || defined(_WIN64)
+	return HasOverlappedIoCompleted(&ctx->ol);
+#else
+	return aio_error(&ctx->cb) != EINPROGRESS;
 #endif
 }
 
-void aioSetOffset(struct aiocb* cb, long long offset) {
-	cb->aio_offset = offset;
+int aioSuspend(const AioCtx_t* ctx, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (LIO_READ == cb->aio_lio_opcode) {
-		cb->in.__ol.Offset = cb->aio_offset;
-		cb->in.__ol.OffsetHigh = cb->aio_offset >> 32;
-	}
-	else if (LIO_WRITE == cb->aio_lio_opcode) {
-		cb->out.__ol.Offset = cb->aio_offset;
-		cb->out.__ol.OffsetHigh = cb->aio_offset >> 32;
-	}
-#endif
-}
-
-BOOL aioCommit(struct aiocb* cb) {
-	if (LIO_READ == cb->aio_lio_opcode) {
-#if defined(_WIN32) || defined(_WIN64)
-		return ReadFileEx((HANDLE)(cb->aio_fildes),
-								cb->aio_buf, cb->aio_nbytes,
-								&cb->in.__ol, NULL) ||
-								GetLastError() == ERROR_IO_PENDING;
+	HANDLE handle = (HANDLE)ctx->cb.aio_fildes;
+	DWORD result = WaitForSingleObject(handle, msec);
+	if (WAIT_OBJECT_0 == result)
+		return 1;
+	else if (WAIT_TIMEOUT == result || WSA_WAIT_TIMEOUT == result)
+		return 0;
+	else
+		return -1;
 #else
-		return aio_read(cb) == 0;
-#endif
-	}
-	else if (LIO_WRITE == cb->aio_lio_opcode) {
-#if defined(_WIN32) || defined(_WIN64)
-		return WriteFileEx((HANDLE)(cb->aio_fildes),
-								cb->aio_buf, cb->aio_nbytes,
-								&cb->out.__ol, NULL) ||
-								GetLastError() == ERROR_IO_PENDING;
-#else
-		return aio_write(cb) == 0;
-#endif
-	}
-	return TRUE;
-}
-
-BOOL aioHasCompleted(const struct aiocb* cb) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (LIO_READ == cb->aio_lio_opcode) {
-		return HasOverlappedIoCompleted(&cb->in.__ol);
-	}
-	else if (LIO_WRITE == cb->aio_lio_opcode) {
-		return HasOverlappedIoCompleted(&cb->out.__ol);
-	}
-	return TRUE;
-#else
-	return aio_error(cb) != EINPROGRESS;
-#endif
-}
-
-BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec) {
-#if defined(_WIN32) || defined(_WIN64)
-	DWORD i;
-	DWORD dwCount = nent > MAXIMUM_WAIT_OBJECTS ? MAXIMUM_WAIT_OBJECTS : nent;
-	HANDLE hObjects[MAXIMUM_WAIT_OBJECTS];
-	for (i = 0; i < dwCount; ++i) {
-		hObjects[i] = (HANDLE)(cb_list[i]->aio_fildes);
-	}
-	i = WaitForMultipleObjects(dwCount, hObjects, FALSE, msec);
-	return i >= WAIT_OBJECT_0 && i < WAIT_OBJECT_0 + MAXIMUM_WAIT_OBJECTS;
-#else
+	const struct aiocb * const cblist[] = { &ctx->cb };
 	struct timespec tval, *t = NULL;
 	if (msec >= 0) {
 		tval.tv_sec = msec / 1000;
 		tval.tv_nsec = msec % 1000;
 		t = &tval;
 	}
-	return 0 == aio_suspend(cb_list, nent, t);
+	if (0 == aio_suspend(cblist, 1, t))
+		return 1;
+	else if (EAGAIN == errno)
+		return 0;
+	else
+		return -1;
 #endif
 }
 
-BOOL aioCancel(FD_t fd, struct aiocb* cb) {
+BOOL aioCancel(FD_t fd, AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	OVERLAPPED* p_ol = NULL;
-	if (LIO_READ == cb->aio_lio_opcode) {
-		p_ol = &cb->in.__ol;
-	}
-	else if (LIO_WRITE == cb->aio_lio_opcode) {
-		p_ol = &cb->out.__ol;
-	}
-	else {
-		return FALSE;
-	}
-	return CancelIoEx((HANDLE)fd, p_ol);
+	return CancelIoEx((HANDLE)fd, &ctx->ol);
 #else
-	int res = aio_cancel(fd, cb);
-	if (AIO_CANCELED == res || AIO_ALLDONE == res) {
+	int res = aio_cancel(fd, &ctx->cb);
+	if (AIO_CANCELED == res || AIO_ALLDONE == res)
 		return TRUE;
-	}
-	else if (AIO_NOTCANCELED == res) {
+	else if (AIO_NOTCANCELED == res)
 		errno = EINPROGRESS;
-	}
 	return FALSE;
 #endif
 }
 
-int aioResult(struct aiocb* cb, unsigned int* transfer_bytes) {
+int aioResult(AioCtx_t* ctx, unsigned int* transfer_bytes) {
 #if defined(_WIN32) || defined(_WIN64)
-	OVERLAPPED* p_ol = NULL;
-	if (LIO_READ == cb->aio_lio_opcode) {
-		p_ol = &cb->in.__ol;
-	}
-	else if (LIO_WRITE == cb->aio_lio_opcode) {
-		p_ol = &cb->out.__ol;
-	}
-	else {
-		return EINVAL;/*return ERROR_INVALID_PARAMETER;*/
-	}
-	*transfer_bytes = p_ol->InternalHigh;
-	return p_ol->Internal;
+	*transfer_bytes = ctx->ol.InternalHigh;
+	return ctx->ol.Internal;
 #else
-	ssize_t num = aio_return(cb);
+	ssize_t num = aio_return(&ctx->cb);
 	if (num >= 0) {
 		*transfer_bytes = num;
 	}
-	return aio_error(cb);
+	return aio_error(&ctx->cb);
 #endif
 }
 

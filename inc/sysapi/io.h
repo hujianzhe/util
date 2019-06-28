@@ -8,33 +8,6 @@
 #include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-	struct aiocb {
-		union {
-		#pragma pack(1)
-			struct {
-				OVERLAPPED __ol;
-			} in;
-			struct {
-				unsigned char __reserved_align;
-				OVERLAPPED __ol;
-			} out;
-		#pragma pack()
-		};
-		FD_t aio_fildes;
-		void* aio_buf;
-		unsigned int aio_nbytes;
-		int aio_lio_opcode;
-		long long aio_offset;
-		struct {
-			int sigev_notify;
-			int sigev_signo;
-			union {
-				int sival_int;
-				void* sival_ptr;
-			} sigev_value;
-			void(*sigev_notify_function)(struct aiocb*);
-		} aio_sigevent;
-	};
 	#define	LIO_NOP				0
 	#define	LIO_READ			1
 	#define	LIO_WRITE			2
@@ -44,7 +17,6 @@
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	#include <sys/event.h>
 	#include <aio.h>
-	#define	LIO_NONE_NOTIFY		SIGEV_NONE
 	typedef struct kevent		NioEv_t;
 #elif __linux__
 	#include <sys/epoll.h>
@@ -59,13 +31,27 @@ extern "C" {
 #endif
 
 /* aiocb */
-__declspec_dll void aioInit(struct aiocb* cb, size_t udata);
-__declspec_dll void aioSetOffset(struct aiocb* cb, long long offset);
-__declspec_dll BOOL aioCommit(struct aiocb* cb);
-__declspec_dll BOOL aioHasCompleted(const struct aiocb* cb);
-__declspec_dll BOOL aioSuspend(const struct aiocb* const cb_list[], int nent, int msec);
-__declspec_dll BOOL aioCancel(FD_t fd, struct aiocb* cb);
-__declspec_dll int aioResult(struct aiocb* cb, unsigned int* transfer_bytes);
+typedef struct AioCtx_t {
+#if defined(_WIN32) || defined(_WIN64)
+	OVERLAPPED ol;
+	struct {
+		FD_t aio_fildes;
+		void* aio_buf;
+		unsigned int aio_nbytes;
+		int aio_lio_opcode;
+		long long aio_offset;
+	} cb;
+#else
+	struct aiocb cb;
+#endif
+	void(*callback)(int error, int transfer_bytes, struct AioCtx_t* self);
+} AioCtx_t;
+__declspec_dll void aioInit(AioCtx_t* ctx);
+__declspec_dll BOOL aioCommit(AioCtx_t* ctx);
+__declspec_dll BOOL aioHasCompleted(const AioCtx_t* ctx);
+__declspec_dll int aioSuspend(const AioCtx_t* ctx, int msec);
+__declspec_dll BOOL aioCancel(FD_t fd, AioCtx_t* ctx);
+__declspec_dll int aioResult(AioCtx_t* ctx, unsigned int* transfer_bytes);
 /* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
