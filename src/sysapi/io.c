@@ -331,7 +331,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 			}
 		}
 		else {
-			if (ReadFileEx((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, (LPOVERLAPPED)ol, NULL)) {
+			if (ReadFile((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, NULL, (LPOVERLAPPED)ol)) {
 				iocp_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -356,7 +356,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 			}
 		}
 		else {
-			if (WriteFileEx((HANDLE)fd, NULL, 0, (LPOVERLAPPED)ol, NULL)) {
+			if (WriteFile((HANDLE)fd, NULL, 0, NULL, (LPOVERLAPPED)ol)) {
 				iocp_ol->commit = 1;
 				return TRUE;
 			}
