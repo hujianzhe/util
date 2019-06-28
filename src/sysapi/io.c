@@ -24,9 +24,9 @@ void aioInit(AioCtx_t* ctx) {
 	ctx->cb.aio_lio_opcode = LIO_NOP;
 	ctx->cb.aio_fildes = INVALID_FD_HANDLE;
 }
-
+/*
 #if defined(_WIN32) || defined(_WIN64)
-static VOID WINAPI win32_aio_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
+static VOID WINAPI win32_apc_aio_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
 	AioCtx_t* ctx = (AioCtx_t*)lpOverlapped;
 	ctx->callback(dwErrorCode, dwNumberOfBytesTransfered, ctx);
 }
@@ -38,7 +38,7 @@ static void posix_aio_callback(union sigval v) {
 	ctx->callback(error, nbytes, ctx);
 }
 #endif
-
+*/
 BOOL aioCommit(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
 	ctx->ol.Offset = ctx->cb.aio_offset;
@@ -46,16 +46,17 @@ BOOL aioCommit(AioCtx_t* ctx) {
 	if (LIO_READ == ctx->cb.aio_lio_opcode) {
 		return ReadFileEx((HANDLE)(ctx->cb.aio_fildes),
 			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
-			&ctx->ol, ctx->callback ? win32_aio_callback : NULL) ||
+			&ctx->ol, NULL) ||
 			GetLastError() == ERROR_IO_PENDING;
 	}
 	else if (LIO_WRITE == ctx->cb.aio_lio_opcode) {
 		return WriteFileEx((HANDLE)(ctx->cb.aio_fildes),
 			ctx->cb.aio_buf, ctx->cb.aio_nbytes,
-			&ctx->ol, ctx->callback ? win32_aio_callback : NULL) ||
+			&ctx->ol, NULL) ||
 			GetLastError() == ERROR_IO_PENDING;
 	}
 #else
+	/*
 	if (ctx->callback) {
 		ctx->cb.aio_sigevent.sigev_value.sival_ptr = ctx;
 		ctx->cb.aio_sigevent.sigev_notify = SIGEV_THREAD;
@@ -64,6 +65,8 @@ BOOL aioCommit(AioCtx_t* ctx) {
 	else {
 		ctx->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
 	}
+	*/
+	ctx->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
 	if (LIO_READ == ctx->cb.aio_lio_opcode) {
 		return aio_read(&ctx->cb) == 0;
 	}
