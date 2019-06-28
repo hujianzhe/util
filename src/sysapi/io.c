@@ -32,7 +32,7 @@ static VOID WINAPI win32_aio_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTr
 }
 #else
 static void posix_aio_callback(union sigval v) {
-	AioCtx_t* ctx = v.sival_ptr;
+	AioCtx_t* ctx = (AioCtx_t*)(v.sival_ptr);
 	int error = aio_error(&ctx->cb);
 	ssize_t nbytes = aio_return(&ctx->cb);
 	ctx->callback(error, nbytes, ctx);
