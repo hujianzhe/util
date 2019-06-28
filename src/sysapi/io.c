@@ -122,16 +122,19 @@ BOOL aioCancel(FD_t fd, AioCtx_t* ctx) {
 #endif
 }
 
-int aioResult(AioCtx_t* ctx, unsigned int* transfer_bytes) {
+int aioError(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
-	*transfer_bytes = ctx->ol.InternalHigh;
 	return ctx->ol.Internal;
 #else
-	ssize_t num = aio_return(&ctx->cb);
-	if (num >= 0) {
-		*transfer_bytes = num;
-	}
 	return aio_error(&ctx->cb);
+#endif
+}
+
+int aioNumberOfBytesTransfered(AioCtx_t* ctx) {
+#if defined(_WIN32) || defined(_WIN64)
+	return ctx->ol.InternalHigh;
+#else
+	return aio_return(&ctx->cb);
 #endif
 }
 

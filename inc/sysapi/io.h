@@ -51,7 +51,8 @@ __declspec_dll BOOL aioCommit(AioCtx_t* ctx);
 __declspec_dll BOOL aioHasCompleted(const AioCtx_t* ctx);
 __declspec_dll int aioSuspend(const AioCtx_t* ctx, int msec);
 __declspec_dll BOOL aioCancel(FD_t fd, AioCtx_t* ctx);
-__declspec_dll int aioResult(AioCtx_t* ctx, unsigned int* transfer_bytes);
+__declspec_dll int aioError(AioCtx_t* ctx);
+__declspec_dll int aioNumberOfBytesTransfered(AioCtx_t* ctx);
 /* reactor */
 #define	REACTOR_NOP		0
 #define	REACTOR_READ	1
