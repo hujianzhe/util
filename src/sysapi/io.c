@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /* aiocb */
-void aioInit(AioCtx_t* ctx) {
+void aioInitCtx(AioCtx_t* ctx) {
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->cb.aio_lio_opcode = LIO_NOP;
 	ctx->cb.aio_fildes = INVALID_FD_HANDLE;
@@ -149,7 +149,7 @@ int aioNumberOfBytesTransfered(AioCtx_t* ctx) {
 }
 
 /* NIO */
-BOOL reactorCreate(Reactor_t* reactor) {
+BOOL nioreactorCreate(NioReactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
@@ -188,14 +188,14 @@ BOOL reactorCreate(Reactor_t* reactor) {
 #endif
 }
 
-BOOL reactorReg(Reactor_t* reactor, FD_t fd) {
+BOOL nioreactorReg(NioReactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio);
 #endif
 	return TRUE;
 }
 /*
-BOOL reactorCancel(Reactor_t* reactor, FD_t fd) {
+BOOL reactorCancel(NioReactor_t* reactor, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (CancelIoEx((HANDLE)fd, NULL)) {
 		// use GetOverlappedResult wait until all overlapped is completed ???
@@ -240,7 +240,7 @@ typedef struct IocpAcceptExOverlapped {
 } IocpAcceptExOverlapped;
 #endif
 
-void* reactorMallocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
+void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (opcode) {
 		case REACTOR_READ:
@@ -295,7 +295,7 @@ void* reactorMallocOverlapped(int opcode, const void* refbuf, unsigned int refsi
 	return (void*)(size_t)-1;
 #endif
 }
-void reactorFreeOverlapped(void* ol) {
+void nioFreeOverlapped(void* ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol) {
@@ -314,7 +314,7 @@ void reactorFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
+BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (REACTOR_READ == opcode) {
 		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
@@ -492,7 +492,7 @@ BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct soc
 	return FALSE;
 }
 
-int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
+int nioreactorWait(NioReactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG n;
 	return GetQueuedCompletionStatusEx((HANDLE)(reactor->__hNio), e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
@@ -531,7 +531,7 @@ int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
 #endif
 }
 
-FD_t reactorEventFD(const NioEv_t* e) {
+FD_t nioEventFD(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	return e->lpCompletionKey;
 #elif __linux__
@@ -541,7 +541,7 @@ FD_t reactorEventFD(const NioEv_t* e) {
 #endif
 }
 
-void* reactorEventOverlapped(const NioEv_t* e) {
+void* nioEventOverlapped(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (iocp_ol->free) {
@@ -557,7 +557,7 @@ void* reactorEventOverlapped(const NioEv_t* e) {
 #endif
 }
 
-int reactorEventOpcode(const NioEv_t* e) {
+int nioEventOpcode(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (REACTOR_ACCEPT == iocp_ol->opcode)
@@ -594,7 +594,7 @@ int reactorEventOpcode(const NioEv_t* e) {
 #endif
 }
 
-int reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
+int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (REACTOR_READ == iocp_ol->opcode) {
@@ -613,7 +613,7 @@ int reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* 
 	return 0;
 }
 
-BOOL reactorConnectCheckSuccess(FD_t sockfd) {
+BOOL nioConnectCheckSuccess(FD_t sockfd) {
 #if defined(_WIN32) || defined(_WIN64)
 	int sec;
 	int len = sizeof(sec);
@@ -638,7 +638,7 @@ BOOL reactorConnectCheckSuccess(FD_t sockfd) {
 #endif
 }
 
-FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr) {
+FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 	SOCKET acceptfd = iocp_ol->acceptsocket;
@@ -663,7 +663,7 @@ FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_s
 #endif
 }
 
-FD_t reactorAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
+FD_t nioAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	int slen = sizeof(*peer_saddr);
 #else
@@ -702,7 +702,7 @@ FD_t reactorAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
 */
 }
 
-BOOL reactorClose(Reactor_t* reactor) {
+BOOL nioreactorClose(NioReactor_t* reactor) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle((HANDLE)(reactor->__hNio));
 #else

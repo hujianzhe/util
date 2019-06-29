@@ -18,7 +18,7 @@ typedef struct SessionLoop_t {
 	unsigned char m_runthreadhasbind;
 	Thread_t m_runthread;
 	Atom16_t m_wake;
-	Reactor_t m_reactor;
+	NioReactor_t m_reactor;
 	FD_t m_socketpair[2];
 	void* m_readol;
 	CriticalSection_t m_msglistlock;

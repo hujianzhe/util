@@ -962,7 +962,7 @@ BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* p_oob) {
 	return recv(sockfd, (char*)p, 1, MSG_OOB) == 1;
 }
 
-/* SOCKET Reactor_t */
+/* SOCKET NioReactor_t */
 int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec) {
 	int res;
 	struct timeval tval;

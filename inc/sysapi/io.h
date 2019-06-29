@@ -46,7 +46,7 @@ typedef struct AioCtx_t {
 #endif
 	void(*callback)(int error, int transfer_bytes, struct AioCtx_t* self);
 } AioCtx_t;
-__declspec_dll void aioInit(AioCtx_t* ctx);
+__declspec_dll void aioInitCtx(AioCtx_t* ctx);
 __declspec_dll BOOL aioCommit(AioCtx_t* ctx);
 __declspec_dll BOOL aioHasCompleted(const AioCtx_t* ctx);
 __declspec_dll int aioSuspend(const AioCtx_t* ctx, int msec);
@@ -59,26 +59,26 @@ __declspec_dll int aioNumberOfBytesTransfered(AioCtx_t* ctx);
 #define	REACTOR_WRITE	2
 #define	REACTOR_ACCEPT	3
 #define REACTOR_CONNECT	4
-typedef struct Reactor_t {
+typedef struct NioReactor_t {
 	FD_t __hNio;
 #ifdef	__linux__
 	FD_t __epfd;
 #endif
-} Reactor_t;
-__declspec_dll BOOL reactorCreate(Reactor_t* reactor);
-__declspec_dll BOOL reactorReg(Reactor_t* reactor, FD_t fd);
-__declspec_dll void* reactorMallocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
-__declspec_dll void reactorFreeOverlapped(void* ol);
-__declspec_dll BOOL reactorCommit(Reactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen);
-__declspec_dll int reactorWait(Reactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
-__declspec_dll void* reactorEventOverlapped(const NioEv_t* e);
-__declspec_dll FD_t reactorEventFD(const NioEv_t* e);
-__declspec_dll int reactorEventOpcode(const NioEv_t* e);
-__declspec_dll int reactorEventOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
-__declspec_dll BOOL reactorConnectCheckSuccess(FD_t sockfd);
-__declspec_dll FD_t reactorAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr);
-__declspec_dll FD_t reactorAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr);
-__declspec_dll BOOL reactorClose(Reactor_t* reactor);
+} NioReactor_t;
+__declspec_dll BOOL nioreactorCreate(NioReactor_t* reactor);
+__declspec_dll BOOL nioreactorReg(NioReactor_t* reactor, FD_t fd);
+__declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
+__declspec_dll void nioFreeOverlapped(void* ol);
+__declspec_dll int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
+__declspec_dll BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen);
+__declspec_dll int nioreactorWait(NioReactor_t* reactor, NioEv_t* e, unsigned int count, int msec);
+__declspec_dll void* nioEventOverlapped(const NioEv_t* e);
+__declspec_dll FD_t nioEventFD(const NioEv_t* e);
+__declspec_dll int nioEventOpcode(const NioEv_t* e);
+__declspec_dll BOOL nioConnectCheckSuccess(FD_t sockfd);
+__declspec_dll FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr);
+__declspec_dll FD_t nioAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr);
+__declspec_dll BOOL nioreactorClose(NioReactor_t* reactor);
 
 #ifdef	__cplusplus
 }
