@@ -34,7 +34,6 @@ util/
 				sort			合并有序数组,topN统计接口  
 				url				URL解析  
 				sha1			SHA1编解码,来源于Redis源码  
-				value_type		通用类型结构  
 		sysapi/  
 				alloca			提供统一的内存对齐的分配释放接口  
 				assert			提供一个相对于assert的高级断言  
