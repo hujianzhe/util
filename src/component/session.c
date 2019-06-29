@@ -148,10 +148,10 @@ static int reactorsocket_read(Session_t* s) {
 	if (!s->m_valid)
 		return 0;
 	else if (SESSION_TRANSPORT_LISTEN == s->transport_side && SOCK_STREAM == s->socktype) {
-		opcode = REACTOR_ACCEPT;
+		opcode = NIO_OP_ACCEPT;
 	}
 	else {
-		opcode = REACTOR_READ;
+		opcode = NIO_OP_READ;
 	}
 	if (!s->m_readol) {
 		s->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != s->socktype ? 65000 : 0);
@@ -175,14 +175,14 @@ static int reactorsocket_write(Session_t* s) {
 	if (s->m_writeol_has_commit)
 		return 1;
 	if (!s->m_writeol) {
-		s->m_writeol = nioAllocOverlapped(REACTOR_WRITE, NULL, 0, 0);
+		s->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
 		if (!s->m_writeol) {
 			s->m_valid = 0;
 			return 0;
 		}
 	}
 	saddr.ss_family = s->domain;
-	if (nioreactorCommit(&s->m_loop->m_reactor, s->fd, REACTOR_WRITE, s->m_writeol,
+	if (nioreactorCommit(&s->m_loop->m_reactor, s->fd, NIO_OP_WRITE, s->m_writeol,
 		(struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr)))
 	{
 		s->m_writeol_has_commit = 1;
@@ -1808,7 +1808,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				char c[512];
 				socketRead(fd, c, sizeof(c), 0, NULL);
 				saddr.ss_family = AF_INET;
-				nioreactorCommit(&loop->m_reactor, fd, REACTOR_READ, loop->m_readol, (struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr));
+				nioreactorCommit(&loop->m_reactor, fd, NIO_OP_READ, loop->m_readol, (struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr));
 				_xchg16(&loop->m_wake, 0);
 				continue;
 			}
@@ -1819,11 +1819,11 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			if (!s->m_valid)
 				continue;
 			switch (nioEventOpcode(e + i)) {
-				case REACTOR_READ:
+				case NIO_OP_READ:
 					reactor_socket_do_read(s, timestamp_msec);
 					reactorsocket_read(s);
 					break;
-				case REACTOR_WRITE:
+				case NIO_OP_WRITE:
 					reactor_socket_do_write(s, timestamp_msec);
 					break;
 				default:
@@ -1942,11 +1942,11 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					if (!nioreactorReg(&loop->m_reactor, s->fd))
 						break;
 					if (!s->m_writeol) {
-						s->m_writeol = nioAllocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
+						s->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 						if (!s->m_writeol)
 							break;
 					}
-					if (!nioreactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol,
+					if (!nioreactorCommit(&loop->m_reactor, s->fd, NIO_OP_CONNECT, s->m_writeol,
 						(struct sockaddr*)(&s->peer_listen_saddr), sockaddrLength((struct sockaddr*)(&s->peer_listen_saddr))))
 					{
 						break;
@@ -2044,11 +2044,11 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						}
 						else {
 							if (!s->m_writeol) {
-								s->m_writeol = nioAllocOverlapped(REACTOR_CONNECT, NULL, 0, 0);
+								s->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 								if (!s->m_writeol)
 									break;
 							}
-							if (!nioreactorCommit(&loop->m_reactor, s->fd, REACTOR_CONNECT, s->m_writeol,
+							if (!nioreactorCommit(&loop->m_reactor, s->fd, NIO_OP_CONNECT, s->m_writeol,
 								(struct sockaddr*)(&s->peer_listen_saddr), sockaddrLength((struct sockaddr*)(&s->peer_listen_saddr))))
 							{
 								break;
@@ -2167,7 +2167,7 @@ SessionLoop_t* sessionloopCreate(SessionLoop_t* loop) {
 		return NULL;
 	saddr.ss_family = AF_INET;
 
-	loop->m_readol = nioAllocOverlapped(REACTOR_READ, NULL, 0, 0);
+	loop->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, 0);
 	if (!loop->m_readol) {
 		socketClose(loop->m_socketpair[0]);
 		socketClose(loop->m_socketpair[1]);
@@ -2184,7 +2184,7 @@ SessionLoop_t* sessionloopCreate(SessionLoop_t* loop) {
 	if (!socketNonBlock(loop->m_socketpair[0], TRUE) ||
 		!socketNonBlock(loop->m_socketpair[1], TRUE) ||
 		!nioreactorReg(&loop->m_reactor, loop->m_socketpair[0]) ||
-		!nioreactorCommit(&loop->m_reactor, loop->m_socketpair[0], REACTOR_READ, loop->m_readol,
+		!nioreactorCommit(&loop->m_reactor, loop->m_socketpair[0], NIO_OP_READ, loop->m_readol,
 			(struct sockaddr*)&saddr, sockaddrLength((struct sockaddr*)&saddr)))
 	{
 		nioFreeOverlapped(loop->m_readol);

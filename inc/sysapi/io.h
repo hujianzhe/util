@@ -54,11 +54,11 @@ __declspec_dll BOOL aioCancel(FD_t fd, AioCtx_t* ctx);
 __declspec_dll int aioError(AioCtx_t* ctx);
 __declspec_dll int aioNumberOfBytesTransfered(AioCtx_t* ctx);
 /* reactor */
-#define	REACTOR_NOP		0
-#define	REACTOR_READ	1
-#define	REACTOR_WRITE	2
-#define	REACTOR_ACCEPT	3
-#define REACTOR_CONNECT	4
+#define	NIO_OP_NONE		0
+#define	NIO_OP_READ		1
+#define	NIO_OP_WRITE	2
+#define	NIO_OP_ACCEPT	3
+#define NIO_OP_CONNECT	4
 typedef struct NioReactor_t {
 	FD_t __hNio;
 #ifdef	__linux__

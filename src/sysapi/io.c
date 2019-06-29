@@ -243,12 +243,12 @@ typedef struct IocpAcceptExOverlapped {
 void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (opcode) {
-		case REACTOR_READ:
+		case NIO_OP_READ:
 		{
 			IocpReadOverlapped* ol = (IocpReadOverlapped*)malloc(sizeof(IocpReadOverlapped) + appendsize);
 			if (ol) {
 				memset(ol, 0, sizeof(IocpReadOverlapped));
-				ol->base.opcode = REACTOR_READ;
+				ol->base.opcode = NIO_OP_READ;
 				ol->saddr.ss_family = AF_UNSPEC;
 				if (refbuf && refsize) {
 					ol->wsabuf.buf = (char*)refbuf;
@@ -261,8 +261,8 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			}
 			return ol;
 		}
-		case REACTOR_WRITE:
-		case REACTOR_CONNECT:
+		case NIO_OP_WRITE:
+		case NIO_OP_CONNECT:
 		{
 			IocpOverlapped* ol = (IocpOverlapped*)calloc(1, sizeof(IocpOverlapped));
 			if (ol) {
@@ -270,7 +270,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			}
 			return ol;
 		}
-		case REACTOR_ACCEPT:
+		case NIO_OP_ACCEPT:
 		{
 			/*
 			char* ol = (char*)calloc(1, sizeof(OVERLAPPED) + 2 + sizeof(SOCKET) + (sizeof(struct sockaddr_storage) + 16) * 2);
@@ -282,7 +282,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			*/
 			IocpAcceptExOverlapped* ol = (IocpAcceptExOverlapped*)calloc(1, sizeof(IocpAcceptExOverlapped));
 			if (ol) {
-				ol->base.opcode = REACTOR_ACCEPT;
+				ol->base.opcode = NIO_OP_ACCEPT;
 				ol->acceptsocket = INVALID_SOCKET;
 			}
 			return ol;
@@ -299,7 +299,7 @@ void nioFreeOverlapped(void* ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol) {
-		if (REACTOR_ACCEPT == iocp_ol->opcode) {
+		if (NIO_OP_ACCEPT == iocp_ol->opcode) {
 			IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
 			if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
 				closesocket(iocp_acceptex->acceptsocket);
@@ -316,7 +316,7 @@ void nioFreeOverlapped(void* ol) {
 
 BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (REACTOR_READ == opcode) {
+	if (NIO_OP_READ == opcode) {
 		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
 			int slen = sizeof(iocp_ol->saddr);
@@ -342,7 +342,7 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		}
 		return FALSE;
 	}
-	else if (REACTOR_WRITE == opcode) {
+	else if (NIO_OP_WRITE == opcode) {
 		IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 		if (saddr) {
 			WSABUF wsabuf = { 0 };
@@ -367,7 +367,7 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		}
 		return FALSE;
 	}
-	else if (REACTOR_ACCEPT == opcode) {
+	else if (NIO_OP_ACCEPT == opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
 		IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 		if (!lpfnAcceptEx) {
@@ -404,7 +404,7 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 			return FALSE;
 		}
 	}
-	else if (REACTOR_CONNECT == opcode) {
+	else if (NIO_OP_CONNECT == opcode) {
 		struct sockaddr_storage st;
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
@@ -439,7 +439,7 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		return FALSE;
 	}
 #else
-	if (REACTOR_READ == opcode || REACTOR_ACCEPT == opcode) {
+	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
 	#ifdef __linux__
 		struct epoll_event e;
 		e.data.fd = fd;
@@ -457,8 +457,8 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	#endif
 	}
-	else if (REACTOR_WRITE == opcode || REACTOR_CONNECT == opcode) {
-		if (REACTOR_CONNECT == opcode) {/* try connect... */
+	else if (NIO_OP_WRITE == opcode || NIO_OP_CONNECT == opcode) {
+		if (NIO_OP_CONNECT == opcode) {/* try connect... */
 			if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
 				return FALSE;
 			}
@@ -560,44 +560,44 @@ void* nioEventOverlapped(const NioEv_t* e) {
 int nioEventOpcode(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
-	if (REACTOR_ACCEPT == iocp_ol->opcode)
-		return REACTOR_READ;
-	else if (REACTOR_CONNECT == iocp_ol->opcode)
-		return REACTOR_WRITE;
-	else if (REACTOR_READ == iocp_ol->opcode) {
+	if (NIO_OP_ACCEPT == iocp_ol->opcode)
+		return NIO_OP_READ;
+	else if (NIO_OP_CONNECT == iocp_ol->opcode)
+		return NIO_OP_WRITE;
+	else if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
 		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-		return REACTOR_READ;
+		return NIO_OP_READ;
 	}
-	else if (REACTOR_WRITE == iocp_ol->opcode)
-		return REACTOR_WRITE;
+	else if (NIO_OP_WRITE == iocp_ol->opcode)
+		return NIO_OP_WRITE;
 	else
-		return REACTOR_NOP;
+		return NIO_OP_NONE;
 #elif __linux__
 	/* epoll must catch this event */
 	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP))
-		return (e->data.fd & 0x80000000) ? REACTOR_WRITE : REACTOR_READ;
+		return (e->data.fd & 0x80000000) ? NIO_OP_WRITE : NIO_OP_READ;
 	/* we use __epfd to filter EPOLLOUT event */
 	else if (e->events & EPOLLIN)
-		return REACTOR_READ;
+		return NIO_OP_READ;
 	else if (e->events & EPOLLOUT)
-		return REACTOR_WRITE;
+		return NIO_OP_WRITE;
 	else
-		return REACTOR_NOP;
+		return NIO_OP_NONE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (EVFILT_READ == e->filter)
-		return REACTOR_READ;
+		return NIO_OP_READ;
 	else if (EVFILT_WRITE == e->filter)
-		return REACTOR_WRITE;
+		return NIO_OP_WRITE;
 	else /* program don't run here... */
-		return REACTOR_NOP;
+		return NIO_OP_NONE;
 #endif
 }
 
 int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
-	if (REACTOR_READ == iocp_ol->opcode) {
+	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
 		iov->buf = iocp_read_ol->wsabuf.buf;
 		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
