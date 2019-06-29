@@ -868,6 +868,14 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
+int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen) {
+	if (tolen < 0) {
+		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
+		return -1;
+	}
+	return sendto(sockfd, (const char*)buf, nbytes, flags, to, tolen);
+}
+
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;

@@ -40,8 +40,8 @@
 #include "component/httpframe.h"
 #include "component/lengthfieldframe.h"
 #include "component/log.h"
-#include "component/niosocket.h"
 #include "component/rbtimer.h"
+#include "component/session.h"
 #include "component/websocketframe.h"
 
 #endif

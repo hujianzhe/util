@@ -19,8 +19,7 @@ util/
 			lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 			websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 			log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
-			niosocket			一个网络通讯框架,基于各平台NIO接口的事件机制,支持普通的TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,  
-								提供断线重连机制(可靠通讯模式下内部提供包缓存机制,重连后可以将之前未确认的数据包重传)  
+			session				一个session层面的网络通讯模块,支持普通的TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存,断线重连与恢复  
 			collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
