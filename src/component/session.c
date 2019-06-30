@@ -1314,18 +1314,23 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 			s->m_valid = 0;
 			s->shutdown = NULL;
 		}
-		else if (s->m_connect_times) {
-			err = 0;
-			s->reliable.m_status = RECONNECT_STATUS;
-			_xchg16(&s->m_shutdownflag, 0);
-		}
 		else {
 			err = 0;
-			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
-			s->m_heartbeat_msec = timestamp_msec;
-			if (s->heartbeat_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+			if (s->m_connect_times) {
+				if (s->reliable.enable)
+					s->reliable.m_status = RECONNECT_STATUS;
+				else
+					s->reliable.m_status = ESTABLISHED_STATUS;
+				_xchg16(&s->m_shutdownflag, 0);
+			}
+			else {
+				s->reliable.m_status = ESTABLISHED_STATUS;
+			}
+			if (ESTABLISHED_STATUS == s->reliable.m_status) {
+				s->m_heartbeat_msec = timestamp_msec;
+				if (s->heartbeat_timeout_sec > 0)
+					update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
 		s->connect(s, err, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
