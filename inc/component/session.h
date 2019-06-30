@@ -71,8 +71,11 @@ typedef struct Session_t {
 		struct sockaddr_storage peer_listen_saddr;
 	};
 	int(*zombie)(struct Session_t* self);
-	void(*reg)(struct Session_t* self, int err);
-	void(*connect)(struct Session_t* self, int err, int times, unsigned int self_recvseq, unsigned int self_cwndseq);
+	union {
+		void(*reg)(struct Session_t* self, int err);
+		void(*connect)(struct Session_t* self, int err, int times, unsigned int self_recvseq, unsigned int self_cwndseq);
+		const void* reg_or_connect;
+	};
 	void(*accept)(struct Session_t* self, FD_t newfd, const struct sockaddr_storage* peeraddr);
 	void(*decode)(unsigned char* buf, size_t buflen, SessionDecodeResult_t* result);
 	void(*recv)(struct Session_t* self, const struct sockaddr_storage* addr, SessionDecodeResult_t* result);

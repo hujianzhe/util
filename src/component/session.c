@@ -1297,9 +1297,7 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 	if (SOCK_STREAM != s->socktype || !s->m_valid)
 		return;
 	s->m_writeol_has_commit = 0;
-	if (SYN_SENT_STATUS == s->reliable.m_status ||
-		RECONNECT_STATUS == s->reliable.m_status)
-	{
+	if (SYN_SENT_STATUS == s->reliable.m_status) {
 		int err;
 		if (s->m_writeol) {
 			nioFreeOverlapped(s->m_writeol);
@@ -1316,7 +1314,12 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 			s->m_valid = 0;
 			s->shutdown = NULL;
 		}
-		else if (SYN_SENT_STATUS == s->reliable.m_status) {
+		else if (s->m_connect_times) {
+			err = 0;
+			s->reliable.m_status = RECONNECT_STATUS;
+			_xchg16(&s->m_shutdownflag, 0);
+		}
+		else {
 			err = 0;
 			s->reliable.m_status = ESTABLISHED_STATUS;
 			s->m_lastactive_msec = timestamp_msec;
@@ -1324,9 +1327,6 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 			if (s->heartbeat_timeout_sec > 0) {
 				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
-		}
-		else {
-			_xchg16(&s->m_shutdownflag, 0);
 		}
 		s->connect(s, err, s->m_connect_times++, s->reliable.m_recvseq, s->reliable.m_cwndseq);
 	}
@@ -1608,8 +1608,7 @@ Session_t* sessionCreate(FD_t fd, int domain, int socktype, int protocol, Sessio
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->zombie = NULL;
-	s->reg = NULL;
-	s->connect = NULL;
+	s->reg_or_connect = NULL;
 	s->accept = NULL;
 	s->decode = NULL;
 	s->recv = NULL;
@@ -1958,7 +1957,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						clear_packetlist(&s->m_sendpacketlist);
 					}
 					s->m_writeol_has_commit = 1;
-					s->reliable.m_status = RECONNECT_STATUS;
+					s->reliable.m_status = SYN_SENT_STATUS;
 					s->m_lastactive_msec = timestamp_msec;
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
@@ -2130,20 +2129,22 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				reg_ok = 1;
 			} while (0);
 			if (reg_ok) {
-				if (immedinate_call) {
-					if (s->connect)
+				if (immedinate_call && s->reg_or_connect) {
+					if (SESSION_TRANSPORT_CLIENT == s->transport_side)
 						s->connect(s, 0, s->m_connect_times++, 0, 0);
-					else if (s->reg)
+					else
 						s->reg(s, 0);
 				}
 			}
 			else {
 				s->reliable.m_status = NO_STATUS;
 				s->shutdown = NULL;
-				if (s->connect)
-					s->connect(s, errnoGet(), s->m_connect_times++, 0, 0);
-				else if (s->reg)
-					s->reg(s, errnoGet());
+				if (s->reg_or_connect) {
+					if (SESSION_TRANSPORT_CLIENT == s->transport_side)
+						s->connect(s, errnoGet(), s->m_connect_times++, 0, 0);
+					else
+						s->reg(s, errnoGet());
+				}
 				if (s->close) {
 					s->close(s);
 					s->close = NULL;
