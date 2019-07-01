@@ -81,23 +81,23 @@ typedef struct ReliableDgramHalfConnectPacket_t {
 	struct sockaddr_storage peer_addr;
 } ReliableDgramHalfConnectPacket_t;
 
-typedef struct NioSocketTransportStatus_t {
+typedef struct SessionTransportStatus_t {
 	unsigned int m_cwndseq;
 	unsigned int m_recvseq;
 	unsigned int m_sendseq;
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
-} NioSocketTransportStatus_t;
+} SessionTransportStatus_t;
 
-typedef struct NioSocketTransportStatusGrabMsg_t {
+typedef struct SessionTransportGrabMsg_t {
 	SessionInternalMsg_t msg;
 	Session_t* s;
-	NioSocketTransportStatus_t target_status;
+	SessionTransportStatus_t target_status;
 	Mutex_t blocklock;
 	unsigned int recvseq;
 	unsigned int cwndseq;
 	int success;
-} NioSocketTransportStatusGrabMsg_t;
+} SessionTransportGrabMsg_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -232,7 +232,7 @@ static void clear_packetlist(List_t* packetlist) {
 	listInit(packetlist);
 }
 
-static void socket_replace_transport_status(Session_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
+static void session_replace_transport(Session_t* s, SessionTransportStatus_t* target_status) {
 	if (SOCK_STREAM == s->socktype) {
 		Packet_t* packet;
 		ListNode_t* cur, *next;
@@ -256,21 +256,20 @@ static void socket_replace_transport_status(Session_t* s, NioSocketTransportStat
 		clear_packetlist(&s->m_sendpacketlist);
 	}
 	clear_packetlist(&s->m_recvpacketlist);
-	s->reliable.m_recvseq = msg->target_status.m_recvseq;
-	s->reliable.m_sendseq = msg->target_status.m_sendseq;
-	s->reliable.m_cwndseq = msg->target_status.m_cwndseq;
-	s->m_recvpacketlist = msg->target_status.m_recvpacketlist;
-	//s->m_sendpacketlist = msg->target_status.m_sendpacketlist;
-	listMerge(&s->m_sendpacketlist, &msg->target_status.m_sendpacketlist);
-	listInit(&msg->target_status.m_recvpacketlist);
+	s->reliable.m_recvseq = target_status->m_recvseq;
+	s->reliable.m_sendseq = target_status->m_sendseq;
+	s->reliable.m_cwndseq = target_status->m_cwndseq;
+	s->m_recvpacketlist = target_status->m_recvpacketlist;
+	listMerge(&s->m_sendpacketlist, &target_status->m_sendpacketlist);
+	listInit(&target_status->m_recvpacketlist);
 }
 
-static void socket_grab_transport_status(Session_t* s, NioSocketTransportStatusGrabMsg_t* msg) {
-	msg->target_status.m_cwndseq = s->reliable.m_cwndseq;
-	msg->target_status.m_recvseq = s->reliable.m_recvseq;
-	msg->target_status.m_sendseq = s->reliable.m_sendseq;
-	msg->target_status.m_recvpacketlist = s->m_recvpacketlist;
-	msg->target_status.m_sendpacketlist = s->m_sendpacketlist;
+static void session_grab_transport(Session_t* s, SessionTransportStatus_t* target_status) {
+	target_status->m_cwndseq = s->reliable.m_cwndseq;
+	target_status->m_recvseq = s->reliable.m_recvseq;
+	target_status->m_sendseq = s->reliable.m_sendseq;
+	target_status->m_recvpacketlist = s->m_recvpacketlist;
+	target_status->m_sendpacketlist = s->m_sendpacketlist;
 	s->reliable.m_cwndseq = 0;
 	s->reliable.m_recvseq = 0;
 	s->reliable.m_sendseq = 0;
@@ -278,40 +277,48 @@ static void socket_grab_transport_status(Session_t* s, NioSocketTransportStatusG
 	listInit(&s->m_sendpacketlist);
 }
 
+static int session_grab_transport_check(Session_t* s, unsigned int recvseq, unsigned int cwndseq) {
+	if (seq1_before_seq2(recvseq, s->reliable.m_cwndseq))
+		return 0;
+	if (seq1_before_seq2(s->reliable.m_recvseq, cwndseq))
+		return 0;
+	return 1;
+}
+
 static void stream_send_packet(Session_t* s, Packet_t* packet) {
-	if (s->m_sendpacketlist.head) {
-		packet->offset = 0;
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-	}
-	else {
-		int res = socketWrite(s->fd, packet->data, packet->len, 0, NULL, 0);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				s->m_valid = 0;
-				free(packet);
-				return;
-			}
-			res = 0;
+	int res;
+	if (s->m_sendpacketlist.tail) {
+		Packet_t* last_packet = pod_container_of(s->m_sendpacketlist.tail, Packet_t, msg.m_listnode);
+		if (last_packet->offset < last_packet->len) {
+			packet->offset = 0;
+			listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+			return;
 		}
-		else if (res >= packet->len && !packet->need_ack) {
+	}
+	res = socketWrite(s->fd, packet->data, packet->len, 0, NULL, 0);
+	if (res < 0) {
+		if (errnoGet() != EWOULDBLOCK) {
+			s->m_valid = 0;
 			free(packet);
 			return;
 		}
-		listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
-		packet->offset = res;
-		if (res < packet->len)
-			reactorsocket_write(s);
+		res = 0;
 	}
+	else if (res >= packet->len && !packet->need_ack) {
+		free(packet);
+		return;
+	}
+	listInsertNodeBack(&s->m_sendpacketlist, s->m_sendpacketlist.tail, &packet->msg.m_listnode);
+	packet->offset = res;
+	if (res < packet->len)
+		reactorsocket_write(s);
 }
 
 static void stream_send_packet_continue(Session_t* s) {
-	List_t freepacketlist;
 	ListNode_t* cur, *next;
 	if (s->m_writeol_has_commit) {
 		return;
 	}
-	listInit(&freepacketlist);
-
 	for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 		int res;
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
@@ -328,24 +335,14 @@ static void stream_send_packet_continue(Session_t* s) {
 			res = 0;
 		}
 		packet->offset += res;
-		if (packet->offset >= packet->len) {
-			if (packet->need_ack) {
-				break;
-			}
-			else {
-				listRemoveNode(&s->m_sendpacketlist, cur);
-				listInsertNodeBack(&freepacketlist, freepacketlist.tail, cur);
-				//free(packet);
-				continue;
-			}
+		if (packet->offset < packet->len) {
+			reactorsocket_write(s);
+			break;
 		}
-		reactorsocket_write(s);
-		break;
-	}
-
-	for (cur = freepacketlist.head; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, Packet_t, msg.m_listnode));
+		else if (!packet->need_ack) {
+			listRemoveNode(&s->m_sendpacketlist, cur);
+			free(packet);
+		}
 	}
 }
 
@@ -826,23 +823,14 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_RECONNECT == hdr_type) {
-		int ok;
+		unsigned int peer_recvseq, peer_cwndseq;
 		if (len < 9)
 			return 1;
 		if (SESSION_TRANSPORT_SERVER != s->transport_side || ESTABLISHED_STATUS != s->reliable.m_status)
 			return 1;
-		ok = 0;
-		do {
-			unsigned int peer_recvseq, peer_cwndseq;
-			peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
-			if (peer_recvseq != s->reliable.m_cwndseq)
-				break;
-			peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
-			if (peer_cwndseq != s->reliable.m_recvseq)
-				break;
-			ok = 1;
-		} while (0);
-		if (ok) {
+		peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
+		peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
+		if (session_grab_transport_check(s, peer_recvseq, peer_cwndseq)) {
 			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
 			reliable_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
 			s->reliable.peer_saddr = *saddr;
@@ -1525,15 +1513,15 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 	if (threadEqual(s->m_loop->m_runthread, threadSelf()) &&
 		threadEqual(target_s->m_loop->m_runthread, threadSelf()))
 	{
-		NioSocketTransportStatusGrabMsg_t ts;
-		if (recvseq != target_s->reliable.m_cwndseq || cwndseq != target_s->reliable.m_recvseq)
+		SessionTransportGrabMsg_t ts;
+		if (!session_grab_transport_check(target_s, recvseq, cwndseq))
 			return 0;
-		socket_grab_transport_status(target_s, &ts);
-		socket_replace_transport_status(s, &ts);
+		session_grab_transport(target_s, &ts.target_status);
+		session_replace_transport(s, &ts.target_status);
 		return 1;
 	}
 	else {
-		NioSocketTransportStatusGrabMsg_t* ts = (NioSocketTransportStatusGrabMsg_t*)malloc(sizeof(NioSocketTransportStatusGrabMsg_t));
+		SessionTransportGrabMsg_t* ts = (SessionTransportGrabMsg_t*)malloc(sizeof(SessionTransportGrabMsg_t));
 		if (!ts)
 			return 0;
 		else if (!mutexCreate(&ts->blocklock)) {
@@ -1541,9 +1529,9 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 			return 0;
 		}
 		else if (threadEqual(target_s->m_loop->m_runthread, threadSelf())) {
-			if (recvseq != target_s->reliable.m_cwndseq || cwndseq != target_s->reliable.m_recvseq)
+			if (!session_grab_transport_check(target_s, recvseq, cwndseq))
 				return 0;
-			socket_grab_transport_status(target_s, ts);
+			session_grab_transport(target_s, &ts->target_status);
 		}
 		else {
 			mutexLock(&ts->blocklock);
@@ -1560,7 +1548,7 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 				return 0;
 			}
 			else if (threadEqual(s->m_loop->m_runthread, threadSelf())) {
-				socket_replace_transport_status(s, ts);
+				session_replace_transport(s, &ts->target_status);
 				return 1;
 			}
 		}
@@ -2009,21 +1997,21 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			stream_send_packet_continue(s);
 		}
 		else if (SESSION_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE == message->type) {
-			NioSocketTransportStatusGrabMsg_t* ts = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
+			SessionTransportGrabMsg_t* ts = pod_container_of(message, SessionTransportGrabMsg_t, msg);
 			Session_t* s = ts->s;
-			if (ts->recvseq != s->reliable.m_cwndseq || ts->cwndseq != s->reliable.m_recvseq) {
-				ts->success = 0;
+			if (session_grab_transport_check(s, ts->recvseq, ts->cwndseq)) {
+				ts->success = 1;
+				session_grab_transport(s, &ts->target_status);
 			}
 			else {
-				ts->success = 1;
-				socket_grab_transport_status(s, ts);
+				ts->success = 0;
 			}
 			mutexUnlock(&ts->blocklock);
 		}
 		else if (SESSION_TRANSPORT_GRAB_ASYNC_RET_MESSAGE == message->type) {
-			NioSocketTransportStatusGrabMsg_t* ts = pod_container_of(message, NioSocketTransportStatusGrabMsg_t, msg);
+			SessionTransportGrabMsg_t* ts = pod_container_of(message, SessionTransportGrabMsg_t, msg);
 			Session_t* s = ts->s;
-			socket_replace_transport_status(s, ts);
+			session_replace_transport(s, &ts->target_status);
 			mutexUnlock(&ts->blocklock);
 		}
 		else if (SESSION_REG_MESSAGE == message->type) {

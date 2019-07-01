@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 static int rbtimer_keycmp(const void* node_key, const void* key) {
-	//RBTimerEvList* evlist = pod_container_of(node, RBTimerEvList, m_rbtreenode);
 	long long res = *(const long long*)key - *(const long long*)node_key;
 	if (res < 0)
 		return -1;
