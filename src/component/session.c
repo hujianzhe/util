@@ -578,7 +578,7 @@ static void reliable_dgram_send_again(Session_t* s, long long timestamp_msec) {
 		{
 			break;
 		}
-		socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
+		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr, sockaddrLength(&s->reliable.peer_saddr));
 		packet->resendtimes = 0;
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
@@ -593,10 +593,10 @@ static int reliable_dgram_inner_packet_send(Session_t* s, const unsigned char* d
 			iobufStaticInit(data, len)
 		};
 		s->encode((unsigned char*)iobufPtr(&iov[0]), len);
-		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, (struct sockaddr*)saddr, sockaddrLength((struct sockaddr*)saddr));
+		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, saddr, sockaddrLength(saddr));
 	}
 	else {
-		return socketWrite(s->fd, data, len, 0, (struct sockaddr*)saddr, sockaddrLength((struct sockaddr*)saddr));
+		return socketWrite(s->fd, data, len, 0, saddr, sockaddrLength(saddr));
 	}
 }
 
@@ -668,7 +668,7 @@ static void reliable_dgram_send_packet(Session_t* s, Packet_t* packet, long long
 	if (packet->seq >= s->reliable.m_cwndseq &&
 		packet->seq - s->reliable.m_cwndseq < s->reliable.cwndsize)
 	{
-		socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
+		socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr, sockaddrLength(&s->reliable.peer_saddr));
 		packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 		update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 	}
@@ -819,7 +819,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
-		socketWrite(s->fd, NULL, 0, 0, ((struct sockaddr*)&s->reliable.peer_saddr), sockaddrLength(((struct sockaddr*)&s->reliable.peer_saddr)));
+		socketWrite(s->fd, NULL, 0, 0, &s->reliable.peer_saddr, sockaddrLength(&s->reliable.peer_saddr));
 		s->m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_RECONNECT == hdr_type) {
@@ -953,7 +953,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				{
 					break;
 				}
-				socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
+				socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr, sockaddrLength(&s->reliable.peer_saddr));
 				packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 				update_timestamp(&s->m_loop->m_event_msec, packet->resend_timestamp_msec);
 			}
@@ -1144,7 +1144,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 				}
 				break;
 			}
-			socketWrite(s->fd, packet->data, packet->len, 0, (struct sockaddr*)(&s->reliable.peer_saddr), sockaddrLength((struct sockaddr*)(&s->reliable.peer_saddr)));
+			socketWrite(s->fd, packet->data, packet->len, 0, &s->reliable.peer_saddr, sockaddrLength(&s->reliable.peer_saddr));
 			packet->resendtimes++;
 			packet->resend_timestamp_msec = timestamp_msec + s->reliable.rto;
 			update_timestamp(&loop->m_event_msec, packet->resend_timestamp_msec);
@@ -1570,22 +1570,26 @@ void sessionShutdown(Session_t* s) {
 	sessionloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg.m_listnode);
 }
 
-Session_t* sessionCreate(FD_t fd, int domain, int socktype, int protocol, Session_t*(*pmalloc)(void), void(*pfree)(Session_t*)) {
-	Session_t* s = pmalloc();
-	if (!s)
-		return NULL;
+Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int protocol, int transport_side) {
+	int call_malloc = 0;
+	if (!s) {
+		s = (Session_t*)malloc(sizeof(Session_t));
+		if (!s)
+			return NULL;
+		call_malloc = 1;
+	}
 	if (INVALID_FD_HANDLE == fd) {
 		fd = socket(domain, socktype, protocol);
 		if (INVALID_FD_HANDLE == fd) {
-			if (pfree)
-				pfree(s);
+			if (call_malloc)
+				free(s);
 			return NULL;
 		}
 	}
 	if (!socketNonBlock(fd, TRUE)) {
 		socketClose(fd);
-		if (pfree)
-			pfree(s);
+		if (call_malloc)
+			free(s);
 		return NULL;
 	}
 	s->fd = fd;
@@ -1595,13 +1599,14 @@ Session_t* sessionCreate(FD_t fd, int domain, int socktype, int protocol, Sessio
 	s->heartbeat_timeout_sec = 0;
 	s->keepalive_timeout_sec = 0;
 	s->close_timeout_msec = 0;
+	s->transport_side = transport_side;
+	s->sessionid_len = 0;
 	s->sessionid = NULL;
 	s->userdata = NULL;
-	s->transport_side = SESSION_TRANSPORT_NOSIDE;
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
-	s->zombie = NULL;
 	s->reg_or_connect = NULL;
+	s->zombie = NULL;
 	s->accept = NULL;
 	s->decode = NULL;
 	s->recv = NULL;
@@ -1610,6 +1615,7 @@ Session_t* sessionCreate(FD_t fd, int domain, int socktype, int protocol, Sessio
 	s->send_heartbeat_to_server = NULL;
 	s->shutdown = NULL;
 	s->close = NULL;
+	s->free = NULL;
 	s->shutdownmsg.type = SESSION_SHUTDOWN_MESSAGE;
 	s->closemsg.type = SESSION_CLOSE_MESSAGE;
 
@@ -1624,7 +1630,6 @@ Session_t* sessionCreate(FD_t fd, int domain, int socktype, int protocol, Sessio
 	s->m_closemsg.type = SESSION_CLOSE_MESSAGE;
 	s->m_hashnode.key = &s->fd;
 	s->m_loop = NULL;
-	s->m_free = pfree;
 	s->m_readol = NULL;
 	s->m_writeol = NULL;
 	s->m_writeol_has_commit = 0;
@@ -1677,8 +1682,10 @@ static void session_free(Session_t* s) {
 	clear_packetlist(&s->m_recvpacketlist);
 	clear_packetlist(&s->m_sendpacketlist);
 	clear_packetlist(&s->m_sendpacketlist_bak);
-	if (s->m_free)
-		s->m_free(s);
+	if (s->free)
+		s->free(s);
+	else
+		free(s);
 }
 
 void sessionManualClose(Session_t* s) {

@@ -63,19 +63,20 @@ typedef struct Session_t {
 	int heartbeat_timeout_sec;
 	int keepalive_timeout_sec;
 	int close_timeout_msec;
+	int transport_side;
+	unsigned int sessionid_len;
 	const char* sessionid;
 	void* userdata;
-	unsigned int transport_side;
 	union {
 		struct sockaddr_storage local_listen_saddr;
 		struct sockaddr_storage peer_listen_saddr;
 	};
-	int(*zombie)(struct Session_t* self);
 	union {
 		void(*reg)(struct Session_t* self, int err);
 		void(*connect)(struct Session_t* self, int err, int times, unsigned int self_recvseq, unsigned int self_cwndseq);
 		const void* reg_or_connect;
 	};
+	int(*zombie)(struct Session_t* self);
 	void(*accept)(struct Session_t* self, FD_t newfd, const struct sockaddr_storage* peeraddr);
 	void(*decode)(unsigned char* buf, size_t buflen, SessionDecodeResult_t* result);
 	void(*recv)(struct Session_t* self, const struct sockaddr_storage* addr, SessionDecodeResult_t* result);
@@ -84,6 +85,7 @@ typedef struct Session_t {
 	void(*send_heartbeat_to_server)(struct Session_t* self);
 	void(*shutdown)(struct Session_t* self);
 	void(*close)(struct Session_t* self);
+	void(*free)(struct Session_t*);
 	SessionInternalMsg_t shutdownmsg;
 	SessionInternalMsg_t closemsg;
 /* private */
@@ -98,7 +100,6 @@ typedef struct Session_t {
 	SessionInternalMsg_t m_closemsg;
 	HashtableNode_t m_hashnode;
 	SessionLoop_t* m_loop;
-	void(*m_free)(struct Session_t*);
 	void* m_readol;
 	void* m_writeol;
 	int m_writeol_has_commit;
@@ -142,7 +143,7 @@ typedef struct Session_t {
 extern "C" {
 #endif
 
-__declspec_dll Session_t* sessionCreate(FD_t fd, int domain, int type, int protocol, Session_t*(*pmalloc)(void), void(*pfree)(Session_t*));
+__declspec_dll Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int protocol, int transport_side);
 __declspec_dll void sessionManualClose(Session_t* s);
 __declspec_dll void sessionShutdown(Session_t* s);
 __declspec_dll Session_t* sessionSend(Session_t* s, const void* data, unsigned int len, const struct sockaddr* to, int tolen);

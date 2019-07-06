@@ -480,8 +480,9 @@ int ipstrFamily(const char* ip) {
 	return AF_UNSPEC;
 }
 
-int sockaddrLength(const struct sockaddr* saddr) {
+int sockaddrLength(const void* saddr_) {
 	int socklen;
+	const struct sockaddr* saddr = (const struct sockaddr*)saddr_;
 	if (saddr) {
 		if (AF_INET == saddr->sa_family)
 			socklen = sizeof(struct sockaddr_in);
@@ -868,31 +869,31 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 }
 
-int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen) {
+int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const void* to, int tolen) {
 	if (tolen < 0) {
 		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
 		return -1;
 	}
-	return sendto(sockfd, (const char*)buf, nbytes, flags, to, tolen);
+	return sendto(sockfd, (const char*)buf, nbytes, flags, (const struct sockaddr*)to, tolen);
 }
 
-int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* saddr) {
+int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* from) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
 	int slen;
-	if (saddr) {
-		slen = sizeof(*saddr);
-		memset(saddr, 0, sizeof(*saddr));
+	if (from) {
+		slen = sizeof(*from);
+		memset(from, 0, sizeof(*from));
 	}
 	else
 		slen = 0;
-	return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)saddr, &slen, NULL, NULL) ? -1 : realbytes;
+	return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, &slen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = { 0 };
-	if (saddr) {
-		msghdr.msg_name = (struct sockaddr*)saddr;
-		msghdr.msg_namelen = sizeof(*saddr);
-		memset(saddr, 0, sizeof(*saddr));
+	if (from) {
+		msghdr.msg_name = (struct sockaddr*)from;
+		msghdr.msg_namelen = sizeof(*from);
+		memset(from, 0, sizeof(*from));
 	}
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
@@ -900,10 +901,10 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif	
 }
 
-int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
+int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const void* to, int tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
-	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
+	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, (const struct sockaddr*)to, tolen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = {0};
 	msghdr.msg_name = (struct sockaddr*)to;
