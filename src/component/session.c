@@ -496,52 +496,56 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 			continue;
 		}
 		else {
+			int packet_is_valid = 1;
 			unsigned char hdr_type = *decode_result.bodyptr & (~HDR_DATA_END_FLAG);
-			unsigned int seq = *(unsigned int*)(decode_result.bodyptr + 1);
-			seq = ntohl(seq);
-			if (HDR_ACK == hdr_type) {
-				if (ESTABLISHED_STATUS == s->reliable.m_status)
-					reliable_stream_do_ack(s, seq);
-				continue;
-			}
-			else if (HDR_DATA == hdr_type || HDR_RECONNECT == hdr_type) {
-				int packet_is_valid = 1;
-				if (HDR_DATA == hdr_type) {
-					if (RECONNECT_STATUS == s->reliable.m_status)
-						packet_is_valid = 0;
-					else {
-						if (seq1_before_seq2(seq, s->reliable.m_recvseq))
-							packet_is_valid = 0;
-						else if (seq == s->reliable.m_recvseq)
-							++s->reliable.m_recvseq;
-						else {
-							s->m_valid = 0;
-							return -1;
-						}
-						reliable_stream_reply_ack(s, seq);
-					}
-				}
-				else if (ESTABLISHED_STATUS == s->reliable.m_status) {
+			if (HDR_RECONNECT == hdr_type) {
+				if (ESTABLISHED_STATUS == s->reliable.m_status) {
 					ListNode_t* cur, *next;
 					s->reliable.m_status = RECONNECT_STATUS;
 					s->m_heartbeat_msec = 0;
 					for (cur = s->m_sendpacketlist.head; cur; cur = next) {
 						Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 						next = cur->next;
-						if (packet->offset >= packet->len)
+						if (0 == packet->offset || packet->offset >= packet->len) {
+							listRemoveNode(&s->m_sendpacketlist, cur);
 							free(packet);
+						}
 						else
 							packet->need_ack = 0;
 					}
 				}
-				if (packet_is_valid) {
-					decode_result.bodylen -= RELIABLE_STREAM_DATA_HDR_LEN;
-					if (decode_result.bodylen > 0)
-						decode_result.bodyptr += RELIABLE_STREAM_DATA_HDR_LEN;
-					else
-						decode_result.bodyptr = NULL;
-					s->recv(s, saddr, &decode_result);
+			}
+			else if (RECONNECT_STATUS == s->reliable.m_status) {
+				continue;
+			}
+			else {
+				unsigned int seq = *(unsigned int*)(decode_result.bodyptr + 1);
+				seq = ntohl(seq);
+				if (HDR_ACK == hdr_type) {
+					packet_is_valid = 0;
+					reliable_stream_do_ack(s, seq);
 				}
+				else if (HDR_DATA == hdr_type) {
+					if (seq1_before_seq2(seq, s->reliable.m_recvseq))
+						packet_is_valid = 0;
+					else if (seq == s->reliable.m_recvseq)
+						++s->reliable.m_recvseq;
+					else {
+						s->m_valid = 0;
+						return -1;
+					}
+					reliable_stream_reply_ack(s, seq);
+				}
+				else
+					packet_is_valid = 0;
+			}
+			if (packet_is_valid) {
+				decode_result.bodylen -= RELIABLE_STREAM_DATA_HDR_LEN;
+				if (decode_result.bodylen > 0)
+					decode_result.bodyptr += RELIABLE_STREAM_DATA_HDR_LEN;
+				else
+					decode_result.bodyptr = NULL;
+				s->recv(s, saddr, &decode_result);
 			}
 		}
 	}
