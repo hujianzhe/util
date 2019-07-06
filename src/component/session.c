@@ -1330,12 +1330,12 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 	}
 }
 
-Session_t* sessionSend(Session_t* s, const void* data, unsigned int len, const struct sockaddr* to, int tolen) {
+Session_t* sessionSend(Session_t* s, const void* data, unsigned int len, const void* to, int tolen) {
 	Iobuf_t iov = iobufStaticInit(data, len);
 	return sessionSendv(s, &iov, 1, to, tolen);
 }
 
-Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr* to, int tolen) {
+Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, const void* to, int tolen) {
 	unsigned int i, nbytes;
 	if (!s->m_valid || s->m_shutdownflag)
 		return NULL;

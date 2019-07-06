@@ -40,8 +40,7 @@ typedef struct SessionInternalMsg_t {
 } SessionInternalMsg_t;
 
 enum {
-	SESSION_TRANSPORT_NOSIDE,
-	SESSION_TRANSPORT_CLIENT,
+	SESSION_TRANSPORT_CLIENT = 1,
 	SESSION_TRANSPORT_SERVER,
 	SESSION_TRANSPORT_LISTEN
 };
@@ -146,8 +145,8 @@ extern "C" {
 __declspec_dll Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int protocol, int transport_side);
 __declspec_dll void sessionManualClose(Session_t* s);
 __declspec_dll void sessionShutdown(Session_t* s);
-__declspec_dll Session_t* sessionSend(Session_t* s, const void* data, unsigned int len, const struct sockaddr* to, int tolen);
-__declspec_dll Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, const struct sockaddr* to, int tolen);
+__declspec_dll Session_t* sessionSend(Session_t* s, const void* data, unsigned int len, const void* to, int tolen);
+__declspec_dll Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, const void* to, int tolen);
 __declspec_dll void sessionClientNetReconnect(Session_t* s);
 __declspec_dll void sessionReconnectRecovery(Session_t* s);
 __declspec_dll int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq, unsigned int cwndseq);
