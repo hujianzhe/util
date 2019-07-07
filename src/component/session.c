@@ -1310,7 +1310,7 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 			err = 0;
 			s->m_lastactive_msec = timestamp_msec;
 			if (s->m_connect_times) {
-				if (s->reliable.enable)
+				if (s->sessionid_len > 0 && s->reliable.enable)
 					s->reliable.m_status = RECONNECT_STATUS;
 				else
 					s->reliable.m_status = ESTABLISHED_STATUS;
