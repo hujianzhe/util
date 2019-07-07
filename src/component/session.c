@@ -1954,7 +1954,10 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					{
 						break;
 					}
-					if (s->reliable.enable && ESTABLISHED_STATUS == s->reliable.m_status) {
+					if (s->sessionid_len > 0 &&
+						s->reliable.enable &&
+						ESTABLISHED_STATUS == s->reliable.m_status)
+					{
 						reliable_stream_bak(s);
 					}
 					else {
