@@ -1707,11 +1707,11 @@ static int sockht_keycmp(const void* node_key, const void* key) {
 
 static unsigned int sockht_keyhash(const void* key) { return *(FD_t*)key; }
 
-static void sockcloselist_update(SessionLoop_t* loop, long long timestamp_msec) {
+static void closelist_update(SessionLoop_t* loop, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	List_t expirelist;
 	listInit(&expirelist);
-	for (cur = loop->m_sockcloselist.head; cur; cur = next) {
+	for (cur = loop->m_closelist.head; cur; cur = next) {
 		Session_t* s = pod_container_of(cur, Session_t, m_closemsg.m_listnode);
 		next = cur->next;
 		if (s->m_lastactive_msec + s->close_timeout_msec > timestamp_msec) {
@@ -1721,7 +1721,7 @@ static void sockcloselist_update(SessionLoop_t* loop, long long timestamp_msec) 
 		s->reliable.m_status = NO_STATUS;
 		free_io_resource(s);
 		free_inbuf(s);
-		listRemoveNode(&loop->m_sockcloselist, cur);
+		listRemoveNode(&loop->m_closelist, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, cur);
 	}
 	for (cur = expirelist.head; cur; cur = next) {
@@ -1772,7 +1772,7 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 			}
 		}
 		hashtableRemoveNode(&loop->m_sockht, cur);
-		listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
+		listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
 		_xchg16(&s->m_shutdownflag, 1);
 	}
 }
@@ -1843,7 +1843,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			if (s->close_timeout_msec > 0) {
 				s->m_lastactive_msec = timestamp_msec;
 				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-				listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
+				listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
 			}
 			else {
 				s->reliable.m_status = NO_STATUS;
@@ -1975,7 +1975,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					if (s->close_timeout_msec > 0) {
 						s->m_lastactive_msec = timestamp_msec;
 						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
-						listInsertNodeBack(&loop->m_sockcloselist, loop->m_sockcloselist.tail, &s->m_closemsg.m_listnode);
+						listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
 					}
 					else {
 						s->reliable.m_status = NO_STATUS;
@@ -2159,7 +2159,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 	if (loop->m_event_msec && timestamp_msec >= loop->m_event_msec) {
 		loop->m_event_msec = 0;
 		sockht_update(loop, timestamp_msec);
-		sockcloselist_update(loop, timestamp_msec);
+		closelist_update(loop, timestamp_msec);
 	}
 	return n;
 }
@@ -2208,7 +2208,7 @@ SessionLoop_t* sessionloopCreate(SessionLoop_t* loop) {
 	}
 
 	listInit(&loop->m_msglist);
-	listInit(&loop->m_sockcloselist);
+	listInit(&loop->m_closelist);
 	hashtableInit(&loop->m_sockht,
 		loop->m_sockht_bulks, sizeof(loop->m_sockht_bulks) / sizeof(loop->m_sockht_bulks[0]),
 		sockht_keycmp, sockht_keyhash);
