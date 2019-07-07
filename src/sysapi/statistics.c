@@ -76,6 +76,44 @@ BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsig
 #endif
 }
 
+/*
+#if defined(_WIN32) || defined(_WIN64)
+	#pragma comment(lib, "Advapi32.lib")
+	#pragma comment(lib, "Crypt32.lib")
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+typedef struct __WIN32_CRYPT_CTX {
+	HCRYPTPROV hProv;
+	HCRYPTHASH hHash;
+	DWORD dwLen;
+} __WIN32_CRYPT_CTX;
+
+static BOOL __win32_crypt_init(struct __WIN32_CRYPT_CTX* ctx) {
+	ctx->hProv = ctx->hHash = 0;
+	return CryptAcquireContext(&ctx->hProv, NULL, MS_DEF_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
+}
+static BOOL __win32_crypt_hash_create(struct __WIN32_CRYPT_CTX* ctx, DWORD Algid) {
+	DWORD dwDataLen = sizeof(ctx->dwLen);
+	if (!CryptCreateHash(ctx->hProv, Algid, 0, 0, &ctx->hHash)) {
+		return FALSE;
+	}
+	return CryptGetHashParam(ctx->hHash, HP_HASHSIZE, (BYTE*)(&ctx->dwLen), &dwDataLen, 0);
+}
+static BOOL __win32_crypt_update(struct __WIN32_CRYPT_CTX* ctx, const BYTE* data, DWORD len) {
+	return CryptHashData(ctx->hHash, (const BYTE*)data, len, 0);
+}
+static BOOL __win32_crypt_final(unsigned char* data, struct __WIN32_CRYPT_CTX* ctx) {
+	return CryptGetHashParam(ctx->hHash, HP_HASHVAL, data, &ctx->dwLen, 0);
+}
+static BOOL __win32_crypt_clean(struct __WIN32_CRYPT_CTX* ctx) {
+	if (ctx->hHash && !CryptDestroyHash(ctx->hHash)) {
+		return FALSE;
+	}
+	return CryptReleaseContext(ctx->hProv, 0);
+}
+#endif
+*/
+
 #ifdef	__cplusplus
 }
 #endif

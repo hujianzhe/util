@@ -21,7 +21,6 @@
 #include "sysapi/alloca.h"
 #include "sysapi/assert.h"
 #include "sysapi/atomic.h"
-#include "sysapi/crypt.h"
 #include "sysapi/error.h"
 #include "sysapi/file.h"
 #include "sysapi/io.h"
