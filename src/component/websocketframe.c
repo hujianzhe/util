@@ -3,7 +3,6 @@
 //
 
 #include "../../inc/sysapi/alloca.h"
-#include "../../inc/sysapi/crypt.h"
 #include "../../inc/sysapi/socket.h"
 #include "../../inc/component/websocketframe.h"
 #include "../../inc/datastruct/base64.h"
@@ -35,13 +34,15 @@ int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, 
 
 int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txtbuf[162]) {
 	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-	unsigned char sha1_key[CC_SHA1_DIGEST_LENGTH];
-	char base64_key[CC_SHA1_DIGEST_LENGTH * 3];
+	SHA1_CTX sha1_ctx;
+	unsigned char sha1_key[20];
+	char base64_key[20 * 3];
 	char* pk = (char*)alloca(keylen + sizeof(WEB_SOCKET_MAGIC_KEY));
 	memcpy(pk, key, keylen);
 	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY));
-	if (!cryptSHA1Encode(pk, strlen(pk), sha1_key))
-		return 0;
+	SHA1Init(&sha1_ctx);
+	SHA1Update(&sha1_ctx, pk, strlen(pk));
+	SHA1Final(sha1_key, &sha1_ctx);
 	if (!base64Encode(sha1_key, sizeof(sha1_key), base64_key))
 		return 0;
 	txtbuf[0] = 0;
