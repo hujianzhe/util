@@ -6,6 +6,8 @@
 #include "../../inc/sysapi/crypt.h"
 #include "../../inc/sysapi/socket.h"
 #include "../../inc/component/websocketframe.h"
+#include "../../inc/datastruct/base64.h"
+#include "../../inc/datastruct/sha1.h"
 #include "../../inc/datastruct/strings.h"
 
 #ifdef __cplusplus
@@ -40,7 +42,7 @@ int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txt
 	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY));
 	if (!cryptSHA1Encode(pk, strlen(pk), sha1_key))
 		return 0;
-	if (!cryptBase64Encode(sha1_key, sizeof(sha1_key), base64_key))
+	if (!base64Encode(sha1_key, sizeof(sha1_key), base64_key))
 		return 0;
 	txtbuf[0] = 0;
 	strcat(txtbuf, "HTTP/1.1 101 Switching Protocols\r\n"

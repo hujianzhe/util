@@ -7,6 +7,7 @@
 
 #include "compiler_define.h"
 #include "platform_define.h"
+#include "datastruct/base64.h"
 #include "datastruct/hash.h"
 #include "datastruct/hashtable.h"
 #include "datastruct/list.h"
