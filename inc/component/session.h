@@ -32,7 +32,7 @@ typedef struct SessionLoop_t {
 enum {
 	SESSION_USER_MESSAGE,
 	SESSION_SHUTDOWN_MESSAGE,
-	SESSION_CLOSE_MESSAGE,
+	SESSION_CLOSE_MESSAGE
 };
 typedef struct SessionInternalMsg_t {
 	ListNode_t m_listnode;
