@@ -993,7 +993,7 @@ static CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], con
 		return result;
 	}
 	else {
-		float d[2], min_d, *p;
+		float d[2], min_d, *p = NULL;
 		float cos_theta = mathVec3Dot(normal, dir);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 			return NULL;

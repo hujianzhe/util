@@ -1390,7 +1390,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 			sessionloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 		}
 		else if (ESTABLISHED_STATUS == s->reliable.m_status) {
-			Packet_t* packet;
+			Packet_t* packet = NULL;
 			size_t hdrlen;
 			if (nbytes) {
 				unsigned int offset, packetlen, copy_off, i_off;
