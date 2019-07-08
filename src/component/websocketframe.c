@@ -41,7 +41,7 @@ int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txt
 	memcpy(pk, key, keylen);
 	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY));
 	SHA1Init(&sha1_ctx);
-	SHA1Update(&sha1_ctx, pk, strlen(pk));
+	SHA1Update(&sha1_ctx, (unsigned char*)pk, strlen(pk));
 	SHA1Final(sha1_key, &sha1_ctx);
 	if (!base64Encode(sha1_key, sizeof(sha1_key), base64_key))
 		return 0;
