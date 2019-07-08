@@ -523,6 +523,10 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 				seq = ntohl(seq);
 				if (HDR_ACK == hdr_type) {
 					packet_is_valid = 0;
+					if (seq != s->reliable.m_cwndseq) {
+						s->m_valid = 0;
+						return -1;
+					}
 					reliable_stream_do_ack(s, seq);
 				}
 				else if (HDR_DATA == hdr_type) {
