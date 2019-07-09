@@ -207,20 +207,20 @@ static void free_io_resource(Session_t* s) {
 	}
 }
 
-static void free_inbuf(Session_t* s) {
-	free(s->ctx.m_inbuf);
-	s->ctx.m_inbuf = NULL;
-	s->ctx.m_inbuflen = 0;
-	s->ctx.m_inbufoff = 0;
+static void free_inbuf(NetTransportCtx_t* ctx) {
+	free(ctx->m_inbuf);
+	ctx->m_inbuf = NULL;
+	ctx->m_inbuflen = 0;
+	ctx->m_inbufoff = 0;
 }
 
-static SessionDecodeResult_t* reset_decode_result(SessionDecodeResult_t* result) {
-	result->err = 0;
-	result->incomplete = 0;
-	result->decodelen = 0;
-	result->bodylen = 0;
-	result->bodyptr = NULL;
-	return result;
+static NetTransportCtx_t* reset_decode_result(NetTransportCtx_t* ctx) {
+	ctx->decode_result.err = 0;
+	ctx->decode_result.incomplete = 0;
+	ctx->decode_result.decodelen = 0;
+	ctx->decode_result.bodylen = 0;
+	ctx->decode_result.bodyptr = NULL;
+	return ctx;
 }
 
 static void clear_packetlist(List_t* packetlist) {
@@ -264,23 +264,23 @@ static void session_replace_transport(Session_t* s, SessionTransportStatus_t* ta
 	listInit(&target_status->m_recvpacketlist);
 }
 
-static void session_grab_transport(Session_t* s, SessionTransportStatus_t* target_status) {
-	target_status->m_cwndseq = s->ctx.m_cwndseq;
-	target_status->m_recvseq = s->ctx.m_recvseq;
-	target_status->m_sendseq = s->ctx.m_sendseq;
-	target_status->m_recvpacketlist = s->ctx.m_recvpacketlist;
-	target_status->m_sendpacketlist = s->ctx.m_sendpacketlist;
-	s->ctx.m_cwndseq = 0;
-	s->ctx.m_recvseq = 0;
-	s->ctx.m_sendseq = 0;
-	listInit(&s->ctx.m_recvpacketlist);
-	listInit(&s->ctx.m_sendpacketlist);
+static void session_grab_transport(NetTransportCtx_t* ctx, SessionTransportStatus_t* target_status) {
+	target_status->m_cwndseq = ctx->m_cwndseq;
+	target_status->m_recvseq = ctx->m_recvseq;
+	target_status->m_sendseq = ctx->m_sendseq;
+	target_status->m_recvpacketlist = ctx->m_recvpacketlist;
+	target_status->m_sendpacketlist = ctx->m_sendpacketlist;
+	ctx->m_cwndseq = 0;
+	ctx->m_recvseq = 0;
+	ctx->m_sendseq = 0;
+	listInit(&ctx->m_recvpacketlist);
+	listInit(&ctx->m_sendpacketlist);
 }
 
-static int session_grab_transport_check(Session_t* s, unsigned int recvseq, unsigned int cwndseq) {
-	if (seq1_before_seq2(recvseq, s->ctx.m_cwndseq))
+static int session_grab_transport_check(NetTransportCtx_t* ctx, unsigned int recvseq, unsigned int cwndseq) {
+	if (seq1_before_seq2(recvseq, ctx->m_cwndseq))
 		return 0;
-	if (seq1_before_seq2(s->ctx.m_recvseq, cwndseq))
+	if (seq1_before_seq2(ctx->m_recvseq, cwndseq))
 		return 0;
 	return 1;
 }
@@ -346,39 +346,39 @@ static void stream_send_packet_continue(Session_t* s) {
 	}
 }
 
-static void reliable_stream_bak(Session_t* s) {
+static void reliable_stream_bak(NetTransportCtx_t* ctx) {
 	ListNode_t* cur, *next;
-	s->ctx.m_sendpacketlist_bak = s->ctx.m_sendpacketlist;
-	listInit(&s->ctx.m_sendpacketlist);
-	for (cur = s->ctx.m_sendpacketlist_bak.head; cur; cur = next) {
+	ctx->m_sendpacketlistbak = ctx->m_sendpacketlist;
+	listInit(&ctx->m_sendpacketlist);
+	for (cur = ctx->m_sendpacketlistbak.head; cur; cur = next) {
 		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 		unsigned char hdrtype = packet->type;
 		next = cur->next;
 		if (HDR_DATA != hdrtype) {
-			listRemoveNode(&s->ctx.m_sendpacketlist_bak, cur);
+			listRemoveNode(&ctx->m_sendpacketlistbak, cur);
 			free(packet);
 		}
 		else {
 			packet->offset = 0;
 		}
 	}
-	s->ctx.m_cwndseq_bak = s->ctx.m_cwndseq;
-	s->ctx.m_recvseq_bak = s->ctx.m_recvseq;
-	s->ctx.m_sendseq_bak = s->ctx.m_sendseq;
+	ctx->m_cwndseqbak = ctx->m_cwndseq;
+	ctx->m_recvseqbak = ctx->m_recvseq;
+	ctx->m_sendseqbak = ctx->m_sendseq;
 }
 
-static void reliable_stream_bak_recovery(Session_t* s) {
-	s->ctx.m_recvseq = s->ctx.m_recvseq_bak;
-	s->ctx.m_sendseq = s->ctx.m_sendseq_bak;
-	s->ctx.m_cwndseq = s->ctx.m_cwndseq_bak;
-	s->ctx.m_sendpacketlist = s->ctx.m_sendpacketlist_bak;
-	listInit(&s->ctx.m_sendpacketlist_bak);
+static void reliable_stream_bak_recovery(NetTransportCtx_t* ctx) {
+	ctx->m_recvseq = ctx->m_recvseqbak;
+	ctx->m_sendseq = ctx->m_sendseqbak;
+	ctx->m_cwndseq = ctx->m_cwndseqbak;
+	ctx->m_sendpacketlist = ctx->m_sendpacketlistbak;
+	listInit(&ctx->m_sendpacketlistbak);
 }
 
 static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 	ListNode_t* cur;
 	Packet_t* packet = NULL;
-	size_t hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_STREAM_DATA_HDR_LEN) : 0;
+	size_t hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_STREAM_DATA_HDR_LEN) : 0;
 	unsigned int sizeof_ack = hdrlen + RELIABLE_STREAM_DATA_HDR_LEN;
 	for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
 		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
@@ -388,8 +388,8 @@ static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 	if (!packet || s->ctx.m_sendpacketlist.tail == &packet->msg.m_listnode) {
 		int res;
 		unsigned char* ack = (unsigned char*)alloca(sizeof_ack);
-		if (hdrlen && s->encode) {
-			s->encode(ack, RELIABLE_STREAM_DATA_HDR_LEN);
+		if (hdrlen && s->ctx.encode) {
+			s->ctx.encode(ack, RELIABLE_STREAM_DATA_HDR_LEN);
 		}
 		ack[hdrlen] = HDR_ACK;
 		*(unsigned int*)(ack + hdrlen + 1) = htonl(seq);
@@ -434,8 +434,8 @@ static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 		ack_packet->seq = seq;
 		ack_packet->offset = 0;
 		ack_packet->len = sizeof_ack;
-		if (hdrlen && s->encode) {
-			s->encode(ack_packet->data, RELIABLE_STREAM_DATA_HDR_LEN);
+		if (hdrlen && s->ctx.encode) {
+			s->ctx.encode(ack_packet->data, RELIABLE_STREAM_DATA_HDR_LEN);
 		}
 		ack_packet->data[hdrlen] = HDR_ACK;
 		*(unsigned int*)(ack_packet->data + hdrlen + 1) = htonl(seq);
@@ -483,21 +483,20 @@ static void reliable_stream_do_ack(Session_t* s, unsigned int seq) {
 }
 
 static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
-	SessionDecodeResult_t decode_result;
 	int offset = 0;
 	while (offset < len) {
-		s->decode(data + offset, len - offset, reset_decode_result(&decode_result));
-		if (decode_result.err)
+		s->ctx.decode(reset_decode_result(&s->ctx), data + offset, len - offset);
+		if (s->ctx.decode_result.err)
 			return -1;
-		else if (decode_result.incomplete)
+		else if (s->ctx.decode_result.incomplete)
 			return offset;
-		offset += decode_result.decodelen;
-		if (decode_result.bodylen < RELIABLE_STREAM_DATA_HDR_LEN) {
+		offset += s->ctx.decode_result.decodelen;
+		if (s->ctx.decode_result.bodylen < RELIABLE_STREAM_DATA_HDR_LEN) {
 			continue;
 		}
 		else {
 			int packet_is_valid = 1;
-			unsigned char hdr_type = *decode_result.bodyptr & (~HDR_DATA_END_FLAG);
+			unsigned char hdr_type = *s->ctx.decode_result.bodyptr & (~HDR_DATA_END_FLAG);
 			if (HDR_RECONNECT == hdr_type) {
 				if (ESTABLISHED_STATUS == s->ctx.m_status) {
 					ListNode_t* cur, *next;
@@ -519,7 +518,7 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 				continue;
 			}
 			else {
-				unsigned int seq = *(unsigned int*)(decode_result.bodyptr + 1);
+				unsigned int seq = *(unsigned int*)(s->ctx.decode_result.bodyptr + 1);
 				seq = ntohl(seq);
 				if (HDR_ACK == hdr_type) {
 					packet_is_valid = 0;
@@ -544,12 +543,12 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 					packet_is_valid = 0;
 			}
 			if (packet_is_valid) {
-				decode_result.bodylen -= RELIABLE_STREAM_DATA_HDR_LEN;
-				if (decode_result.bodylen > 0)
-					decode_result.bodyptr += RELIABLE_STREAM_DATA_HDR_LEN;
+				s->ctx.decode_result.bodylen -= RELIABLE_STREAM_DATA_HDR_LEN;
+				if (s->ctx.decode_result.bodylen > 0)
+					s->ctx.decode_result.bodyptr += RELIABLE_STREAM_DATA_HDR_LEN;
 				else
-					decode_result.bodyptr = NULL;
-				s->recv(s, saddr, &decode_result);
+					s->ctx.decode_result.bodyptr = NULL;
+				s->ctx.recv(&s->ctx, saddr);
 			}
 		}
 	}
@@ -557,22 +556,21 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 }
 
 static int data_packet_handler(Session_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
-	SessionDecodeResult_t decode_result;
 	if (len) {
 		int offset = 0;
 		while (offset < len) {
-			s->decode(data + offset, len - offset, reset_decode_result(&decode_result));
-			if (decode_result.err)
+			s->ctx.decode(reset_decode_result(&s->ctx), data + offset, len - offset);
+			if (s->ctx.decode_result.err)
 				return -1;
-			else if (decode_result.incomplete)
+			else if (s->ctx.decode_result.incomplete)
 				return offset;
-			offset += decode_result.decodelen;
-			s->recv(s, saddr, &decode_result);
+			offset += s->ctx.decode_result.decodelen;
+			s->ctx.recv(&s->ctx, saddr);
 		}
 		return offset;
 	}
 	else if (SOCK_STREAM != s->socktype) {
-		s->recv(s, saddr, reset_decode_result(&decode_result));
+		s->ctx.recv(reset_decode_result(&s->ctx), saddr);
 	}
 	return 0;
 }
@@ -594,13 +592,13 @@ static void reliable_dgram_send_again(Session_t* s, long long timestamp_msec) {
 }
 
 static int reliable_dgram_inner_packet_send(Session_t* s, const unsigned char* data, int len, const struct sockaddr_storage* saddr) {
-	size_t hdrlen = s->hdrlen ? s->hdrlen(len) : 0;
-	if (hdrlen && s->encode) {
+	size_t hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(len) : 0;
+	if (hdrlen && s->ctx.encode) {
 		Iobuf_t iov[2] = {
 			iobufStaticInit(alloca(hdrlen), hdrlen),
 			iobufStaticInit(data, len)
 		};
-		s->encode((unsigned char*)iobufPtr(&iov[0]), len);
+		s->ctx.encode((unsigned char*)iobufPtr(&iov[0]), len);
 		return socketWritev(s->fd, iov, sizeof(iov) / sizeof(iov[0]), 0, saddr, sockaddrLength(saddr));
 	}
 	else {
@@ -609,15 +607,14 @@ static int reliable_dgram_inner_packet_send(Session_t* s, const unsigned char* d
 }
 
 static void reliable_dgram_packet_merge(Session_t* s, unsigned char* data, int len, const struct sockaddr_storage* saddr) {
-	SessionDecodeResult_t decode_result;
 	unsigned char hdr_data_end_flag = data[0] & HDR_DATA_END_FLAG;
 	len -= RELIABLE_DGRAM_DATA_HDR_LEN;
 	data += RELIABLE_DGRAM_DATA_HDR_LEN;
 	if (!s->ctx.m_inbuf && hdr_data_end_flag) {
-		reset_decode_result(&decode_result);
-		decode_result.bodyptr = data;
-		decode_result.bodylen = len;
-		s->recv(s, saddr, &decode_result);
+		reset_decode_result(&s->ctx);
+		s->ctx.decode_result.bodyptr = data;
+		s->ctx.decode_result.bodylen = len;
+		s->ctx.recv(&s->ctx, saddr);
 	}
 	else {
 		unsigned char* ptr = (unsigned char*)realloc(s->ctx.m_inbuf, s->ctx.m_inbuflen + len);
@@ -628,13 +625,13 @@ static void reliable_dgram_packet_merge(Session_t* s, unsigned char* data, int l
 			if (!hdr_data_end_flag)
 				return;
 			else {
-				reset_decode_result(&decode_result);
-				decode_result.bodyptr = s->ctx.m_inbuf;
-				decode_result.bodylen = s->ctx.m_inbuflen;
-				s->recv(s, saddr, &decode_result);
+				reset_decode_result(&s->ctx);
+				s->ctx.decode_result.bodyptr = s->ctx.m_inbuf;
+				s->ctx.decode_result.bodylen = s->ctx.m_inbuflen;
+				s->ctx.recv(&s->ctx, saddr);
 			}
 		}
-		free_inbuf(s);
+		free_inbuf(&s->ctx);
 	}
 }
 
@@ -838,7 +835,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			return 1;
 		peer_recvseq = ntohl(*(unsigned int*)(buffer + 1));
 		peer_cwndseq = ntohl(*(unsigned int*)(buffer + 5));
-		if (session_grab_transport_check(s, peer_recvseq, peer_cwndseq)) {
+		if (session_grab_transport_check(&s->ctx, peer_recvseq, peer_cwndseq)) {
 			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
 			reliable_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
 			s->ctx.peer_saddr = *saddr;
@@ -1229,7 +1226,7 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				else {
 					s->ctx.m_inbufoff += decodelen;
 					if (s->ctx.m_inbufoff >= s->ctx.m_inbuflen) {
-						free_inbuf(s);
+						free_inbuf(&s->ctx);
 					}
 				}
 			}
@@ -1266,7 +1263,6 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				break;
 			}
 			else if (s->ctx.reliable) {
-				SessionDecodeResult_t decode_result;
 				if (TIME_WAIT_STATUS == s->ctx.m_status ||
 					CLOSED_STATUS == s->ctx.m_status ||
 					NO_STATUS == s->ctx.m_status)
@@ -1275,10 +1271,10 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				}
 				if (0 == res)
 					continue;
-				s->decode(p_data, res, reset_decode_result(&decode_result));
-				if (decode_result.err || decode_result.incomplete)
+				s->ctx.decode(reset_decode_result(&s->ctx), p_data, res);
+				if (s->ctx.decode_result.err || s->ctx.decode_result.incomplete)
 					continue;
-				if (!reliable_dgram_recv_handler(s, decode_result.bodyptr, decode_result.bodylen, &saddr, timestamp_msec))
+				if (!reliable_dgram_recv_handler(s, s->ctx.decode_result.bodyptr, s->ctx.decode_result.bodylen, &saddr, timestamp_msec))
 					break;
 			}
 			else {
@@ -1363,7 +1359,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 		for (nbytes = 0, i = 0; i < iovcnt; ++i)
 			nbytes += iobufLen(iov + i);
 		if (0 == nbytes) {
-			if (SOCK_STREAM == s->socktype && !s->ctx.reliable && (!s->hdrlen || !s->hdrlen(0))) {
+			if (SOCK_STREAM == s->socktype && !s->ctx.reliable && (!s->ctx.hdrlen || !s->ctx.hdrlen(0))) {
 				return s;
 			}
 			iovcnt = 0;
@@ -1371,7 +1367,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 	}
 	if (s->ctx.reliable) {
 		if (SOCK_STREAM == s->socktype) {
-			size_t hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_STREAM_DATA_HDR_LEN + nbytes) : 0;
+			size_t hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_STREAM_DATA_HDR_LEN + nbytes) : 0;
 			Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_STREAM_DATA_HDR_LEN + nbytes);
 			if (!packet)
 				return NULL;
@@ -1384,8 +1380,8 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 			packet->hdrlen = hdrlen;
 			packet->len = hdrlen + RELIABLE_STREAM_DATA_HDR_LEN + nbytes;
 			packet->data[hdrlen] = HDR_DATA | HDR_DATA_END_FLAG;
-			if (hdrlen && s->encode) {
-				s->encode(packet->data, RELIABLE_STREAM_DATA_HDR_LEN + nbytes);
+			if (hdrlen && s->ctx.encode) {
+				s->ctx.encode(packet->data, RELIABLE_STREAM_DATA_HDR_LEN + nbytes);
 			}
 			for (nbytes = 0, i = 0; i < iovcnt; ++i) {
 				memcpy(packet->data + hdrlen + RELIABLE_STREAM_DATA_HDR_LEN + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
@@ -1402,10 +1398,10 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 				listInit(&packetlist);
 				for (i = i_off = offset = 0; offset < nbytes; offset += packetlen) {
 					packetlen = nbytes - offset;
-					hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN + packetlen) : 0;
+					hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN + packetlen) : 0;
 					if (hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen > s->ctx.mtu) {
 						packetlen = s->ctx.mtu - hdrlen - RELIABLE_DGRAM_DATA_HDR_LEN;
-						hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN + packetlen) : 0;
+						hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN + packetlen) : 0;
 					}
 					packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
 					if (!packet)
@@ -1416,8 +1412,8 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 					packet->hdrlen = hdrlen;
 					packet->len = hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN + packetlen;
 					packet->data[hdrlen] = HDR_DATA;
-					if (hdrlen && s->encode) {
-						s->encode(packet->data, RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
+					if (hdrlen && s->ctx.encode) {
+						s->ctx.encode(packet->data, RELIABLE_DGRAM_DATA_HDR_LEN + packetlen);
 					}
 					copy_off = 0;
 					while (i < iovcnt) {
@@ -1452,7 +1448,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 				}
 			}
 			else {
-				hdrlen = s->hdrlen ? s->hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN) : 0;
+				hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_DGRAM_DATA_HDR_LEN) : 0;
 				packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN);
 				if (!packet)
 					return NULL;
@@ -1462,15 +1458,15 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 				packet->hdrlen = hdrlen;
 				packet->len = hdrlen + RELIABLE_DGRAM_DATA_HDR_LEN;
 				packet->data[hdrlen] = HDR_DATA | HDR_DATA_END_FLAG;
-				if (hdrlen && s->encode) {
-					s->encode(packet->data, RELIABLE_DGRAM_DATA_HDR_LEN);
+				if (hdrlen && s->ctx.encode) {
+					s->ctx.encode(packet->data, RELIABLE_DGRAM_DATA_HDR_LEN);
 				}
 				sessionloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
 			}
 		}
 	}
 	else {
-		size_t hdrlen = s->hdrlen ? s->hdrlen(nbytes) : 0;
+		size_t hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(nbytes) : 0;
 		Packet_t* packet = (Packet_t*)malloc(sizeof(Packet_t) + hdrlen + nbytes);
 		if (!packet)
 			return NULL;
@@ -1482,8 +1478,8 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 		packet->offset = 0;
 		packet->hdrlen = hdrlen;
 		packet->len = hdrlen + nbytes;
-		if (hdrlen && s->encode) {
-			s->encode(packet->data, nbytes);
+		if (hdrlen && s->ctx.encode) {
+			s->ctx.encode(packet->data, nbytes);
 		}
 		for (nbytes = 0, i = 0; i < iovcnt; ++i) {
 			memcpy(packet->data + hdrlen + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
@@ -1522,9 +1518,9 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 		threadEqual(target_s->m_loop->m_runthread, threadSelf()))
 	{
 		SessionTransportGrabMsg_t ts;
-		if (!session_grab_transport_check(target_s, recvseq, cwndseq))
+		if (!session_grab_transport_check(&target_s->ctx, recvseq, cwndseq))
 			return 0;
-		session_grab_transport(target_s, &ts.target_status);
+		session_grab_transport(&target_s->ctx, &ts.target_status);
 		session_replace_transport(s, &ts.target_status);
 		return 1;
 	}
@@ -1537,9 +1533,9 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 			return 0;
 		}
 		else if (threadEqual(target_s->m_loop->m_runthread, threadSelf())) {
-			if (!session_grab_transport_check(target_s, recvseq, cwndseq))
+			if (!session_grab_transport_check(&target_s->ctx, recvseq, cwndseq))
 				return 0;
-			session_grab_transport(target_s, &ts->target_status);
+			session_grab_transport(&target_s->ctx, &ts->target_status);
 		}
 		else {
 			mutexLock(&ts->blocklock);
@@ -1576,6 +1572,43 @@ void sessionShutdown(Session_t* s) {
 	if (_xchg16(&s->m_shutdownflag, 1))
 		return;
 	sessionloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg.m_listnode);
+}
+
+static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
+	ctx->userdata = NULL;
+	ctx->peer_saddr.ss_family = AF_UNSPEC;
+	ctx->mtu = 1464;
+	ctx->rto = 200;
+	ctx->resend_maxtimes = 5;
+	ctx->cwndsize = 10;
+	ctx->reliable = 0;
+	reset_decode_result(ctx);
+	ctx->decode = NULL;
+	ctx->recv = NULL;
+	ctx->hdrlen = NULL;
+	ctx->encode = NULL;
+	ctx->m_status = NO_STATUS;
+	ctx->m_synrcvd_times = 0;
+	ctx->m_synsent_times = 0;
+	ctx->m_reconnect_times = 0;
+	ctx->m_fin_times = 0;
+	ctx->m_synrcvd_msec = 0;
+	ctx->m_synsent_msec = 0;
+	ctx->m_reconnect_msec = 0;
+	ctx->m_fin_msec = 0;
+	ctx->m_cwndseq = 0;
+	ctx->m_recvseq = 0;
+	ctx->m_sendseq = 0;
+	ctx->m_cwndseqbak = 0;
+	ctx->m_recvseqbak = 0;
+	ctx->m_sendseqbak = 0;
+	ctx->m_inbuf = NULL;
+	ctx->m_inbufoff = 0;
+	ctx->m_inbuflen = 0;
+	listInit(&ctx->m_recvpacketlist);
+	listInit(&ctx->m_sendpacketlist);
+	listInit(&ctx->m_sendpacketlistbak);
+	return ctx;
 }
 
 Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int protocol, int transport_side) {
@@ -1616,10 +1649,6 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->reg_or_connect = NULL;
 	s->zombie = NULL;
 	s->accept = NULL;
-	s->decode = NULL;
-	s->recv = NULL;
-	s->hdrlen = NULL;
-	s->encode = NULL;
 	s->send_heartbeat_to_server = NULL;
 	s->shutdown = NULL;
 	s->close = NULL;
@@ -1645,39 +1674,14 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->m_heartbeat_msec = 0;
 	s->m_recvpacket_maxcnt = 8;
 
-	s->ctx.peer_saddr.ss_family = AF_UNSPEC;
-	s->ctx.mtu = 1464;
-	s->ctx.rto = 200;
-	s->ctx.resend_maxtimes = 5;
-	s->ctx.cwndsize = 10;
-	s->ctx.reliable = 0;
-	s->ctx.m_status = NO_STATUS;
-	s->ctx.m_synrcvd_times = 0;
-	s->ctx.m_synsent_times = 0;
-	s->ctx.m_reconnect_times = 0;
-	s->ctx.m_fin_times = 0;
-	s->ctx.m_synrcvd_msec = 0;
-	s->ctx.m_synsent_msec = 0;
-	s->ctx.m_reconnect_msec = 0;
-	s->ctx.m_fin_msec = 0;
-	s->ctx.m_cwndseq = 0;
-	s->ctx.m_recvseq = 0;
-	s->ctx.m_sendseq = 0;
-	s->ctx.m_cwndseq_bak = 0;
-	s->ctx.m_recvseq_bak = 0;
-	s->ctx.m_sendseq_bak = 0;
-	s->ctx.m_inbuf = NULL;
-	s->ctx.m_inbufoff = 0;
-	s->ctx.m_inbuflen = 0;
-	listInit(&s->ctx.m_recvpacketlist);
-	listInit(&s->ctx.m_sendpacketlist);
-	listInit(&s->ctx.m_sendpacketlist_bak);
+	netTransportInitCtx(&s->ctx);
+	s->ctx.userdata = s;
 	return s;
 }
 
 static void session_free(Session_t* s) {
 	free_io_resource(s);
-	free_inbuf(s);
+	free_inbuf(&s->ctx);
 	if (SESSION_TRANSPORT_LISTEN == s->transport_side &&
 		SOCK_DGRAM == s->socktype && s->ctx.reliable)
 	{
@@ -1689,7 +1693,7 @@ static void session_free(Session_t* s) {
 	}
 	clear_packetlist(&s->ctx.m_recvpacketlist);
 	clear_packetlist(&s->ctx.m_sendpacketlist);
-	clear_packetlist(&s->ctx.m_sendpacketlist_bak);
+	clear_packetlist(&s->ctx.m_sendpacketlistbak);
 	if (s->free)
 		s->free(s);
 	else
@@ -1724,7 +1728,7 @@ static void closelist_update(SessionLoop_t* loop, long long timestamp_msec) {
 		}
 		s->ctx.m_status = NO_STATUS;
 		free_io_resource(s);
-		free_inbuf(s);
+		free_inbuf(&s->ctx);
 		listRemoveNode(&loop->m_closelist, cur);
 		listInsertNodeBack(&expirelist, expirelist.tail, cur);
 	}
@@ -1750,7 +1754,7 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 					continue;
 				}
 				s->m_valid = 0;
-				free_inbuf(s);
+				free_inbuf(&s->ctx);
 				if (SOCK_STREAM == s->socktype || s->keepalive_timeout_sec * 1000 >= s->close_timeout_msec)
 					free_io_resource(s);
 			}
@@ -1840,7 +1844,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				continue;
 			hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 			_xchg16(&s->m_shutdownflag, 1);
-			free_inbuf(s);
+			free_inbuf(&s->ctx);
 			if (SOCK_STREAM == s->socktype) {
 				free_io_resource(s);
 			}
@@ -1938,7 +1942,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				int ok;
 				hashtableRemoveNode(&loop->m_sockht, &s->m_hashnode);
 				free_io_resource(s);
-				free_inbuf(s);
+				free_inbuf(&s->ctx);
 				s->m_writeol_has_commit = 0;
 				s->m_heartbeat_msec = 0;
 				do {
@@ -1962,7 +1966,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						s->ctx.reliable &&
 						ESTABLISHED_STATUS == s->ctx.m_status)
 					{
-						reliable_stream_bak(s);
+						reliable_stream_bak(&s->ctx);
 					}
 					else {
 						clear_packetlist(&s->ctx.m_sendpacketlist);
@@ -2010,16 +2014,16 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				continue;
 			s->ctx.m_status = ESTABLISHED_STATUS;
 			if (SESSION_TRANSPORT_CLIENT == s->transport_side) {
-				reliable_stream_bak_recovery(s);
+				reliable_stream_bak_recovery(&s->ctx);
 			}
 			stream_send_packet_continue(s);
 		}
 		else if (SESSION_TRANSPORT_GRAB_ASYNC_REQ_MESSAGE == message->type) {
 			SessionTransportGrabMsg_t* ts = pod_container_of(message, SessionTransportGrabMsg_t, msg);
 			Session_t* s = ts->s;
-			if (session_grab_transport_check(s, ts->recvseq, ts->cwndseq)) {
+			if (session_grab_transport_check(&s->ctx, ts->recvseq, ts->cwndseq)) {
 				ts->success = 1;
-				session_grab_transport(s, &ts->target_status);
+				session_grab_transport(&s->ctx, &ts->target_status);
 			}
 			else {
 				ts->success = 0;

@@ -45,13 +45,49 @@ enum {
 	SESSION_TRANSPORT_LISTEN
 };
 
-typedef struct SessionDecodeResult_t {
-	char err;
-	char incomplete;
-	int decodelen;
-	int bodylen;
-	unsigned char* bodyptr;
-} SessionDecodeResult_t;
+typedef struct NetTransportCtx_t {
+	/* public */
+	void* userdata;
+	struct sockaddr_storage peer_saddr;
+	unsigned short mtu;
+	unsigned short rto;
+	unsigned char resend_maxtimes;
+	unsigned char cwndsize;
+	unsigned char reliable;
+	struct {
+		char err;
+		char incomplete;
+		int decodelen;
+		int bodylen;
+		unsigned char* bodyptr;
+	} decode_result;
+	void(*decode)(struct NetTransportCtx_t* self, unsigned char* buf, size_t buflen);
+	void(*recv)(struct NetTransportCtx_t* self, const struct sockaddr_storage* addr);
+	size_t(*hdrlen)(size_t bodylen);
+	void(*encode)(unsigned char* hdrptr, size_t bodylen);
+	/* private */
+	unsigned char m_status;
+	unsigned char m_synrcvd_times;
+	unsigned char m_synsent_times;
+	unsigned char m_reconnect_times;
+	unsigned char m_fin_times;
+	long long m_synrcvd_msec;
+	long long m_synsent_msec;
+	long long m_reconnect_msec;
+	long long m_fin_msec;
+	unsigned int m_cwndseq;
+	unsigned int m_recvseq;
+	unsigned int m_sendseq;
+	unsigned int m_cwndseqbak;
+	unsigned int m_recvseqbak;
+	unsigned int m_sendseqbak;
+	unsigned char *m_inbuf;
+	size_t m_inbufoff;
+	size_t m_inbuflen;
+	List_t m_recvpacketlist;
+	List_t m_sendpacketlist;
+	List_t m_sendpacketlistbak;
+} NetTransportCtx_t;
 
 typedef struct Session_t {
 /* public */
@@ -77,16 +113,13 @@ typedef struct Session_t {
 	};
 	int(*zombie)(struct Session_t* self);
 	void(*accept)(struct Session_t* self, FD_t newfd, const struct sockaddr_storage* peeraddr);
-	void(*decode)(unsigned char* buf, size_t buflen, SessionDecodeResult_t* result);
-	void(*recv)(struct Session_t* self, const struct sockaddr_storage* addr, SessionDecodeResult_t* result);
-	size_t(*hdrlen)(size_t bodylen);
-	void(*encode)(unsigned char* hdrptr, size_t bodylen);
 	void(*send_heartbeat_to_server)(struct Session_t* self);
 	void(*shutdown)(struct Session_t* self);
 	void(*close)(struct Session_t* self);
 	void(*free)(struct Session_t*);
 	SessionInternalMsg_t shutdownmsg;
 	SessionInternalMsg_t closemsg;
+	NetTransportCtx_t ctx;
 /* private */
 	volatile char m_valid;
 	Atom16_t m_shutdownflag;
@@ -105,37 +138,6 @@ typedef struct Session_t {
 	long long m_lastactive_msec;
 	long long m_heartbeat_msec;
 	unsigned short m_recvpacket_maxcnt;
-	struct {
-	/* public */
-		struct sockaddr_storage peer_saddr;
-		unsigned short mtu;
-		unsigned short rto;
-		unsigned char resend_maxtimes;
-		unsigned char cwndsize;
-		unsigned char reliable;
-	/* private */
-		unsigned char m_status;
-		unsigned char m_synrcvd_times;
-		unsigned char m_synsent_times;
-		unsigned char m_reconnect_times;
-		unsigned char m_fin_times;
-		long long m_synrcvd_msec;
-		long long m_synsent_msec;
-		long long m_reconnect_msec;
-		long long m_fin_msec;
-		unsigned int m_cwndseq;
-		unsigned int m_recvseq;
-		unsigned int m_sendseq;
-		unsigned int m_cwndseq_bak;
-		unsigned int m_recvseq_bak;
-		unsigned int m_sendseq_bak;
-		unsigned char *m_inbuf;
-		size_t m_inbufoff;
-		size_t m_inbuflen;
-		List_t m_recvpacketlist;
-		List_t m_sendpacketlist;
-		List_t m_sendpacketlist_bak;
-	} ctx;
 } Session_t;
 
 #ifdef __cplusplus
