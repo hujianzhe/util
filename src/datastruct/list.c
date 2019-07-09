@@ -134,6 +134,15 @@ struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head) {
 	}
 }
 
+struct ListNode_t* listFindNode(struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*), const void* key) {
+	struct ListNode_t* cur;
+	for (cur = list->head; cur; cur = cur->next) {
+		if (cmp(cur, key))
+			break;
+	}
+	return cur;
+}
+
 #ifdef	__cplusplus
 }
 #endif

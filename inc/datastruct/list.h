@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 __declspec_dll struct List_t* listInit(struct List_t* list);
+__declspec_dll struct ListNode_t* listFindNode(struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*), const void* key);
 __declspec_dll void listInsertNodeFront(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node);
 __declspec_dll void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node);
 __declspec_dll void listRemoveNode(struct List_t* list, struct ListNode_t* node);
