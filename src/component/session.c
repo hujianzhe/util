@@ -111,34 +111,18 @@ static void update_timestamp(long long* dst, long long timestamp) {
 }
 
 static SessionLoop_t* sessionloop_exec_msg(SessionLoop_t* loop, ListNode_t* msgnode) {
-	int need_wake;
 	criticalsectionEnter(&loop->m_msglistlock);
-	need_wake = !loop->m_msglist.head;
 	listInsertNodeBack(&loop->m_msglist, loop->m_msglist.tail, msgnode);
 	criticalsectionLeave(&loop->m_msglistlock);
-	if (need_wake) {
-		char c;
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
-	}
-	else {
-		sessionloopWake(loop);
-	}
+	sessionloopWake(loop);
 	return loop;
 }
 
 static SessionLoop_t* sessionloop_exec_msglist(SessionLoop_t* loop, List_t* msglist) {
-	int need_wake;
 	criticalsectionEnter(&loop->m_msglistlock);
-	need_wake = !loop->m_msglist.head;
 	listMerge(&loop->m_msglist, msglist);
 	criticalsectionLeave(&loop->m_msglistlock);
-	if (need_wake) {
-		char c;
-		socketWrite(loop->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
-	}
-	else {
-		sessionloopWake(loop);
-	}
+	sessionloopWake(loop);
 	return loop;
 }
 
