@@ -1575,7 +1575,7 @@ void sessionShutdown(Session_t* s) {
 }
 
 static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
-	ctx->userdata = NULL;
+	ctx->io_object = NULL;
 	ctx->peer_saddr.ss_family = AF_UNSPEC;
 	ctx->mtu = 1464;
 	ctx->rto = 200;
@@ -1675,7 +1675,7 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->m_recvpacket_maxcnt = 8;
 
 	netTransportInitCtx(&s->ctx);
-	s->ctx.userdata = s;
+	s->ctx.io_object = s;
 	return s;
 }
 

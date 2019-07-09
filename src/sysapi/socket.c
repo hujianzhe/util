@@ -874,6 +874,8 @@ int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, co
 		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
 		return -1;
 	}
+	else if (0 == tolen)
+		to = NULL;
 	return sendto(sockfd, (const char*)buf, nbytes, flags, (const struct sockaddr*)to, tolen);
 }
 

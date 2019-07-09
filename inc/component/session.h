@@ -47,7 +47,7 @@ enum {
 
 typedef struct NetTransportCtx_t {
 	/* public */
-	void* userdata;
+	void* io_object;
 	struct sockaddr_storage peer_saddr;
 	unsigned short mtu;
 	unsigned short rto;
