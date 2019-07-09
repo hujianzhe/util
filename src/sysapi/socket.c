@@ -870,13 +870,19 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 }
 
 int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const void* to, int tolen) {
+	Iobuf_t iov;
 	if (tolen < 0) {
 		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
 		return -1;
 	}
 	else if (0 == tolen)
 		to = NULL;
+	iobufPtr(&iov) = (char*)buf;
+	iobufLen(&iov) = nbytes;
+	return socketWritev(sockfd, &iov, 1, flags, to, tolen);
+	/* windows core dump here,,,but memory is ok......
 	return sendto(sockfd, (const char*)buf, nbytes, flags, (const struct sockaddr*)to, tolen);
+	*/
 }
 
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* from) {
