@@ -81,6 +81,8 @@ typedef struct NetTransportCtx_t {
 	unsigned int m_cwndseqbak;
 	unsigned int m_recvseqbak;
 	unsigned int m_sendseqbak;
+	long long m_lastactive_msec;
+	long long m_heartbeat_msec;
 	unsigned char *m_inbuf;
 	size_t m_inbufoff;
 	size_t m_inbuflen;
@@ -135,8 +137,6 @@ typedef struct Session_t {
 	void* m_readol;
 	void* m_writeol;
 	int m_writeol_has_commit;
-	long long m_lastactive_msec;
-	long long m_heartbeat_msec;
 	unsigned short m_recvpacket_maxcnt;
 } Session_t;
 

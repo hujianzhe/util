@@ -501,7 +501,7 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 				if (ESTABLISHED_STATUS == s->ctx.m_status) {
 					ListNode_t* cur, *next;
 					s->ctx.m_status = RECONNECT_STATUS;
-					s->m_heartbeat_msec = 0;
+					s->ctx.m_heartbeat_msec = 0;
 					for (cur = s->ctx.m_sendpacketlist.head; cur; cur = next) {
 						Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
 						next = cur->next;
@@ -655,16 +655,16 @@ static void reliable_dgram_check_send_fin_packet(Session_t* s, long long timesta
 static void reliable_dgram_shutdown(Session_t* s, long long timestamp_msec) {
 	if (SESSION_TRANSPORT_LISTEN == s->transport_side) {
 		s->ctx.m_status = CLOSED_STATUS;
-		s->m_lastactive_msec = timestamp_msec;
+		s->ctx.m_lastactive_msec = timestamp_msec;
 		s->m_valid = 0;
-		update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+		update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
 	}
 	else if (SESSION_TRANSPORT_CLIENT == s->transport_side || SESSION_TRANSPORT_SERVER == s->transport_side) {
 		if (ESTABLISHED_STATUS != s->ctx.m_status)
 			return;
 		s->ctx.m_status = ESTABLISHED_FIN_STATUS;
 		reliable_dgram_check_send_fin_packet(s, timestamp_msec);
-		s->m_heartbeat_msec = 0;
+		s->ctx.m_heartbeat_msec = 0;
 	}
 }
 
@@ -751,7 +751,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				*(unsigned short*)(syn_ack + 1) = htons(local_port);
 			}
 			reliable_dgram_inner_packet_send(s, syn_ack, sizeof(syn_ack), saddr);
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 		else if (SYN_RCVD_STATUS == s->ctx.m_status) {
 			if (AF_UNSPEC == s->ctx.peer_saddr.ss_family) {
@@ -763,7 +763,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				return 1;
 			syn_ack[0] = HDR_SYN_ACK;
 			reliable_dgram_inner_packet_send(s, syn_ack, 1, saddr);
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 	}
 	else if (HDR_SYN_ACK_ACK == hdr_type) {
@@ -784,15 +784,15 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				free(halfcon);
 				break;
 			}
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 		else if (SYN_RCVD_STATUS == s->ctx.m_status) {
 			if (memcmp(&s->ctx.peer_saddr, saddr, sizeof(*saddr)))
 				return 1;
-			s->m_lastactive_msec = timestamp_msec;
-			s->m_heartbeat_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
+			s->ctx.m_heartbeat_msec = timestamp_msec;
 			if (s->heartbeat_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 			s->ctx.m_status = ESTABLISHED_STATUS;
 		}
@@ -819,13 +819,13 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			}
 			s->ctx.m_status = ESTABLISHED_STATUS;
 			s->connect(s, 0, s->m_connect_times++, 0, 0);
-			s->m_heartbeat_msec = timestamp_msec;
+			s->ctx.m_heartbeat_msec = timestamp_msec;
 			if (s->heartbeat_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
 		socketWrite(s->fd, NULL, 0, 0, &s->ctx.peer_saddr, sockaddrLength(&s->ctx.peer_saddr));
-		s->m_lastactive_msec = timestamp_msec;
+		s->ctx.m_lastactive_msec = timestamp_msec;
 	}
 	else if (HDR_RECONNECT == hdr_type) {
 		unsigned int peer_recvseq, peer_cwndseq;
@@ -839,7 +839,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			unsigned char reconnect_ack = HDR_RECONNECT_ACK;
 			reliable_dgram_inner_packet_send(s, &reconnect_ack, sizeof(reconnect_ack), saddr);
 			s->ctx.peer_saddr = *saddr;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			reliable_dgram_send_again(s, timestamp_msec);
 		}
 		else {
@@ -854,7 +854,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			return 1;
 		s->ctx.m_status = ESTABLISHED_STATUS;
 		_xchg16(&s->m_shutdownflag, 0);
-		s->m_lastactive_msec = timestamp_msec;
+		s->ctx.m_lastactive_msec = timestamp_msec;
 		reliable_dgram_send_again(s, timestamp_msec);
 		s->connect(s, 0, s->m_connect_times++, s->ctx.m_recvseq, s->ctx.m_cwndseq);
 	}
@@ -875,8 +875,8 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			fin_ack = HDR_FIN_ACK;
 			reliable_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->ctx.peer_saddr);
 			s->ctx.m_status = CLOSE_WAIT_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
-			s->m_heartbeat_msec = 0;
+			s->ctx.m_lastactive_msec = timestamp_msec;
+			s->ctx.m_heartbeat_msec = 0;
 			reliable_dgram_check_send_fin_packet(s, timestamp_msec);
 			_xchg16(&s->m_shutdownflag, 1);
 			if (s->shutdown) {
@@ -890,7 +890,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			fin_ack = HDR_FIN_ACK;
 			reliable_dgram_inner_packet_send(s, &fin_ack, sizeof(fin_ack), &s->ctx.peer_saddr);
 			s->ctx.m_status = TIME_WAIT_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 			_xchg16(&s->m_shutdownflag, 1);
 			if (s->shutdown) {
@@ -904,12 +904,12 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			return 1;
 		else if (LAST_ACK_STATUS == s->ctx.m_status) {
 			s->ctx.m_status = CLOSED_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 		}
 		else if (FIN_WAIT_1_STATUS == s->ctx.m_status) {
 			s->ctx.m_status = FIN_WAIT_2_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 	}
 	else if (HDR_ACK == hdr_type) {
@@ -922,8 +922,8 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
 			return 1;
 
-		s->m_lastactive_msec = timestamp_msec;
-		s->m_heartbeat_msec = timestamp_msec;
+		s->ctx.m_lastactive_msec = timestamp_msec;
+		s->ctx.m_heartbeat_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		seq = ntohl(seq);
 		cwnd_skip = 0;
@@ -979,7 +979,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
 			return 1;
 
-		s->m_lastactive_msec = timestamp_msec;
+		s->ctx.m_lastactive_msec = timestamp_msec;
 		seq = *(unsigned int*)(buffer + 1);
 		ack[0] = HDR_ACK;
 		*(unsigned int*)(ack + 1) = seq;
@@ -1080,7 +1080,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 		}
 		else if (s->ctx.m_synsent_times >= s->ctx.resend_maxtimes) {
 			s->ctx.m_status = TIME_WAIT_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 			s->shutdown = NULL;
 			s->connect(s, ETIMEDOUT, s->m_connect_times++, 0, 0);
@@ -1098,7 +1098,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 			update_timestamp(&loop->m_event_msec, s->ctx.m_fin_msec);
 		}
 		else if (s->ctx.m_fin_times >= s->ctx.resend_maxtimes) {
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 		}
 		else {
@@ -1115,7 +1115,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 		}
 		else if (s->ctx.m_reconnect_times >= s->ctx.resend_maxtimes) {
 			s->ctx.m_status = TIME_WAIT_STATUS;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->m_valid = 0;
 			s->connect(s, ETIMEDOUT, s->m_connect_times++, s->ctx.m_recvseq, s->ctx.m_cwndseq);
 		}
@@ -1143,7 +1143,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 				continue;
 			}
 			if (packet->resendtimes >= s->ctx.resend_maxtimes) {
-				s->m_lastactive_msec = timestamp_msec;
+				s->ctx.m_lastactive_msec = timestamp_msec;
 				if (ESTABLISHED_STATUS != s->ctx.m_status) {
 					s->m_valid = 0;
 				}
@@ -1171,7 +1171,7 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				else
 					socketClose(connfd);
 			}
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 		else {
 			unsigned char *ptr;
@@ -1213,8 +1213,8 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				int(*handler)(Session_t*, unsigned char*, int, const struct sockaddr_storage*);
 				int decodelen;
 				s->ctx.m_inbuflen += res;
-				s->m_lastactive_msec = timestamp_msec;
-				s->m_heartbeat_msec = timestamp_msec;
+				s->ctx.m_lastactive_msec = timestamp_msec;
+				s->ctx.m_heartbeat_msec = timestamp_msec;
 				if (s->ctx.reliable)
 					handler = reliable_stream_data_packet_handler;
 				else
@@ -1256,8 +1256,8 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 				if (errnoGet() != EWOULDBLOCK) {
 					s->m_valid = 0;
 					if (s->ctx.reliable) {
-						s->m_lastactive_msec = timestamp_msec;
-						update_timestamp(&s->m_loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+						s->ctx.m_lastactive_msec = timestamp_msec;
+						update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
 					}
 				}
 				break;
@@ -1279,7 +1279,7 @@ static void reactor_socket_do_read(Session_t* s, long long timestamp_msec) {
 			}
 			else {
 				data_packet_handler(s, p_data, res, &saddr);
-				s->m_lastactive_msec = timestamp_msec;
+				s->ctx.m_lastactive_msec = timestamp_msec;
 			}
 		}
 	}
@@ -1308,7 +1308,7 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 		}
 		else {
 			err = 0;
-			s->m_lastactive_msec = timestamp_msec;
+			s->ctx.m_lastactive_msec = timestamp_msec;
 			if (s->m_connect_times) {
 				if (s->sessionid_len > 0 && s->ctx.reliable)
 					s->ctx.m_status = RECONNECT_STATUS;
@@ -1320,9 +1320,9 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 				s->ctx.m_status = ESTABLISHED_STATUS;
 			}
 			if (ESTABLISHED_STATUS == s->ctx.m_status) {
-				s->m_heartbeat_msec = timestamp_msec;
+				s->ctx.m_heartbeat_msec = timestamp_msec;
 				if (s->heartbeat_timeout_sec > 0)
-					update_timestamp(&s->m_loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+					update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 			}
 		}
 		s->connect(s, err, s->m_connect_times++, s->ctx.m_recvseq, s->ctx.m_cwndseq);
@@ -1582,7 +1582,6 @@ static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
 	ctx->resend_maxtimes = 5;
 	ctx->cwndsize = 10;
 	ctx->reliable = 0;
-	reset_decode_result(ctx);
 	ctx->decode = NULL;
 	ctx->recv = NULL;
 	ctx->hdrlen = NULL;
@@ -1602,13 +1601,15 @@ static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
 	ctx->m_cwndseqbak = 0;
 	ctx->m_recvseqbak = 0;
 	ctx->m_sendseqbak = 0;
+	ctx->m_lastactive_msec = 0;
+	ctx->m_heartbeat_msec = 0;
 	ctx->m_inbuf = NULL;
 	ctx->m_inbufoff = 0;
 	ctx->m_inbuflen = 0;
 	listInit(&ctx->m_recvpacketlist);
 	listInit(&ctx->m_sendpacketlist);
 	listInit(&ctx->m_sendpacketlistbak);
-	return ctx;
+	return reset_decode_result(ctx);
 }
 
 Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int protocol, int transport_side) {
@@ -1670,10 +1671,7 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->m_readol = NULL;
 	s->m_writeol = NULL;
 	s->m_writeol_has_commit = 0;
-	s->m_lastactive_msec = 0;
-	s->m_heartbeat_msec = 0;
 	s->m_recvpacket_maxcnt = 8;
-
 	netTransportInitCtx(&s->ctx);
 	s->ctx.io_object = s;
 	return s;
@@ -1722,8 +1720,8 @@ static void closelist_update(SessionLoop_t* loop, long long timestamp_msec) {
 	for (cur = loop->m_closelist.head; cur; cur = next) {
 		Session_t* s = pod_container_of(cur, Session_t, m_closemsg.m_listnode);
 		next = cur->next;
-		if (s->m_lastactive_msec + s->close_timeout_msec > timestamp_msec) {
-			update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+		if (s->ctx.m_lastactive_msec + s->close_timeout_msec > timestamp_msec) {
+			update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
 			continue;
 		}
 		s->ctx.m_status = NO_STATUS;
@@ -1748,9 +1746,9 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 		Session_t* s = pod_container_of(cur, Session_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
-			if (s->keepalive_timeout_sec > 0 && s->m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
+			if (s->keepalive_timeout_sec > 0 && s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
 				if (ESTABLISHED_STATUS == s->ctx.m_status && s->zombie && s->zombie(s)) {
-					s->m_lastactive_msec = timestamp_msec;
+					s->ctx.m_lastactive_msec = timestamp_msec;
 					continue;
 				}
 				s->m_valid = 0;
@@ -1760,16 +1758,16 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 			}
 			else {
 				if (SESSION_TRANSPORT_CLIENT == s->transport_side && s->send_heartbeat_to_server &&
-					s->m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0)
+					s->ctx.m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0)
 				{
-					if (s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000 <= timestamp_msec) {
-						s->m_heartbeat_msec = timestamp_msec;
+					if (s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000 <= timestamp_msec) {
+						s->ctx.m_heartbeat_msec = timestamp_msec;
 						s->send_heartbeat_to_server(s);
 					}
-					update_timestamp(&loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 				}
 				if (s->keepalive_timeout_sec > 0)
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				if (SOCK_DGRAM == s->socktype && s->ctx.reliable) {
 					reliable_dgram_update(loop, s, timestamp_msec);
 					if (s->m_valid)
@@ -1849,8 +1847,8 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				free_io_resource(s);
 			}
 			if (s->close_timeout_msec > 0) {
-				s->m_lastactive_msec = timestamp_msec;
-				update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+				s->ctx.m_lastactive_msec = timestamp_msec;
+				update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
 				listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
 			}
 			else {
@@ -1895,7 +1893,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				}
 				else if (ESTABLISHED_STATUS == s->ctx.m_status) {
 					s->ctx.m_status = ESTABLISHED_FIN_STATUS;
-					s->m_heartbeat_msec = 0;
+					s->ctx.m_heartbeat_msec = 0;
 					socketShutdown(s->fd, SHUT_WR);
 				}
 			}
@@ -1944,7 +1942,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				free_io_resource(s);
 				free_inbuf(&s->ctx);
 				s->m_writeol_has_commit = 0;
-				s->m_heartbeat_msec = 0;
+				s->ctx.m_heartbeat_msec = 0;
 				do {
 					ok = 0;
 					s->fd = socket(s->domain, s->socktype, s->protocol);
@@ -1973,7 +1971,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					}
 					s->m_writeol_has_commit = 1;
 					s->ctx.m_status = SYN_SENT_STATUS;
-					s->m_lastactive_msec = timestamp_msec;
+					s->ctx.m_lastactive_msec = timestamp_msec;
 					hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
 					ok = 1;
 				} while (0);
@@ -1984,8 +1982,8 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					s->connect(s, errnoGet(), s->m_connect_times++, s->ctx.m_recvseq, s->ctx.m_cwndseq);
 
 					if (s->close_timeout_msec > 0) {
-						s->m_lastactive_msec = timestamp_msec;
-						update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->close_timeout_msec);
+						s->ctx.m_lastactive_msec = timestamp_msec;
+						update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
 						listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
 					}
 					else {
@@ -1999,8 +1997,8 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			}
 			else if (ESTABLISHED_STATUS == s->ctx.m_status) {
 				reliable_dgram_do_reconnect(s);
-				s->m_lastactive_msec = timestamp_msec;
-				s->m_heartbeat_msec = 0;
+				s->ctx.m_lastactive_msec = timestamp_msec;
+				s->ctx.m_heartbeat_msec = 0;
 				s->ctx.m_status = RECONNECT_STATUS;
 				s->ctx.m_reconnect_times = 0;
 				s->ctx.m_reconnect_msec = timestamp_msec + s->ctx.rto;
@@ -2042,7 +2040,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			do {
 				if (!nioreactorReg(&loop->m_reactor, s->fd))
 					break;
-				s->m_lastactive_msec = timestamp_msec;
+				s->ctx.m_lastactive_msec = timestamp_msec;
 				if (SOCK_STREAM == s->socktype) {
 					if (SESSION_TRANSPORT_CLIENT == s->transport_side) {
 						BOOL has_connected;
@@ -2052,7 +2050,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						if (has_connected) {
 							if (!reactorsocket_read(s))
 								break;
-							s->m_heartbeat_msec = timestamp_msec;
+							s->ctx.m_heartbeat_msec = timestamp_msec;
 							s->ctx.m_status = ESTABLISHED_STATUS;
 							immedinate_call = 1;
 						}
@@ -2086,7 +2084,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						}
 						else {
 							s->ctx.m_status = ESTABLISHED_STATUS;
-							s->m_heartbeat_msec = timestamp_msec;
+							s->ctx.m_heartbeat_msec = timestamp_msec;
 						}
 						if (!reactorsocket_read(s))
 							break;
@@ -2120,7 +2118,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						}
 						else {
 							s->ctx.m_status = ESTABLISHED_STATUS;
-							s->m_heartbeat_msec = timestamp_msec;
+							s->ctx.m_heartbeat_msec = timestamp_msec;
 							immedinate_call = 1;
 						}
 						if (s->close_timeout_msec < MSL + MSL) {
@@ -2135,11 +2133,11 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						break;
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
-				if (s->m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+				if (s->ctx.m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
 				}
 				if (s->keepalive_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->m_lastactive_msec + s->keepalive_timeout_sec * 1000);
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000);
 				}
 				reg_ok = 1;
 			} while (0);
