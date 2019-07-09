@@ -23,6 +23,7 @@ util/
 			collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
+				base64			提供base64编解码接口  
 				hash			提供一些常用的hash算法  
 				hashtable		类型无关的哈希表  
 				rbtree			类型无关的红黑树(内部基于linux内核红黑树代码)  
@@ -31,13 +32,12 @@ util/
 				strings			一些安全的字符串操作接口  
 				tree			类型无关的普通树  
 				sort			合并有序数组,topN统计接口  
-				url				URL解析  
+				url				URL解析与编解码接口  
 				sha1			SHA1编解码,来源于Redis源码  
 		sysapi/  
 				alloca			提供统一的内存对齐的分配释放接口  
 				assert			提供一个相对于assert的高级断言  
 				atomic			提供统一的原子操作接口  
-				crypt			提供CRC32,MD5,SHA1,BASE64编解码(类unix平台需要基于openssl库)  
 				error			提供统一的系统错误码接口  
 				file			提供统一的文件与目录操作接口  
 				io				提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
@@ -49,7 +49,7 @@ util/
 				statistics		一些杂项统计接口  
 				terminal		提供获取终端名字,统一的kbhit/getch接口  
 				time			提供统一的线程安全的时间接口  
-				uuid			提供统一的UUID获取接口(类unix平台需要基于openssl库)  
+				uuid			提供统一的UUID获取接口(类unix平台需要基于uuid库)  
 		c++/  
 			cpp_compiler_define	判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
 			exception			包含文件名称,行号,出错语句的异常  
