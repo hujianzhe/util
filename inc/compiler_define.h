@@ -35,6 +35,8 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#pragma warning(disable:4800)
 	#pragma warning(disable:4819)
 	#pragma warning(disable:4996)
+	#pragma warning(disable:6255)
+	#pragma warning(disable:26451)
 
 	#define	__declspec_align(alignment)				__declspec(align(alignment))
 	#define	__declspec_code_seg(name)				__declspec(code_seg(name))
