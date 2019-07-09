@@ -104,13 +104,7 @@ typedef struct Session_t {
 	int m_writeol_has_commit;
 	long long m_lastactive_msec;
 	long long m_heartbeat_msec;
-	unsigned char *m_inbuf;
-	size_t m_inbufoffset;
-	size_t m_inbuflen;
 	unsigned short m_recvpacket_maxcnt;
-	List_t m_recvpacketlist;
-	List_t m_sendpacketlist;
-	List_t m_sendpacketlist_bak;
 	struct {
 	/* public */
 		struct sockaddr_storage peer_saddr;
@@ -118,7 +112,7 @@ typedef struct Session_t {
 		unsigned short rto;
 		unsigned char resend_maxtimes;
 		unsigned char cwndsize;
-		unsigned char enable;
+		unsigned char reliable;
 	/* private */
 		unsigned char m_status;
 		unsigned char m_synrcvd_times;
@@ -135,7 +129,13 @@ typedef struct Session_t {
 		unsigned int m_cwndseq_bak;
 		unsigned int m_recvseq_bak;
 		unsigned int m_sendseq_bak;
-	} reliable;
+		unsigned char *m_inbuf;
+		size_t m_inbufoff;
+		size_t m_inbuflen;
+		List_t m_recvpacketlist;
+		List_t m_sendpacketlist;
+		List_t m_sendpacketlist_bak;
+	} ctx;
 } Session_t;
 
 #ifdef __cplusplus
