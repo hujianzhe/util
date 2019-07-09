@@ -45,7 +45,7 @@ enum {
 	SESSION_TRANSPORT_LISTEN
 };
 
-typedef struct NetTransportCtx_t {
+typedef struct TransportCtx_t {
 	/* public */
 	void* io_object;
 	struct sockaddr_storage peer_saddr;
@@ -61,12 +61,12 @@ typedef struct NetTransportCtx_t {
 		int bodylen;
 		unsigned char* bodyptr;
 	} decode_result;
-	void(*decode)(struct NetTransportCtx_t* self, unsigned char* buf, size_t buflen);
-	void(*recv)(struct NetTransportCtx_t* self, const struct sockaddr_storage* addr);
+	void(*decode)(struct TransportCtx_t* self, unsigned char* buf, size_t buflen);
+	void(*recv)(struct TransportCtx_t* self, const struct sockaddr_storage* addr);
 	size_t(*hdrlen)(size_t bodylen);
 	void(*encode)(unsigned char* hdrptr, size_t bodylen);
-	void(*heartbeat)(struct NetTransportCtx_t* self);
-	int(*zombie)(struct NetTransportCtx_t* self);
+	void(*heartbeat)(struct TransportCtx_t* self);
+	int(*zombie)(struct TransportCtx_t* self);
 	int heartbeat_timeout_sec;
 	int zombie_timeout_sec;
 	/* private */
@@ -93,7 +93,7 @@ typedef struct NetTransportCtx_t {
 	List_t m_recvpacketlist;
 	List_t m_sendpacketlist;
 	List_t m_sendpacketlistbak;
-} NetTransportCtx_t;
+} TransportCtx_t;
 
 typedef struct Session_t {
 /* public */
@@ -121,7 +121,7 @@ typedef struct Session_t {
 	void(*free)(struct Session_t*);
 	SessionInternalMsg_t shutdownmsg;
 	SessionInternalMsg_t closemsg;
-	NetTransportCtx_t ctx;
+	TransportCtx_t ctx;
 /* private */
 	volatile char m_valid;
 	Atom16_t m_shutdownflag;

@@ -191,14 +191,14 @@ static void free_io_resource(Session_t* s) {
 	}
 }
 
-static void free_inbuf(NetTransportCtx_t* ctx) {
+static void free_inbuf(TransportCtx_t* ctx) {
 	free(ctx->m_inbuf);
 	ctx->m_inbuf = NULL;
 	ctx->m_inbuflen = 0;
 	ctx->m_inbufoff = 0;
 }
 
-static NetTransportCtx_t* reset_decode_result(NetTransportCtx_t* ctx) {
+static TransportCtx_t* reset_decode_result(TransportCtx_t* ctx) {
 	ctx->decode_result.err = 0;
 	ctx->decode_result.incomplete = 0;
 	ctx->decode_result.decodelen = 0;
@@ -248,7 +248,7 @@ static void session_replace_transport(Session_t* s, SessionTransportStatus_t* ta
 	listInit(&target_status->m_recvpacketlist);
 }
 
-static void session_grab_transport(NetTransportCtx_t* ctx, SessionTransportStatus_t* target_status) {
+static void session_grab_transport(TransportCtx_t* ctx, SessionTransportStatus_t* target_status) {
 	target_status->m_cwndseq = ctx->m_cwndseq;
 	target_status->m_recvseq = ctx->m_recvseq;
 	target_status->m_sendseq = ctx->m_sendseq;
@@ -261,7 +261,7 @@ static void session_grab_transport(NetTransportCtx_t* ctx, SessionTransportStatu
 	listInit(&ctx->m_sendpacketlist);
 }
 
-static int session_grab_transport_check(NetTransportCtx_t* ctx, unsigned int recvseq, unsigned int cwndseq) {
+static int session_grab_transport_check(TransportCtx_t* ctx, unsigned int recvseq, unsigned int cwndseq) {
 	if (seq1_before_seq2(recvseq, ctx->m_cwndseq))
 		return 0;
 	if (seq1_before_seq2(ctx->m_recvseq, cwndseq))
@@ -330,7 +330,7 @@ static void stream_send_packet_continue(Session_t* s) {
 	}
 }
 
-static void reliable_stream_bak(NetTransportCtx_t* ctx) {
+static void reliable_stream_bak(TransportCtx_t* ctx) {
 	ListNode_t* cur, *next;
 	ctx->m_sendpacketlistbak = ctx->m_sendpacketlist;
 	listInit(&ctx->m_sendpacketlist);
@@ -351,7 +351,7 @@ static void reliable_stream_bak(NetTransportCtx_t* ctx) {
 	ctx->m_sendseqbak = ctx->m_sendseq;
 }
 
-static void reliable_stream_bak_recovery(NetTransportCtx_t* ctx) {
+static void reliable_stream_bak_recovery(TransportCtx_t* ctx) {
 	ctx->m_recvseq = ctx->m_recvseqbak;
 	ctx->m_sendseq = ctx->m_sendseqbak;
 	ctx->m_cwndseq = ctx->m_cwndseqbak;
@@ -1558,7 +1558,7 @@ void sessionShutdown(Session_t* s) {
 	sessionloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg.m_listnode);
 }
 
-static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
+static TransportCtx_t* netTransportInitCtx(TransportCtx_t* ctx) {
 	ctx->io_object = NULL;
 	ctx->peer_saddr.ss_family = AF_UNSPEC;
 	ctx->mtu = 1464;
