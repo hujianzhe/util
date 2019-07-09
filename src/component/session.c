@@ -1589,7 +1589,7 @@ static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
 	ctx->heartbeat = NULL;
 	ctx->zombie = NULL;
 	ctx->heartbeat_timeout_sec = 0;
-	ctx->keepalive_timeout_sec = 0;
+	ctx->zombie_timeout_sec = 0;
 	ctx->m_status = NO_STATUS;
 	ctx->m_synrcvd_times = 0;
 	ctx->m_synsent_times = 0;
@@ -1746,14 +1746,14 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 		Session_t* s = pod_container_of(cur, Session_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
-			if (s->ctx.keepalive_timeout_sec > 0 && s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000 <= timestamp_msec) {
+			if (s->ctx.zombie_timeout_sec > 0 && s->ctx.m_lastactive_msec + s->ctx.zombie_timeout_sec * 1000 <= timestamp_msec) {
 				if (ESTABLISHED_STATUS == s->ctx.m_status && s->ctx.zombie && s->ctx.zombie(&s->ctx)) {
 					s->ctx.m_lastactive_msec = timestamp_msec;
 					continue;
 				}
 				s->m_valid = 0;
 				free_inbuf(&s->ctx);
-				if (SOCK_STREAM == s->socktype || s->ctx.keepalive_timeout_sec * 1000 >= s->close_timeout_msec)
+				if (SOCK_STREAM == s->socktype || s->ctx.zombie_timeout_sec * 1000 >= s->close_timeout_msec)
 					free_io_resource(s);
 			}
 			else {
@@ -1766,8 +1766,8 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 					}
 					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 				}
-				if (s->ctx.keepalive_timeout_sec > 0)
-					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000);
+				if (s->ctx.zombie_timeout_sec > 0)
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.zombie_timeout_sec * 1000);
 				if (SOCK_DGRAM == s->socktype && s->ctx.reliable) {
 					reliable_dgram_update(loop, s, timestamp_msec);
 					if (s->m_valid)
@@ -2136,8 +2136,8 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 				if (s->ctx.m_heartbeat_msec > 0 && s->ctx.heartbeat_timeout_sec > 0) {
 					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 				}
-				if (s->ctx.keepalive_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000);
+				if (s->ctx.zombie_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.zombie_timeout_sec * 1000);
 				}
 				reg_ok = 1;
 			} while (0);

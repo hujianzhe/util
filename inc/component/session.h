@@ -68,7 +68,7 @@ typedef struct NetTransportCtx_t {
 	void(*heartbeat)(struct NetTransportCtx_t* self);
 	int(*zombie)(struct NetTransportCtx_t* self);
 	int heartbeat_timeout_sec;
-	int keepalive_timeout_sec;
+	int zombie_timeout_sec;
 	/* private */
 	unsigned char m_status;
 	unsigned char m_synrcvd_times;
