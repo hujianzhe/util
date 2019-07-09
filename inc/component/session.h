@@ -65,6 +65,10 @@ typedef struct NetTransportCtx_t {
 	void(*recv)(struct NetTransportCtx_t* self, const struct sockaddr_storage* addr);
 	size_t(*hdrlen)(size_t bodylen);
 	void(*encode)(unsigned char* hdrptr, size_t bodylen);
+	void(*heartbeat)(struct NetTransportCtx_t* self);
+	int(*zombie)(struct NetTransportCtx_t* self);
+	int heartbeat_timeout_sec;
+	int keepalive_timeout_sec;
 	/* private */
 	unsigned char m_status;
 	unsigned char m_synrcvd_times;
@@ -97,8 +101,6 @@ typedef struct Session_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int heartbeat_timeout_sec;
-	int keepalive_timeout_sec;
 	int close_timeout_msec;
 	int transport_side;
 	unsigned int sessionid_len;
@@ -113,9 +115,7 @@ typedef struct Session_t {
 		void(*connect)(struct Session_t* self, int err, int times, unsigned int self_recvseq, unsigned int self_cwndseq);
 		const void* reg_or_connect;
 	};
-	int(*zombie)(struct Session_t* self);
 	void(*accept)(struct Session_t* self, FD_t newfd, const struct sockaddr_storage* peeraddr);
-	void(*send_heartbeat_to_server)(struct Session_t* self);
 	void(*shutdown)(struct Session_t* self);
 	void(*close)(struct Session_t* self);
 	void(*free)(struct Session_t*);

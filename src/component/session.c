@@ -791,8 +791,8 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				return 1;
 			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->ctx.m_heartbeat_msec = timestamp_msec;
-			if (s->heartbeat_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+			if (s->ctx.heartbeat_timeout_sec > 0) {
+				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 			}
 			s->ctx.m_status = ESTABLISHED_STATUS;
 		}
@@ -820,8 +820,8 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			s->ctx.m_status = ESTABLISHED_STATUS;
 			s->connect(s, 0, s->m_connect_times++, 0, 0);
 			s->ctx.m_heartbeat_msec = timestamp_msec;
-			if (s->heartbeat_timeout_sec > 0) {
-				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+			if (s->ctx.heartbeat_timeout_sec > 0) {
+				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 			}
 		}
 		socketWrite(s->fd, NULL, 0, 0, &s->ctx.peer_saddr, sockaddrLength(&s->ctx.peer_saddr));
@@ -1321,8 +1321,8 @@ static void reactor_socket_do_write(Session_t* s, long long timestamp_msec) {
 			}
 			if (ESTABLISHED_STATUS == s->ctx.m_status) {
 				s->ctx.m_heartbeat_msec = timestamp_msec;
-				if (s->heartbeat_timeout_sec > 0)
-					update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+				if (s->ctx.heartbeat_timeout_sec > 0)
+					update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 			}
 		}
 		s->connect(s, err, s->m_connect_times++, s->ctx.m_recvseq, s->ctx.m_cwndseq);
@@ -1586,6 +1586,10 @@ static NetTransportCtx_t* netTransportInitCtx(NetTransportCtx_t* ctx) {
 	ctx->recv = NULL;
 	ctx->hdrlen = NULL;
 	ctx->encode = NULL;
+	ctx->heartbeat = NULL;
+	ctx->zombie = NULL;
+	ctx->heartbeat_timeout_sec = 0;
+	ctx->keepalive_timeout_sec = 0;
 	ctx->m_status = NO_STATUS;
 	ctx->m_synrcvd_times = 0;
 	ctx->m_synsent_times = 0;
@@ -1638,8 +1642,6 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->domain = domain;
 	s->socktype = socktype;
 	s->protocol = protocol;
-	s->heartbeat_timeout_sec = 0;
-	s->keepalive_timeout_sec = 0;
 	s->close_timeout_msec = 0;
 	s->transport_side = transport_side;
 	s->sessionid_len = 0;
@@ -1648,9 +1650,7 @@ Session_t* sessionCreate(Session_t* s, FD_t fd, int domain, int socktype, int pr
 	s->local_listen_saddr.ss_family = AF_UNSPEC;
 	s->peer_listen_saddr.ss_family = AF_UNSPEC;
 	s->reg_or_connect = NULL;
-	s->zombie = NULL;
 	s->accept = NULL;
-	s->send_heartbeat_to_server = NULL;
 	s->shutdown = NULL;
 	s->close = NULL;
 	s->free = NULL;
@@ -1746,28 +1746,28 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 		Session_t* s = pod_container_of(cur, Session_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (s->m_valid) {
-			if (s->keepalive_timeout_sec > 0 && s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000 <= timestamp_msec) {
-				if (ESTABLISHED_STATUS == s->ctx.m_status && s->zombie && s->zombie(s)) {
+			if (s->ctx.keepalive_timeout_sec > 0 && s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000 <= timestamp_msec) {
+				if (ESTABLISHED_STATUS == s->ctx.m_status && s->ctx.zombie && s->ctx.zombie(&s->ctx)) {
 					s->ctx.m_lastactive_msec = timestamp_msec;
 					continue;
 				}
 				s->m_valid = 0;
 				free_inbuf(&s->ctx);
-				if (SOCK_STREAM == s->socktype || s->keepalive_timeout_sec * 1000 >= s->close_timeout_msec)
+				if (SOCK_STREAM == s->socktype || s->ctx.keepalive_timeout_sec * 1000 >= s->close_timeout_msec)
 					free_io_resource(s);
 			}
 			else {
-				if (SESSION_TRANSPORT_CLIENT == s->transport_side && s->send_heartbeat_to_server &&
-					s->ctx.m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0)
+				if (SESSION_TRANSPORT_CLIENT == s->transport_side && s->ctx.heartbeat &&
+					s->ctx.m_heartbeat_msec > 0 && s->ctx.heartbeat_timeout_sec > 0)
 				{
-					if (s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000 <= timestamp_msec) {
+					if (s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000 <= timestamp_msec) {
 						s->ctx.m_heartbeat_msec = timestamp_msec;
-						s->send_heartbeat_to_server(s);
+						s->ctx.heartbeat(&s->ctx);
 					}
-					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 				}
-				if (s->keepalive_timeout_sec > 0)
-					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000);
+				if (s->ctx.keepalive_timeout_sec > 0)
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000);
 				if (SOCK_DGRAM == s->socktype && s->ctx.reliable) {
 					reliable_dgram_update(loop, s, timestamp_msec);
 					if (s->m_valid)
@@ -2133,11 +2133,11 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 						break;
 				}
 				hashtableReplaceNode(hashtableInsertNode(&loop->m_sockht, &s->m_hashnode), &s->m_hashnode);
-				if (s->ctx.m_heartbeat_msec > 0 && s->heartbeat_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->heartbeat_timeout_sec * 1000);
+				if (s->ctx.m_heartbeat_msec > 0 && s->ctx.heartbeat_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->ctx.m_heartbeat_msec + s->ctx.heartbeat_timeout_sec * 1000);
 				}
-				if (s->keepalive_timeout_sec > 0) {
-					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->keepalive_timeout_sec * 1000);
+				if (s->ctx.keepalive_timeout_sec > 0) {
+					update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->ctx.keepalive_timeout_sec * 1000);
 				}
 				reg_ok = 1;
 			} while (0);
