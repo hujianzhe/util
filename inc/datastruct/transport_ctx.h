@@ -37,10 +37,12 @@ typedef struct NetPacket_t {
 	char need_ack;
 	char wait_ack;
 	union {
+		/* dgram */
 		struct {
 			char resend_times;
 			long long resend_msec;
 		};
+		/* stream */
 		struct {
 			unsigned int off;
 		};
