@@ -12,12 +12,13 @@ typedef struct TransportCtx_t {
 	unsigned short rto;
 	unsigned char resend_maxtimes;
 	unsigned char cwndsize;
-	unsigned int cwndseq;
-	unsigned int recvseq;
-	unsigned int sendseq;
 	List_t sendpacketlist;
 	List_t recvpacketlist;
+	/* private */
 	ListNode_t* m_recvnode;
+	unsigned int m_cwndseq;
+	unsigned int m_recvseq;
+	unsigned int m_sendseq;
 	unsigned int m_ackseq;
 } TransportCtx_t;
 
@@ -35,10 +36,16 @@ typedef struct NetPacket_t {
 	char type;
 	char need_ack;
 	char wait_ack;
-	char resend_times;
-	long long resend_msec;
+	union {
+		struct {
+			char resend_times;
+			long long resend_msec;
+		};
+		struct {
+			unsigned int off;
+		};
+	};
 	unsigned int seq;
-	unsigned int off;
 	unsigned int len;
 	unsigned char data[1];
 } NetPacket_t;
@@ -47,6 +54,7 @@ typedef struct NetPacket_t {
 extern "C" {
 #endif
 
+__declspec_dll TransportCtx_t* transportctxInit(TransportCtx_t* ctx);
 __declspec_dll int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list);
 __declspec_dll NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq, int* cwndskip);

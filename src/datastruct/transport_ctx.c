@@ -10,8 +10,16 @@
 extern "C" {
 #endif
 
+TransportCtx_t* transportctxInit(TransportCtx_t* ctx) {
+	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = 0;
+	ctx->m_recvnode = (struct ListNode_t*)0;
+	listInit(&ctx->recvpacketlist);
+	listInit(&ctx->sendpacketlist);
+	return ctx;
+}
+
 int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
-	if (seq1_before_seq2(packet->seq, ctx->recvseq))
+	if (seq1_before_seq2(packet->seq, ctx->m_recvseq))
 		return 0;
 	else {
 		ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvpacketlist.head;
@@ -30,9 +38,9 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 		cur = &packet->node._;
 		while (cur) {
 			packet = pod_container_of(cur, NetPacket_t, node);
-			if (ctx->recvseq != packet->seq)
+			if (ctx->m_recvseq != packet->seq)
 				break;
-			ctx->recvseq++;
+			ctx->m_recvseq++;
 			ctx->m_recvnode = &packet->node._;
 			cur = cur->next;
 		}
@@ -59,7 +67,7 @@ int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
 	ListNode_t* cur, *next;
 	*cwndskip = 0;
-	if (seq1_before_seq2(ackseq, ctx->cwndseq))
+	if (seq1_before_seq2(ackseq, ctx->m_cwndseq))
 		return (NetPacket_t*)0;
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -71,14 +79,14 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 		if (seq1_before_seq2(ctx->m_ackseq, ackseq))
 			ctx->m_ackseq = ackseq;
 		listRemoveNode(&ctx->sendpacketlist, cur);
-		if (packet->seq == ctx->cwndseq) {
+		if (packet->seq == ctx->m_cwndseq) {
 			if (next) {
 				packet = pod_container_of(next, NetPacket_t, node);
-				ctx->cwndseq = packet->seq;
+				ctx->m_cwndseq = packet->seq;
 				*cwndskip = 1;
 			}
 			else
-				ctx->cwndseq = ctx->m_ackseq + 1;
+				ctx->m_cwndseq = ctx->m_ackseq + 1;
 		}
 		return packet;
 	}
@@ -86,17 +94,13 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 }
 
 void transportctxInsertSendPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
-	packet->need_ack = 1;
 	packet->wait_ack = 0;
-	packet->resend_times = 0;
-	packet->resend_msec = 0;
-	packet->seq = ctx->sendseq++;
-	packet->off = 0;
+	packet->seq = ctx->m_sendseq++;
 	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 }
 
 int transportctxSendWindowHasPacket(TransportCtx_t* ctx, unsigned int seq) {
-	return seq >= ctx->cwndseq && seq - ctx->cwndseq < ctx->cwndsize;
+	return seq >= ctx->m_cwndseq && seq - ctx->m_cwndseq < ctx->cwndsize;
 }
 
 #ifdef	__cplusplus
