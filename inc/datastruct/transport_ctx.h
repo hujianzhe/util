@@ -14,6 +14,7 @@ typedef struct TransportCtx_t {
 	unsigned char cwndsize;
 	List_t sendpacketlist;
 	List_t recvpacketlist;
+	void* userdata;
 	/* private */
 	ListNode_t* m_recvnode;
 	unsigned int m_cwndseq;
