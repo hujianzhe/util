@@ -66,7 +66,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 		next = cur->next;
 		if (packet->seq != ackseq)
 			continue;
-		if (0 == packet->resend_msec)
+		if (0 == packet->wait_ack)
 			break;
 		ctx->m_ackseq = ackseq;
 		listRemoveNode(&ctx->sendpacketlist, cur);
@@ -86,6 +86,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 
 void transportctxInsertSendPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 	packet->need_ack = 1;
+	packet->wait_ack = 0;
 	packet->resend_times = 0;
 	packet->resend_msec = 0;
 	packet->seq = ctx->sendseq++;

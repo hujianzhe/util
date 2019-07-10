@@ -34,6 +34,7 @@ typedef struct NetPacket_t {
 	void* userdata;
 	char type;
 	char need_ack;
+	char wait_ack;
 	char resend_times;
 	long long resend_msec;
 	unsigned int seq;
