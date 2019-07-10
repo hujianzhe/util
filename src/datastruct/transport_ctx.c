@@ -14,8 +14,8 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 	if (seq1_before_seq2(packet->seq, ctx->recvseq))
 		return 0;
 	else {
-		ListNode_t* cur;
-		for (cur = ctx->recvnode; cur; cur = cur->next) {
+		ListNode_t* cur = ctx->recvnode ? ctx->recvnode : ctx->recvpacketlist.head;
+		for (; cur; cur = cur->next) {
 			NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
 			if (seq1_before_seq2(packet->seq, pk->seq))
 				break;
@@ -26,9 +26,15 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 			listInsertNodeFront(&ctx->recvpacketlist, cur, &packet->node._);
 		else
 			listInsertNodeBack(&ctx->recvpacketlist, ctx->recvpacketlist.tail, &packet->node._);
-		if (ctx->recvseq == packet->seq) {
+
+		cur = &packet->node._;
+		while (cur) {
+			packet = pod_container_of(cur, NetPacket_t, node);
+			if (ctx->recvseq != packet->seq)
+				break;
 			ctx->recvseq++;
 			ctx->recvnode = &packet->node._;
+			cur = cur->next;
 		}
 		return 1;
 	}
@@ -36,14 +42,16 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 
 int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
-	for (cur = ctx->recvpacketlist.head; cur && cur != ctx->recvnode; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
-			continue;
-		*list = listSplit(&ctx->recvpacketlist, cur->next);
-		if (!ctx->recvpacketlist.head)
-			ctx->recvnode = (struct ListNode_t*)0;
-		return 1;
+	if (ctx->recvnode) {
+		for (cur = ctx->recvpacketlist.head; cur && cur != ctx->recvnode->next; cur = cur->next) {
+			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
+				continue;
+			*list = listSplitByTail(&ctx->recvpacketlist, cur);
+			if (!ctx->recvpacketlist.head)
+				ctx->recvnode = (struct ListNode_t*)0;
+			return 1;
+		}
 	}
 	return 0;
 }
