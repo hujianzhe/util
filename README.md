@@ -30,7 +30,7 @@ util/
 				list			类型无关的双向链表  
 				random			随机数算法,提供rand48与MT19937算法  
 				strings			一些安全的字符串操作接口  
-				transport_ctx	提供ACK确认的可靠网络包传输的缓存接口,不包含OS对应的IO系统接口,与OS平台无关  
+				transport_ctx	提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,与OS平台无关  
 				tree			类型无关的普通树  
 				sort			合并有序数组,topN统计接口  
 				url				URL解析与编解码接口  
