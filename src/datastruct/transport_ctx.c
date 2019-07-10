@@ -48,7 +48,7 @@ int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
 				continue;
 			*list = listSplitByTail(&ctx->recvpacketlist, cur);
-			if (!ctx->recvpacketlist.head)
+			if (!ctx->recvpacketlist.head || ctx->recvnode == cur)
 				ctx->recvnode = (struct ListNode_t*)0;
 			return 1;
 		}
