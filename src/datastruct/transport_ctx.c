@@ -14,7 +14,7 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 	if (seq1_before_seq2(packet->seq, ctx->recvseq))
 		return 0;
 	else {
-		ListNode_t* cur = ctx->recvnode ? ctx->recvnode : ctx->recvpacketlist.head;
+		ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvpacketlist.head;
 		for (; cur; cur = cur->next) {
 			NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
 			if (seq1_before_seq2(packet->seq, pk->seq))
@@ -33,7 +33,7 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 			if (ctx->recvseq != packet->seq)
 				break;
 			ctx->recvseq++;
-			ctx->recvnode = &packet->node._;
+			ctx->m_recvnode = &packet->node._;
 			cur = cur->next;
 		}
 		return 1;
@@ -42,14 +42,14 @@ int transportctxInsertRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 
 int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
-	if (ctx->recvnode) {
-		for (cur = ctx->recvpacketlist.head; cur && cur != ctx->recvnode->next; cur = cur->next) {
+	if (ctx->m_recvnode) {
+		for (cur = ctx->recvpacketlist.head; cur && cur != ctx->m_recvnode->next; cur = cur->next) {
 			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
 				continue;
 			*list = listSplitByTail(&ctx->recvpacketlist, cur);
-			if (!ctx->recvpacketlist.head || ctx->recvnode == cur)
-				ctx->recvnode = (struct ListNode_t*)0;
+			if (!ctx->recvpacketlist.head || ctx->m_recvnode == cur)
+				ctx->m_recvnode = (struct ListNode_t*)0;
 			return 1;
 		}
 	}
@@ -68,6 +68,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 			continue;
 		if (0 == packet->resend_msec)
 			break;
+		ctx->m_ackseq = ackseq;
 		listRemoveNode(&ctx->sendpacketlist, cur);
 		if (packet->seq == ctx->cwndseq) {
 			if (next) {
@@ -76,7 +77,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 				*cwndskip = 1;
 			}
 			else
-				ctx->cwndseq++;
+				ctx->cwndseq = ctx->m_ackseq;
 		}
 		return packet;
 	}

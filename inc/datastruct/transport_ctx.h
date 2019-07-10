@@ -17,7 +17,8 @@ typedef struct TransportCtx_t {
 	unsigned int sendseq;
 	List_t sendpacketlist;
 	List_t recvpacketlist;
-	ListNode_t* recvnode;
+	ListNode_t* m_recvnode;
+	unsigned int m_ackseq;
 } TransportCtx_t;
 
 enum {
