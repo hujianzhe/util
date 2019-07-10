@@ -66,7 +66,7 @@ typedef struct NetPacket_t {
 extern "C" {
 #endif
 
-__declspec_dll TransportCtx_t* transportctxInit(TransportCtx_t* ctx);
+__declspec_dll TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq);
 __declspec_dll int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq);
 __declspec_dll int transportctxCacheRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list);
@@ -74,7 +74,7 @@ __declspec_dll NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsig
 __declspec_dll void transportctxCacheSendPacket(TransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int transportctxSendWindowHasPacket(TransportCtx_t* ctx, unsigned int seq);
 
-__declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx);
+__declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq);
 __declspec_dll int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq);
 __declspec_dll int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list);

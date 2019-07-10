@@ -12,8 +12,8 @@ extern "C" {
 
 /*********************************************************************************/
 
-TransportCtx_t* transportctxInit(TransportCtx_t* ctx) {
-	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = 0;
+TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq) {
+	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
@@ -121,8 +121,8 @@ int transportctxSendWindowHasPacket(TransportCtx_t* ctx, unsigned int seq) {
 
 /*********************************************************************************/
 
-StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx) {
-	ctx->m_recvseq = ctx->m_sendseq = ctx->m_cwndseq = 0;
+StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
+	ctx->m_recvseq = ctx->m_sendseq = ctx->m_cwndseq = initseq;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
 	return ctx;
