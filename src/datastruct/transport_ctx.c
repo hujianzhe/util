@@ -78,7 +78,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 				*cwndskip = 1;
 			}
 			else
-				ctx->cwndseq = ctx->m_ackseq;
+				ctx->cwndseq = ctx->m_ackseq + 1;
 		}
 		return packet;
 	}
