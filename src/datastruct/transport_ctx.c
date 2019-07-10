@@ -135,7 +135,12 @@ int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq) {
 int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (seq1_before_seq2(packet->seq, ctx->m_recvseq))
 		return 0;
-	else if (NETPACKET_FRAGMENT == packet->type || NETPACKET_FRAGMENT_EOF == packet->type) {
+	else if (packet->seq != ctx->m_recvseq)
+		return 0;
+	else if (NETPACKET_FRAGMENT == packet->type ||
+		NETPACKET_FRAGMENT_EOF == packet->type ||
+		NETPACKET_END == packet->type)
+	{
 		listInsertNodeBack(&ctx->recvpacketlist, ctx->recvpacketlist.tail, &packet->node._);
 		ctx->m_recvseq++;
 		return 1;
@@ -147,7 +152,7 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
 	for (cur = ctx->recvpacketlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (NETPACKET_FRAGMENT_EOF != packet->type)
+		if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
 			continue;
 		*list = listSplitByTail(&ctx->recvpacketlist, cur);
 		return 1;
@@ -182,7 +187,7 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 			continue;
 		if (packet->seq != ackseq)
 			return 0;
-		ctx->m_cwndseq = packet->seq;
+		ctx->m_cwndseq++;
 		listRemoveNode(&ctx->sendpacketlist, cur);
 		*ackpacket = packet;
 		return 1;
