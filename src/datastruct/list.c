@@ -114,7 +114,7 @@ void listReverse(struct List_t* list) {
 	}
 }
 
-struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head) {
+struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head) {
 	struct List_t new_list;
 	if (new_head) {
 		new_list.head = new_head;
@@ -124,9 +124,28 @@ struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head) {
 			new_head->prev->next = (struct ListNode_t*)0;
 			new_head->prev = (struct ListNode_t*)0;
 		}
-		else {
+		if (old_list->head == new_head)
 			old_list->head = (struct ListNode_t*)0;
+	}
+	else {
+		new_list = *old_list;
+		old_list->head = old_list->tail = (struct ListNode_t*)0;
+	}
+	return new_list;
+}
+
+struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_tail) {
+	struct List_t new_list;
+	if (new_tail) {
+		new_list.head = old_list->head;
+		new_list.tail = new_tail;
+		old_list->head = new_tail->next;
+		if (new_tail->next) {
+			new_tail->next->prev = (struct ListNode_t*)0;
+			new_tail->next = (struct ListNode_t*)0;
 		}
+		if (old_list->tail == new_tail)
+			old_list->tail = (struct ListNode_t*)0;
 	}
 	else {
 		new_list = *old_list;

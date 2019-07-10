@@ -60,9 +60,9 @@ void dataqueuePushList(DataQueue_t* dq, List_t* list) {
 }
 
 ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
-	ListNode_t* res = NULL;
+	ListNode_t* res;
 	if (0 == expect_cnt) {
-		return res;
+		return NULL;
 	}
 
 	criticalsectionEnter(&dq->m_cslock);
@@ -83,12 +83,10 @@ ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
 	else {
 		ListNode_t *cur;
 		for (cur = dq->m_datalist.head; cur && --expect_cnt; cur = cur->next);
-		if (0 == expect_cnt && cur && cur->next) {
-			dq->m_datalist = listSplit(&dq->m_datalist, cur->next);
-		}
-		else {
+		if (cur)
+			res = listSplitByTail(&dq->m_datalist, cur).head;
+		else
 			listInit(&dq->m_datalist);
-		}
 	}
 
 	criticalsectionLeave(&dq->m_cslock);

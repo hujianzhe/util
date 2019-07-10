@@ -27,7 +27,8 @@ __declspec_dll void listRemoveNode(struct List_t* list, struct ListNode_t* node)
 __declspec_dll void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node);
 __declspec_dll void listMerge(struct List_t* to, struct List_t* from);
 __declspec_dll void listReverse(struct List_t* list);
-__declspec_dll struct List_t listSplit(struct List_t* old_list, struct ListNode_t* new_head);
+__declspec_dll struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head);
+__declspec_dll struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_tail);
 
 #ifdef	__cplusplus
 }
