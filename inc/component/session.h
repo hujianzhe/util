@@ -34,16 +34,14 @@ enum {
 	SESSION_SHUTDOWN_MESSAGE,
 	SESSION_CLOSE_MESSAGE
 };
-typedef struct SessionInternalMsg_t {
-	ListNode_t m_listnode;
-	int type;
-} SessionInternalMsg_t;
 
 enum {
 	SESSION_TRANSPORT_CLIENT = 1,
 	SESSION_TRANSPORT_SERVER,
 	SESSION_TRANSPORT_LISTEN
 };
+
+typedef ListNodeTemplateDeclare(int, type)	SessionInternalMessage_t;
 
 typedef struct TransportCtx_t {
 	/* public */
@@ -119,19 +117,19 @@ typedef struct Session_t {
 	void(*shutdown)(struct Session_t* self);
 	void(*close)(struct Session_t* self);
 	void(*free)(struct Session_t*);
-	SessionInternalMsg_t shutdownmsg;
-	SessionInternalMsg_t closemsg;
+	SessionInternalMessage_t shutdownmsg;
+	SessionInternalMessage_t closemsg;
 	TransportCtx_t ctx;
 /* private */
 	volatile char m_valid;
 	Atom16_t m_shutdownflag;
 	Atom16_t m_reconnectrecovery;
 	int m_connect_times;
-	SessionInternalMsg_t m_regmsg;
-	SessionInternalMsg_t m_shutdownpostmsg;
-	SessionInternalMsg_t m_netreconnectmsg;
-	SessionInternalMsg_t m_reconnectrecoverymsg;
-	SessionInternalMsg_t m_closemsg;
+	SessionInternalMessage_t m_regmsg;
+	SessionInternalMessage_t m_shutdownpostmsg;
+	SessionInternalMessage_t m_netreconnectmsg;
+	SessionInternalMessage_t m_reconnectrecoverymsg;
+	SessionInternalMessage_t m_closemsg;
 	HashtableNode_t m_hashnode;
 	SessionLoop_t* m_loop;
 	void* m_readol;

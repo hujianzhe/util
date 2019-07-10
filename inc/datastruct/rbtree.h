@@ -22,6 +22,8 @@ typedef struct RBTree_t {
 	int (*keycmp)(const void*, const void*);
 } RBTree_t;
 
+#define	RBTreeNodeTemplateDeclare(type, field)	struct { struct RBTreeNode_t _; type field; }
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

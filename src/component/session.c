@@ -51,7 +51,7 @@ enum {
 #define	MSL								30000
 
 typedef struct Packet_t {
-	SessionInternalMsg_t msg;
+	SessionInternalMessage_t msg;
 	Session_t* s;
 	union {
 		/* udp use */
@@ -90,7 +90,7 @@ typedef struct SessionTransportStatus_t {
 } SessionTransportStatus_t;
 
 typedef struct SessionTransportGrabMsg_t {
-	SessionInternalMsg_t msg;
+	SessionInternalMessage_t msg;
 	Session_t* s;
 	SessionTransportStatus_t target_status;
 	Mutex_t blocklock;
@@ -221,7 +221,7 @@ static void session_replace_transport(Session_t* s, SessionTransportStatus_t* ta
 		Packet_t* packet;
 		ListNode_t* cur, *next;
 		for (cur = s->ctx.m_sendpacketlist.head; cur; cur = next) {
-			packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+			packet = pod_container_of(cur, Packet_t, msg);
 			next = cur->next;
 			if (packet->offset >= packet->len) {
 				listRemoveNode(&s->ctx.m_sendpacketlist, cur);
@@ -232,7 +232,7 @@ static void session_replace_transport(Session_t* s, SessionTransportStatus_t* ta
 			for (cur = s->ctx.m_sendpacketlist.head->next; cur; cur = next) {
 				next = cur->next;
 				listRemoveNode(&s->ctx.m_sendpacketlist, cur);
-				free(cur);
+				free(pod_container_of(cur, Packet_t, msg));
 			}
 		}
 	}
@@ -272,10 +272,10 @@ static int session_grab_transport_check(TransportCtx_t* ctx, unsigned int recvse
 static void stream_send_packet(Session_t* s, Packet_t* packet) {
 	int res;
 	if (s->ctx.m_sendpacketlist.tail) {
-		Packet_t* last_packet = pod_container_of(s->ctx.m_sendpacketlist.tail, Packet_t, msg.m_listnode);
+		Packet_t* last_packet = pod_container_of(s->ctx.m_sendpacketlist.tail, Packet_t, msg);
 		if (last_packet->offset < last_packet->len) {
 			packet->offset = 0;
-			listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg.m_listnode);
+			listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg._);
 			return;
 		}
 	}
@@ -292,7 +292,7 @@ static void stream_send_packet(Session_t* s, Packet_t* packet) {
 		free(packet);
 		return;
 	}
-	listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg.m_listnode);
+	listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg._);
 	packet->offset = res;
 	if (res < packet->len)
 		reactorsocket_write(s);
@@ -305,7 +305,7 @@ static void stream_send_packet_continue(Session_t* s) {
 	}
 	for (cur = s->ctx.m_sendpacketlist.head; cur; cur = next) {
 		int res;
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 		next = cur->next;
 		if (packet->offset >= packet->len) {
 			continue;
@@ -335,7 +335,7 @@ static void reliable_stream_bak(TransportCtx_t* ctx) {
 	ctx->m_sendpacketlistbak = ctx->m_sendpacketlist;
 	listInit(&ctx->m_sendpacketlist);
 	for (cur = ctx->m_sendpacketlistbak.head; cur; cur = next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 		unsigned char hdrtype = packet->type;
 		next = cur->next;
 		if (HDR_DATA != hdrtype) {
@@ -365,11 +365,11 @@ static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 	size_t hdrlen = s->ctx.hdrlen ? s->ctx.hdrlen(RELIABLE_STREAM_DATA_HDR_LEN) : 0;
 	unsigned int sizeof_ack = hdrlen + RELIABLE_STREAM_DATA_HDR_LEN;
 	for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
-		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		packet = pod_container_of(cur, Packet_t, msg);
 		if (packet->offset < packet->len)
 			break;
 	}
-	if (!packet || s->ctx.m_sendpacketlist.tail == &packet->msg.m_listnode) {
+	if (!packet || s->ctx.m_sendpacketlist.tail == &packet->msg._) {
 		int res;
 		unsigned char* ack = (unsigned char*)alloca(sizeof_ack);
 		if (hdrlen && s->ctx.encode) {
@@ -400,7 +400,7 @@ static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 			packet->offset = res;
 			packet->len = sizeof_ack;
 			memcpy(packet->data, ack, sizeof_ack);
-			listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg.m_listnode);
+			listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg._);
 			reactorsocket_write(s);
 		}
 	}
@@ -423,7 +423,7 @@ static int reliable_stream_reply_ack(Session_t* s, unsigned int seq) {
 		}
 		ack_packet->data[hdrlen] = HDR_ACK;
 		*(unsigned int*)(ack_packet->data + hdrlen + 1) = htonl(seq);
-		listInsertNodeBack(&s->ctx.m_sendpacketlist, &packet->msg.m_listnode, &ack_packet->msg.m_listnode);
+		listInsertNodeBack(&s->ctx.m_sendpacketlist, &packet->msg._, &ack_packet->msg._);
 	}
 	return 1;
 }
@@ -437,7 +437,7 @@ static void reliable_stream_do_ack(Session_t* s, unsigned int seq) {
 		unsigned char pkg_hdr_type;
 		unsigned int pkg_seq;
 		next = cur->next;
-		packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		packet = pod_container_of(cur, Packet_t, msg);
 		pkg_hdr_type = packet->type;
 		if (HDR_DATA != pkg_hdr_type)
 			continue;
@@ -447,7 +447,7 @@ static void reliable_stream_do_ack(Session_t* s, unsigned int seq) {
 		if (seq1_before_seq2(seq, pkg_seq))
 			break;
 		if (next) {
-			packet = pod_container_of(next, Packet_t, msg.m_listnode);
+			packet = pod_container_of(next, Packet_t, msg);
 			s->ctx.m_cwndseq = packet->seq;
 		}
 		else
@@ -460,7 +460,7 @@ static void reliable_stream_do_ack(Session_t* s, unsigned int seq) {
 	if (freepacketlist.head) {
 		for (cur = freepacketlist.head; cur; cur = next) {
 			next = cur->next;
-			free(pod_container_of(cur, Packet_t, msg.m_listnode));
+			free(pod_container_of(cur, Packet_t, msg));
 		}
 		stream_send_packet_continue(s);
 	}
@@ -487,7 +487,7 @@ static int reliable_stream_data_packet_handler(Session_t* s, unsigned char* data
 					s->ctx.m_status = RECONNECT_STATUS;
 					s->ctx.m_heartbeat_msec = 0;
 					for (cur = s->ctx.m_sendpacketlist.head; cur; cur = next) {
-						Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+						Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 						next = cur->next;
 						if (0 == packet->offset || packet->offset >= packet->len) {
 							listRemoveNode(&s->ctx.m_sendpacketlist, cur);
@@ -562,7 +562,7 @@ static int data_packet_handler(Session_t* s, unsigned char* data, int len, const
 static void reliable_dgram_send_again(Session_t* s, long long timestamp_msec) {
 	ListNode_t* cur;
 	for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
-		Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+		Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 		if (packet->seq < s->ctx.m_cwndseq ||
 			packet->seq - s->ctx.m_cwndseq >= s->ctx.cwndsize)
 		{
@@ -653,7 +653,7 @@ static void reliable_dgram_shutdown(Session_t* s, long long timestamp_msec) {
 }
 
 static void reliable_dgram_send_packet(Session_t* s, Packet_t* packet, long long timestamp_msec) {
-	listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg.m_listnode);
+	listInsertNodeBack(&s->ctx.m_sendpacketlist, s->ctx.m_sendpacketlist.tail, &packet->msg._);
 	if (packet->seq >= s->ctx.m_cwndseq &&
 		packet->seq - s->ctx.m_cwndseq < s->ctx.cwndsize)
 	{
@@ -914,7 +914,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		ack_valid = 0;
 
 		for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
-			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+			Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 			if (seq1_before_seq2(seq, packet->seq))
 				break;
 			if (seq == packet->seq) {
@@ -923,7 +923,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				free(packet);
 				if (seq == s->ctx.m_cwndseq) {
 					if (next) {
-						packet = pod_container_of(next, Packet_t, msg.m_listnode);
+						packet = pod_container_of(next, Packet_t, msg);
 						s->ctx.m_cwndseq = packet->seq;
 						cwnd_skip = 1;
 					}
@@ -936,7 +936,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		}
 		if (cwnd_skip) {
 			for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
-				Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+				Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 				if (packet->seq < s->ctx.m_cwndseq ||
 					packet->seq - s->ctx.m_cwndseq >= s->ctx.cwndsize)
 				{
@@ -976,7 +976,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			s->ctx.m_recvseq++;
 			reliable_dgram_packet_merge(s, buffer, len, saddr);
 			for (cur = s->ctx.m_recvpacketlist.head; cur; cur = next) {
-				packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+				packet = pod_container_of(cur, Packet_t, msg);
 				if (packet->seq != s->ctx.m_recvseq)
 					break;
 				next = cur->next;
@@ -988,7 +988,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		}
 		else {
 			for (cur = s->ctx.m_recvpacketlist.head; cur; cur = cur->next) {
-				packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+				packet = pod_container_of(cur, Packet_t, msg);
 				if (seq1_before_seq2(seq, packet->seq))
 					break;
 				else if (packet->seq == seq)
@@ -1006,9 +1006,9 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			packet->len = len;
 			memcpy(packet->data, buffer, len);
 			if (cur)
-				listInsertNodeFront(&s->ctx.m_recvpacketlist, cur, &packet->msg.m_listnode);
+				listInsertNodeFront(&s->ctx.m_recvpacketlist, cur, &packet->msg._);
 			else
-				listInsertNodeBack(&s->ctx.m_recvpacketlist, s->ctx.m_recvpacketlist.tail, &packet->msg.m_listnode);
+				listInsertNodeBack(&s->ctx.m_recvpacketlist, s->ctx.m_recvpacketlist.tail, &packet->msg._);
 		}
 	}
 	return 1;
@@ -1116,7 +1116,7 @@ static void reliable_dgram_update(SessionLoop_t* loop, Session_t* s, long long t
 	{
 		ListNode_t* cur;
 		for (cur = s->ctx.m_sendpacketlist.head; cur; cur = cur->next) {
-			Packet_t* packet = pod_container_of(cur, Packet_t, msg.m_listnode);
+			Packet_t* packet = pod_container_of(cur, Packet_t, msg);
 			if (packet->seq < s->ctx.m_cwndseq ||
 				packet->seq - s->ctx.m_cwndseq >= s->ctx.cwndsize)
 			{
@@ -1371,7 +1371,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 				memcpy(packet->data + hdrlen + RELIABLE_STREAM_DATA_HDR_LEN + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
 				nbytes += iobufLen(iov + i);
 			}
-			sessionloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
+			sessionloop_exec_msg(s->m_loop, &packet->msg._);
 		}
 		else if (ESTABLISHED_STATUS == s->ctx.m_status) {
 			Packet_t* packet = NULL;
@@ -1416,7 +1416,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 							++i;
 						}
 					}
-					listInsertNodeBack(&packetlist, packetlist.tail, &packet->msg.m_listnode);
+					listInsertNodeBack(&packetlist, packetlist.tail, &packet->msg._);
 				}
 				if (offset >= nbytes) {
 					packet->data[packet->hdrlen] |= HDR_DATA_END_FLAG;
@@ -1445,7 +1445,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 				if (hdrlen && s->ctx.encode) {
 					s->ctx.encode(packet->data, RELIABLE_DGRAM_DATA_HDR_LEN);
 				}
-				sessionloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
+				sessionloop_exec_msg(s->m_loop, &packet->msg._);
 			}
 		}
 	}
@@ -1469,7 +1469,7 @@ Session_t* sessionSendv(Session_t* s, const Iobuf_t iov[], unsigned int iovcnt, 
 			memcpy(packet->data + hdrlen + nbytes, iobufPtr(iov + i), iobufLen(iov + i));
 			nbytes += iobufLen(iov + i);
 		}
-		sessionloop_exec_msg(s->m_loop, &packet->msg.m_listnode);
+		sessionloop_exec_msg(s->m_loop, &packet->msg._);
 	}
 	return s;
 }
@@ -1482,7 +1482,7 @@ void sessionClientNetReconnect(Session_t* s) {
 	}
 	else if (_xchg16(&s->m_shutdownflag, 1))
 		return;
-	sessionloop_exec_msg(s->m_loop, &s->m_netreconnectmsg.m_listnode);
+	sessionloop_exec_msg(s->m_loop, &s->m_netreconnectmsg._);
 }
 
 void sessionReconnectRecovery(Session_t* s) {
@@ -1493,7 +1493,7 @@ void sessionReconnectRecovery(Session_t* s) {
 	{
 		if (_xchg16(&s->m_reconnectrecovery, 1))
 			return;
-		sessionloop_exec_msg(s->m_loop, &s->m_reconnectrecoverymsg.m_listnode);
+		sessionloop_exec_msg(s->m_loop, &s->m_reconnectrecoverymsg._);
 	}
 }
 
@@ -1527,7 +1527,7 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 			ts->s = target_s;
 			ts->recvseq = recvseq;
 			ts->cwndseq = cwndseq;
-			sessionloop_exec_msg(target_s->m_loop, &ts->msg.m_listnode);
+			sessionloop_exec_msg(target_s->m_loop, &ts->msg._);
 			mutexLock(&ts->blocklock);
 			mutexUnlock(&ts->blocklock);
 			if (!ts->success) {
@@ -1543,7 +1543,7 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 		mutexLock(&ts->blocklock);
 		ts->msg.type = SESSION_TRANSPORT_GRAB_ASYNC_RET_MESSAGE;
 		ts->s = s;
-		sessionloop_exec_msg(s->m_loop, &ts->msg.m_listnode);
+		sessionloop_exec_msg(s->m_loop, &ts->msg._);
 		mutexLock(&ts->blocklock);
 		mutexUnlock(&ts->blocklock);
 		mutexClose(&ts->blocklock);
@@ -1555,7 +1555,7 @@ int sessionTransportGrab(Session_t* s, Session_t* target_s, unsigned int recvseq
 void sessionShutdown(Session_t* s) {
 	if (_xchg16(&s->m_shutdownflag, 1))
 		return;
-	sessionloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg.m_listnode);
+	sessionloop_exec_msg(s->m_loop, &s->m_shutdownpostmsg._);
 }
 
 static TransportCtx_t* netTransportInitCtx(TransportCtx_t* ctx) {
@@ -1684,7 +1684,7 @@ static void session_free(Session_t* s) {
 
 void sessionManualClose(Session_t* s) {
 	if (s->m_loop) {
-		sessionloop_exec_msg(s->m_loop, &s->m_closemsg.m_listnode);
+		sessionloop_exec_msg(s->m_loop, &s->m_closemsg._);
 	}
 	else {
 		session_free(s);
@@ -1702,7 +1702,7 @@ static void closelist_update(SessionLoop_t* loop, long long timestamp_msec) {
 	List_t expirelist;
 	listInit(&expirelist);
 	for (cur = loop->m_closelist.head; cur; cur = next) {
-		Session_t* s = pod_container_of(cur, Session_t, m_closemsg.m_listnode);
+		Session_t* s = pod_container_of(cur, Session_t, m_closemsg);
 		next = cur->next;
 		if (s->ctx.m_lastactive_msec + s->close_timeout_msec > timestamp_msec) {
 			update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
@@ -1715,7 +1715,7 @@ static void closelist_update(SessionLoop_t* loop, long long timestamp_msec) {
 		listInsertNodeBack(&expirelist, expirelist.tail, cur);
 	}
 	for (cur = expirelist.head; cur; cur = next) {
-		Session_t* s = pod_container_of(cur, Session_t, m_closemsg.m_listnode);
+		Session_t* s = pod_container_of(cur, Session_t, m_closemsg);
 		next = cur->next;/* same as list remove node, avoid thread race. */
 		if (s->close) {
 			s->close(s);
@@ -1762,7 +1762,7 @@ static void sockht_update(SessionLoop_t* loop, long long timestamp_msec) {
 			}
 		}
 		hashtableRemoveNode(&loop->m_sockht, cur);
-		listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
+		listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg._);
 		_xchg16(&s->m_shutdownflag, 1);
 	}
 }
@@ -1833,7 +1833,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 			if (s->close_timeout_msec > 0) {
 				s->ctx.m_lastactive_msec = timestamp_msec;
 				update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
-				listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
+				listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg._);
 			}
 			else {
 				s->ctx.m_status = NO_STATUS;
@@ -1854,9 +1854,8 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 	criticalsectionLeave(&loop->m_msglistlock);
 
 	for (; cur; cur = next) {
-		SessionInternalMsg_t* message;
+		SessionInternalMessage_t* message = (SessionInternalMessage_t*)cur;
 		next = cur->next;
-		message = pod_container_of(cur, SessionInternalMsg_t, m_listnode);
 		if (SESSION_CLOSE_MESSAGE == message->type) {
 			Session_t* s = pod_container_of(message, Session_t, m_closemsg);
 			session_free(s);
@@ -1968,7 +1967,7 @@ int sessionloopHandler(SessionLoop_t* loop, NioEv_t e[], int n, long long timest
 					if (s->close_timeout_msec > 0) {
 						s->ctx.m_lastactive_msec = timestamp_msec;
 						update_timestamp(&loop->m_event_msec, s->ctx.m_lastactive_msec + s->close_timeout_msec);
-						listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg.m_listnode);
+						listInsertNodeBack(&loop->m_closelist, loop->m_closelist.tail, &s->m_closemsg._);
 					}
 					else {
 						s->ctx.m_status = NO_STATUS;
@@ -2226,7 +2225,7 @@ void sessionloopReg(SessionLoop_t* loop, Session_t* s[], size_t n) {
 	listInit(&list);
 	for (i = 0; i < n; ++i) {
 		s[i]->m_loop = loop;
-		listInsertNodeBack(&list, list.tail, &s[i]->m_regmsg.m_listnode);
+		listInsertNodeBack(&list, list.tail, &s[i]->m_regmsg._);
 	}
 	sessionloop_exec_msglist(loop, &list);
 }
@@ -2241,10 +2240,10 @@ void sessionloopDestroy(SessionLoop_t* loop) {
 		do {
 			ListNode_t* cur, *next;
 			for (cur = loop->m_msglist.head; cur; cur = next) {
-				SessionInternalMsg_t* msgbase = pod_container_of(cur, SessionInternalMsg_t, m_listnode);
+				SessionInternalMessage_t* msgbase = (SessionInternalMessage_t*)cur;
 				next = cur->next;
 				if (SESSION_PACKET_MESSAGE == msgbase->type)
-					free(cur);
+					free(pod_container_of(cur, Packet_t, msg));
 			}
 		} while (0);
 		do {

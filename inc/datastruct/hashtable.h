@@ -22,6 +22,8 @@ typedef struct Hashtable_t {
 	unsigned int (*keyhash)(const void*);
 } Hashtable_t;
 
+#define	HashtableNodeTemplateDeclare(type, field)	struct { struct HashtableNode_t _; type field; }
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
