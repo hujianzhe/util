@@ -12,7 +12,7 @@ extern "C" {
 
 /*********************************************************************************/
 
-TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq) {
+DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
 	listInit(&ctx->recvpacketlist);
@@ -20,7 +20,7 @@ TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq) {
 	return ctx;
 }
 
-int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq, int pktype) {
+int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) {
 	if (pktype < NETPACKET_FIN)
 		return 0;
 	else if (seq1_before_seq2(seq, ctx->m_recvseq))
@@ -38,7 +38,7 @@ int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq, int pktype) {
 	}
 }
 
-int transportctxCacheRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
+int dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvpacketlist.head;
 	for (; cur; cur = cur->next) {
 		NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
@@ -64,7 +64,7 @@ int transportctxCacheRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 	return 1;
 }
 
-int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
+int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
 	if (ctx->m_recvnode) {
 		for (cur = ctx->recvpacketlist.head; cur && cur != ctx->m_recvnode->next; cur = cur->next) {
@@ -80,7 +80,7 @@ int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
-NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
+NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
 	ListNode_t* cur, *next;
 	*cwndskip = 0;
 	if (seq1_before_seq2(ackseq, ctx->m_cwndseq))
@@ -109,7 +109,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 	return (NetPacket_t*)0;
 }
 
-void transportctxCacheSendPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
+void dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FIN)
 		return;
 	packet->wait_ack = 0;
@@ -117,7 +117,7 @@ void transportctxCacheSendPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
 	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 }
 
-int transportctxSendWindowHasPacket(TransportCtx_t* ctx, unsigned int seq) {
+int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, unsigned int seq) {
 	return seq >= ctx->m_cwndseq && seq - ctx->m_cwndseq < ctx->cwndsize;
 }
 

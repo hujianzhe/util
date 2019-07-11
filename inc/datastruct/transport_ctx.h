@@ -7,7 +7,7 @@
 
 #include "list.h"
 
-typedef struct TransportCtx_t {
+typedef struct DgramTransportCtx_t {
 	unsigned short mtu;
 	unsigned short rto;
 	unsigned char resend_maxtimes;
@@ -21,7 +21,7 @@ typedef struct TransportCtx_t {
 	unsigned int m_recvseq;
 	unsigned int m_sendseq;
 	unsigned int m_ackseq;
-} TransportCtx_t;
+} DgramTransportCtx_t;
 
 typedef struct StreamTransportCtx_t {
 	List_t recvpacketlist;
@@ -67,13 +67,13 @@ typedef struct NetPacket_t {
 extern "C" {
 #endif
 
-__declspec_dll TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq);
-__declspec_dll int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq, int pktype);
-__declspec_dll int transportctxCacheRecvPacket(TransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list);
-__declspec_dll NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq, int* cwndskip);
-__declspec_dll void transportctxCacheSendPacket(TransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll int transportctxSendWindowHasPacket(TransportCtx_t* ctx, unsigned int seq);
+__declspec_dll DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq);
+__declspec_dll int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype);
+__declspec_dll int dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet);
+__declspec_dll int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list);
+__declspec_dll NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, int* cwndskip);
+__declspec_dll void dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet);
+__declspec_dll int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, unsigned int seq);
 
 __declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq);
 __declspec_dll int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int pktype);
