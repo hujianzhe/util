@@ -166,6 +166,15 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
+int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
+	if (ctx->sendpacketlist.tail) {
+		NetPacket_t* packet = pod_container_of(ctx->sendpacketlist.tail, NetPacket_t, node);
+		if (packet->off < packet->len)
+			return 1;
+	}
+	return 0;
+}
+
 void streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FRAGMENT) {
 		packet->seq = 0;
