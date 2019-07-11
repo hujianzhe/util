@@ -178,8 +178,32 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 void streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FRAGMENT) {
 		packet->seq = 0;
-		if (packet->off < packet->len)
+		if (packet->off >= packet->len)
+			return;
+		else if (NETPACKET_ACK != packet->type)
 			listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
+		else {
+			int insert_front = 0;
+			ListNode_t* cur;
+			for (cur = ctx->sendpacketlist.head; cur; cur = cur->next) {
+				NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
+				if (pk->type < NETPACKET_FIN)
+					continue;
+				if (pk->off >= pk->len)
+					continue;
+				if (0 == pk->off)
+					insert_front = 1;
+				break;
+			}
+			if (cur) {
+				if (insert_front)
+					listInsertNodeFront(&ctx->sendpacketlist, cur, &packet->node._);
+				else
+					listInsertNodeBack(&ctx->sendpacketlist, cur, &packet->node._);
+			}
+			else
+				listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
+		}
 	}
 	else {
 		packet->wait_ack = 1;
@@ -210,6 +234,23 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 		return 1;
 	}
 	return 0;
+}
+
+List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
+	ListNode_t* cur, *next;
+	List_t freelist;
+	listInit(&freelist);
+	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		next = cur->next;
+		if (packet->off < packet->len)
+			break;
+		if (packet->type < NETPACKET_FRAGMENT) {
+			listRemoveNode(&ctx->sendpacketlist, cur);
+			listInsertNodeBack(&freelist, freelist.tail, cur);
+		}
+	}
+	return freelist;
 }
 
 #ifdef	__cplusplus
