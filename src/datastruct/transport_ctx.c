@@ -20,8 +20,10 @@ TransportCtx_t* transportctxInit(TransportCtx_t* ctx, unsigned int initseq) {
 	return ctx;
 }
 
-int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq) {
-	if (seq1_before_seq2(seq, ctx->m_recvseq))
+int transportctxRecvCheck(TransportCtx_t* ctx, unsigned int seq, int pktype) {
+	if (pktype < NETPACKET_FIN)
+		return 0;
+	else if (seq1_before_seq2(seq, ctx->m_recvseq))
 		return 0;
 	else {
 		ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvpacketlist.head;
@@ -67,7 +69,7 @@ int transportctxMergeRecvPacket(TransportCtx_t* ctx, List_t* list) {
 	if (ctx->m_recvnode) {
 		for (cur = ctx->recvpacketlist.head; cur && cur != ctx->m_recvnode->next; cur = cur->next) {
 			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
+			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_FIN != packet->type)
 				continue;
 			*list = listSplitByTail(&ctx->recvpacketlist, cur);
 			if (!ctx->recvpacketlist.head || ctx->m_recvnode == cur)
@@ -108,7 +110,7 @@ NetPacket_t* transportctxAckSendPacket(TransportCtx_t* ctx, unsigned int ackseq,
 }
 
 void transportctxCacheSendPacket(TransportCtx_t* ctx, NetPacket_t* packet) {
-	if (NETPACKET_ACK == packet->type)
+	if (packet->type < NETPACKET_FIN)
 		return;
 	packet->wait_ack = 0;
 	packet->seq = ctx->m_sendseq++;
@@ -128,8 +130,16 @@ StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned
 	return ctx;
 }
 
-int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq) {
-	return seq1_before_seq2(seq, ctx->m_recvseq) || ctx->m_recvseq == seq;
+int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int pktype) {
+	if (NETPACKET_FIN == pktype)
+		return 1;
+	if (pktype < NETPACKET_FIN)
+		return 0;
+	if (seq1_before_seq2(seq, ctx->m_recvseq))
+		return 1;
+	if (ctx->m_recvseq == seq)
+		return 1;
+	return 0;
 }
 
 int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
@@ -137,10 +147,7 @@ int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 		return 0;
 	else if (packet->seq != ctx->m_recvseq)
 		return 0;
-	else if (NETPACKET_FRAGMENT == packet->type ||
-		NETPACKET_FRAGMENT_EOF == packet->type ||
-		NETPACKET_END == packet->type)
-	{
+	else {
 		listInsertNodeBack(&ctx->recvpacketlist, ctx->recvpacketlist.tail, &packet->node._);
 		ctx->m_recvseq++;
 		return 1;
@@ -152,7 +159,7 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
 	for (cur = ctx->recvpacketlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_END != packet->type)
+		if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_FIN != packet->type)
 			continue;
 		*list = listSplitByTail(&ctx->recvpacketlist, cur);
 		return 1;
@@ -161,14 +168,16 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 }
 
 void streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (NETPACKET_ACK == packet->type || NETPACKET_END == packet->type) {
+	if (packet->type < NETPACKET_FRAGMENT) {
 		packet->seq = 0;
+		if (packet->off < packet->len)
+			listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	}
 	else {
 		packet->wait_ack = 1;
 		packet->seq = ctx->m_sendseq++;
+		listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	}
-	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 }
 
 int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) {
@@ -183,7 +192,7 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 		next = cur->next;
 		if (packet->off < packet->len)
 			return 0;
-		if (NETPACKET_ACK == packet->type || NETPACKET_END == packet->type)
+		if (packet->type < NETPACKET_FRAGMENT)
 			continue;
 		if (packet->seq != ackseq)
 			return 0;
