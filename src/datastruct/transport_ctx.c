@@ -136,7 +136,7 @@ int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int
 	if (pktype < NETPACKET_FIN)
 		return 0;
 	if (seq1_before_seq2(seq, ctx->m_recvseq))
-		return 1;
+		return -1;
 	if (ctx->m_recvseq == seq)
 		return 1;
 	return 0;
