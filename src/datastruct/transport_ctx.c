@@ -152,7 +152,6 @@ int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 		ctx->m_recvseq++;
 		return 1;
 	}
-	return 0;
 }
 
 int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
