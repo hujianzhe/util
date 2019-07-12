@@ -11,10 +11,18 @@
 enum {
 	CHANNEL_FLAG_CLIENT		= 1 << 0,
 	CHANNEL_FLAG_SERVER		= 1 << 1,
-	CHANNEL_FLAG_STREAM		= 1 << 2,
-	CHANNEL_FLAG_DGRAM		= 1 << 3,
-	CHANNEL_FLAG_RELIABLE	= 1 << 4
+	CHANNEL_FLAG_LISTEN		= 1 << 2,
+	CHANNEL_FLAG_STREAM		= 1 << 3,
+	CHANNEL_FLAG_DGRAM		= 1 << 4,
+	CHANNEL_FLAG_RELIABLE	= 1 << 5
 };
+
+typedef struct DgramHalfConn_t {
+	NetPacketListNode_t node;
+	unsigned char resend_times;
+	long long resend_msec;
+	/* user define other os field, like sockfd and sockaddr */
+} DgramHalfConn_t;
 
 typedef struct Channel_t {
 	/* public */
@@ -35,9 +43,17 @@ typedef struct Channel_t {
 			StreamTransportCtx_t ctx;
 		} stream;
 		struct {
+			union {
+				struct {
+					void(*close_halfconn)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
+					void(*send_synack)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
+				};
+				struct {
+					NetPacket_t* synpacket; /* client connect use */
+					void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
+				};
+			};
 			DgramTransportCtx_t ctx;
-			NetPacket_t* synpacket;
-			void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
 		} dgram;
 	};
 	struct {
@@ -50,8 +66,14 @@ typedef struct Channel_t {
 		unsigned char* bodyptr;
 	} decode_result;
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
-	void(*recv)(struct Channel_t* self, const void* from_saddr);
-	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
+	union {
+		void(*recv)(struct Channel_t* self, const void* from_saddr);
+		DgramHalfConn_t*(*recv_syn)(struct Channel_t* self, const void* from_saddr); /* listener use */
+	};
+	union {
+		void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
+		DgramHalfConn_t*(*ack_halfconn)(struct Channel_t* channel, const void* from_saddr); /* listener use */
+	};
 	void(*heartbeat)(struct Channel_t* self);
 	int(*zombie)(struct Channel_t* self);
 	void(*shutdown)(struct Channel_t* self);
