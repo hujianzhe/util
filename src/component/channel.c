@@ -187,7 +187,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 			from_listen = (channel->flag & CHANNEL_FLAG_CLIENT) ? sockaddrIsEqual(&channel->connect_saddr, from_saddr) : 0;
 			from_peer = sockaddrIsEqual(&channel->to_saddr, from_saddr);
 			if (!from_peer && !from_listen)
-				return 1;
+				return -1;
 		}
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
 		channel->decode(channel, channel->inbuf, channel->inbuflen);
@@ -299,12 +299,12 @@ int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void*
 		res = channel_dgram_recv_handler(channel, timestamp_msec, from_saddr);
 	else
 		res = channel_stream_recv_handler(channel);
-	if (res) {
+	if (res > 0) {
 		channel->heartbeat_msec = timestamp_msec;
 		channel->m_heartbeat_times = 0;
 		return 1;
 	}
-	return 0;
+	return res != 0;
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
@@ -312,8 +312,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 		return 1;
 	channel->event_msec = 0;
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->heartbeat &&
-			channel->heartbeat_msec > 0 &&
+		if (channel->heartbeat_msec > 0 &&
 			channel->heartbeat_timeout_sec > 0)
 		{
 			long long ts = channel->heartbeat_timeout_sec;
