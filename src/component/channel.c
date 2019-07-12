@@ -145,7 +145,7 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 	return ok;
 }
 
-static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_msec) {
+static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_msec, const void* from_saddr) {
 	memset(&channel->decode_result, 0, sizeof(channel->decode_result));
 	channel->decode(channel, channel->inbuf, channel->inbuflen);
 	if (channel->decode_result.err)
@@ -226,10 +226,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 	return 1;
 }
 
-int channelRecvHandler(Channel_t* channel, long long timestamp_msec) {
+int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void* from_saddr) {
 	int res;
 	if (channel->flag & CHANNEL_FLAG_DGRAM)
-		res = channel_dgram_recv_handler(channel, timestamp_msec);
+		res = channel_dgram_recv_handler(channel, timestamp_msec, from_saddr);
 	else
 		res = channel_stream_recv_handler(channel);
 	if (res) {

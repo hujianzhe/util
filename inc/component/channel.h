@@ -63,7 +63,7 @@ extern "C" {
 #endif
 
 __declspec_dll Channel_t* channelInit(Channel_t* channel, int flag, int initseq);
-__declspec_dll int channelRecvHandler(Channel_t* channel, long long timestamp_msec);
+__declspec_dll int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void* from_saddr);
 __declspec_dll int channelEventHandler(Channel_t* channel, long long timestamp_msec);
 __declspec_dll void channelDestroy(Channel_t* channel);
 
