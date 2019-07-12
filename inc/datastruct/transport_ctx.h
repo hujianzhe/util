@@ -7,34 +7,10 @@
 
 #include "list.h"
 
-typedef struct DgramTransportCtx_t {
-	unsigned short mtu;
-	unsigned short rto;
-	unsigned char resend_maxtimes;
-	unsigned char cwndsize;
-	List_t sendpacketlist;
-	List_t recvpacketlist;
-	void* userdata;
-	/* private */
-	ListNode_t* m_recvnode;
-	unsigned int m_cwndseq;
-	unsigned int m_recvseq;
-	unsigned int m_sendseq;
-	unsigned int m_ackseq;
-} DgramTransportCtx_t;
-
-typedef struct StreamTransportCtx_t {
-	List_t recvpacketlist;
-	List_t sendpacketlist;
-	void* userdata;
-	/* private */
-	unsigned int m_recvseq;
-	unsigned int m_sendseq;
-	unsigned int m_cwndseq;
-} StreamTransportCtx_t;
-
 enum {
-	NETPACKET_ACK = 1,
+	NETPACKET_SYN = 1,		/* reliable UDP client connect use */
+	NETPACKET_SYN_ACK,		/* reliable UDP listener use */
+	NETPACKET_ACK,
 	NETPACKET_NO_ACK_FRAGMENT,
 	NETPACKET_FIN,
 	NETPACKET_FRAGMENT,
@@ -62,6 +38,32 @@ typedef struct NetPacket_t {
 	unsigned int len;
 	unsigned char data[1];
 } NetPacket_t;
+
+typedef struct DgramTransportCtx_t {
+	unsigned short mtu;
+	unsigned short rto;
+	unsigned char resend_maxtimes;
+	unsigned char cwndsize;
+	List_t sendpacketlist;
+	List_t recvpacketlist;
+	void* userdata;
+	/* private */
+	ListNode_t* m_recvnode;
+	unsigned int m_cwndseq;
+	unsigned int m_recvseq;
+	unsigned int m_sendseq;
+	unsigned int m_ackseq;
+} DgramTransportCtx_t;
+
+typedef struct StreamTransportCtx_t {
+	List_t recvpacketlist;
+	List_t sendpacketlist;
+	void* userdata;
+	/* private */
+	unsigned int m_recvseq;
+	unsigned int m_sendseq;
+	unsigned int m_cwndseq;
+} StreamTransportCtx_t;
 
 #ifdef	__cplusplus
 extern "C" {

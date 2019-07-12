@@ -504,6 +504,20 @@ int sockaddrLength(const void* saddr_) {
 		return 0;
 }
 
+int sockaddrIsEqual(const void* one, const void* two) {
+	const struct sockaddr* addr[2] = { (const struct sockaddr*)one, (const struct sockaddr*)two };
+	if (addr[0]->sa_family != addr[1]->sa_family)
+		return 0;
+	else {
+		int len = sockaddrLength(one);
+		if (len < 0)
+			return 0;
+		else if (len == 0)
+			return 1;
+		return memcmp(one, two, len) == 0;
+	}
+}
+
 BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
 	/* win32 must zero this structure, otherwise report 10049 error. */
 	memset(saddr, 0, sizeof(*saddr));

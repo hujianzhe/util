@@ -28,14 +28,16 @@ typedef struct Channel_t {
 	unsigned char* inbuf;
 	size_t inbuflen;
 	size_t inbufoff;
-	struct sockaddr_storage peer_saddr;
+	Sockaddr_t connect_saddr;
+	Sockaddr_t to_saddr;
 	union {
 		struct {
 			StreamTransportCtx_t ctx;
 		} stream;
 		struct {
 			DgramTransportCtx_t ctx;
-			void(*send)(struct Channel_t* self, NetPacket_t* packet);
+			NetPacket_t* synpacket;
+			void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
 		} dgram;
 	};
 	struct {
@@ -48,8 +50,8 @@ typedef struct Channel_t {
 		unsigned char* bodyptr;
 	} decode_result;
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
-	void(*recv)(struct Channel_t* self);
-	void(*reply_ack)(struct Channel_t* self, unsigned int seq);
+	void(*recv)(struct Channel_t* self, const void* from_saddr);
+	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	void(*heartbeat)(struct Channel_t* self);
 	int(*zombie)(struct Channel_t* self);
 	void(*shutdown)(struct Channel_t* self);

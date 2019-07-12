@@ -143,7 +143,11 @@ int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int
 }
 
 int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (seq1_before_seq2(packet->seq, ctx->m_recvseq))
+	if (NETPACKET_FIN == packet->type) {
+		listInsertNodeBack(&ctx->recvpacketlist, ctx->recvpacketlist.tail, &packet->node._);
+		return 1;
+	}
+	else if (seq1_before_seq2(packet->seq, ctx->m_recvseq))
 		return 0;
 	else if (packet->seq != ctx->m_recvseq)
 		return 0;
