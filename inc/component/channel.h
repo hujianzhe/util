@@ -29,7 +29,8 @@ typedef struct Channel_t {
 	void* io_object;
 	int flag;
 	int heartbeat_timeout_sec;
-	int zombie_timeout_sec;
+	unsigned int heartbeat_maxtimes;
+	long long heartbeat_msec;
 	unsigned char has_recvfin;
 	unsigned char has_sendfin;
 	long long event_msec;
@@ -78,8 +79,7 @@ typedef struct Channel_t {
 	int(*zombie)(struct Channel_t* self);
 	void(*shutdown)(struct Channel_t* self);
 	/* private */
-	long long m_lastactive_msec;
-	long long m_heartbeat_msec;
+	unsigned int m_heartbeat_times;
 } Channel_t;
 
 #ifdef	__cplusplus

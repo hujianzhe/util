@@ -12,7 +12,8 @@ extern "C" {
 Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->flag = flag;
 	channel->heartbeat_timeout_sec = 0;
-	channel->zombie_timeout_sec = 0;
+	channel->heartbeat_maxtimes = 0;
+	channel->heartbeat_msec = 0;
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;
 	channel->event_msec = 0;
@@ -43,8 +44,7 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->zombie = NULL;
 	channel->shutdown = NULL;
 
-	channel->m_lastactive_msec = 0;
-	channel->m_heartbeat_msec = 0;
+	channel->m_heartbeat_times = 0;
 	return channel;
 }
 
@@ -300,8 +300,8 @@ int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void*
 	else
 		res = channel_stream_recv_handler(channel);
 	if (res) {
-		channel->m_lastactive_msec = timestamp_msec;
-		channel->m_heartbeat_msec = timestamp_msec;
+		channel->heartbeat_msec = timestamp_msec;
+		channel->m_heartbeat_times = 0;
 		return 1;
 	}
 	return 0;
@@ -311,24 +311,32 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 	if (timestamp_msec > channel->event_msec)
 		return 1;
 	channel->event_msec = 0;
-	if (channel->zombie_timeout_sec > 0 &&
-		channel->m_lastactive_msec > 0)
-	{
-		long long ts = channel->zombie_timeout_sec;
-		ts *= 1000;
-		ts += channel->m_lastactive_msec;
-		if (ts <= timestamp_msec) {
-			if (channel->zombie && channel->zombie(channel)) {
-				channel->m_lastactive_msec = timestamp_msec;
-				channel->m_heartbeat_msec = timestamp_msec;
-				ts = channel->zombie_timeout_sec;
+	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		if (channel->heartbeat &&
+			channel->heartbeat_msec > 0 &&
+			channel->heartbeat_timeout_sec > 0)
+		{
+			long long ts = channel->heartbeat_timeout_sec;
+			ts *= 1000;
+			ts += channel->heartbeat_msec;
+			if (ts <= timestamp_msec) {
+				do {
+					if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
+						channel->heartbeat(channel);
+						channel->m_heartbeat_times++;
+						break;
+					}
+					if (!channel->zombie || !channel->zombie(channel))
+						return 0;
+					channel->m_heartbeat_times = 0;
+				} while (0);
+				channel->heartbeat_msec = timestamp_msec;
+				ts = channel->heartbeat_timeout_sec;
 				ts *= 1000;
 				ts += timestamp_msec;
 			}
-			else
-				return 0;
+			update_timestamp(&channel->event_msec, ts);
 		}
-		update_timestamp(&channel->event_msec, ts);
 	}
 	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
 		(channel->flag & CHANNEL_FLAG_RELIABLE))
@@ -372,24 +380,6 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 				update_timestamp(&channel->event_msec, packet->resend_msec);
 			}
-		}
-	}
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->heartbeat &&
-			channel->m_heartbeat_msec > 0 &&
-			channel->heartbeat_timeout_sec > 0)
-		{
-			long long ts = channel->heartbeat_timeout_sec;
-			ts *= 1000;
-			ts += channel->m_heartbeat_msec;
-			if (ts <= timestamp_msec) {
-				channel->heartbeat(channel);
-				channel->m_heartbeat_msec = timestamp_msec;
-				ts = channel->heartbeat_timeout_sec;
-				ts *= 1000;
-				ts += timestamp_msec;
-			}
-			update_timestamp(&channel->event_msec, ts);
 		}
 	}
 	return 1;
