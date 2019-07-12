@@ -88,7 +88,10 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 			free(pod_container_of(cur, NetPacket_t, node));
 		}
 		channel->has_recvfin = 1;
-		channel->shutdown(channel);
+		if (channel->shutdown) {
+			channel->shutdown(channel);
+			channel->shutdown = NULL;
+		}
 	}
 	else {
 		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
