@@ -20,10 +20,10 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->inbuf = NULL;
 	channel->inbuflen = 0;
 	channel->inbufoff = 0;
-	memset(&channel->connect_saddr, 0, sizeof(channel->connect_saddr));
-	channel->connect_saddr.sa.sa_family = AF_UNSPEC;
-	memset(&channel->to_saddr, 0, sizeof(channel->to_saddr));
-	channel->to_saddr.sa.sa_family = AF_UNSPEC;
+	memset(&channel->dgram.connect_saddr, 0, sizeof(channel->dgram.connect_saddr));
+	channel->dgram.connect_saddr.sa.sa_family = AF_UNSPEC;
+	memset(&channel->to_addr, 0, sizeof(channel->to_addr));
+	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		if (flag & CHANNEL_FLAG_DGRAM) {
 			channel->dgram.synpacket = NULL;
@@ -98,7 +98,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 		if (!channel->decode_result.bodyptr) {
 			return 0;
 		}
-		channel->recv(channel, &channel->to_saddr);
+		channel->recv(channel, &channel->to_addr);
 		free(channel->decode_result.bodyptr);
 	}
 	return 1;
@@ -122,7 +122,7 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 			int res = streamtransportctxRecvCheck(&channel->stream.ctx, pkseq, pktype);
 			if (res) {
 				NetPacket_t* packet;
-				channel->reply_ack(channel, pkseq, &channel->to_saddr);
+				channel->reply_ack(channel, pkseq, &channel->to_addr);
 				if (res < 0)
 					continue;
 				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
@@ -158,7 +158,7 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 				}
 			}
 			else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
-				channel->recv(channel, &channel->to_saddr);
+				channel->recv(channel, &channel->to_addr);
 			}
 			else {
 				ok = 0;
@@ -166,7 +166,7 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 			}
 		}
 		else {
-			channel->recv(channel, &channel->to_saddr);
+			channel->recv(channel, &channel->to_addr);
 		}
 	}
 	free(channel->inbuf);
@@ -184,8 +184,11 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 		int from_listen;
 		int from_peer;
 		if (!(channel->flag & CHANNEL_FLAG_LISTEN)) {
-			from_listen = (channel->flag & CHANNEL_FLAG_CLIENT) ? sockaddrIsEqual(&channel->connect_saddr, from_saddr) : 0;
-			from_peer = sockaddrIsEqual(&channel->to_saddr, from_saddr);
+			if (channel->flag & CHANNEL_FLAG_CLIENT)
+				from_listen = sockaddrIsEqual(&channel->dgram.connect_saddr, from_saddr);
+			else
+				from_listen = 0;
+			from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
 			if (!from_peer && !from_listen)
 				return -1;
 		}
@@ -237,7 +240,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 				channel->recv(channel, from_saddr);
 			}
 			channel->reply_ack(channel, 0, from_saddr);
-			channel->dgram.send(channel, NULL, &channel->to_saddr);
+			channel->dgram.send(channel, NULL, &channel->to_addr);
 		}
 		else if (NETPACKET_ACK == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
@@ -262,7 +265,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 						break;
 					if (packet->wait_ack)
 						continue;
-					channel->dgram.send(channel, packet, &channel->to_saddr);
+					channel->dgram.send(channel, packet, &channel->to_addr);
 					packet->wait_ack = 1;
 					packet->resend_times = 0;
 					packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
@@ -374,7 +377,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 						return 0;
 					break;
 				}
-				channel->dgram.send(channel, packet, &channel->to_saddr);
+				channel->dgram.send(channel, packet, &channel->to_addr);
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 				update_timestamp(&channel->event_msec, packet->resend_msec);
@@ -403,9 +406,9 @@ void channelDestroy(Channel_t* channel) {
 			ListNode_t* cur, *next;
 			for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
-				listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
 				channel->dgram.close_halfconn(channel, pod_container_of(cur, DgramHalfConn_t, node));
 			}
+			listInit(&channel->dgram.ctx.recvpacketlist);
 		}
 		else {
 			free(channel->dgram.synpacket);

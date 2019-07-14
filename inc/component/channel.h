@@ -37,8 +37,7 @@ typedef struct Channel_t {
 	unsigned char* inbuf;
 	size_t inbuflen;
 	size_t inbufoff;
-	Sockaddr_t connect_saddr;
-	Sockaddr_t to_saddr;
+	Sockaddr_t to_addr;
 	union {
 		struct {
 			StreamTransportCtx_t ctx;
@@ -50,6 +49,7 @@ typedef struct Channel_t {
 					void(*send_synack)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
 				};
 				struct {
+					Sockaddr_t connect_saddr;
 					NetPacket_t* synpacket; /* client connect use */
 					void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
 				};
