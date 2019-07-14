@@ -6,6 +6,8 @@
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
 
+#define	MSL		30000
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -39,8 +41,8 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 	}
 }
 
-static void reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
-	int err;
+static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
+	int err, ok;
 	o->m_stream_connected = 1;
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
@@ -48,15 +50,18 @@ static void reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec)
 	}
 	if (!nioConnectCheckSuccess(o->fd)) {
 		err = errnoGet();
-		o->valid = 0;
+		ok = 0;
 	}
 	else if (!reactorobjectRequestRead(o)) {
 		err = errnoGet();
-		o->valid = 0;
+		ok = 0;
 	}
-	else
+	else {
 		err = 0;
+		ok = 1;
+	}
 	o->stream.connect(o, err, timestamp_msec);
+	return ok;
 }
 
 static int objht_keycmp(const void* node_key, const void* key) {
@@ -118,8 +123,6 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	reactor->event_msec = 0;
 	reactor->exec_cmd = NULL;
 	reactor->free_cmd = NULL;
-	reactor->exec_object = NULL;
-	reactor->free_object = NULL;
 	return reactor;
 }
 
@@ -178,9 +181,10 @@ int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
 			o->m_writeol_has_commit = 1;
 		}
 	}
-	else if (!reactorobjectRequestRead(o)) {
+	else if (reactorobjectRequestRead(o))
+		o->invalid_timeout_msec = MSL + MSL;
+	else
 		return 0;
-	}
 	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
 	return 1;
 }
@@ -239,12 +243,14 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 						reactor_stream_accept(o, timestamp_msec);
 					else
 						o->readev(o, timestamp_msec);
-					reactorobjectRequestRead(o);
+					if (!reactorobjectRequestRead(o))
+						o->valid = 0;
 					break;
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype && !o->m_stream_connected)
-						reactor_stream_connect(o, timestamp_msec);
+						if (reactor_stream_connect(o, timestamp_msec))
+							o->valid = 0;
 					else
 						o->writeev(o, timestamp_msec);
 					break;
@@ -257,9 +263,17 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (SOCK_STREAM == o->socktype) {
 				free_io_resource(o);
 			}
-			if (o->inactive) {
-				o->inactive(o);
-				o->inactive = NULL;
+			o->m_invalid_msec = timestamp_msec;
+			if (o->invalid_timeout_msec <= 0 ||
+				o->invalid_timeout_msec + o->m_invalid_msec <= timestamp_msec)
+			{
+				if (o->inactive) {
+					o->inactive(o);
+					o->inactive = NULL;
+				}
+			}
+			else {
+				// add invalidlist;
 			}
 		}
 	}
@@ -286,6 +300,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					continue;
 			}
 			hashtableRemoveNode(&reactor->m_objht, cur);
+			// add invalidlist
 			if (o->inactive) {
 				o->inactive(o);
 				o->inactive = NULL;
@@ -313,9 +328,10 @@ void reactorDestroy(Reactor_t* reactor) {
 	do {
 		HashtableNode_t *cur, *next;
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
+			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 			next = hashtableNextNode(cur);
-			if (reactor->free_object)
-				reactor->free_object(pod_container_of(cur, ReactorObject_t, m_hashnode));
+			if (o->free)
+				o->free(o);
 		}
 	} while (0);
 }
@@ -341,7 +357,9 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->reactor = NULL;
 	o->userdata = NULL;
 	o->iosend_msec = 0;
+	o->invalid_timeout_msec = 0;
 	o->valid = 1;
+	o->free = NULL;
 	o->exec = NULL;
 	o->readev = NULL;
 	o->writeev = NULL;
@@ -350,6 +368,7 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
+	o->m_invalid_msec = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
 	o->m_stream_connected = 0;
@@ -371,7 +390,6 @@ int reactorobjectRequestRead(ReactorObject_t* o) {
 	if (!o->m_readol) {
 		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? 65000 : 0);
 		if (!o->m_readol) {
-			o->valid = 0;
 			return 0;
 		}
 	}
@@ -382,7 +400,6 @@ int reactorobjectRequestRead(ReactorObject_t* o) {
 		o->m_readol_has_commit = 1;
 		return 1;
 	}
-	o->valid = 0;
 	return 0;
 }
 
@@ -393,7 +410,6 @@ int reactorobjectRequestWrite(ReactorObject_t* o) {
 	else if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
 		if (!o->m_writeol) {
-			o->valid = 0;
 			return 0;
 		}
 	}
@@ -404,12 +420,14 @@ int reactorobjectRequestWrite(ReactorObject_t* o) {
 		o->m_writeol_has_commit = 1;
 		return 1;
 	}
-	o->valid = 0;
 	return 0;
 }
 
-void reactorobjectDestroy(ReactorObject_t* o) {
-	free_io_resource(o);
+ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec) {
+	o->valid = 0;
+	if (o->m_invalid_msec <= 0)
+		o->m_invalid_msec = timestamp_msec;
+	return o;
 }
 
 #ifdef	__cplusplus

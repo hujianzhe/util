@@ -23,7 +23,9 @@ typedef struct ReactorObject_t {
 	struct Reactor_t* reactor;
 	void* userdata;
 	long long iosend_msec;
+	int invalid_timeout_msec;
 	volatile int valid;
+	void(*free)(struct ReactorObject_t* self);
 	void(*exec)(struct ReactorObject_t* self);
 	void(*readev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
@@ -42,6 +44,7 @@ typedef struct ReactorObject_t {
 	HashtableNode_t m_hashnode;
 	void* m_readol;
 	void* m_writeol;
+	long long m_invalid_msec;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
 	char m_stream_connected;
@@ -53,8 +56,6 @@ typedef struct Reactor_t {
 	long long event_msec;
 	void(*exec_cmd)(ListNode_t* cmdnode);
 	void(*free_cmd)(ListNode_t* cmdnode);
-	void(*exec_object)(ReactorObject_t* object);
-	void(*free_object)(ReactorObject_t* object);
 	/* private */
 	unsigned char m_runthreadhasbind;
 	Atom16_t m_wake;
@@ -84,7 +85,7 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll int reactorobjectRequestRead(ReactorObject_t* o);
 __declspec_dll int reactorobjectRequestWrite(ReactorObject_t* o);
-__declspec_dll void reactorobjectDestroy(ReactorObject_t* o);
+__declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
 
 #ifdef	__cplusplus
 }
