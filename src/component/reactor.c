@@ -70,6 +70,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 			update_timestamp(&reactor->event_msec, now_msec);
 			break;
 		}
+		listRemoveNode(&reactor->m_invalidlist, cur);
 		if (o->inactive) {
 			o->inactive(o);
 			o->inactive = NULL;
