@@ -222,6 +222,7 @@ void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist) {
 }
 
 int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
+	o->reactor = reactor;
 	if (!nioReg(&reactor->m_nio, o->fd))
 		return 0;
 	if (SOCK_STREAM == o->socktype) {
