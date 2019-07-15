@@ -12,6 +12,71 @@
 extern "C" {
 #endif
 
+static void update_timestamp(long long* src, long long ts) {
+	if (*src <= 0 || *src > ts)
+		*src = ts;
+}
+
+static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
+	o->m_invalid_msec = now_msec;
+	if (o->invalid_timeout_msec <= 0 ||
+		o->invalid_timeout_msec + o->m_invalid_msec <= now_msec)
+	{
+		if (o->inactive) {
+			o->inactive(o);
+			o->inactive = NULL;
+		}
+	}
+	else {
+		listInsertNodeBack(&o->reactor->m_invalidlist, o->reactor->m_invalidlist.tail, &o->m_invalidnode);
+		update_timestamp(&o->reactor->event_msec, o->m_invalid_msec + o->invalid_timeout_msec);
+	}
+}
+
+static void reactor_exec_cmdlist(Reactor_t* reactor) {
+	ListNode_t* cur, *next;
+	criticalsectionEnter(&reactor->m_cmdlistlock);
+	cur = reactor->m_cmdlist.head;
+	listInit(&reactor->m_cmdlist);
+	criticalsectionLeave(&reactor->m_cmdlistlock);
+	for (; cur; cur = next) {
+		next = cur->next;
+		reactor->exec_cmd(cur);
+	}
+}
+
+static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
+	HashtableNode_t *cur, *next;
+	reactor->event_msec = 0;
+	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
+		next = hashtableNextNode(cur);
+		if (o->valid) {
+			o->exec(o);
+			if (o->valid)
+				continue;
+		}
+		hashtableRemoveNode(&reactor->m_objht, cur);
+		reactorobject_invalid_inner_handler(o, now_msec);
+	}
+}
+
+static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
+	ListNode_t* cur, *next;
+	for (cur = reactor->m_invalidlist.head; cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
+		next = cur->next;
+		if (o->m_invalid_msec + o->invalid_timeout_msec > now_msec) {
+			update_timestamp(&reactor->event_msec, now_msec);
+			break;
+		}
+		if (o->inactive) {
+			o->inactive(o);
+			o->inactive = NULL;
+		}
+	}
+}
+
 static void free_io_resource(ReactorObject_t* o) {
 	if (INVALID_FD_HANDLE != o->fd) {
 		socketClose(o->fd);
@@ -113,7 +178,7 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	}
 
 	listInit(&reactor->m_cmdlist);
-	listInit(&reactor->m_closelist);
+	listInit(&reactor->m_invalidlist);
 	hashtableInit(&reactor->m_objht,
 		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
 		objht_keycmp, objht_keyhash);
@@ -263,50 +328,13 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (SOCK_STREAM == o->socktype) {
 				free_io_resource(o);
 			}
-			o->m_invalid_msec = timestamp_msec;
-			if (o->invalid_timeout_msec <= 0 ||
-				o->invalid_timeout_msec + o->m_invalid_msec <= timestamp_msec)
-			{
-				if (o->inactive) {
-					o->inactive(o);
-					o->inactive = NULL;
-				}
-			}
-			else {
-				// add invalidlist;
-			}
+			reactorobject_invalid_inner_handler(o, timestamp_msec);
 		}
 	}
-	do {
-		ListNode_t* cur, *next;
-		criticalsectionEnter(&reactor->m_cmdlistlock);
-		cur = reactor->m_cmdlist.head;
-		listInit(&reactor->m_cmdlist);
-		criticalsectionLeave(&reactor->m_cmdlistlock);
-		for (; cur; cur = next) {
-			next = cur->next;
-			reactor->exec_cmd(cur);
-		}
-	} while (0);
+	reactor_exec_cmdlist(reactor);
 	if (reactor->event_msec && timestamp_msec >= reactor->event_msec) {
-		HashtableNode_t *cur, *next;
-		reactor->event_msec = 0;
-		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
-			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
-			next = hashtableNextNode(cur);
-			if (o->valid) {
-				o->exec(o);
-				if (o->valid)
-					continue;
-			}
-			hashtableRemoveNode(&reactor->m_objht, cur);
-			// add invalidlist
-			if (o->inactive) {
-				o->inactive(o);
-				o->inactive = NULL;
-			}
-		}
-		//closelist_update(reactor, timestamp_msec);
+		reactor_exec_object(reactor, timestamp_msec);
+		reactor_exec_invalidlist(reactor, timestamp_msec);
 	}
 	return n;
 }

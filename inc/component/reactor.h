@@ -42,6 +42,7 @@ typedef struct ReactorObject_t {
 	} stream;
 	/* private */
 	HashtableNode_t m_hashnode;
+	ListNode_t m_invalidnode;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;
@@ -65,7 +66,7 @@ typedef struct Reactor_t {
 	void* m_readol;
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
-	List_t m_closelist;
+	List_t m_invalidlist;
 	Hashtable_t m_objht;
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
