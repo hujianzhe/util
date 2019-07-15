@@ -61,7 +61,7 @@ typedef struct Reactor_t {
 	unsigned char m_runthreadhasbind;
 	Atom16_t m_wake;
 	Thread_t m_runthread;
-	NioReactor_t m_nio;
+	Nio_t m_nio;
 	FD_t m_socketpair[2];
 	void* m_readol;
 	CriticalSection_t m_cmdlistlock;

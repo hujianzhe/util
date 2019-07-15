@@ -158,7 +158,7 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 		return NULL;
 	}
 
-	if (!nioreactorCreate(&reactor->m_nio)) {
+	if (!nioCreate(&reactor->m_nio)) {
 		nioFreeOverlapped(reactor->m_readol);
 		socketClose(reactor->m_socketpair[0]);
 		socketClose(reactor->m_socketpair[1]);
@@ -167,14 +167,14 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 
 	if (!socketNonBlock(reactor->m_socketpair[0], TRUE) ||
 		!socketNonBlock(reactor->m_socketpair[1], TRUE) ||
-		!nioreactorReg(&reactor->m_nio, reactor->m_socketpair[0]) ||
-		!nioreactorCommit(&reactor->m_nio, reactor->m_socketpair[0], NIO_OP_READ, reactor->m_readol,
+		!nioReg(&reactor->m_nio, reactor->m_socketpair[0]) ||
+		!nioCommit(&reactor->m_nio, reactor->m_socketpair[0], NIO_OP_READ, reactor->m_readol,
 			(struct sockaddr*)&saddr, sockaddrLength(&saddr)))
 	{
 		nioFreeOverlapped(reactor->m_readol);
 		socketClose(reactor->m_socketpair[0]);
 		socketClose(reactor->m_socketpair[1]);
-		nioreactorClose(&reactor->m_nio);
+		nioClose(&reactor->m_nio);
 		return NULL;
 	}
 
@@ -182,7 +182,7 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 		nioFreeOverlapped(reactor->m_readol);
 		socketClose(reactor->m_socketpair[0]);
 		socketClose(reactor->m_socketpair[1]);
-		nioreactorClose(&reactor->m_nio);
+		nioClose(&reactor->m_nio);
 		return NULL;
 	}
 
@@ -222,7 +222,7 @@ void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist) {
 }
 
 int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
-	if (!nioreactorReg(&reactor->m_nio, o->fd))
+	if (!nioReg(&reactor->m_nio, o->fd))
 		return 0;
 	if (SOCK_STREAM == o->socktype) {
 		BOOL ret;
@@ -247,7 +247,7 @@ int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
 				if (!o->m_writeol)
 					return 0;
 			}
-			if (!nioreactorCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
+			if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
 				&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
 			{
 				return 0;
@@ -276,7 +276,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 		wait_msec = 0;
 	}
 
-	n = nioreactorWait(&reactor->m_nio, e, n, wait_msec);
+	n = nioWait(&reactor->m_nio, e, n, wait_msec);
 	if (n < 0) {
 		return n;
 	}
@@ -290,7 +290,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			HashtableNode_t* find_node;
 			ReactorObject_t* o;
 			FD_t fd;
-			if (!nioEventOverlapped(e + i))
+			if (!nioEventOverlappedCheck(e + i))
 				continue;
 			fd = nioEventFD(e + i);
 			if (fd == reactor->m_socketpair[0]) {
@@ -298,7 +298,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 				char c[512];
 				socketRead(fd, c, sizeof(c), 0, NULL);
 				saddr.sa.sa_family = AF_INET;
-				nioreactorCommit(&reactor->m_nio, fd, NIO_OP_READ, reactor->m_readol, (struct sockaddr*)&saddr, sockaddrLength(&saddr));
+				nioCommit(&reactor->m_nio, fd, NIO_OP_READ, reactor->m_readol, (struct sockaddr*)&saddr, sockaddrLength(&saddr));
 				_xchg16(&reactor->m_wake, 0);
 				continue;
 			}
@@ -348,7 +348,7 @@ void reactorDestroy(Reactor_t* reactor) {
 	nioFreeOverlapped(reactor->m_readol);
 	socketClose(reactor->m_socketpair[0]);
 	socketClose(reactor->m_socketpair[1]);
-	nioreactorClose(&reactor->m_nio);
+	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
 	do {
 		ListNode_t* cur, *next;
@@ -427,7 +427,7 @@ int reactorobjectRequestRead(ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (nioreactorCommit(&o->reactor->m_nio, o->fd, opcode, o->m_readol,
+	if (nioCommit(&o->reactor->m_nio, o->fd, opcode, o->m_readol,
 		&saddr.sa, sockaddrLength(&saddr)))
 	{
 		o->m_readol_has_commit = 1;
@@ -447,7 +447,7 @@ int reactorobjectRequestWrite(ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (nioreactorCommit(&o->reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol,
+	if (nioCommit(&o->reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol,
 		&saddr.sa, sockaddrLength(&saddr)))
 	{
 		o->m_writeol_has_commit = 1;

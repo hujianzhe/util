@@ -149,53 +149,53 @@ int aioNumberOfBytesTransfered(AioCtx_t* ctx) {
 }
 
 /* NIO */
-BOOL nioreactorCreate(NioReactor_t* reactor) {
+BOOL nioCreate(Nio_t* nio) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-	reactor->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
-	return reactor->__hNio != 0;
+	nio->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
+	return nio->__hNio != 0;
 #elif __linux__
 	int nio_ok = 0, epfd_ok = 0;
 	do {
 		struct epoll_event e = { 0 };
-		reactor->__hNio = epoll_create1(EPOLL_CLOEXEC);
-		if (reactor->__hNio < 0) {
+		nio->__hNio = epoll_create1(EPOLL_CLOEXEC);
+		if (nio->__hNio < 0) {
 			break;
 		}
 		nio_ok = 1;
-		reactor->__epfd = epoll_create1(EPOLL_CLOEXEC);
-		if (reactor->__epfd < 0) {
+		nio->__epfd = epoll_create1(EPOLL_CLOEXEC);
+		if (nio->__epfd < 0) {
 			break;
 		}
 		epfd_ok = 1;
-		e.data.fd = reactor->__epfd;
+		e.data.fd = nio->__epfd;
 		e.events = EPOLLIN;
-		if (epoll_ctl(reactor->__hNio, EPOLL_CTL_ADD, reactor->__epfd, &e)) {
+		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__epfd, &e)) {
 			break;
 		}
 		return TRUE;
 	} while (0);
 	if (nio_ok) {
-		assertTRUE(0 == close(reactor->__hNio));
+		assertTRUE(0 == close(nio->__hNio));
 	}
 	if (epfd_ok) {
-		assertTRUE(0 == close(reactor->__epfd));
+		assertTRUE(0 == close(nio->__epfd));
 	}
 	return FALSE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	return !((reactor->__hNio = kqueue()) < 0);
+	return !((nio->__hNio = kqueue()) < 0);
 #endif
 }
 
-BOOL nioreactorReg(NioReactor_t* reactor, FD_t fd) {
+BOOL nioReg(Nio_t* nio, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(reactor->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(reactor->__hNio);
+	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(nio->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(nio->__hNio);
 #endif
 	return TRUE;
 }
 /*
-BOOL reactorCancel(NioReactor_t* reactor, FD_t fd) {
+BOOL reactorCancel(Nio_t* nio, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (CancelIoEx((HANDLE)fd, NULL)) {
 		// use GetOverlappedResult wait until all overlapped is completed ???
@@ -205,10 +205,10 @@ BOOL reactorCancel(NioReactor_t* reactor, FD_t fd) {
 	// iocp will catch this return and set overlapped.internal a magic number, but header not include that macro
 #elif __linux__
 	struct epoll_event e = { 0 };
-	if (epoll_ctl(reactor->__hNio, EPOLL_CTL_DEL, fd, &e)) {
+	if (epoll_ctl(nio->__hNio, EPOLL_CTL_DEL, fd, &e)) {
 		return FALSE;
 	}
-	if (epoll_ctl(reactor->__epfd, EPOLL_CTL_DEL, fd, &e)) {
+	if (epoll_ctl(nio->__epfd, EPOLL_CTL_DEL, fd, &e)) {
 		return FALSE;
 	}
 	return TRUE;
@@ -216,7 +216,7 @@ BOOL reactorCancel(NioReactor_t* reactor, FD_t fd) {
 	struct kevent e[2];
 	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_DISABLE, 0, 0, NULL);
 	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_DISABLE, 0, 0, NULL);
-	return kevent(reactor->__hNio, e, 2, NULL, 0, NULL) == 0;
+	return kevent(nio->__hNio, e, 2, NULL, 0, NULL) == 0;
 #endif
 }
 */
@@ -314,7 +314,7 @@ void nioFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
+BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (NIO_OP_READ == opcode) {
 		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
@@ -444,17 +444,17 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		struct epoll_event e;
 		e.data.fd = fd;
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLIN;
-		if (epoll_ctl(reactor->__hNio, EPOLL_CTL_MOD, fd, &e)) {
+		if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, fd, &e)) {
 			if (ENOENT != errno) {
 				return FALSE;
 			}
-			return epoll_ctl(reactor->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
+			return epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
 		return TRUE;
 	#elif defined(__FreeBSD__) || defined(__APPLE__)
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
-		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) == 0;
+		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	#endif
 	}
 	else if (NIO_OP_WRITE == opcode || NIO_OP_CONNECT == opcode) {
@@ -471,17 +471,17 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 		struct epoll_event e;
 		e.data.fd = fd | 0x80000000;
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLOUT;
-		if (epoll_ctl(reactor->__epfd, EPOLL_CTL_MOD, fd, &e)) {
+		if (epoll_ctl(nio->__epfd, EPOLL_CTL_MOD, fd, &e)) {
 			if (ENOENT != errno) {
 				return FALSE;
 			}
-			return epoll_ctl(reactor->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
+			return epoll_ctl(nio->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
 		return TRUE;
 	#elif defined(__FreeBSD__) || defined(__APPLE__)
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
-		return kevent(reactor->__hNio, &e, 1, NULL, 0, NULL) == 0;
+		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	#endif
 	}
 	else {
@@ -492,23 +492,23 @@ BOOL nioreactorCommit(NioReactor_t* reactor, FD_t fd, int opcode, void* ol, stru
 	return FALSE;
 }
 
-int nioreactorWait(NioReactor_t* reactor, NioEv_t* e, unsigned int count, int msec) {
+int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG n;
-	return GetQueuedCompletionStatusEx((HANDLE)(reactor->__hNio), e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
+	return GetQueuedCompletionStatusEx((HANDLE)(nio->__hNio), e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
 #elif __linux__
 	int res;
 	do {
-		res = epoll_wait(reactor->__hNio, e, count / 2 + 1, msec);
+		res = epoll_wait(nio->__hNio, e, count / 2 + 1, msec);
 	} while (res < 0 && EINTR == errno);
 	if (res > 0) {
 		int i;
-		for (i = 0; i < res && reactor->__epfd != e[i].data.fd; ++i);
+		for (i = 0; i < res && nio->__epfd != e[i].data.fd; ++i);
 		if (i < res) {/* has EPOLLOUT */
 			int out_res;
 			e[i] = e[--res];
 			do {
-				out_res = epoll_wait(reactor->__epfd, e + res, count - res, 0);
+				out_res = epoll_wait(nio->__epfd, e + res, count - res, 0);
 			} while (out_res < 0 && EINTR == errno);
 			if (out_res > 0) {
 				res += out_res;
@@ -525,7 +525,7 @@ int nioreactorWait(NioReactor_t* reactor, NioEv_t* e, unsigned int count, int ms
 		t = &tval;
 	}
 	do {
-		res = kevent(reactor->__hNio, NULL, 0, e, count, t);
+		res = kevent(nio->__hNio, NULL, 0, e, count, t);
 	} while (res < 0 && EINTR == errno);
 	return res;
 #endif
@@ -541,7 +541,7 @@ FD_t nioEventFD(const NioEv_t* e) {
 #endif
 }
 
-void* nioEventOverlapped(const NioEv_t* e) {
+void* nioEventOverlappedCheck(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (iocp_ol->free) {
@@ -702,17 +702,17 @@ FD_t nioAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
 */
 }
 
-BOOL nioreactorClose(NioReactor_t* reactor) {
+BOOL nioClose(Nio_t* nio) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle((HANDLE)(reactor->__hNio));
+	return CloseHandle((HANDLE)(nio->__hNio));
 #else
 	#ifdef	__linux__
-	if (reactor->__epfd >= 0 && close(reactor->__epfd)) {
+	if (nio->__epfd >= 0 && close(nio->__epfd)) {
 		return FALSE;
 	}
-	reactor->__epfd = -1;
+	nio->__epfd = -1;
 	#endif
-	return close(reactor->__hNio) == 0;
+	return close(nio->__hNio) == 0;
 #endif
 }
 
