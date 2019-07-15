@@ -45,11 +45,12 @@ typedef struct Channel_t {
 		struct {
 			union {
 				struct {
+					Sockaddr_t listen_addr;
 					void(*close_halfconn)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
 					void(*send_synack)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
 				};
 				struct {
-					Sockaddr_t connect_saddr;
+					Sockaddr_t connect_addr;
 					NetPacket_t* synpacket; /* client connect use */
 					void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
 				};

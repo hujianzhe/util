@@ -20,8 +20,10 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->inbuf = NULL;
 	channel->inbuflen = 0;
 	channel->inbufoff = 0;
-	memset(&channel->dgram.connect_saddr, 0, sizeof(channel->dgram.connect_saddr));
-	channel->dgram.connect_saddr.sa.sa_family = AF_UNSPEC;
+	memset(&channel->dgram.listen_addr, 0, sizeof(channel->dgram.listen_addr));
+	channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
+	memset(&channel->dgram.connect_addr, 0, sizeof(channel->dgram.connect_addr));
+	channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
 	memset(&channel->to_addr, 0, sizeof(channel->to_addr));
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
@@ -185,7 +187,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 		int from_peer;
 		if (!(channel->flag & CHANNEL_FLAG_LISTEN)) {
 			if (channel->flag & CHANNEL_FLAG_CLIENT)
-				from_listen = sockaddrIsEqual(&channel->dgram.connect_saddr, from_saddr);
+				from_listen = sockaddrIsEqual(&channel->dgram.connect_addr, from_saddr);
 			else
 				from_listen = 0;
 			from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
