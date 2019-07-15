@@ -21,7 +21,8 @@ typedef struct DgramHalfConn_t {
 	NetPacketListNode_t node;
 	unsigned char resend_times;
 	long long resend_msec;
-	/* user define other os field, like sockfd and sockaddr */
+	Sockaddr_t from_addr;
+	unsigned short local_port;
 } DgramHalfConn_t;
 
 typedef struct Channel_t {

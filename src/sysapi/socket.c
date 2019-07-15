@@ -518,6 +518,19 @@ int sockaddrIsEqual(const void* one, const void* two) {
 	}
 }
 
+int sockaddrCopy(Sockaddr_t* dst, const void* src) {
+	int len = sockaddrLength(src);
+	if (len >= 0) {
+		memset(dst, 0, sizeof(*dst));
+		if (len > 0)
+			memcpy(dst, src, len);
+		else
+			dst->sa.sa_family = AF_UNSPEC;
+		return 1;
+	}
+	return 0;
+}
+
 BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
 	/* win32 must zero this structure, otherwise report 10049 error. */
 	memset(saddr, 0, sizeof(*saddr));
