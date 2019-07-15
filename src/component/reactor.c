@@ -363,8 +363,23 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 			next = hashtableNextNode(cur);
-			if (o->free)
+			free_io_resource(o);
+			if (o->free) {
 				o->free(o);
+				o->free = NULL;
+			}
+		}
+	} while (0);
+	do {
+		ListNode_t* cur, *next;
+		for (cur = reactor->m_invalidlist.head; cur; cur = next) {
+			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
+			next = cur->next;
+			free_io_resource(o);
+			if (o->free) {
+				o->free(o);
+				o->free = NULL;
+			}
 		}
 	} while (0);
 }
