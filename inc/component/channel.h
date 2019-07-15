@@ -47,8 +47,10 @@ typedef struct Channel_t {
 			union {
 				struct {
 					Sockaddr_t listen_addr;
-					void(*close_halfconn)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
+					void(*free_halfconn)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
 					void(*send_synack)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
+					DgramHalfConn_t*(*recv_syn)(struct Channel_t* self, const void* from_saddr); /* listener use */
+					DgramHalfConn_t*(*ack_halfconn)(struct Channel_t* channel, const void* from_saddr); /* listener use */
 				};
 				struct {
 					Sockaddr_t connect_addr;
@@ -69,14 +71,8 @@ typedef struct Channel_t {
 		unsigned char* bodyptr;
 	} decode_result;
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
-	union {
-		void(*recv)(struct Channel_t* self, const void* from_saddr);
-		DgramHalfConn_t*(*recv_syn)(struct Channel_t* self, const void* from_saddr); /* listener use */
-	};
-	union {
-		void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
-		DgramHalfConn_t*(*ack_halfconn)(struct Channel_t* channel, const void* from_saddr); /* listener use */
-	};
+	void(*recv)(struct Channel_t* self, const void* from_saddr);
+	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	void(*heartbeat)(struct Channel_t* self);
 	int(*zombie)(struct Channel_t* self);
 	void(*shutdown)(struct Channel_t* self);

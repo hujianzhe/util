@@ -29,7 +29,9 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		if (flag & CHANNEL_FLAG_DGRAM) {
 			channel->dgram.synpacket = NULL;
-			channel->dgram.close_halfconn = NULL;
+			channel->dgram.free_halfconn = NULL;
+			channel->dgram.recv_syn = NULL;
+			channel->dgram.ack_halfconn = NULL;
 			channel->dgram.send = NULL;
 			dgramtransportctxInit(&channel->dgram.ctx, initseq);
 		}
@@ -39,9 +41,7 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	}
 	channel->decode = NULL;
 	channel->recv = NULL;
-	channel->recv_syn = NULL;
 	channel->reply_ack = NULL;
-	channel->ack_halfconn = NULL;
 	channel->heartbeat = NULL;
 	channel->zombie = NULL;
 	channel->shutdown = NULL;
@@ -222,7 +222,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 		}
 		else if (NETPACKET_SYN == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
-				DgramHalfConn_t* halfconn = channel->recv_syn(channel, from_saddr);
+				DgramHalfConn_t* halfconn = channel->dgram.recv_syn(channel, from_saddr);
 				if (halfconn) {
 					halfconn->resend_times = 0;
 					halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
@@ -246,10 +246,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 		}
 		else if (NETPACKET_ACK == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
-				DgramHalfConn_t* halfconn = channel->ack_halfconn(channel, from_saddr);
+				DgramHalfConn_t* halfconn = channel->dgram.ack_halfconn(channel, from_saddr);
 				if (halfconn) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, &halfconn->node._);
-					channel->dgram.close_halfconn(channel, halfconn);
+					channel->dgram.free_halfconn(channel, halfconn);
 				}
 			}
 			else {
@@ -356,7 +356,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				}
 				if (halfconn->resend_times >= channel->dgram.ctx.resend_maxtimes) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
-					channel->dgram.close_halfconn(channel, halfconn);
+					channel->dgram.free_halfconn(channel, halfconn);
 				}
 				channel->dgram.send_synack(channel, halfconn);
 				halfconn->resend_times++;
@@ -408,7 +408,7 @@ void channelDestroy(Channel_t* channel) {
 			ListNode_t* cur, *next;
 			for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
-				channel->dgram.close_halfconn(channel, pod_container_of(cur, DgramHalfConn_t, node));
+				channel->dgram.free_halfconn(channel, pod_container_of(cur, DgramHalfConn_t, node));
 			}
 			listInit(&channel->dgram.ctx.recvpacketlist);
 		}
