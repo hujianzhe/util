@@ -17,11 +17,30 @@ static void update_timestamp(long long* src, long long ts) {
 		*src = ts;
 }
 
+static void free_io_resource(ReactorObject_t* o) {
+	if (INVALID_FD_HANDLE != o->fd) {
+		socketClose(o->fd);
+		o->fd = INVALID_FD_HANDLE;
+	}
+	if (o->m_readol) {
+		nioFreeOverlapped(o->m_readol);
+		o->m_readol = NULL;
+	}
+	if (o->m_writeol) {
+		nioFreeOverlapped(o->m_writeol);
+		o->m_writeol = NULL;
+	}
+}
+
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
+	if (SOCK_STREAM == o->socktype) {
+		free_io_resource(o);
+	}
 	o->m_invalid_msec = now_msec;
 	if (o->invalid_timeout_msec <= 0 ||
 		o->invalid_timeout_msec + o->m_invalid_msec <= now_msec)
 	{
+		free_io_resource(o);
 		if (o->inactive) {
 			o->inactive(o);
 			o->inactive = NULL;
@@ -47,7 +66,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor) {
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 	HashtableNode_t *cur, *next;
-	reactor->event_msec = 0;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 		next = hashtableNextNode(cur);
@@ -63,6 +81,8 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 
 static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	ListNode_t* cur, *next;
+	List_t invalidfreelist;
+	listInit(&invalidfreelist);
 	for (cur = reactor->m_invalidlist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
@@ -71,25 +91,15 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 			break;
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
-		if (o->inactive) {
-			o->inactive(o);
-			o->inactive = NULL;
-		}
+		free_io_resource(o);
+		if (o->inactive)
+			listInsertNodeBack(&invalidfreelist, invalidfreelist.tail, cur);
 	}
-}
-
-static void free_io_resource(ReactorObject_t* o) {
-	if (INVALID_FD_HANDLE != o->fd) {
-		socketClose(o->fd);
-		o->fd = INVALID_FD_HANDLE;
-	}
-	if (o->m_readol) {
-		nioFreeOverlapped(o->m_readol);
-		o->m_readol = NULL;
-	}
-	if (o->m_writeol) {
-		nioFreeOverlapped(o->m_writeol);
-		o->m_writeol = NULL;
+	for (cur = invalidfreelist.head; cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
+		next = cur->next;
+		o->inactive(o);
+		o->inactive = NULL;
 	}
 }
 
@@ -326,14 +336,12 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (o->valid)
 				continue;
 			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
-			if (SOCK_STREAM == o->socktype) {
-				free_io_resource(o);
-			}
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 		}
 	}
 	reactor_exec_cmdlist(reactor);
 	if (reactor->event_msec && timestamp_msec >= reactor->event_msec) {
+		reactor->event_msec = 0;
 		reactor_exec_object(reactor, timestamp_msec);
 		reactor_exec_invalidlist(reactor, timestamp_msec);
 	}
