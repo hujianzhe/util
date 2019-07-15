@@ -404,7 +404,6 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
-	o->iosend_msec = 0;
 	o->invalid_timeout_msec = 0;
 	o->valid = 1;
 	o->free = NULL;

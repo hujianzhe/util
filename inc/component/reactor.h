@@ -22,7 +22,6 @@ typedef struct ReactorObject_t {
 	int protocol;
 	struct Reactor_t* reactor;
 	void* userdata;
-	long long iosend_msec;
 	int invalid_timeout_msec;
 	volatile int valid;
 	void(*free)(struct ReactorObject_t* self);
