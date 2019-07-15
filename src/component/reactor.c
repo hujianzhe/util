@@ -6,8 +6,6 @@
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
 
-#define	MSL		30000
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -257,9 +255,7 @@ int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
 			o->m_writeol_has_commit = 1;
 		}
 	}
-	else if (reactorobjectRequestRead(o))
-		o->invalid_timeout_msec = MSL + MSL;
-	else
+	else if (!reactorobjectRequestRead(o))
 		return 0;
 	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
 	return 1;
