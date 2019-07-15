@@ -407,11 +407,11 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->userdata = NULL;
 	o->invalid_timeout_msec = 0;
 	o->valid = 1;
-	o->free = NULL;
 	o->exec = NULL;
 	o->readev = NULL;
 	o->writeev = NULL;
 	o->inactive = NULL;
+	o->free = NULL;
 	memset(&o->stream, 0, sizeof(o->stream));
 	
 	o->m_readol = NULL;
