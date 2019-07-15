@@ -25,6 +25,7 @@ typedef struct DgramHalfConn_t {
 } DgramHalfConn_t;
 
 typedef struct Channel_t {
+	NetPacketListNode_t node;
 	/* public */
 	void* io_object;
 	int flag;
