@@ -26,18 +26,16 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
 	memset(&channel->to_addr, 0, sizeof(channel->to_addr));
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
-	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		if (flag & CHANNEL_FLAG_DGRAM) {
-			channel->dgram.synpacket = NULL;
-			channel->dgram.free_halfconn = NULL;
-			channel->dgram.recv_syn = NULL;
-			channel->dgram.ack_halfconn = NULL;
-			channel->dgram.send = NULL;
-			dgramtransportctxInit(&channel->dgram.ctx, initseq);
-		}
-		else {
-			streamtransportctxInit(&channel->stream.ctx, initseq);
-		}
+	if (flag & CHANNEL_FLAG_DGRAM) {
+		channel->dgram.synpacket = NULL;
+		channel->dgram.free_halfconn = NULL;
+		channel->dgram.recv_syn = NULL;
+		channel->dgram.ack_halfconn = NULL;
+		channel->dgram.send = NULL;
+		dgramtransportctxInit(&channel->dgram.ctx, initseq);
+	}
+	else {
+		streamtransportctxInit(&channel->stream.ctx, initseq);
 	}
 	channel->decode = NULL;
 	channel->recv = NULL;
