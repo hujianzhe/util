@@ -4,6 +4,7 @@
 
 #include "../../inc/component/channel.h"
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -219,6 +220,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				if (halfconn) {
 					halfconn->resend_times = 0;
 					halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+					memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 					listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node._);
 					update_timestamp(&channel->event_msec, halfconn->resend_msec);
 				}
