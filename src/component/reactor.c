@@ -10,9 +10,11 @@
 extern "C" {
 #endif
 
-static void update_timestamp(long long* src, long long ts) {
-	if (*src <= 0 || *src > ts)
-		*src = ts;
+static void update_timestamp(long long* dst, long long ts) {
+	if (ts <= 0)
+		return;
+	if (*dst <= 0 || *dst > ts)
+		*dst = ts;
 }
 
 static void free_inbuf(ReactorObject_t* o) {
@@ -79,8 +81,10 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 		next = hashtableNextNode(cur);
 		if (o->valid) {
 			o->exec(o, now_msec);
-			if (o->valid)
+			if (o->valid) {
+				update_timestamp(&reactor->event_msec, o->event_msec);
 				continue;
+			}
 		}
 		hashtableRemoveNode(&reactor->m_objht, cur);
 		reactorobject_invalid_inner_handler(o, now_msec);
@@ -95,7 +99,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
 		if (o->m_invalid_msec + o->invalid_timeout_msec > now_msec) {
-			update_timestamp(&reactor->event_msec, now_msec);
+			update_timestamp(&reactor->event_msec, o->m_invalid_msec + o->invalid_timeout_msec);
 			break;
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
@@ -498,6 +502,7 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
+	o->event_msec = 0;
 	o->invalid_timeout_msec = 0;
 	o->valid = 1;
 	o->exec = NULL;

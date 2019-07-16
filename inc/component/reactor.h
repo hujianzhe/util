@@ -22,6 +22,7 @@ typedef struct ReactorObject_t {
 	int protocol;
 	struct Reactor_t* reactor;
 	void* userdata;
+	long long event_msec;
 	int invalid_timeout_msec;
 	volatile int valid;
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);

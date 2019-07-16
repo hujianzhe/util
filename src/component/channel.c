@@ -46,6 +46,8 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 }
 
 static void update_timestamp(long long* dst, long long ts) {
+	if (ts <= 0)
+		return;
 	if (*dst <= 0 || *dst > ts)
 		*dst = ts;
 }
