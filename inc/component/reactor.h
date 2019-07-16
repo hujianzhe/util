@@ -56,8 +56,8 @@ typedef struct ReactorObject_t {
 	char m_stream_connected;
 	char m_stream_listened;
 	unsigned char* m_inbuf;
-	unsigned int m_inbufoff;
-	unsigned int m_inbuflen;
+	int m_inbufoff;
+	int m_inbuflen;
 } ReactorObject_t;
 
 typedef struct Reactor_t {

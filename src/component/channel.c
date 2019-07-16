@@ -17,9 +17,6 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;
 	channel->event_msec = 0;
-	channel->inbuf = NULL;
-	channel->inbuflen = 0;
-	channel->inbufoff = 0;
 	memset(&channel->dgram.listen_addr, 0, sizeof(channel->dgram.listen_addr));
 	channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
 	memset(&channel->dgram.connect_addr, 0, sizeof(channel->dgram.connect_addr));
@@ -104,18 +101,15 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 	return 1;
 }
 
-static int channel_stream_recv_handler(Channel_t* channel) {
-	int ok = 1;
-	while (channel->inbufoff < channel->inbuflen) {
+static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off) {
+	while (off < len) {
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, channel->inbuf + channel->inbufoff, channel->inbuflen - channel->inbufoff);
-		if (channel->decode_result.err) {
-			ok = 0;
-			break;
-		}
+		channel->decode(channel, buf + off, len - off);
+		if (channel->decode_result.err)
+			return -1;
 		else if (channel->decode_result.incomplete)
-			return 1;
-		channel->inbufoff += channel->decode_result.decodelen;
+			return off;
+		off += channel->decode_result.decodelen;
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned char pktype = channel->decode_result.pktype;
 			unsigned int pkseq = channel->decode_result.pkseq;
@@ -126,10 +120,8 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 				if (res < 0)
 					continue;
 				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
-				if (!packet) {
-					ok = 0;
-					break;
-				}
+				if (!packet)
+					return -1;
 				packet->type = pktype;
 				packet->seq = pkseq;
 				packet->len = channel->decode_result.bodylen;
@@ -138,45 +130,30 @@ static int channel_stream_recv_handler(Channel_t* channel) {
 				if (streamtransportctxCacheRecvPacket(&channel->stream.ctx, packet)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(&channel->stream.ctx, &list)) {
-						if (!channel_merge_packet_handler(channel, &list)) {
-							ok = 0;
-							break;
-						}
+						if (!channel_merge_packet_handler(channel, &list))
+							return -1;
 					}
-					if (!ok)
-						break;
 				}
 			}
 			else if (NETPACKET_ACK == pktype) {
 				NetPacket_t* ackpk = NULL;
-				if (streamtransportctxAckSendPacket(&channel->stream.ctx, pkseq, &ackpk)) {
+				if (streamtransportctxAckSendPacket(&channel->stream.ctx, pkseq, &ackpk))
 					free(ackpk);
-				}
-				else {
-					ok = 0;
-					break;
-				}
+				else
+					return -1;
 			}
-			else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
+			else if (NETPACKET_NO_ACK_FRAGMENT == pktype)
 				channel->recv(channel, &channel->to_addr);
-			}
-			else {
-				ok = 0;
-				break;
-			}
+			else
+				return -1;
 		}
-		else {
+		else
 			channel->recv(channel, &channel->to_addr);
-		}
 	}
-	free(channel->inbuf);
-	channel->inbuf = NULL;
-	channel->inbuflen = 0;
-	channel->inbufoff = 0;
-	return ok;
+	return off;
 }
 
-static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_msec, const void* from_saddr) {
+static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr) {
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		NetPacket_t* packet;
 		unsigned char pktype;
@@ -193,7 +170,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 				return -1;
 		}
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, channel->inbuf, channel->inbuflen);
+		channel->decode(channel, buf, len);
 		if (channel->decode_result.err)
 			return 0;
 		else if (channel->decode_result.incomplete)
@@ -286,7 +263,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 	}
 	else {
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, channel->inbuf, channel->inbuflen);
+		channel->decode(channel, buf, len);
 		if (channel->decode_result.err)
 			return 0;
 		else if (channel->decode_result.incomplete)
@@ -296,12 +273,12 @@ static int channel_dgram_recv_handler(Channel_t* channel, long long timestamp_ms
 	return 1;
 }
 
-int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void* from_saddr) {
+int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, const void* from_saddr) {
 	int res;
 	if (channel->flag & CHANNEL_FLAG_DGRAM)
-		res = channel_dgram_recv_handler(channel, timestamp_msec, from_saddr);
+		res = channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_saddr);
 	else
-		res = channel_stream_recv_handler(channel);
+		res = channel_stream_recv_handler(channel, buf, len, off);
 	if (res > 0) {
 		channel->m_heartbeat_times = 0;
 		channel->heartbeat_msec = timestamp_msec;
@@ -311,9 +288,8 @@ int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void*
 			ts += channel->heartbeat_msec;
 			update_timestamp(&channel->event_msec, ts);
 		}
-		return 1;
 	}
-	return res != 0;
+	return res;
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
@@ -423,10 +399,6 @@ void channelDestroy(Channel_t* channel) {
 			channel_free_packetlist(&channel->dgram.ctx.sendpacketlist);
 		}
 	}
-	free(channel->inbuf);
-	channel->inbuf = NULL;
-	channel->inbuflen = 0;
-	channel->inbufoff = 0;
 }
 
 #ifdef	__cplusplus

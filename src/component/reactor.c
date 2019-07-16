@@ -163,7 +163,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				reactorobjectInvalid(o, timestamp_msec);
 				return;
 			}
-			o->m_inbufoff += res;
+			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
 		}
