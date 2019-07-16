@@ -92,16 +92,15 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 	}
 	else {
 		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
-		if (!channel->decode_result.bodyptr) {
+		if (!channel->decode_result.bodyptr)
 			return 0;
-		}
 		channel->recv(channel, &channel->to_addr);
 		free(channel->decode_result.bodyptr);
 	}
 	return 1;
 }
 
-static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off) {
+static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec) {
 	if (0 == len) {
 		if (channel->shutdown) {
 			channel->shutdown(channel);
@@ -157,6 +156,16 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		else
 			channel->recv(channel, &channel->to_addr);
 	}
+
+	channel->m_heartbeat_times = 0;
+	channel->heartbeat_msec = timestamp_msec;
+	if (channel->heartbeat_timeout_sec > 0) {
+		long long ts = channel->heartbeat_timeout_sec;
+		ts *= 1000;
+		ts += channel->heartbeat_msec;
+		update_timestamp(&channel->event_msec, ts);
+	}
+
 	return off;
 }
 
@@ -174,7 +183,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				from_listen = 0;
 			from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
 			if (!from_peer && !from_listen)
-				return -1;
+				return 1;
 		}
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
 		channel->decode(channel, buf, len);
@@ -277,26 +286,24 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			return 1;
 		channel->recv(channel, from_saddr);
 	}
+
+	channel->m_heartbeat_times = 0;
+	channel->heartbeat_msec = timestamp_msec;
+	if (channel->heartbeat_timeout_sec > 0) {
+		long long ts = channel->heartbeat_timeout_sec;
+		ts *= 1000;
+		ts += channel->heartbeat_msec;
+		update_timestamp(&channel->event_msec, ts);
+	}
+
 	return 1;
 }
 
 int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, const void* from_saddr) {
-	int res;
 	if (channel->flag & CHANNEL_FLAG_DGRAM)
-		res = channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_saddr);
+		return channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_saddr);
 	else
-		res = channel_stream_recv_handler(channel, buf, len, off);
-	if (res > 0) {
-		channel->m_heartbeat_times = 0;
-		channel->heartbeat_msec = timestamp_msec;
-		if (channel->heartbeat_timeout_sec > 0) {
-			long long ts = channel->heartbeat_timeout_sec;
-			ts *= 1000;
-			ts += channel->heartbeat_msec;
-			update_timestamp(&channel->event_msec, ts);
-		}
-	}
-	return res;
+		return channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
