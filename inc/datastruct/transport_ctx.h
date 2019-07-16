@@ -40,7 +40,6 @@ typedef struct NetPacket_t {
 } NetPacket_t;
 
 typedef struct DgramTransportCtx_t {
-	unsigned short mtu;
 	unsigned short rto;
 	unsigned char resend_maxtimes;
 	unsigned char cwndsize;

@@ -135,7 +135,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 		}
 		else if (0 == res) {
 			reactorobjectInvalid(o, timestamp_msec);
-			o->preread(o, NULL, 0, 0, timestamp_msec);
+			o->preread(o, NULL, 0, 0, timestamp_msec, &from_addr);
 			return;
 		}
 		else {
@@ -154,11 +154,11 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			}
 			else if (0 == res) {
 				reactorobjectInvalid(o, timestamp_msec);
-				o->preread(o, NULL, 0, 0, timestamp_msec);
+				o->preread(o, NULL, 0, 0, timestamp_msec, &from_addr);
 				return;
 			}
 			o->m_inbuflen += res;
-			res = o->preread(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec);
+			res = o->preread(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
 				reactorobjectInvalid(o, timestamp_msec);
 				return;
@@ -200,7 +200,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 					reactorobjectInvalid(o, timestamp_msec);
 				return;
 			}
-			if (o->preread(o, ptr, res, 0, timestamp_msec) < 0) {
+			if (o->preread(o, ptr, res, 0, timestamp_msec, &from_addr) < 0) {
 				reactorobjectInvalid(o, timestamp_msec);
 				return;
 			}

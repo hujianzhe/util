@@ -13,7 +13,6 @@ extern "C" {
 /*********************************************************************************/
 
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
-	ctx->mtu = 1464;
 	ctx->rto = 200;
 	ctx->resend_maxtimes = 5;
 	ctx->cwndsize = 1;
