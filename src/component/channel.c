@@ -303,8 +303,14 @@ int channelRecvHandler(Channel_t* channel, long long timestamp_msec, const void*
 	else
 		res = channel_stream_recv_handler(channel);
 	if (res > 0) {
-		channel->heartbeat_msec = timestamp_msec;
 		channel->m_heartbeat_times = 0;
+		channel->heartbeat_msec = timestamp_msec;
+		if (channel->heartbeat_timeout_sec > 0) {
+			long long ts = channel->heartbeat_timeout_sec;
+			ts *= 1000;
+			ts += channel->heartbeat_msec;
+			update_timestamp(&channel->event_msec, ts);
+		}
 		return 1;
 	}
 	return res != 0;
