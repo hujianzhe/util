@@ -21,6 +21,7 @@ typedef struct DgramHalfConn_t {
 	NetPacketListNode_t node;
 	unsigned char resend_times;
 	long long resend_msec;
+	FD_t sockfd;
 	Sockaddr_t from_addr;
 	unsigned short local_port;
 } DgramHalfConn_t;
@@ -45,10 +46,10 @@ typedef struct Channel_t {
 			union {
 				struct {
 					Sockaddr_t listen_addr;
-					void(*free_halfconn)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
-					void(*send_synack)(struct Channel_t* channel, DgramHalfConn_t* halfconn); /* listener use */
+					void(*send_synack)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
 					DgramHalfConn_t*(*recv_syn)(struct Channel_t* self, const void* from_saddr); /* listener use */
-					DgramHalfConn_t*(*ack_halfconn)(struct Channel_t* channel, const void* from_saddr); /* listener use */
+					int(*ack_halfconn)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
+					void(*free_halfconn)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
 				};
 				struct {
 					Sockaddr_t connect_addr;

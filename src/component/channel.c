@@ -238,15 +238,21 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			channel->dgram.send(channel, NULL, &channel->to_addr);
 		}
 		else if (NETPACKET_ACK == pktype) {
+			ListNode_t* cur;
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
-				DgramHalfConn_t* halfconn = channel->dgram.ack_halfconn(channel, from_saddr);
-				if (halfconn) {
+				ListNode_t* next;
+				for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
+					DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
+					next = cur->next;
+					if (!sockaddrIsEqual(&halfconn->from_addr, from_saddr))
+						continue;
+					if (!channel->dgram.ack_halfconn(channel, halfconn))
+						continue;
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, &halfconn->node._);
 					channel->dgram.free_halfconn(channel, halfconn);
 				}
 			}
 			else {
-				ListNode_t* cur;
 				int cwndskip;
 				packet = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
 				if (!packet)
