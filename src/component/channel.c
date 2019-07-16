@@ -102,6 +102,13 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 }
 
 static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off) {
+	if (0 == len) {
+		if (channel->shutdown) {
+			channel->shutdown(channel);
+			channel->shutdown = NULL;
+		}
+		return 0;
+	}
 	while (off < len) {
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
 		channel->decode(channel, buf + off, len - off);
