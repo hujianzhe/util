@@ -15,7 +15,17 @@ static void update_timestamp(long long* src, long long ts) {
 		*src = ts;
 }
 
+static void free_inbuf(ReactorObject_t* o) {
+	if (o->m_inbuf) {
+		free(o->m_inbuf);
+		o->m_inbuf = NULL;
+		o->m_inbuflen = 0;
+		o->m_inbufoff = 0;
+	}
+}
+
 static void free_io_resource(ReactorObject_t* o) {
+	free_inbuf(o);
 	if (INVALID_FD_HANDLE != o->fd) {
 		socketClose(o->fd);
 		o->fd = INVALID_FD_HANDLE;
@@ -112,6 +122,89 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 			o->stream.accept(o, connfd, &saddr, timestamp_msec);
 		else
 			socketClose(connfd);
+	}
+}
+
+static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
+	Sockaddr_t from_addr;
+	if (SOCK_STREAM == o->socktype) {
+		int res = socketTcpReadableBytes(o->fd);
+		if (res < 0) {
+			reactorobjectInvalid(o, timestamp_msec);
+			return;
+		}
+		else if (0 == res) {
+			reactorobjectInvalid(o, timestamp_msec);
+			o->preread(o, NULL, 0, 0, timestamp_msec);
+			return;
+		}
+		else {
+			unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res);
+			if (!ptr) {
+				reactorobjectInvalid(o, timestamp_msec);
+				return;
+			}
+			o->m_inbuf = ptr;
+			res = socketRead(o->fd, o->m_inbuf + o->m_inbufoff, res, 0, &from_addr.st);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK) {
+					reactorobjectInvalid(o, timestamp_msec);
+				}
+				return;
+			}
+			else if (0 == res) {
+				reactorobjectInvalid(o, timestamp_msec);
+				o->preread(o, NULL, 0, 0, timestamp_msec);
+				return;
+			}
+			o->m_inbuflen += res;
+			res = o->preread(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec);
+			if (res < 0) {
+				reactorobjectInvalid(o, timestamp_msec);
+				return;
+			}
+			o->m_inbufoff += res;
+			if (o->m_inbufoff >= o->m_inbuflen)
+				free_inbuf(o);
+		}
+	}
+	else {
+		unsigned int readtimes, readmaxtimes = 8;
+		for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
+			int res;
+			unsigned char* ptr;
+			if (readtimes) {
+				if (!o->m_inbuf) {
+					o->m_inbuf = (unsigned char*)malloc(o->dgram.read_mtu);
+					if (!o->m_inbuf) {
+						reactorobjectInvalid(o, timestamp_msec);
+						return;
+					}
+					o->m_inbuflen = o->dgram.read_mtu;
+				}
+				ptr = o->m_inbuf;
+				res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
+			}
+			else {
+				Iobuf_t iov;
+				if (0 == nioOverlappedData(o->m_readol, &iov, &from_addr.st)) {
+					++readmaxtimes;
+					continue;
+				}
+				ptr = (unsigned char*)iobufPtr(&iov);
+				res = iobufLen(&iov);
+			}
+
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK)
+					reactorobjectInvalid(o, timestamp_msec);
+				return;
+			}
+			if (o->preread(o, ptr, res, 0, timestamp_msec) < 0) {
+				reactorobjectInvalid(o, timestamp_msec);
+				return;
+			}
+		}
 	}
 }
 
@@ -315,7 +408,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					if (SOCK_STREAM == o->socktype && o->m_stream_listened)
 						reactor_stream_accept(o, timestamp_msec);
 					else
-						o->readev(o, timestamp_msec);
+						reactor_readev(o, timestamp_msec);
 					if (!reactorobjectRequestRead(o))
 						o->valid = 0;
 					break;
@@ -408,11 +501,16 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->invalid_timeout_msec = 0;
 	o->valid = 1;
 	o->exec = NULL;
-	o->readev = NULL;
+	o->preread = NULL;
 	o->writeev = NULL;
 	o->inactive = NULL;
 	o->free = NULL;
-	memset(&o->stream, 0, sizeof(o->stream));
+	if (SOCK_STREAM == socktype)
+		memset(&o->stream, 0, sizeof(o->stream));
+	else {
+		o->dgram.read_mtu = 1464;
+		o->dgram.write_mtu = 548;
+	}
 	
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
@@ -421,6 +519,9 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->m_writeol_has_commit = 0;
 	o->m_stream_connected = 0;
 	o->m_stream_listened = 0;
+	o->m_inbuf = NULL;
+	o->m_inbuflen = 0;
+	o->m_inbufoff = 0;
 	return o;
 }
 
@@ -453,7 +554,9 @@ int reactorobjectRequestRead(ReactorObject_t* o) {
 
 int reactorobjectRequestWrite(ReactorObject_t* o) {
 	Sockaddr_t saddr;
-	if (o->m_writeol_has_commit)
+	if (!o->valid)
+		return 0;
+	else if (o->m_writeol_has_commit)
 		return 1;
 	else if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);

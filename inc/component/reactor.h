@@ -25,20 +25,26 @@ typedef struct ReactorObject_t {
 	int invalid_timeout_msec;
 	volatile int valid;
 	void(*exec)(struct ReactorObject_t* self);
-	void(*readev)(struct ReactorObject_t* self, long long timestamp_msec);
+	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*inactive)(struct ReactorObject_t* self);
 	void(*free)(struct ReactorObject_t* self);
 	union {
+		union {
+			struct {
+				Sockaddr_t listen_addr;
+				void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
+			};
+			struct {
+				Sockaddr_t connect_addr;
+				void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
+			};
+		} stream;
 		struct {
-			Sockaddr_t listen_addr;
-			void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
-		};
-		struct {
-			Sockaddr_t connect_addr;
-			void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
-		};
-	} stream;
+			unsigned short read_mtu;
+			unsigned short write_mtu;
+		} dgram;
+	};
 	/* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
@@ -49,6 +55,9 @@ typedef struct ReactorObject_t {
 	char m_writeol_has_commit;
 	char m_stream_connected;
 	char m_stream_listened;
+	unsigned char* m_inbuf;
+	unsigned int m_inbufoff;
+	unsigned int m_inbuflen;
 } ReactorObject_t;
 
 typedef struct Reactor_t {
