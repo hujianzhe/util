@@ -5,6 +5,7 @@
 #include "../../inc/component/reactor.h"
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
+#include <stdlib.h>
 
 #ifdef	__cplusplus
 extern "C" {
