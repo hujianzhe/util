@@ -24,7 +24,7 @@ typedef struct ReactorObject_t {
 	void* userdata;
 	int invalid_timeout_msec;
 	volatile int valid;
-	void(*exec)(struct ReactorObject_t* self);
+	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);
 	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*inactive)(struct ReactorObject_t* self);

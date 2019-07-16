@@ -78,7 +78,7 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (o->valid) {
-			o->exec(o);
+			o->exec(o, now_msec);
 			if (o->valid)
 				continue;
 		}
