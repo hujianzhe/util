@@ -46,10 +46,10 @@ typedef struct Channel_t {
 			union {
 				struct {
 					Sockaddr_t listen_addr;
-					void(*send_synack)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
-					DgramHalfConn_t*(*recv_syn)(struct Channel_t* self, const void* from_saddr); /* listener use */
-					int(*ack_halfconn)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
-					void(*free_halfconn)(struct Channel_t* self, DgramHalfConn_t* halfconn); /* listener use */
+					void(*send_synack)(DgramHalfConn_t* halfconn); /* listener use */
+					DgramHalfConn_t*(*recv_syn)(const void* from_saddr); /* listener use */
+					int(*ack_halfconn)(DgramHalfConn_t* halfconn); /* listener use */
+					void(*free_halfconn)(DgramHalfConn_t* halfconn); /* listener use */
 				};
 				struct {
 					Sockaddr_t connect_addr;

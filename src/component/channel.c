@@ -216,7 +216,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (NETPACKET_SYN == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
-				DgramHalfConn_t* halfconn = channel->dgram.recv_syn(channel, from_saddr);
+				DgramHalfConn_t* halfconn = channel->dgram.recv_syn(from_saddr);
 				if (halfconn) {
 					halfconn->resend_times = 0;
 					halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
@@ -248,10 +248,11 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					next = cur->next;
 					if (!sockaddrIsEqual(&halfconn->from_addr, from_saddr))
 						continue;
-					if (!channel->dgram.ack_halfconn(channel, halfconn))
+					if (!channel->dgram.ack_halfconn(halfconn))
 						continue;
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, &halfconn->node._);
-					channel->dgram.free_halfconn(channel, halfconn);
+					halfconn->sockfd = INVALID_FD_HANDLE;
+					channel->dgram.free_halfconn(halfconn);
 				}
 			}
 			else {
@@ -360,9 +361,9 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				}
 				if (halfconn->resend_times >= channel->dgram.ctx.resend_maxtimes) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
-					channel->dgram.free_halfconn(channel, halfconn);
+					channel->dgram.free_halfconn(halfconn);
 				}
-				channel->dgram.send_synack(channel, halfconn);
+				channel->dgram.send_synack(halfconn);
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 				update_timestamp(&channel->event_msec, halfconn->resend_msec);
@@ -412,7 +413,7 @@ void channelDestroy(Channel_t* channel) {
 			ListNode_t* cur, *next;
 			for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
-				channel->dgram.free_halfconn(channel, pod_container_of(cur, DgramHalfConn_t, node));
+				channel->dgram.free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
 			}
 			listInit(&channel->dgram.ctx.recvpacketlist);
 		}
