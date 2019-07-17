@@ -121,6 +121,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 
 static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec) {
 	if (0 == len) {
+		channel->has_recvfin = 1;
 		if (channel->shutdown) {
 			channel->shutdown(channel);
 			channel->shutdown = NULL;
@@ -373,6 +374,17 @@ int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off,
 		return channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_saddr);
 	else
 		return channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
+}
+
+int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+	unsigned int i, nbytes = 0;
+	for (i = 0; i < iovcnt; ++i)
+		nbytes += iobufLen(iov + i);
+	listInit(packetlist);
+	if (nbytes) {
+		// TODO
+	}
+	return 1;
 }
 
 void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
