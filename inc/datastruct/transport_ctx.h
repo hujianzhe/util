@@ -23,6 +23,7 @@ typedef struct NetPacket_t {
 	void* userdata;
 	char type;
 	char wait_ack;
+	char cached;
 	union {
 		/* dgram */
 		struct {
