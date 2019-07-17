@@ -235,8 +235,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				ListNode_t* cur;
 				for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = cur->next) {
 					halfconn = pod_container_of(cur, DgramHalfConn_t, node);
-					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr))
+					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr)) {
+						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 						break;
+					}
 				}
 				if (!cur) {
 					FD_t new_sockfd = INVALID_FD_HANDLE;
@@ -268,6 +270,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node);
 						update_timestamp(&channel->event_msec, halfconn->resend_msec);
+						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 					} while (0);
 					if (!halfconn) {
 						free(halfconn);
@@ -276,7 +279,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						return 1;
 					}
 				}
-				channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 			}
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {

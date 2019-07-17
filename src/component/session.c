@@ -683,7 +683,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			for (cur = s->ctx.m_recvpacketlist.head; cur; cur = next) {
 				next = cur->next;
 				halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
-				if (!memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
+				if (sockaddrIsEqual(&halfcon->peer_addr, saddr))
 					break;
 				halfcon = NULL;
 			}
@@ -743,7 +743,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				s->ctx.m_synrcvd_msec = timestamp_msec + s->ctx.rto;
 				update_timestamp(&s->m_loop->m_event_msec, s->ctx.m_synrcvd_msec);
 			}
-			else if (memcmp(&s->ctx.peer_saddr, saddr, sizeof(*saddr)))
+			else if (!sockaddrIsEqual(&s->ctx.peer_saddr, saddr))
 				return 1;
 			syn_ack[0] = HDR_SYN_ACK;
 			reliable_dgram_inner_packet_send(s, syn_ack, 1, saddr);
@@ -759,7 +759,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			for (cur = s->ctx.m_recvpacketlist.head; cur; cur = next) {
 				ReliableDgramHalfConnectPacket_t* halfcon = pod_container_of(cur, ReliableDgramHalfConnectPacket_t, m_listnode);
 				next = cur->next;
-				if (memcmp(&halfcon->peer_addr, saddr, sizeof(halfcon->peer_addr)))
+				if (!sockaddrIsEqual(&halfcon->peer_addr, saddr))
 					continue;
 				if (socketRead(halfcon->sockfd, NULL, 0, 0, &peer_addr))
 					break;
@@ -771,7 +771,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			s->ctx.m_lastactive_msec = timestamp_msec;
 		}
 		else if (SYN_RCVD_STATUS == s->ctx.m_status) {
-			if (memcmp(&s->ctx.peer_saddr, saddr, sizeof(*saddr)))
+			if (!sockaddrIsEqual(&s->ctx.peer_saddr, saddr))
 				return 1;
 			s->ctx.m_lastactive_msec = timestamp_msec;
 			s->ctx.m_heartbeat_msec = timestamp_msec;
@@ -785,7 +785,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		unsigned char syn_ack_ack;
 		if (len < 3)
 			return 1;
-		if (memcmp(saddr, &s->peer_listen_saddr, sizeof(s->peer_listen_saddr)))
+		if (!sockaddrIsEqual(saddr, &s->peer_listen_saddr))
 			return 1;
 		if (SYN_SENT_STATUS != s->ctx.m_status &&
 			ESTABLISHED_STATUS != s->ctx.m_status)
@@ -834,7 +834,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 	else if (HDR_RECONNECT_ACK == hdr_type) {
 		if (SESSION_TRANSPORT_CLIENT != s->transport_side || RECONNECT_STATUS != s->ctx.m_status)
 			return 1;
-		if (memcmp(&s->ctx.peer_saddr, saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(&s->ctx.peer_saddr, saddr))
 			return 1;
 		s->ctx.m_status = ESTABLISHED_STATUS;
 		_xchg16(&s->m_shutdownflag, 0);
@@ -845,7 +845,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 	else if (HDR_RECONNECT_ERR == hdr_type) {
 		if (SESSION_TRANSPORT_CLIENT != s->transport_side || RECONNECT_STATUS != s->ctx.m_status)
 			return 1;
-		if (memcmp(&s->ctx.peer_saddr, saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(&s->ctx.peer_saddr, saddr))
 			return 1;
 		s->m_valid = 0;
 		s->ctx.m_status = TIME_WAIT_STATUS;
@@ -853,7 +853,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 	}
 	else if (HDR_FIN == hdr_type) {
 		unsigned char fin_ack;
-		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(saddr, &s->ctx.peer_saddr))
 			return 1;
 		else if (ESTABLISHED_STATUS == s->ctx.m_status) {
 			fin_ack = HDR_FIN_ACK;
@@ -884,7 +884,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 		}
 	}
 	else if (HDR_FIN_ACK == hdr_type) {
-		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(saddr, &s->ctx.peer_saddr))
 			return 1;
 		else if (LAST_ACK_STATUS == s->ctx.m_status) {
 			s->ctx.m_status = CLOSED_STATUS;
@@ -903,7 +903,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			return 1;
 		if (ESTABLISHED_STATUS > s->ctx.m_status)
 			return 1;
-		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(saddr, &s->ctx.peer_saddr))
 			return 1;
 
 		s->ctx.m_lastactive_msec = timestamp_msec;
@@ -962,7 +962,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 			return 1;
 		if (ESTABLISHED_STATUS > s->ctx.m_status)
 			return 1;
-		if (memcmp(saddr, &s->ctx.peer_saddr, sizeof(*saddr)))
+		if (!sockaddrIsEqual(saddr, &s->ctx.peer_saddr))
 			return 1;
 
 		s->ctx.m_lastactive_msec = timestamp_msec;
