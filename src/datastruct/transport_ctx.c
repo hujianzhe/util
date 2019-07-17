@@ -183,11 +183,11 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 	return 0;
 }
 
-void streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
+int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FRAGMENT) {
 		packet->seq = 0;
 		if (packet->off >= packet->len)
-			return;
+			return 0;
 		else if (NETPACKET_ACK != packet->type)
 			listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 		else {
@@ -218,6 +218,7 @@ void streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* p
 		packet->seq = ctx->m_sendseq++;
 		listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	}
+	return 1;
 }
 
 int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) {
