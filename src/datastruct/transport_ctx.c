@@ -88,6 +88,18 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
+int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+	if (packet->type < NETPACKET_FIN) {
+		packet->cached = 0;
+		return 0;
+	}
+	packet->wait_ack = 0;
+	packet->seq = ctx->m_sendseq++;
+	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
+	packet->cached = 1;
+	return 1;
+}
+
 NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
 	ListNode_t* cur, *next;
 	*cwndskip = 0;
@@ -115,18 +127,6 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 		return packet;
 	}
 	return (NetPacket_t*)0;
-}
-
-int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (packet->type < NETPACKET_FIN) {
-		packet->cached = 0;
-		return 0;
-	}
-	packet->wait_ack = 0;
-	packet->seq = ctx->m_sendseq++;
-	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
-	packet->cached = 1;
-	return 1;
 }
 
 int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, unsigned int seq) {
@@ -199,9 +199,15 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 	return 0;
 }
 
+unsigned int streamtransportctxAllocSendSeq(StreamTransportCtx_t* ctx, int pktype) {
+	if (pktype < NETPACKET_FRAGMENT)
+		return 0;
+	else
+		return ctx->m_sendseq++;
+}
+
 int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FRAGMENT) {
-		packet->seq = 0;
 		if (packet->off >= packet->len) {
 			packet->cached = 0;
 			return 0;
@@ -233,7 +239,6 @@ int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 	}
 	else {
 		packet->wait_ack = 1;
-		packet->seq = ctx->m_sendseq++;
 		listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	}
 	packet->cached = 1;

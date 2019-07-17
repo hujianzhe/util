@@ -376,7 +376,7 @@ int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off,
 		return channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 }
 
-int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
@@ -389,10 +389,10 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 
 void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
 	if (SOCK_STREAM == channel->io->socktype) {
-		if (streamtransportctxSendCheckBusy(&channel->stream.ctx))
-			packet->off = 0;
-		else {
-			int res = socketWrite(channel->io->fd, packet->data, packet->len, 0, NULL, 0);
+		packet->seq = streamtransportctxAllocSendSeq(&channel->stream.ctx, packet->type);
+		packet->off = 0;
+		if (!streamtransportctxSendCheckBusy(&channel->stream.ctx)) {
+			int res = socketWrite(channel->io->fd, packet->data , packet->len, 0, NULL, 0);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					reactorobjectInvalid(channel->io, timestamp_msec);
@@ -405,7 +405,7 @@ void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timest
 		if (streamtransportctxCacheSendPacket(&channel->stream.ctx, packet) && packet->off < packet->len)
 			reactorobjectRequestWrite(channel->io);
 	}
-	else {
+	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet)) {
 			if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
 				return;
@@ -414,6 +414,9 @@ void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timest
 			packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 			update_timestamp(&channel->event_msec, packet->resend_msec);
 		}
+		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+	}
+	else {
 		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 	}
 }
