@@ -46,7 +46,7 @@ typedef struct Channel_t {
 			union {
 				struct {
 					Sockaddr_t listen_addr;
-					void(*send_synack)(DgramHalfConn_t* halfconn); /* listener use */
+					void(*reply_synack)(DgramHalfConn_t* halfconn); /* listener use */
 					DgramHalfConn_t*(*recv_syn)(const void* from_saddr); /* listener use */
 					int(*ack_halfconn)(DgramHalfConn_t* halfconn); /* listener use */
 					void(*free_halfconn)(DgramHalfConn_t* halfconn); /* listener use */

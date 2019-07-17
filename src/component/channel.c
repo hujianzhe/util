@@ -27,6 +27,7 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	if (flag & CHANNEL_FLAG_DGRAM) {
 		channel->dgram.synpacket = NULL;
 		channel->dgram.free_halfconn = NULL;
+		channel->dgram.reply_synack = NULL;
 		channel->dgram.recv_syn = NULL;
 		channel->dgram.ack_halfconn = NULL;
 		channel->dgram.send = NULL;
@@ -223,18 +224,17 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr))
 						break;
 				}
-				if (cur)
-					channel->dgram.send_synack(halfconn);
-				else {
+				if (!cur) {
 					halfconn = channel->dgram.recv_syn(from_saddr);
-					if (halfconn) {
-						halfconn->resend_times = 0;
-						halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
-						memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
-						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node._);
-						update_timestamp(&channel->event_msec, halfconn->resend_msec);
-					}
+					if (!halfconn)
+						return 1;
+					halfconn->resend_times = 0;
+					halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+					memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
+					listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node._);
+					update_timestamp(&channel->event_msec, halfconn->resend_msec);
 				}
+				channel->dgram.reply_synack(halfconn);
 			}
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
@@ -374,7 +374,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
 					channel->dgram.free_halfconn(halfconn);
 				}
-				channel->dgram.send_synack(halfconn);
+				channel->dgram.reply_synack(halfconn);
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
 				update_timestamp(&channel->event_msec, halfconn->resend_msec);
