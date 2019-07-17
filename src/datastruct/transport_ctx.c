@@ -112,12 +112,13 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 	return (NetPacket_t*)0;
 }
 
-void dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_FIN)
-		return;
+		return 0;
 	packet->wait_ack = 0;
 	packet->seq = ctx->m_sendseq++;
 	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
+	return 1;
 }
 
 int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, unsigned int seq) {
