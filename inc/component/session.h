@@ -80,6 +80,7 @@ typedef struct TransportCtx_t {
 	unsigned int m_cwndseq;
 	unsigned int m_recvseq;
 	unsigned int m_sendseq;
+	unsigned int m_ackseq;
 	unsigned int m_cwndseqbak;
 	unsigned int m_recvseqbak;
 	unsigned int m_sendseqbak;

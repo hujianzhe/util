@@ -919,6 +919,8 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 				break;
 			if (seq == packet->seq) {
 				ListNode_t* next = cur->next;
+				if (seq1_before_seq2(s->ctx.m_ackseq, seq))
+					s->ctx.m_ackseq = seq;
 				listRemoveNode(&s->ctx.m_sendpacketlist, cur);
 				free(packet);
 				if (seq == s->ctx.m_cwndseq) {
@@ -928,7 +930,7 @@ static int reliable_dgram_recv_handler(Session_t* s, unsigned char* buffer, int 
 						cwnd_skip = 1;
 					}
 					else
-						++s->ctx.m_cwndseq;
+						s->ctx.m_cwndseq = s->ctx.m_ackseq + 1;
 				}
 				ack_valid = 1;
 				break;
@@ -1586,6 +1588,7 @@ static TransportCtx_t* netTransportInitCtx(TransportCtx_t* ctx) {
 	ctx->m_cwndseq = 0;
 	ctx->m_recvseq = 0;
 	ctx->m_sendseq = 0;
+	ctx->m_ackseq = 0;
 	ctx->m_cwndseqbak = 0;
 	ctx->m_recvseqbak = 0;
 	ctx->m_sendseqbak = 0;
