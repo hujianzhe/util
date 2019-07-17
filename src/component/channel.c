@@ -216,13 +216,24 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (NETPACKET_SYN == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN) {
-				DgramHalfConn_t* halfconn = channel->dgram.recv_syn(from_saddr);
-				if (halfconn) {
-					halfconn->resend_times = 0;
-					halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
-					memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
-					listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node._);
-					update_timestamp(&channel->event_msec, halfconn->resend_msec);
+				DgramHalfConn_t* halfconn;
+				ListNode_t* cur;
+				for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = cur->next) {
+					halfconn = pod_container_of(cur, DgramHalfConn_t, node);
+					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr))
+						break;
+				}
+				if (cur)
+					channel->dgram.send_synack(halfconn);
+				else {
+					halfconn = channel->dgram.recv_syn(from_saddr);
+					if (halfconn) {
+						halfconn->resend_times = 0;
+						halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+						memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
+						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node._);
+						update_timestamp(&channel->event_msec, halfconn->resend_msec);
+					}
 				}
 			}
 		}
