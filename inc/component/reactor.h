@@ -64,7 +64,7 @@ typedef struct ReactorObject_t {
 typedef struct Reactor_t {
 	/* public */
 	long long event_msec;
-	void(*exec_cmd)(ListNode_t* cmdnode);
+	void(*exec_cmd)(ListNode_t* cmdnode, long long timestamp_msec);
 	void(*free_cmd)(ListNode_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;

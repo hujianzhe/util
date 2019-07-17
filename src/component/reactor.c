@@ -63,7 +63,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
-static void reactor_exec_cmdlist(Reactor_t* reactor) {
+static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	cur = reactor->m_cmdlist.head;
@@ -71,7 +71,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor) {
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	for (; cur; cur = next) {
 		next = cur->next;
-		reactor->exec_cmd(cur);
+		reactor->exec_cmd(cur, timestamp_msec);
 	}
 }
 
@@ -434,7 +434,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 		}
 	}
-	reactor_exec_cmdlist(reactor);
+	reactor_exec_cmdlist(reactor, timestamp_msec);
 	if (reactor->event_msec && timestamp_msec >= reactor->event_msec) {
 		reactor->event_msec = 0;
 		reactor_exec_object(reactor, timestamp_msec);
