@@ -560,43 +560,48 @@ BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned 
 	unsigned long len;
 	if (saddr->ss_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
-		len = INET_ADDRSTRLEN + 6;
 		if (port)
 			*port = ntohs(addr_in->sin_port);
+		if (strIP) {
 #if defined(_WIN32) || defined(_WIN64)
-		if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in), NULL, strIP, &len)) {
-			char* p;
-			if (p = strchr(strIP, ':')) {
-				*p = 0;
+			len = INET_ADDRSTRLEN + 6;
+			if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in), NULL, strIP, &len)) {
+				char* p;
+				if (p = strchr(strIP, ':'))
+					*p = 0;
+				return TRUE;
 			}
-			return TRUE;
-		}
-		return FALSE;
+			return FALSE;
 #else
-		return inet_ntop(AF_INET, &addr_in->sin_addr, strIP, len) != NULL;
+			return inet_ntop(AF_INET, &addr_in->sin_addr, strIP, len) != NULL;
 #endif
+		}
+		return TRUE;
 	}
 	else if (saddr->ss_family == AF_INET6) {
-		char buf[INET6_ADDRSTRLEN + 8];
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
-		len = sizeof(buf);
 		if (port)
 			*port = ntohs(addr_in6->sin6_port);
+		if (strIP) {
 #if defined(_WIN32) || defined(_WIN64)
-		if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in6), NULL, buf, &len)) {
-			char* p;
-			if (p = strchr(buf, '%'))
-				*p = 0;
-			p = buf;
-			if (*p == '[')
-				*strchr(++p,']') = 0;
-			strcpy(strIP, p);
-			return TRUE;
-		}
-		return FALSE;
+			char buf[INET6_ADDRSTRLEN + 8];
+			len = sizeof(buf);
+			if (!WSAAddressToStringA((LPSOCKADDR)saddr, sizeof(struct sockaddr_in6), NULL, buf, &len)) {
+				char* p;
+				if (p = strchr(buf, '%'))
+					*p = 0;
+				p = buf;
+				if (*p == '[')
+					*strchr(++p, ']') = 0;
+				strcpy(strIP, p);
+				return TRUE;
+			}
+			return FALSE;
 #else
-		return inet_ntop(AF_INET6, &addr_in6->sin6_addr, strIP, len) != NULL;
+			return inet_ntop(AF_INET6, &addr_in6->sin6_addr, strIP, len) != NULL;
 #endif
+		}
+		return TRUE;
 	}
 	__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 	return FALSE;
@@ -876,7 +881,7 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 	socklen_t slen;
 	if (from) {
 		slen = sizeof(*from);
-		memset(from, 0, sizeof(*from));
+		/*memset(from, 0, sizeof(*from));*/
 	}
 	else
 		slen = 0;

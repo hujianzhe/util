@@ -9,27 +9,19 @@
 #include "../sysapi/socket.h"
 
 enum {
-	CHANNEL_FLAG_CLIENT		= 1 << 0,
-	CHANNEL_FLAG_SERVER		= 1 << 1,
-	CHANNEL_FLAG_LISTEN		= 1 << 2,
-	CHANNEL_FLAG_STREAM		= 1 << 3,
-	CHANNEL_FLAG_DGRAM		= 1 << 4,
-	CHANNEL_FLAG_RELIABLE	= 1 << 5
+	CHANNEL_FLAG_CLIENT = 1 << 0,
+	CHANNEL_FLAG_SERVER = 1 << 1,
+	CHANNEL_FLAG_LISTEN = 1 << 2,
+	CHANNEL_FLAG_STREAM = 1 << 3,
+	CHANNEL_FLAG_DGRAM = 1 << 4,
+	CHANNEL_FLAG_RELIABLE = 1 << 5
 };
 
-typedef struct DgramHalfConn_t {
-	NetPacketListNode_t node;
-	unsigned char resend_times;
-	long long resend_msec;
-	FD_t sockfd;
-	Sockaddr_t from_addr;
-	unsigned short local_port;
-} DgramHalfConn_t;
-
+struct ReactorObject_t;
 typedef struct Channel_t {
 	NetPacketListNode_t node;
 	/* public */
-	void* io_object;
+	struct ReactorObject_t* io;
 	int flag;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes;
@@ -46,15 +38,12 @@ typedef struct Channel_t {
 			union {
 				struct {
 					Sockaddr_t listen_addr;
-					void(*reply_synack)(DgramHalfConn_t* halfconn); /* listener use */
-					DgramHalfConn_t*(*recv_syn)(const void* from_saddr); /* listener use */
-					int(*ack_halfconn)(DgramHalfConn_t* halfconn); /* listener use */
-					void(*free_halfconn)(DgramHalfConn_t* halfconn); /* listener use */
+					void(*reply_synack)(FD_t listenfd, unsigned short newport, const void* from_addr); /* listener use */
+					void(*ack_halfconn)(FD_t newfd, const void* peer_addr); /* listener use */
 				};
 				struct {
 					Sockaddr_t connect_addr;
 					NetPacket_t* synpacket; /* client connect use */
-					void(*send)(struct Channel_t* self, NetPacket_t* packet, const void* to_saddr);
 				};
 			};
 			DgramTransportCtx_t ctx;
