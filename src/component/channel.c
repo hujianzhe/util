@@ -44,6 +44,7 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	if (flag & CHANNEL_FLAG_DGRAM) {
 		channel->dgram.synpacket = NULL;
+		channel->dgram.resend_err = NULL;
 		channel->dgram.rto = 200;
 		channel->dgram.resend_maxtimes = 5;
 		channel->dgram.reply_synack = NULL;
@@ -478,6 +479,19 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				update_timestamp(&channel->event_msec, halfconn->resend_msec);
 			}
 		}
+		else if (channel->dgram.synpacket) {
+			NetPacket_t* packet = channel->dgram.synpacket;
+			if (packet->resend_msec > timestamp_msec)
+				update_timestamp(&channel->event_msec, packet->resend_msec);
+			else if (packet->resend_times >= channel->dgram.resend_maxtimes)
+				channel->dgram.resend_err(channel, packet);
+			else {
+				socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
+				packet->resend_times++;
+				packet->resend_msec = timestamp_msec + channel->dgram.rto;
+				update_timestamp(&channel->event_msec, packet->resend_msec);
+			}
+		}
 		else {
 			ListNode_t* cur;
 			for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
@@ -491,6 +505,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 					if (!channel->has_sendfin && !channel->has_recvfin)
 						return 0;
+					channel->dgram.resend_err(channel, packet);
 					break;
 				}
 				socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
