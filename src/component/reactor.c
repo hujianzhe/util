@@ -45,10 +45,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 		o->invalid_timeout_msec + o->m_invalid_msec <= now_msec)
 	{
 		free_io_resource(o);
-		if (o->inactive) {
-			o->inactive(o);
-			o->inactive = NULL;
-		}
+		o->inactive(o);
 	}
 	else {
 		listInsertNodeBack(&o->reactor->m_invalidlist, o->reactor->m_invalidlist.tail, &o->m_invalidnode);
@@ -96,14 +93,12 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
 		free_io_resource(o);
-		if (o->inactive)
-			listInsertNodeBack(&invalidfreelist, invalidfreelist.tail, cur);
+		listInsertNodeBack(&invalidfreelist, invalidfreelist.tail, cur);
 	}
 	for (cur = invalidfreelist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
 		o->inactive(o);
-		o->inactive = NULL;
 	}
 }
 

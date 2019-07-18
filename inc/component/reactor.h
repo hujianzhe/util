@@ -13,14 +13,34 @@
 #include "../datastruct/list.h"
 #include "../datastruct/hashtable.h"
 
-struct Reactor_t;
+typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
+
+typedef struct Reactor_t {
+	/* public */
+	void(*exec_cmd)(ListNode_t* cmdnode, long long timestamp_msec);
+	void(*free_cmd)(ListNode_t* cmdnode);
+	/* private */
+	unsigned char m_runthreadhasbind;
+	long long m_event_msec;
+	Atom16_t m_wake;
+	Thread_t m_runthread;
+	Nio_t m_nio;
+	FD_t m_socketpair[2];
+	void* m_readol;
+	CriticalSection_t m_cmdlistlock;
+	List_t m_cmdlist;
+	List_t m_invalidlist;
+	Hashtable_t m_objht;
+	HashtableNode_t* m_objht_bulks[2048];
+} Reactor_t;
+
 typedef struct ReactorObject_t {
 	/* public */
 	FD_t fd;
 	int domain;
 	int socktype;
 	int protocol;
-	struct Reactor_t* reactor;
+	Reactor_t* reactor;
 	void* userdata;
 	int invalid_timeout_msec;
 	volatile int valid;
@@ -59,25 +79,6 @@ typedef struct ReactorObject_t {
 	int m_inbufoff;
 	int m_inbuflen;
 } ReactorObject_t;
-
-typedef struct Reactor_t {
-	/* public */
-	void(*exec_cmd)(ListNode_t* cmdnode, long long timestamp_msec);
-	void(*free_cmd)(ListNode_t* cmdnode);
-	/* private */
-	unsigned char m_runthreadhasbind;
-	long long m_event_msec;
-	Atom16_t m_wake;
-	Thread_t m_runthread;
-	Nio_t m_nio;
-	FD_t m_socketpair[2];
-	void* m_readol;
-	CriticalSection_t m_cmdlistlock;
-	List_t m_cmdlist;
-	List_t m_invalidlist;
-	Hashtable_t m_objht;
-	HashtableNode_t* m_objht_bulks[2048];
-} Reactor_t;
 
 #ifdef	__cplusplus
 extern "C" {
