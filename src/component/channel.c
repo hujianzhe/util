@@ -30,6 +30,7 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->io = NULL;
 	channel->flag = flag;
+	channel->maxhdrsize = 0;
 	channel->heartbeat_timeout_sec = 0;
 	channel->heartbeat_maxtimes = 0;
 	channel->heartbeat_msec = 0;
@@ -60,6 +61,8 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->heartbeat = NULL;
 	channel->zombie = NULL;
 	channel->shutdown = NULL;
+	channel->hdrsize = NULL;
+	channel->encode = NULL;
 
 	channel->m_heartbeat_times = 0;
 	return channel;
@@ -385,45 +388,33 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
 	if (nbytes) {
-		// TODO
+		unsigned int off;
+		unsigned int sharedsize = channel->io->dgram.write_mtu - channel->maxhdrsize;
+		unsigned int sharedcnt = nbytes / sharedsize;
+		if (nbytes % sharedsize)
+			sharedcnt++;
+		for (off = i = 0; i < sharedcnt; ++i) {
+			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
+			NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize + memsz);
+			if (!packet)
+				break;
+			memset(packet, 0, sizeof(*packet));
+			packet->len = channel->maxhdrsize + memsz;
+			off += memsz;
+			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
+		}
+		if (i != sharedcnt) {
+			ListNode_t* cur, *next;
+			for (cur = packetlist->head; cur; cur = next) {
+				next = cur->next;
+				free(pod_container_of(cur, NetPacket_t, node));
+			}
+			listInit(packetlist);
+			return 0;
+		}
+		// TODO: copy data
 	}
 	return 1;
-}
-
-void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
-	if (channel->has_sendfin)
-		return;
-	else if (SOCK_STREAM == channel->io->socktype) {
-		packet->off = 0;
-		if (channel->flag & CHANNEL_FLAG_RELIABLE)
-			packet->seq = streamtransportctxAllocSendSeq(&channel->stream.ctx, packet->type);
-		if (!streamtransportctxSendCheckBusy(&channel->stream.ctx)) {
-			int res = socketWrite(channel->io->fd, packet->data , packet->len, 0, NULL, 0);
-			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK) {
-					reactorobjectInvalid(channel->io, timestamp_msec);
-					return;
-				}
-				res = 0;
-			}
-			packet->off = res;
-		}
-		if (streamtransportctxCacheSendPacket(&channel->stream.ctx, packet) && packet->off < packet->len)
-			reactorobjectRequestWrite(channel->io);
-	}
-	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet)) {
-			if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
-				return;
-			packet->wait_ack = 1;
-			packet->resend_times = 0;
-			packet->resend_msec = timestamp_msec + channel->dgram.rto;
-			update_timestamp(&channel->event_msec, packet->resend_msec);
-		}
-		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
-	}
-	else
-		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {

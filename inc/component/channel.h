@@ -23,6 +23,7 @@ typedef struct Channel_t {
 	/* public */
 	struct ReactorObject_t* io;
 	int flag;
+	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
@@ -67,6 +68,8 @@ typedef struct Channel_t {
 	void(*heartbeat)(struct Channel_t* self);
 	int(*zombie)(struct Channel_t* self);
 	void(*shutdown)(struct Channel_t* self);
+	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
+	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 	/* private */
 	unsigned int m_heartbeat_times;
 } Channel_t;
@@ -78,7 +81,6 @@ extern "C" {
 __declspec_dll Channel_t* channelInit(Channel_t* channel, int flag, int initseq);
 __declspec_dll int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, const void* from_saddr);
 __declspec_dll int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist);
-__declspec_dll void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timestamp_msec);
 __declspec_dll int channelEventHandler(Channel_t* channel, long long timestamp_msec);
 __declspec_dll void channelDestroy(Channel_t* channel);
 
