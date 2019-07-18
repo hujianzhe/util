@@ -44,6 +44,8 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	if (flag & CHANNEL_FLAG_DGRAM) {
 		channel->dgram.synpacket = NULL;
+		channel->dgram.rto = 200;
+		channel->dgram.resend_maxtimes = 5;
 		channel->dgram.reply_synack = NULL;
 		channel->dgram.ack_halfconn = NULL;
 		dgramtransportctxInit(&channel->dgram.ctx, initseq);
@@ -269,7 +271,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 						halfconn->local_port = local_port;
 						halfconn->resend_times = 0;
-						halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+						halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node);
 						update_timestamp(&channel->event_msec, halfconn->resend_msec);
 						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
@@ -331,7 +333,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 					packet->wait_ack = 1;
 					packet->resend_times = 0;
-					packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+					packet->resend_msec = timestamp_msec + channel->dgram.rto;
 					update_timestamp(&channel->event_msec, packet->resend_msec);
 				}
 			}
@@ -388,9 +390,12 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 }
 
 void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
-	if (SOCK_STREAM == channel->io->socktype) {
-		packet->seq = streamtransportctxAllocSendSeq(&channel->stream.ctx, packet->type);
+	if (channel->has_sendfin)
+		return;
+	else if (SOCK_STREAM == channel->io->socktype) {
 		packet->off = 0;
+		if (channel->flag & CHANNEL_FLAG_RELIABLE)
+			packet->seq = streamtransportctxAllocSendSeq(&channel->stream.ctx, packet->type);
 		if (!streamtransportctxSendCheckBusy(&channel->stream.ctx)) {
 			int res = socketWrite(channel->io->fd, packet->data , packet->len, 0, NULL, 0);
 			if (res < 0) {
@@ -411,14 +416,13 @@ void channelSendPacket(Channel_t* channel, NetPacket_t* packet, long long timest
 				return;
 			packet->wait_ack = 1;
 			packet->resend_times = 0;
-			packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+			packet->resend_msec = timestamp_msec + channel->dgram.rto;
 			update_timestamp(&channel->event_msec, packet->resend_msec);
 		}
 		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 	}
-	else {
+	else
 		socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
-	}
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
@@ -463,14 +467,14 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 					update_timestamp(&channel->event_msec, halfconn->resend_msec);
 					continue;
 				}
-				if (halfconn->resend_times >= channel->dgram.ctx.resend_maxtimes) {
+				if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
 					free_halfconn(halfconn);
 					continue;
 				}
 				channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 				halfconn->resend_times++;
-				halfconn->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 				update_timestamp(&channel->event_msec, halfconn->resend_msec);
 			}
 		}
@@ -484,14 +488,14 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 					update_timestamp(&channel->event_msec, packet->resend_msec);
 					continue;
 				}
-				if (packet->resend_times >= channel->dgram.ctx.resend_maxtimes) {
+				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 					if (!channel->has_sendfin && !channel->has_recvfin)
 						return 0;
 					break;
 				}
 				socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				packet->resend_times++;
-				packet->resend_msec = timestamp_msec + channel->dgram.ctx.rto;
+				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				update_timestamp(&channel->event_msec, packet->resend_msec);
 			}
 		}

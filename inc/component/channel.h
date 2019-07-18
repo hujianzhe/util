@@ -44,6 +44,8 @@ typedef struct Channel_t {
 				struct {
 					Sockaddr_t connect_addr;
 					NetPacket_t* synpacket; /* client connect use */
+					unsigned short rto;
+					unsigned char resend_maxtimes;
 				};
 			};
 			DgramTransportCtx_t ctx;

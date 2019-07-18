@@ -13,8 +13,6 @@ extern "C" {
 /*********************************************************************************/
 
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
-	ctx->rto = 200;
-	ctx->resend_maxtimes = 5;
 	ctx->cwndsize = 1;
 	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
