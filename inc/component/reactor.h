@@ -22,7 +22,6 @@ typedef struct ReactorObject_t {
 	int protocol;
 	struct Reactor_t* reactor;
 	void* userdata;
-	long long event_msec;
 	int invalid_timeout_msec;
 	volatile int valid;
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);
@@ -63,11 +62,11 @@ typedef struct ReactorObject_t {
 
 typedef struct Reactor_t {
 	/* public */
-	long long event_msec;
 	void(*exec_cmd)(ListNode_t* cmdnode, long long timestamp_msec);
 	void(*free_cmd)(ListNode_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;
+	long long m_event_msec;
 	Atom16_t m_wake;
 	Thread_t m_runthread;
 	Nio_t m_nio;
@@ -91,6 +90,7 @@ __declspec_dll void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist);
 __declspec_dll int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
+__declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
 __declspec_dll ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll int reactorobjectRequestRead(ReactorObject_t* o);

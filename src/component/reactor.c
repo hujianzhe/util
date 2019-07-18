@@ -11,13 +11,6 @@
 extern "C" {
 #endif
 
-static void update_timestamp(long long* dst, long long ts) {
-	if (ts <= 0)
-		return;
-	if (*dst <= 0 || *dst > ts)
-		*dst = ts;
-}
-
 static void free_inbuf(ReactorObject_t* o) {
 	if (o->m_inbuf) {
 		free(o->m_inbuf);
@@ -59,7 +52,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 	else {
 		listInsertNodeBack(&o->reactor->m_invalidlist, o->reactor->m_invalidlist.tail, &o->m_invalidnode);
-		update_timestamp(&o->reactor->event_msec, o->m_invalid_msec + o->invalid_timeout_msec);
+		reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->invalid_timeout_msec);
 	}
 }
 
@@ -82,10 +75,8 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 		next = hashtableNextNode(cur);
 		if (o->valid) {
 			o->exec(o, now_msec);
-			if (o->valid) {
-				update_timestamp(&reactor->event_msec, o->event_msec);
+			if (o->valid)
 				continue;
-			}
 		}
 		hashtableRemoveNode(&reactor->m_objht, cur);
 		reactorobject_invalid_inner_handler(o, now_msec);
@@ -100,7 +91,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
 		if (o->m_invalid_msec + o->invalid_timeout_msec > now_msec) {
-			update_timestamp(&reactor->event_msec, o->m_invalid_msec + o->invalid_timeout_msec);
+			reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->invalid_timeout_msec);
 			break;
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
@@ -290,9 +281,9 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
 		objht_keycmp, objht_keyhash);
 	reactor->m_runthreadhasbind = 0;
+	reactor->m_event_msec = 0;
 	reactor->m_wake = 0;
 
-	reactor->event_msec = 0;
 	reactor->exec_cmd = NULL;
 	reactor->free_cmd = NULL;
 	return reactor;
@@ -366,12 +357,12 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 		reactor->m_runthreadhasbind = 1;
 	}
 
-	if (reactor->event_msec > timestamp_msec) {
-		int checkexpire_wait_msec = reactor->event_msec - timestamp_msec;
+	if (reactor->m_event_msec > timestamp_msec) {
+		int checkexpire_wait_msec = reactor->m_event_msec - timestamp_msec;
 		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
 			wait_msec = checkexpire_wait_msec;
 	}
-	else if (reactor->event_msec) {
+	else if (reactor->m_event_msec) {
 		wait_msec = 0;
 	}
 
@@ -435,8 +426,8 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 		}
 	}
 	reactor_exec_cmdlist(reactor, timestamp_msec);
-	if (reactor->event_msec && timestamp_msec >= reactor->event_msec) {
-		reactor->event_msec = 0;
+	if (reactor->m_event_msec > 0 && timestamp_msec >= reactor->m_event_msec) {
+		reactor->m_event_msec = 0;
 		reactor_exec_object(reactor, timestamp_msec);
 		reactor_exec_invalidlist(reactor, timestamp_msec);
 	}
@@ -483,6 +474,15 @@ void reactorDestroy(Reactor_t* reactor) {
 	} while (0);
 }
 
+void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec) {
+	if (timestamp_msec <= 0)
+		return;
+	else if (reactor->m_event_msec <= 0 || reactor->m_event_msec > timestamp_msec)
+		reactor->m_event_msec = timestamp_msec;
+}
+
+/*****************************************************************************************/
+
 ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol) {
 	int fd_create;
 	if (INVALID_FD_HANDLE == fd) {
@@ -503,7 +503,6 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
-	o->event_msec = 0;
 	o->invalid_timeout_msec = 0;
 	o->valid = 1;
 	o->exec = NULL;
