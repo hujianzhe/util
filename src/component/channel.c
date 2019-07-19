@@ -154,6 +154,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
 				if (!packet)
 					return -1;
+				memset(packet, 0, sizeof(*packet));
 				packet->type = pktype;
 				packet->seq = pkseq;
 				packet->len = channel->decode_result.bodylen;
@@ -224,6 +225,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
 			if (!packet)
 				return 0;
+			memset(packet, 0, sizeof(*packet));
 			packet->type = pktype;
 			packet->seq = pkseq;
 			packet->len = channel->decode_result.bodylen;
@@ -382,29 +384,39 @@ int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off,
 		return channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 }
 
-int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
+int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
+	if (!(channel->flag & CHANNEL_FLAG_RELIABLE))
+		no_ack = 1;
 	if (nbytes) {
-		unsigned int off;
+		ListNode_t* cur;
+		NetPacket_t* packet = NULL;
+		unsigned int off, iov_i, iov_off;
 		unsigned int sharedsize = channel->io->dgram.write_mtu - channel->maxhdrsize;
-		unsigned int sharedcnt = nbytes / sharedsize;
-		if (nbytes % sharedsize)
-			sharedcnt++;
+		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
+		if (sharedcnt > 1 && no_ack && SOCK_DGRAM == channel->io->socktype)
+			return 0;
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
-			NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize + memsz);
+			unsigned int hdrsize = channel->hdrsize ? channel->hdrsize(channel, memsz) : 0;
+			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize + memsz);
 			if (!packet)
 				break;
 			memset(packet, 0, sizeof(*packet));
+			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
+			packet->hdrsize = hdrsize;
 			packet->len = channel->maxhdrsize + memsz;
 			off += memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
 		}
-		if (i != sharedcnt) {
-			ListNode_t* cur, *next;
+		if (packet) {
+			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
+		}
+		else {
+			ListNode_t *next;
 			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
 				free(pod_container_of(cur, NetPacket_t, node));
@@ -412,7 +424,26 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 			listInit(packetlist);
 			return 0;
 		}
-		// TODO: copy data
+		iov_i = iov_off = 0;
+		for (cur = packetlist->head; cur; cur = cur->next) {
+			packet = pod_container_of(cur, NetPacket_t, node);
+			off = 0;
+			while (iov_i < iovcnt) {
+				unsigned int pkleftsize = packet->len - packet->hdrsize - off;
+				unsigned int iovleftsize = iobufLen(iov + iov_i) - iov_off;
+				if (iovleftsize > pkleftsize) {
+					memcpy(packet->data + packet->hdrsize + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
+					iov_off += pkleftsize;
+					break;
+				}
+				else {
+					memcpy(packet->data + packet->hdrsize + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
+					iov_off = 0;
+					iov_i++;
+					off += iovleftsize;
+				}
+			}
+		}
 	}
 	return 1;
 }
