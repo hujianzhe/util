@@ -53,6 +53,47 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
+static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
+	o->reactor = reactor;
+	if (!nioReg(&reactor->m_nio, o->fd))
+		return 0;
+	if (SOCK_STREAM == o->socktype) {
+		BOOL ret;
+		if (!socketIsListened(o->fd, &ret))
+			return 0;
+		if (ret) {
+			o->m_stream_listened = 1;
+			if (!reactorobjectRequestRead(o))
+				return 0;
+		}
+		else if (!socketIsConnected(o->fd, &ret))
+			return 0;
+		else if (ret) {
+			o->m_stream_connected = 1;
+			if (!reactorobjectRequestRead(o))
+				return 0;
+		}
+		else {
+			o->m_stream_connected = 0;
+			if (!o->m_writeol) {
+				o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
+				if (!o->m_writeol)
+					return 0;
+			}
+			if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
+				&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
+			{
+				return 0;
+			}
+			o->m_writeol_has_commit = 1;
+		}
+	}
+	else if (!reactorobjectRequestRead(o))
+		return 0;
+	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
+	return 1;
+}
+
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -60,8 +101,23 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	listInit(&reactor->m_cmdlist);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	for (; cur; cur = next) {
+		ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 		next = cur->next;
-		reactor->exec_cmd(cur, timestamp_msec);
+		if (REACTOR_REG_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
+			if (!reactor_reg_object(reactor, o)) {
+				reactorobjectInvalid(o, timestamp_msec);
+			}
+		}
+		else if (REACTOR_FREE_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
+			free_io_resource(o);
+			if (o->free) {
+				o->free(o);
+				o->free = NULL;
+			}
+		}
+		reactor->exec_cmd(cmd, timestamp_msec);
 	}
 }
 
@@ -291,9 +347,15 @@ void reactorWake(Reactor_t* reactor) {
 	}
 }
 
-void reactorCommitCmd(Reactor_t* reactor, ListNode_t* cmdnode) {
+void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
+	if (REACTOR_REG_CMD == cmdnode->type) {
+		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, regcmd);
+		if (o->reactor)
+			return;
+		o->reactor = reactor;
+	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
-	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, cmdnode);
+	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	reactorWake(reactor);
 }
@@ -303,47 +365,6 @@ void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist) {
 	listMerge(&reactor->m_cmdlist, cmdlist);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	reactorWake(reactor);
-}
-
-int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o) {
-	o->reactor = reactor;
-	if (!nioReg(&reactor->m_nio, o->fd))
-		return 0;
-	if (SOCK_STREAM == o->socktype) {
-		BOOL ret;
-		if (!socketIsListened(o->fd, &ret))
-			return 0;
-		if (ret) {
-			o->m_stream_listened = 1;
-			if (!reactorobjectRequestRead(o))
-				return 0;
-		}
-		else if (!socketIsConnected(o->fd, &ret))
-			return 0;
-		else if (ret) {
-			o->m_stream_connected = 1;
-			if (!reactorobjectRequestRead(o))
-				return 0;
-		}
-		else {
-			o->m_stream_connected = 0;
-			if (!o->m_writeol) {
-				o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
-				if (!o->m_writeol)
-					return 0;
-			}
-			if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
-				&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
-			{
-				return 0;
-			}
-			o->m_writeol_has_commit = 1;
-		}
-	}
-	else if (!reactorobjectRequestRead(o))
-		return 0;
-	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
-	return 1;
 }
 
 int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
@@ -440,7 +461,7 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
 			next = cur->next;
 			if (reactor->free_cmd)
-				reactor->free_cmd(cur);
+				reactor->free_cmd(pod_container_of(cur, ReactorCmd_t, _));
 		}
 	} while (0);
 	do {
@@ -511,6 +532,8 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	else {
 		o->dgram.read_mtu = 1464;
 	}
+	o->regcmd.type = REACTOR_REG_CMD;
+	o->freecmd.type = REACTOR_FREE_CMD;
 	
 	o->m_readol = NULL;
 	o->m_writeol = NULL;

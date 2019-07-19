@@ -14,11 +14,15 @@
 #include "../datastruct/hashtable.h"
 
 typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
+enum {
+	REACTOR_REG_CMD = 1,
+	REACTOR_FREE_CMD
+};
 
 typedef struct Reactor_t {
 	/* public */
-	void(*exec_cmd)(ListNode_t* cmdnode, long long timestamp_msec);
-	void(*free_cmd)(ListNode_t* cmdnode);
+	void(*exec_cmd)(ReactorCmd_t* cmdnode, long long timestamp_msec);
+	void(*free_cmd)(ReactorCmd_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;
 	long long m_event_msec;
@@ -65,6 +69,8 @@ typedef struct ReactorObject_t {
 			unsigned short read_mtu;
 		} dgram;
 	};
+	ReactorCmd_t regcmd;
+	ReactorCmd_t freecmd;
 	/* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
@@ -86,9 +92,8 @@ extern "C" {
 
 __declspec_dll Reactor_t* reactorInit(Reactor_t* reactor);
 __declspec_dll void reactorWake(Reactor_t* reactor);
-__declspec_dll void reactorCommitCmd(Reactor_t* reactor, ListNode_t* cmdnode);
+__declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist);
-__declspec_dll int reactorRegObject(Reactor_t* reactor, ReactorObject_t* o);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
