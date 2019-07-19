@@ -386,6 +386,7 @@ int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off,
 
 int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
+	NetPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
@@ -393,12 +394,12 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 		no_ack = 1;
 	if (nbytes) {
 		ListNode_t* cur;
-		NetPacket_t* packet = NULL;
 		unsigned int off, iov_i, iov_off;
-		unsigned int sharedsize = channel->io->dgram.write_mtu - channel->maxhdrsize;
+		unsigned int sharedsize = channel->io->write_fragment_size - channel->maxhdrsize;
 		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
 		if (sharedcnt > 1 && no_ack && SOCK_DGRAM == channel->io->socktype)
 			return 0;
+		packet = NULL;
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
 			unsigned int hdrsize = channel->hdrsize ? channel->hdrsize(channel, memsz) : 0;
@@ -444,6 +445,14 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 				}
 			}
 		}
+	}
+	else if (SOCK_DGRAM == channel->io->socktype) {
+		packet = (NetPacket_t*)malloc(sizeof(NetPacket_t));
+		if (!packet)
+			return 0;
+		memset(packet, 0, sizeof(*packet));
+		packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
+		listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
 	}
 	return 1;
 }

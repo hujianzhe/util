@@ -499,6 +499,7 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->reactor = NULL;
 	o->userdata = NULL;
 	o->invalid_timeout_msec = 0;
+	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	o->valid = 1;
 	o->exec = NULL;
 	o->preread = NULL;
@@ -509,7 +510,6 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 		memset(&o->stream, 0, sizeof(o->stream));
 	else {
 		o->dgram.read_mtu = 1464;
-		o->dgram.write_mtu = 548;
 	}
 	
 	o->m_readol = NULL;
