@@ -19,8 +19,8 @@ enum {
 
 struct ReactorObject_t;
 typedef struct Channel_t {
+/* public */
 	NetPacketListNode_t node;
-	/* public */
 	struct ReactorObject_t* io;
 	int flag;
 	unsigned int maxhdrsize;
@@ -62,6 +62,7 @@ typedef struct Channel_t {
 		unsigned int bodylen;
 		unsigned char* bodyptr;
 	} decode_result;
+	/* interface */
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
 	void(*recv)(struct Channel_t* self, const void* from_saddr);
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
@@ -70,7 +71,7 @@ typedef struct Channel_t {
 	void(*shutdown)(struct Channel_t* self);
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
-	/* private */
+/* private */
 	unsigned int m_heartbeat_times;
 } Channel_t;
 

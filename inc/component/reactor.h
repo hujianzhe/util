@@ -16,7 +16,8 @@
 typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
-	REACTOR_FREE_CMD
+	REACTOR_FREE_CMD,
+	REACTOR_SEND_PACKET_CMD
 };
 
 typedef struct Reactor_t {

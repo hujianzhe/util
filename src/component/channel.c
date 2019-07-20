@@ -407,11 +407,12 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 			if (!packet)
 				break;
 			memset(packet, 0, sizeof(*packet));
+			packet->node.type = REACTOR_SEND_PACKET_CMD;
 			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
 			packet->hdrsize = hdrsize;
 			packet->len = channel->maxhdrsize + memsz;
-			off += memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
+			off += memsz;
 		}
 		if (packet) {
 			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
