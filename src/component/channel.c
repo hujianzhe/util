@@ -146,12 +146,10 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned char pktype = channel->decode_result.pktype;
 			unsigned int pkseq = channel->decode_result.pkseq;
-			int res = streamtransportctxRecvCheck(&channel->stream_ctx, pkseq, pktype);
-			if (res) {
+			if (streamtransportctxRecvCheck(&channel->stream_ctx, pkseq, pktype)) {
 				NetPacket_t* packet;
-				channel->reply_ack(channel, pkseq, &channel->to_addr);
-				if (res < 0)
-					continue;
+				if (pktype >= NETPACKET_FRAGMENT)
+					channel->reply_ack(channel, pkseq, &channel->to_addr);
 				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
 				if (!packet)
 					return -1;
@@ -176,8 +174,8 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				else
 					return -1;
 			}
-			else if (NETPACKET_NO_ACK_FRAGMENT == pktype)
-				channel->recv(channel, &channel->to_addr);
+			else if (pktype >= NETPACKET_FRAGMENT)
+				channel->reply_ack(channel, pkseq, &channel->to_addr);
 			else
 				return -1;
 		}
@@ -328,6 +326,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				packet = dgramtransportctxAckSendPacket(&channel->dgram_ctx, pkseq, &cwndskip);
 				if (!packet)
 					return 1;
+				if (packet == channel->dgram.finpacket)
+					channel->dgram.finpacket = NULL;
 				free(packet);
 				if (!cwndskip)
 					return 1;
@@ -345,7 +345,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				}
 			}
 		}
-		else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
+		else if (NETPACKET_NO_ACK_FRAGMENT_EOF == pktype) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN)
 				return 1;
 			channel->recv(channel, from_saddr);
@@ -549,6 +549,27 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 		}
 	}
 	return 1;
+}
+
+void channelShutdown(Channel_t* channel, long long timestamp_msec) {
+	if (channel->has_sendfin)
+		return;
+	channel->has_sendfin = 1;
+	if (channel->flag & CHANNEL_FLAG_RELIABLE)
+		return;
+	else if (SOCK_STREAM == channel->io->socktype)
+		socketShutdown(channel->io->fd, SHUT_WR);
+	else {
+		NetPacket_t* packet = channel->dgram.finpacket;
+		dgramtransportctxCacheSendPacket(&channel->dgram_ctx, packet);
+		if (dgramtransportctxSendWindowHasPacket(&channel->dgram_ctx, packet->seq)) {
+			socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			packet->wait_ack = 1;
+			packet->resend_times = 0;
+			packet->resend_msec = timestamp_msec + channel->dgram.rto;
+			update_timestamp(&channel->event_msec, packet->resend_msec);
+		}
+	}
 }
 
 static void channel_free_packetlist(List_t* list) {
