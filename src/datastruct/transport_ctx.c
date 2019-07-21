@@ -22,7 +22,7 @@ DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned in
 }
 
 int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) {
-	if (pktype < NETPACKET_DGRAM_HAS_SEQ)
+	if (pktype < NETPACKET_DGRAM_HAS_SEND_SEQ)
 		return 0;
 	else if (seq1_before_seq2(seq, ctx->m_recvseq))
 		return 0;
@@ -87,7 +87,7 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 }
 
 int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (packet->type < NETPACKET_DGRAM_HAS_SEQ) {
+	if (packet->type < NETPACKET_DGRAM_HAS_SEND_SEQ) {
 		packet->cached = 0;
 		return 0;
 	}
@@ -202,14 +202,14 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 }
 
 unsigned int streamtransportctxAllocSendSeq(StreamTransportCtx_t* ctx, int pktype) {
-	if (pktype < NETPACKET_STREAM_HAS_SEQ)
+	if (pktype < NETPACKET_STREAM_HAS_SEND_SEQ)
 		return 0;
 	else
 		return ctx->m_sendseq++;
 }
 
 int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (packet->type < NETPACKET_STREAM_HAS_SEQ) {
+	if (packet->type < NETPACKET_STREAM_HAS_SEND_SEQ) {
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
 			packet->cached = 0;
 			return 0;
@@ -259,7 +259,7 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 		next = cur->next;
 		if (packet->off < packet->hdrlen + packet->bodylen)
 			return 0;
-		if (packet->type < NETPACKET_STREAM_HAS_SEQ)
+		if (packet->type < NETPACKET_STREAM_HAS_SEND_SEQ)
 			continue;
 		if (packet->seq != ackseq)
 			return 0;
