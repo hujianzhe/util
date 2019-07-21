@@ -17,6 +17,10 @@ enum {
 	NETPACKET_FRAGMENT,
 	NETPACKET_FRAGMENT_EOF
 };
+enum {
+	NETPACKET_DGRAM_HAS_SEQ = NETPACKET_FIN,
+	NETPACKET_STREAM_HAS_SEQ = NETPACKET_FRAGMENT
+};
 
 typedef ListNodeTemplateDeclare(int, type)	NetPacketListNode_t;
 typedef struct NetPacket_t {
@@ -37,9 +41,9 @@ typedef struct NetPacket_t {
 		};
 	};
 	unsigned int seq;
-	unsigned int hdrsize;
-	unsigned int len;
-	unsigned char data[1];
+	unsigned int hdrlen;
+	unsigned int bodylen;
+	unsigned char buf[1];
 } NetPacket_t;
 
 typedef struct DgramTransportCtx_t {

@@ -22,7 +22,7 @@ DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned in
 }
 
 int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) {
-	if (pktype < NETPACKET_FIN)
+	if (pktype < NETPACKET_DGRAM_HAS_SEQ)
 		return 0;
 	else if (seq1_before_seq2(seq, ctx->m_recvseq))
 		return 0;
@@ -87,7 +87,7 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 }
 
 int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (packet->type < NETPACKET_FIN) {
+	if (packet->type < NETPACKET_DGRAM_HAS_SEQ) {
 		packet->cached = 0;
 		return 0;
 	}
@@ -195,22 +195,22 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 	if (ctx->sendpacketlist.tail) {
 		NetPacket_t* packet = pod_container_of(ctx->sendpacketlist.tail, NetPacket_t, node);
-		if (packet->off < packet->len)
+		if (packet->off < packet->hdrlen + packet->bodylen)
 			return 1;
 	}
 	return 0;
 }
 
 unsigned int streamtransportctxAllocSendSeq(StreamTransportCtx_t* ctx, int pktype) {
-	if (pktype < NETPACKET_FRAGMENT)
+	if (pktype < NETPACKET_STREAM_HAS_SEQ)
 		return 0;
 	else
 		return ctx->m_sendseq++;
 }
 
 int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (packet->type < NETPACKET_FRAGMENT) {
-		if (packet->off >= packet->len) {
+	if (packet->type < NETPACKET_STREAM_HAS_SEQ) {
+		if (packet->off >= packet->hdrlen + packet->bodylen) {
 			packet->cached = 0;
 			return 0;
 		}
@@ -223,7 +223,7 @@ int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 				NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
 				if (pk->type < NETPACKET_FIN)
 					continue;
-				if (pk->off >= pk->len)
+				if (pk->off >= pk->hdrlen + pk->bodylen)
 					continue;
 				if (0 == pk->off)
 					insert_front = 1;
@@ -257,9 +257,9 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
-		if (packet->off < packet->len)
+		if (packet->off < packet->hdrlen + packet->bodylen)
 			return 0;
-		if (packet->type < NETPACKET_FRAGMENT)
+		if (packet->type < NETPACKET_STREAM_HAS_SEQ)
 			continue;
 		if (packet->seq != ackseq)
 			return 0;
@@ -279,7 +279,7 @@ List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
-		if (packet->off < packet->len)
+		if (packet->off < packet->hdrlen + packet->bodylen)
 			break;
 		if (packet->type < NETPACKET_FRAGMENT) {
 			listRemoveNode(&ctx->sendpacketlist, cur);

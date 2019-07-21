@@ -85,7 +85,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	for (cur = list->head; cur; cur = next) {
 		packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
-		off += packet->len;
+		off += packet->bodylen;
 	}
 	ptr = (unsigned char*)malloc(off);
 	if (ptr) {
@@ -94,8 +94,8 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 		for (cur = list->head; cur; cur = next) {
 			packet = pod_container_of(cur, NetPacket_t, node);
 			next = cur->next;
-			memcpy(ptr + off, packet->data, packet->len);
-			off += packet->len;
+			memcpy(ptr + off, packet->buf + packet->hdrlen, packet->bodylen);
+			off += packet->bodylen;
 			free(packet);
 		}
 	}
@@ -156,9 +156,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				memset(packet, 0, sizeof(*packet));
 				packet->type = pktype;
 				packet->seq = pkseq;
-				packet->len = channel->decode_result.bodylen;
-				memcpy(packet->data, channel->decode_result.bodyptr, packet->len);
-				packet->data[packet->len] = 0;
+				packet->bodylen = channel->decode_result.bodylen;
+				memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
+				packet->buf[packet->bodylen] = 0;
 				if (streamtransportctxCacheRecvPacket(&channel->stream_ctx, packet)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(&channel->stream_ctx, &list)) {
@@ -227,9 +227,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			memset(packet, 0, sizeof(*packet));
 			packet->type = pktype;
 			packet->seq = pkseq;
-			packet->len = channel->decode_result.bodylen;
-			memcpy(packet->data, channel->decode_result.bodyptr, packet->len);
-			packet->data[packet->len] = 0;
+			packet->bodylen = channel->decode_result.bodylen;
+			memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
+			packet->buf[packet->bodylen] = 0;
 			if (dgramtransportctxCacheRecvPacket(&channel->dgram_ctx, packet)) {
 				List_t list;
 				while (dgramtransportctxMergeRecvPacket(&channel->dgram_ctx, &list)) {
@@ -337,7 +337,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						break;
 					if (packet->wait_ack)
 						continue;
-					socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+					socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 					packet->wait_ack = 1;
 					packet->resend_times = 0;
 					packet->resend_msec = timestamp_msec + channel->dgram.rto;
@@ -410,8 +410,8 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 			memset(packet, 0, sizeof(*packet));
 			packet->node.type = REACTOR_SEND_PACKET_CMD;
 			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
-			packet->hdrsize = hdrsize;
-			packet->len = channel->maxhdrsize + memsz;
+			packet->hdrlen = hdrsize;
+			packet->bodylen = memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
 			off += memsz;
 		}
@@ -430,17 +430,17 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 		iov_i = iov_off = 0;
 		for (cur = packetlist->head; cur; cur = cur->next) {
 			packet = pod_container_of(cur, NetPacket_t, node);
-			off = 0;
+			off = packet->hdrlen;
 			while (iov_i < iovcnt) {
-				unsigned int pkleftsize = packet->len - packet->hdrsize - off;
+				unsigned int pkleftsize = packet->bodylen - off;
 				unsigned int iovleftsize = iobufLen(iov + iov_i) - iov_off;
 				if (iovleftsize > pkleftsize) {
-					memcpy(packet->data + packet->hdrsize + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
+					memcpy(packet->buf + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
 					iov_off += pkleftsize;
 					break;
 				}
 				else {
-					memcpy(packet->data + packet->hdrsize + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
+					memcpy(packet->buf + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
 					iov_off = 0;
 					iov_i++;
 					off += iovleftsize;
@@ -519,7 +519,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 			else if (packet->resend_times >= channel->dgram.resend_maxtimes)
 				channel->dgram.resend_err(channel, packet);
 			else {
-				socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
+				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				update_timestamp(&channel->event_msec, packet->resend_msec);
@@ -541,7 +541,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 					channel->dgram.resend_err(channel, packet);
 					break;
 				}
-				socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				update_timestamp(&channel->event_msec, packet->resend_msec);
@@ -561,9 +561,19 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 		socketShutdown(channel->io->fd, SHUT_WR);
 	else {
 		NetPacket_t* packet = channel->dgram.finpacket;
+		if (!packet) {
+			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize);
+			if (!packet)
+				return;
+			memset(packet, 0, sizeof(*packet));
+			packet->type = NETPACKET_FIN;
+			packet->hdrlen = channel->hdrsize ? channel->hdrsize(channel, 0) : 0;
+			packet->bodylen = 0;
+			channel->dgram.finpacket = packet;
+		}
 		dgramtransportctxCacheSendPacket(&channel->dgram_ctx, packet);
 		if (dgramtransportctxSendWindowHasPacket(&channel->dgram_ctx, packet->seq)) {
-			socketWrite(channel->io->fd, packet->data, packet->len, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 			packet->wait_ack = 1;
 			packet->resend_times = 0;
 			packet->resend_msec = timestamp_msec + channel->dgram.rto;
