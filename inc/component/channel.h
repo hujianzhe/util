@@ -32,7 +32,6 @@ typedef struct Channel_t {
 	long long event_msec;
 	Sockaddr_t to_addr;
 	union {
-		StreamTransportCtx_t stream_ctx;
 		DgramTransportCtx_t dgram_ctx;
 	};
 	union {
@@ -76,7 +75,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* channelInit(Channel_t* channel, int flag, int initseq);
+__declspec_dll Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct ReactorObject_t* io);
 __declspec_dll int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, const void* from_saddr);
 __declspec_dll int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist);
 __declspec_dll int channelEventHandler(Channel_t* channel, long long timestamp_msec);

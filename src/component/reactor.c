@@ -121,7 +121,36 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			continue;
 		}
-		reactor->exec_cmd(cmd, timestamp_msec);
+		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
+			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
+			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
+			if (SOCK_STREAM == o->socktype) {
+				if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+					int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
+					if (res < 0) {
+						if (errnoGet() != EWOULDBLOCK) {
+							reactorobjectInvalid(o, timestamp_msec);
+							continue;
+						}
+						res = 0;
+					}
+					packet->off = res;
+				}
+				if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
+					if (o->stream.send_finished)
+						o->stream.send_finished(packet);
+					else
+						free(packet);
+					continue;
+				}
+				if (packet->off < packet->hdrlen + packet->bodylen)
+					reactorobjectRequestWrite(o);
+				continue;
+			}
+		}
+
+		if (reactor->exec_cmd)
+			reactor->exec_cmd(cmd, timestamp_msec);
 	}
 }
 
@@ -256,6 +285,39 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 		}
+	}
+}
+
+static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec) {
+	List_t finishedlist;
+	ListNode_t* cur, *next;
+	for (cur = o->stream.ctx.sendpacketlist.head; cur; cur = cur->next) {
+		int res;
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		if (packet->off >= packet->hdrlen + packet->bodylen)
+			continue;
+		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				reactorobjectInvalid(o, timestamp_msec);
+				return;
+			}
+			res = 0;
+		}
+		packet->off += res;
+		if (packet->off >= packet->hdrlen + packet->bodylen)
+			continue;
+		reactorobjectRequestWrite(o);
+		break;
+	}
+	finishedlist = streamtransportctxRemoveFinishedSendPacket(&o->stream.ctx);
+	for (cur = finishedlist.head; cur; cur = next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		next = cur->next;
+		if (o->stream.send_finished)
+			o->stream.send_finished(packet);
+		else
+			free(packet);
 	}
 }
 
@@ -430,10 +492,13 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					break;
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
-					if (SOCK_STREAM == o->socktype && !o->m_stream_connected)
-						if (reactor_stream_connect(o, timestamp_msec))
+					if (SOCK_STREAM == o->socktype) {
+						if (o->m_stream_connected)
+							reactor_stream_writeev(o, timestamp_msec);
+						else if (reactor_stream_connect(o, timestamp_msec))
 							o->valid = 0;
-					else
+					}
+					else if (o->writeev)
 						o->writeev(o, timestamp_msec);
 					break;
 				default:
@@ -531,8 +596,11 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->writeev = NULL;
 	o->inactive = NULL;
 	o->free = NULL;
-	if (SOCK_STREAM == socktype)
+	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
+		streamtransportctxInit(&o->stream.ctx, 0);
+		o->stream.send_finished = NULL;
+	}
 	else {
 		o->dgram.read_mtu = 1464;
 	}
@@ -564,7 +632,7 @@ int reactorobjectRequestRead(ReactorObject_t* o) {
 	else
 		opcode = NIO_OP_READ;
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? 65000 : 0);
+		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->dgram.read_mtu : 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -606,6 +674,12 @@ ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_ms
 	if (o->m_invalid_msec <= 0)
 		o->m_invalid_msec = timestamp_msec;
 	return o;
+}
+
+void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
+	packet->node.type = REACTOR_SEND_PACKET_CMD;
+	packet->io_object = o;
+	reactorCommitCmd(o->reactor, (ReactorCmd_t*)&packet->node);
 }
 
 #ifdef	__cplusplus

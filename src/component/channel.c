@@ -27,8 +27,8 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
-Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
-	channel->io = NULL;
+Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct ReactorObject_t* io) {
+	channel->io = io;
 	channel->flag = flag;
 	channel->maxhdrsize = 0;
 	channel->heartbeat_timeout_sec = 0;
@@ -54,7 +54,7 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq) {
 		dgramtransportctxInit(&channel->dgram_ctx, initseq);
 	}
 	else {
-		streamtransportctxInit(&channel->stream_ctx, initseq);
+		streamtransportctxInit(&channel->io->stream.ctx, initseq);
 	}
 	channel->decode = NULL;
 	channel->recv = NULL;
@@ -146,7 +146,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned char pktype = channel->decode_result.pktype;
 			unsigned int pkseq = channel->decode_result.pkseq;
-			if (streamtransportctxRecvCheck(&channel->stream_ctx, pkseq, pktype)) {
+			if (streamtransportctxRecvCheck(&channel->io->stream.ctx, pkseq, pktype)) {
 				NetPacket_t* packet;
 				if (pktype >= NETPACKET_FRAGMENT)
 					channel->reply_ack(channel, pkseq, &channel->to_addr);
@@ -159,9 +159,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				packet->bodylen = channel->decode_result.bodylen;
 				memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
 				packet->buf[packet->bodylen] = 0;
-				if (streamtransportctxCacheRecvPacket(&channel->stream_ctx, packet)) {
+				if (streamtransportctxCacheRecvPacket(&channel->io->stream.ctx, packet)) {
 					List_t list;
-					while (streamtransportctxMergeRecvPacket(&channel->stream_ctx, &list)) {
+					while (streamtransportctxMergeRecvPacket(&channel->io->stream.ctx, &list)) {
 						if (!channel_merge_packet_handler(channel, &list))
 							return -1;
 					}
@@ -169,7 +169,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (NETPACKET_ACK == pktype) {
 				NetPacket_t* ackpk = NULL;
-				if (streamtransportctxAckSendPacket(&channel->stream_ctx, pkseq, &ackpk))
+				if (streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					free(ackpk);
 				else
 					return -1;
@@ -593,8 +593,8 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		channel_free_packetlist(&channel->stream_ctx.recvpacketlist);
-		channel_free_packetlist(&channel->stream_ctx.sendpacketlist);
+		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
+		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {

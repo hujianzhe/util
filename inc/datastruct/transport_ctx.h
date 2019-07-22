@@ -25,7 +25,7 @@ enum {
 typedef ListNodeTemplateDeclare(int, type)	NetPacketListNode_t;
 typedef struct NetPacket_t {
 	NetPacketListNode_t node;
-	void* userdata;
+	void* io_object;
 	char type;
 	char wait_ack;
 	char cached;
