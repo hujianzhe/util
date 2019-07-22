@@ -426,7 +426,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	reactorWake(reactor);
 }
 
-void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist) {
+static void reactor_commit_cmdlist(Reactor_t* reactor, List_t* cmdlist) {
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listMerge(&reactor->m_cmdlist, cmdlist);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
@@ -680,6 +680,16 @@ void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
 	packet->node.type = REACTOR_SEND_PACKET_CMD;
 	packet->io_object = o;
 	reactorCommitCmd(o->reactor, (ReactorCmd_t*)&packet->node);
+}
+
+void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {
+	ListNode_t* cur;
+	for (cur = packetlist->head; cur; cur = cur->next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		packet->node.type = REACTOR_SEND_PACKET_CMD;
+		packet->io_object = o;
+	}
+	reactor_commit_cmdlist(o->reactor, packetlist);
 }
 
 static NetPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {

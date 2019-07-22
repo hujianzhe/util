@@ -97,7 +97,6 @@ extern "C" {
 __declspec_dll Reactor_t* reactorInit(Reactor_t* reactor);
 __declspec_dll void reactorWake(Reactor_t* reactor);
 __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
-__declspec_dll void reactorCommitCmdList(Reactor_t* reactor, List_t* cmdlist);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
@@ -108,6 +107,7 @@ __declspec_dll int reactorobjectRequestWrite(ReactorObject_t* o);
 __declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
 
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
+__declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
 __declspec_dll int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype);
 
 #ifdef	__cplusplus
