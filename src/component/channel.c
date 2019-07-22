@@ -430,17 +430,17 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 		iov_i = iov_off = 0;
 		for (cur = packetlist->head; cur; cur = cur->next) {
 			packet = pod_container_of(cur, NetPacket_t, node);
-			off = packet->hdrlen;
+			off = 0;
 			while (iov_i < iovcnt) {
 				unsigned int pkleftsize = packet->bodylen - off;
 				unsigned int iovleftsize = iobufLen(iov + iov_i) - iov_off;
 				if (iovleftsize > pkleftsize) {
-					memcpy(packet->buf + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
+					memcpy(packet->buf + packet->hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
 					iov_off += pkleftsize;
 					break;
 				}
 				else {
-					memcpy(packet->buf + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
+					memcpy(packet->buf + packet->hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
 					iov_off = 0;
 					iov_i++;
 					off += iovleftsize;
