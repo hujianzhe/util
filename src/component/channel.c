@@ -516,8 +516,10 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 			NetPacket_t* packet = channel->dgram.synpacket;
 			if (packet->resend_msec > timestamp_msec)
 				update_timestamp(&channel->event_msec, packet->resend_msec);
-			else if (packet->resend_times >= channel->dgram.resend_maxtimes)
-				channel->dgram.resend_err(channel, packet);
+			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
+				if (channel->dgram.resend_err)
+					channel->dgram.resend_err(channel, packet);
+			}
 			else {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
 				packet->resend_times++;
@@ -538,7 +540,8 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 					if (!channel->has_sendfin && !channel->has_recvfin)
 						return 0;
-					channel->dgram.resend_err(channel, packet);
+					if (channel->dgram.resend_err)
+						channel->dgram.resend_err(channel, packet);
 					break;
 				}
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
