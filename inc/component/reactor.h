@@ -66,7 +66,7 @@ typedef struct ReactorObject_t {
 				Sockaddr_t connect_addr;
 				void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
 				StreamTransportCtx_t ctx;
-				void(*send_finished)(NetPacket_t* packet);
+				void(*free_sendfinished)(NetPacket_t* packet);
 			};
 		} stream;
 		struct {
@@ -108,6 +108,7 @@ __declspec_dll int reactorobjectRequestWrite(ReactorObject_t* o);
 __declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
 
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
+__declspec_dll int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype);
 
 #ifdef	__cplusplus
 }

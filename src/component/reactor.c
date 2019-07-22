@@ -137,8 +137,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					packet->off = res;
 				}
 				if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-					if (o->stream.send_finished)
-						o->stream.send_finished(packet);
+					if (o->stream.free_sendfinished)
+						o->stream.free_sendfinished(packet);
 					else
 						free(packet);
 					continue;
@@ -314,8 +314,8 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	for (cur = finishedlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
-		if (o->stream.send_finished)
-			o->stream.send_finished(packet);
+		if (o->stream.free_sendfinished)
+			o->stream.free_sendfinished(packet);
 		else
 			free(packet);
 	}
@@ -599,7 +599,7 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
-		o->stream.send_finished = NULL;
+		o->stream.free_sendfinished = NULL;
 	}
 	else {
 		o->dgram.read_mtu = 1464;
@@ -680,6 +680,51 @@ void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
 	packet->node.type = REACTOR_SEND_PACKET_CMD;
 	packet->io_object = o;
 	reactorCommitCmd(o->reactor, (ReactorCmd_t*)&packet->node);
+}
+
+static NetPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {
+	NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + len);
+	if (packet) {
+		memset(packet, 0, sizeof(*packet));
+		memcpy(packet->buf, buf, len);
+		packet->hdrlen = 0;
+		packet->bodylen = len;
+		packet->off = off;
+		packet->type = pktype;
+	}
+	return packet;
+}
+
+int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype) {
+	NetPacket_t* packet;
+	if (SOCK_STREAM != o->socktype)
+		return 0;
+	if (threadEqual(o->reactor->m_runthread, threadSelf())) {
+		int res = 0;
+		if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+			int res = socketWrite(o->fd, buf, len, 0, NULL, 0);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK)
+					return -1;
+				res = 0;
+			}
+			if (res >= len)
+				return res;
+		}
+		packet = make_packet(buf, len, res, pktype);
+		if (!packet)
+			return -1;
+		streamtransportctxCacheSendPacket(&o->stream.ctx, packet);
+		reactorobjectRequestWrite(o);
+		return res;
+	}
+	else {
+		packet = make_packet(buf, len, 0, pktype);
+		if (!packet)
+			return -1;
+		reactorobjectSendPacket(o, packet);
+		return 0;
+	}
 }
 
 #ifdef	__cplusplus
