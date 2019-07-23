@@ -160,6 +160,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			if (SOCK_STREAM == o->socktype && !o->m_stream_connected && !o->m_stream_listened)
 				continue;
+			if (reactor->cmd_regobject)
+				reactor->cmd_regobject(o);
 		}
 		else if (REACTOR_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
@@ -173,33 +175,34 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
 			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
-			if (SOCK_STREAM == o->socktype) {
-				if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-					int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
-					if (res < 0) {
-						if (errnoGet() != EWOULDBLOCK) {
-							reactorobjectInvalid(o, timestamp_msec);
-							continue;
-						}
-						res = 0;
+			if (reactor->cmd_sendpacket && !reactor->cmd_sendpacket(packet))
+				continue;
+			if (SOCK_STREAM != o->socktype)
+				continue;
+			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
+				if (res < 0) {
+					if (errnoGet() != EWOULDBLOCK) {
+						reactorobjectInvalid(o, timestamp_msec);
+						continue;
 					}
-					packet->off = res;
+					res = 0;
 				}
-				if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-					if (o->stream.free_sendfinished)
-						o->stream.free_sendfinished(packet);
-					else
-						free(packet);
-					continue;
-				}
-				if (packet->off < packet->hdrlen + packet->bodylen)
-					reactorobject_request_write(o);
+				packet->off = res;
+			}
+			if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
+				if (o->stream.free_sendfinished)
+					o->stream.free_sendfinished(packet);
+				else
+					free(packet);
 				continue;
 			}
+			if (packet->off < packet->hdrlen + packet->bodylen)
+				reactorobject_request_write(o);
+			continue;
 		}
-
-		if (reactor->exec_cmd)
-			reactor->exec_cmd(cmd, timestamp_msec);
+		else if (reactor->cmd_other)
+			reactor->cmd_other(cmd);
 	}
 }
 
@@ -451,8 +454,10 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	reactor->m_event_msec = 0;
 	reactor->m_wake = 0;
 
-	reactor->exec_cmd = NULL;
-	reactor->free_cmd = NULL;
+	reactor->cmd_regobject = NULL;
+	reactor->cmd_sendpacket = NULL;
+	reactor->cmd_other = NULL;
+	reactor->cmd_free = NULL;
 	return reactor;
 }
 
@@ -578,9 +583,21 @@ void reactorDestroy(Reactor_t* reactor) {
 	do {
 		ListNode_t* cur, *next;
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
+			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 			next = cur->next;
-			if (reactor->free_cmd)
-				reactor->free_cmd(pod_container_of(cur, ReactorCmd_t, _));
+			if (REACTOR_REG_CMD == cmd->type)
+				continue;
+			if (REACTOR_FREE_CMD == cmd->type) {
+				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
+				free_io_resource(o);
+				if (o->free) {
+					o->free(o);
+					o->free = NULL;
+				}
+				continue;
+			}
+			if (reactor->cmd_free)
+				reactor->cmd_free(cmd);
 		}
 	} while (0);
 	do {

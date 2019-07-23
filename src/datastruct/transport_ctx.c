@@ -86,13 +86,16 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
+unsigned int dgramtransportctxNextSendSeq(DgramTransportCtx_t* ctx, int pktype) {
+	return pktype < NETPACKET_DGRAM_HAS_SEND_SEQ ? 0 : ctx->m_sendseq++;
+}
+
 int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_DGRAM_HAS_SEND_SEQ) {
 		packet->cached = 0;
 		return 0;
 	}
 	packet->wait_ack = 0;
-	packet->seq = ctx->m_sendseq++;
 	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	packet->cached = 1;
 	return 1;
@@ -201,11 +204,8 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 	return 0;
 }
 
-unsigned int streamtransportctxAllocSendSeq(StreamTransportCtx_t* ctx, int pktype) {
-	if (pktype < NETPACKET_STREAM_HAS_SEND_SEQ)
-		return 0;
-	else
-		return ctx->m_sendseq++;
+unsigned int streamtransportctxNextSendSeq(StreamTransportCtx_t* ctx, int pktype) {
+	return pktype < NETPACKET_STREAM_HAS_SEND_SEQ ? 0 : ctx->m_sendseq++;
 }
 
 int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {

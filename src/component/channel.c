@@ -399,6 +399,7 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 				break;
 			memset(packet, 0, sizeof(*packet));
 			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
+			packet->channel_object = channel;
 			packet->hdrlen = hdrsize;
 			packet->bodylen = memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);

@@ -21,10 +21,13 @@ enum {
 	REACTOR_SEND_PACKET_CMD
 };
 
+struct ReactorObject_t;
 typedef struct Reactor_t {
 	/* public */
-	void(*exec_cmd)(ReactorCmd_t* cmdnode, long long timestamp_msec);
-	void(*free_cmd)(ReactorCmd_t* cmdnode);
+	void(*cmd_regobject)(struct ReactorObject_t* o);
+	int(*cmd_sendpacket)(NetPacket_t* packet);
+	void(*cmd_other)(ReactorCmd_t* cmdnode);
+	void(*cmd_free)(ReactorCmd_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;
 	long long m_event_msec;
