@@ -28,8 +28,10 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 }
 
 Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct ReactorObject_t* io) {
-	channel->io = io;
+	flag &= (~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM));
+	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	channel->flag = flag;
+	channel->io = io;
 	channel->maxhdrsize = 0;
 	channel->heartbeat_timeout_sec = 0;
 	channel->heartbeat_maxtimes = 0;
