@@ -562,14 +562,7 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 			packet->bodylen = 0;
 			channel->dgram.finpacket = packet;
 		}
-		dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet);
-		if (dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq)) {
-			socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
-			packet->wait_ack = 1;
-			packet->resend_times = 0;
-			packet->resend_msec = timestamp_msec + channel->dgram.rto;
-			reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
-		}
+		reactorobjectSendPacket(channel->io, packet);
 	}
 }
 
