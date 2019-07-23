@@ -607,6 +607,7 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	}
 	o->regcmd.type = REACTOR_REG_CMD;
 	o->freecmd.type = REACTOR_FREE_CMD;
+	listInit(&o->channel_list);
 	
 	o->m_readol = NULL;
 	o->m_writeol = NULL;

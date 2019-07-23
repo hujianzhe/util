@@ -75,6 +75,7 @@ typedef struct ReactorObject_t {
 	};
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
+	List_t channel_list;
 	/* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
