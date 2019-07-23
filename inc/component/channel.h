@@ -29,7 +29,6 @@ typedef struct Channel_t {
 	long long heartbeat_msec;
 	unsigned char has_recvfin;
 	unsigned char has_sendfin;
-	long long event_msec;
 	Sockaddr_t to_addr;
 	union {
 		DgramTransportCtx_t dgram_ctx;

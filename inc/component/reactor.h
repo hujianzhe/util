@@ -14,7 +14,7 @@
 #include "../datastruct/hashtable.h"
 #include "../datastruct/transport_ctx.h"
 
-typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
+typedef NetPacketListNode_t	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,

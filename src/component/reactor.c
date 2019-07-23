@@ -679,7 +679,7 @@ ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_ms
 void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
 	packet->node.type = REACTOR_SEND_PACKET_CMD;
 	packet->io_object = o;
-	reactorCommitCmd(o->reactor, (ReactorCmd_t*)&packet->node);
+	reactorCommitCmd(o->reactor, &packet->node);
 }
 
 void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {

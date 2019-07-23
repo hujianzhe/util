@@ -36,7 +36,6 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct Reactor
 	channel->heartbeat_msec = 0;
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;
-	channel->event_msec = 0;
 	memset(&channel->dgram.listen_addr, 0, sizeof(channel->dgram.listen_addr));
 	channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
 	memset(&channel->dgram.connect_addr, 0, sizeof(channel->dgram.connect_addr));
@@ -67,13 +66,6 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct Reactor
 
 	channel->m_heartbeat_times = 0;
 	return channel;
-}
-
-static void update_timestamp(long long* dst, long long ts) {
-	if (ts <= 0)
-		return;
-	if (*dst <= 0 || *dst > ts)
-		*dst = ts;
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -189,7 +181,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
 		ts += channel->heartbeat_msec;
-		update_timestamp(&channel->event_msec, ts);
+		reactorSetEventTimestamp(channel->io->reactor, ts);
 	}
 
 	return off;
@@ -278,7 +270,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						halfconn->resend_times = 0;
 						halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 						listInsertNodeBack(&channel->dgram_ctx.recvpacketlist, channel->dgram_ctx.recvpacketlist.tail, &halfconn->node);
-						update_timestamp(&channel->event_msec, halfconn->resend_msec);
+						reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
 						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 					} while (0);
 					if (!halfconn) {
@@ -341,7 +333,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					packet->wait_ack = 1;
 					packet->resend_times = 0;
 					packet->resend_msec = timestamp_msec + channel->dgram.rto;
-					update_timestamp(&channel->event_msec, packet->resend_msec);
+					reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 				}
 			}
 		}
@@ -372,7 +364,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
 		ts += channel->heartbeat_msec;
-		update_timestamp(&channel->event_msec, ts);
+		reactorSetEventTimestamp(channel->io->reactor, ts);
 	}
 
 	return 1;
@@ -460,9 +452,8 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 }
 
 int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
-	if (timestamp_msec > channel->event_msec)
+	if (timestamp_msec > channel->io->reactor->m_event_msec)
 		return 1;
-	channel->event_msec = 0;
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->heartbeat_msec > 0 &&
 			channel->heartbeat_timeout_sec > 0)
@@ -486,7 +477,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				ts *= 1000;
 				ts += timestamp_msec;
 			}
-			update_timestamp(&channel->event_msec, ts);
+			reactorSetEventTimestamp(channel->io->reactor, ts);
 		}
 	}
 	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
@@ -498,7 +489,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 				next = cur->next;
 				if (halfconn->resend_msec > timestamp_msec) {
-					update_timestamp(&channel->event_msec, halfconn->resend_msec);
+					reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
 					continue;
 				}
 				if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
@@ -509,13 +500,13 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
-				update_timestamp(&channel->event_msec, halfconn->resend_msec);
+				reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
 			}
 		}
 		else if (channel->dgram.synpacket) {
 			NetPacket_t* packet = channel->dgram.synpacket;
 			if (packet->resend_msec > timestamp_msec)
-				update_timestamp(&channel->event_msec, packet->resend_msec);
+				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 				if (channel->dgram.resend_err)
 					channel->dgram.resend_err(channel, packet);
@@ -524,7 +515,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				update_timestamp(&channel->event_msec, packet->resend_msec);
+				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 			}
 		}
 		else {
@@ -534,7 +525,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				if (!packet->wait_ack)
 					break;
 				if (packet->resend_msec > timestamp_msec) {
-					update_timestamp(&channel->event_msec, packet->resend_msec);
+					reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 					continue;
 				}
 				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
@@ -547,7 +538,7 @@ int channelEventHandler(Channel_t* channel, long long timestamp_msec) {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				update_timestamp(&channel->event_msec, packet->resend_msec);
+				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 			}
 		}
 	}
@@ -580,7 +571,7 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 			packet->wait_ack = 1;
 			packet->resend_times = 0;
 			packet->resend_msec = timestamp_msec + channel->dgram.rto;
-			update_timestamp(&channel->event_msec, packet->resend_msec);
+			reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 		}
 	}
 }
