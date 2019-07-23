@@ -53,7 +53,8 @@ Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct Reactor
 		dgramtransportctxInit(&channel->dgram_ctx, initseq);
 	}
 	else {
-		streamtransportctxInit(&channel->io->stream.ctx, initseq);
+		streamtransportctxInit(&channel->stream_ctx, initseq);
+		io->stream.ctxptr = &channel->stream_ctx;
 	}
 	channel->decode = NULL;
 	channel->recv = NULL;
@@ -138,7 +139,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned char pktype = channel->decode_result.pktype;
 			unsigned int pkseq = channel->decode_result.pkseq;
-			if (streamtransportctxRecvCheck(&channel->io->stream.ctx, pkseq, pktype)) {
+			if (streamtransportctxRecvCheck(&channel->stream_ctx, pkseq, pktype)) {
 				NetPacket_t* packet;
 				if (pktype >= NETPACKET_FRAGMENT)
 					channel->reply_ack(channel, pkseq, &channel->to_addr);
@@ -151,9 +152,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				packet->bodylen = channel->decode_result.bodylen;
 				memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
 				packet->buf[packet->bodylen] = 0;
-				if (streamtransportctxCacheRecvPacket(&channel->io->stream.ctx, packet)) {
+				if (streamtransportctxCacheRecvPacket(&channel->stream_ctx, packet)) {
 					List_t list;
-					while (streamtransportctxMergeRecvPacket(&channel->io->stream.ctx, &list)) {
+					while (streamtransportctxMergeRecvPacket(&channel->stream_ctx, &list)) {
 						if (!channel_merge_packet_handler(channel, &list))
 							return -1;
 					}
@@ -161,7 +162,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (NETPACKET_ACK == pktype) {
 				NetPacket_t* ackpk = NULL;
-				if (streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
+				if (streamtransportctxAckSendPacket(&channel->stream_ctx, pkseq, &ackpk))
 					free(ackpk);
 				else
 					return -1;
@@ -587,8 +588,8 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
-		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
+		channel_free_packetlist(&channel->stream_ctx.recvpacketlist);
+		channel_free_packetlist(&channel->stream_ctx.sendpacketlist);
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {

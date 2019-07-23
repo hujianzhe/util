@@ -31,6 +31,7 @@ typedef struct Channel_t {
 	unsigned char has_sendfin;
 	Sockaddr_t to_addr;
 	union {
+		StreamTransportCtx_t stream_ctx;
 		DgramTransportCtx_t dgram_ctx;
 	};
 	union {
