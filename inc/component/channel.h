@@ -30,24 +30,23 @@ typedef struct Channel_t {
 	unsigned char has_recvfin;
 	unsigned char has_sendfin;
 	Sockaddr_t to_addr;
-	union {
-		StreamTransportCtx_t stream_ctx;
-		DgramTransportCtx_t dgram_ctx;
-	};
-	union {
-		struct {
-			Sockaddr_t listen_addr;
-			void(*reply_synack)(FD_t listenfd, unsigned short newport, const void* from_addr); /* listener use */
-			void(*ack_halfconn)(FD_t newfd, const void* peer_addr); /* listener use */
+	struct {
+		union {
+			struct {
+				Sockaddr_t listen_addr;
+				void(*reply_synack)(FD_t listenfd, unsigned short newport, const void* from_addr); /* listener use */
+				void(*ack_halfconn)(FD_t newfd, const void* peer_addr); /* listener use */
+			};
+			struct {
+				Sockaddr_t connect_addr;
+				NetPacket_t* synpacket; /* client connect use */
+				NetPacket_t* finpacket;
+				void(*resend_err)(struct Channel_t* self, NetPacket_t* packet);
+				unsigned short rto;
+				unsigned char resend_maxtimes;
+			};
 		};
-		struct {
-			Sockaddr_t connect_addr;
-			NetPacket_t* synpacket; /* client connect use */
-			NetPacket_t* finpacket;
-			void(*resend_err)(struct Channel_t* self, NetPacket_t* packet);
-			unsigned short rto;
-			unsigned char resend_maxtimes;
-		};
+		DgramTransportCtx_t ctx;
 	} dgram;
 	struct {
 		char err;

@@ -65,7 +65,7 @@ typedef struct ReactorObject_t {
 			struct {
 				Sockaddr_t connect_addr;
 				void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
-				StreamTransportCtx_t* ctxptr;
+				StreamTransportCtx_t ctx;
 				void(*free_sendfinished)(NetPacket_t* packet);
 			};
 		} stream;
