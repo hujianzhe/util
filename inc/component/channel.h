@@ -45,7 +45,7 @@ typedef struct Channel_t {
 				void(*resend_err)(struct Channel_t* self, NetPacket_t* packet);
 				unsigned short rto;
 				unsigned char resend_maxtimes;
-				Atom16_t m_shutdownhaspost;
+				Atom8_t m_shutdownhaspost;
 			};
 		};
 		DgramTransportCtx_t ctx;
