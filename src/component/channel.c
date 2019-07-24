@@ -288,13 +288,12 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					packet = pod_container_of(cur, NetPacket_t, node);
 					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
 						break;
-					if (packet->wait_ack)
+					if (packet->wait_ack && packet->resend_msec > timestamp_msec)
 						continue;
-					socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 					packet->wait_ack = 1;
-					packet->resend_times = 0;
 					packet->resend_msec = timestamp_msec + channel->dgram.rto;
 					reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+					socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				}
 			}
 		}
@@ -368,7 +367,9 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 			if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet)) {
 				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
 					return 0;
+				packet->wait_ack = 1;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
+				reactorSetEventTimestamp(o->reactor, packet->resend_msec);
 			}
 			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
