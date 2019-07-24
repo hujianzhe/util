@@ -24,9 +24,7 @@ enum {
 struct ReactorObject_t;
 typedef struct Reactor_t {
 	/* public */
-	void(*cmd_regobject)(struct ReactorObject_t* o);
-	int(*cmd_sendpacket)(NetPacket_t* packet);
-	void(*cmd_other)(ReactorCmd_t* cmdnode);
+	void(*cmd_exec)(ReactorCmd_t* cmdnode);
 	void(*cmd_free)(ReactorCmd_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;
@@ -44,7 +42,7 @@ typedef struct Reactor_t {
 } Reactor_t;
 
 typedef struct ReactorObject_t {
-	/* public */
+/* public */
 	FD_t fd;
 	int domain;
 	int socktype;
@@ -54,11 +52,6 @@ typedef struct ReactorObject_t {
 	int invalid_timeout_msec;
 	unsigned int write_fragment_size;
 	volatile int valid;
-	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);
-	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*inactive)(struct ReactorObject_t* self);
-	void(*free)(struct ReactorObject_t* self);
 	union {
 		union {
 			struct {
@@ -78,8 +71,16 @@ typedef struct ReactorObject_t {
 	};
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	List_t channel_list;
-	/* private */
+	List_t channel_list; /* ext channel module */
+	/* interface */
+	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
+	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);
+	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
+	int(*sendpacket_hook)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
+	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
+	void(*inactive)(struct ReactorObject_t* self);
+	void(*free)(struct ReactorObject_t* self);
+/* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	void* m_readol;

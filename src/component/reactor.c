@@ -160,8 +160,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			if (SOCK_STREAM == o->socktype && !o->m_stream_connected && !o->m_stream_listened)
 				continue;
-			if (reactor->cmd_regobject)
-				reactor->cmd_regobject(o);
+			if (o->reg)
+				o->reg(o, timestamp_msec);
+			continue;
 		}
 		else if (REACTOR_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
@@ -175,7 +176,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
 			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
-			if (reactor->cmd_sendpacket && !reactor->cmd_sendpacket(packet))
+			if (o->sendpacket_hook && !o->sendpacket_hook(o, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM != o->socktype)
 				continue;
@@ -201,8 +202,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reactorobject_request_write(o);
 			continue;
 		}
-		else if (reactor->cmd_other)
-			reactor->cmd_other(cmd);
+
+		if (reactor->cmd_exec)
+			reactor->cmd_exec(cmd);
+		if (reactor->cmd_free)
+			reactor->cmd_free(cmd);
 	}
 }
 
@@ -454,9 +458,7 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	reactor->m_event_msec = 0;
 	reactor->m_wake = 0;
 
-	reactor->cmd_regobject = NULL;
-	reactor->cmd_sendpacket = NULL;
-	reactor->cmd_other = NULL;
+	reactor->cmd_exec = NULL;
 	reactor->cmd_free = NULL;
 	return reactor;
 }
@@ -658,11 +660,6 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->invalid_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	o->valid = 1;
-	o->exec = NULL;
-	o->preread = NULL;
-	o->writeev = NULL;
-	o->inactive = NULL;
-	o->free = NULL;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
@@ -674,6 +671,13 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->regcmd.type = REACTOR_REG_CMD;
 	o->freecmd.type = REACTOR_FREE_CMD;
 	listInit(&o->channel_list);
+	o->reg = NULL;
+	o->exec = NULL;
+	o->preread = NULL;
+	o->sendpacket_hook = NULL;
+	o->writeev = NULL;
+	o->inactive = NULL;
+	o->free = NULL;
 	
 	o->m_readol = NULL;
 	o->m_writeol = NULL;

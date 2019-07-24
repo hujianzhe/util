@@ -74,10 +74,10 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* channelInit(Channel_t* channel, int flag, int initseq, struct ReactorObject_t* io);
-__declspec_dll int channelRecvHandler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, const void* from_saddr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(struct ReactorObject_t* io, int flag, int initseq);
 __declspec_dll int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist);
-__declspec_dll int channelEventHandler(Channel_t* channel, long long timestamp_msec);
+__declspec_dll int channelSendPacket(Channel_t* channel, NetPacket_t* packet);
+__declspec_dll int channelSendPacketList(Channel_t* channel, List_t* packetlist);
 __declspec_dll void channelShutdown(Channel_t* channel, long long timestamp_msec);
 __declspec_dll void channelDestroy(Channel_t* channel);
 
