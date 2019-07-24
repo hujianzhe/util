@@ -173,6 +173,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			continue;
 		}
+		else if (REACTOR_STREAM_SHUTDOWN_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.shutdowncmd);
+			socketShutdown(o->fd, SHUT_WR);
+			continue;
+		}
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
 			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
@@ -192,8 +197,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				packet->off = res;
 			}
 			if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-				if (o->stream.free_sendfinished)
-					o->stream.free_sendfinished(packet);
+				if (reactor->cmd_free)
+					reactor->cmd_free(&packet->node);
 				else
 					free(packet);
 				continue;
@@ -371,8 +376,8 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	for (cur = finishedlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
-		if (o->stream.free_sendfinished)
-			o->stream.free_sendfinished(packet);
+		if (o->reactor->cmd_free)
+			o->reactor->cmd_free(&packet->node);
 		else
 			free(packet);
 	}
@@ -473,9 +478,14 @@ void reactorWake(Reactor_t* reactor) {
 void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	if (REACTOR_REG_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, regcmd);
-		if (o->reactor)
+		if (_xchg16(&o->m_reghaspost, 1))
 			return;
 		o->reactor = reactor;
+	}
+	else if (REACTOR_STREAM_SHUTDOWN_CMD == cmdnode->type) {
+		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.shutdowncmd);
+		if (SOCK_STREAM != o->socktype || _xchg16(&o->stream.m_shutdownhaspost, 1))
+			return;
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
@@ -587,7 +597,7 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
 			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 			next = cur->next;
-			if (REACTOR_REG_CMD == cmd->type)
+			if (REACTOR_REG_CMD == cmd->type || REACTOR_STREAM_SHUTDOWN_CMD == cmd->type)
 				continue;
 			if (REACTOR_FREE_CMD == cmd->type) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
@@ -663,7 +673,8 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
-		o->stream.free_sendfinished = NULL;
+		o->stream.shutdowncmd.type = REACTOR_STREAM_SHUTDOWN_CMD;
+		o->stream.m_shutdownhaspost = 0;
 	}
 	else {
 		o->dgram.read_mtu = 1464;
@@ -678,7 +689,8 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->writeev = NULL;
 	o->inactive = NULL;
 	o->free = NULL;
-	
+
+	o->m_reghaspost = 0;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_invalid_msec = 0;

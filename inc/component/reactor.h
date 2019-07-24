@@ -18,6 +18,7 @@ typedef NetPacketListNode_t	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,
+	REACTOR_STREAM_SHUTDOWN_CMD,
 	REACTOR_SEND_PACKET_CMD
 };
 
@@ -62,7 +63,8 @@ typedef struct ReactorObject_t {
 				Sockaddr_t connect_addr;
 				void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
 				StreamTransportCtx_t ctx;
-				void(*free_sendfinished)(NetPacket_t* packet);
+				Atom16_t m_shutdownhaspost;
+				ReactorCmd_t shutdowncmd;
 			};
 		} stream;
 		struct {
@@ -83,6 +85,7 @@ typedef struct ReactorObject_t {
 /* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
+	Atom16_t m_reghaspost;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;

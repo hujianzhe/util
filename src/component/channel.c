@@ -540,8 +540,8 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 			if (!packet)
 				break;
 			memset(packet, 0, sizeof(*packet));
-			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
 			packet->channel_object = channel;
+			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
 			packet->hdrlen = hdrsize;
 			packet->bodylen = memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
@@ -585,6 +585,7 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 		if (!packet)
 			return 0;
 		memset(packet, 0, sizeof(*packet));
+		packet->channel_object = channel;
 		packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
 	}
@@ -615,11 +616,9 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 	if (channel->has_sendfin)
 		return;
 	channel->has_sendfin = 1;
-	if (channel->flag & CHANNEL_FLAG_RELIABLE)
-		return;
-	else if (SOCK_STREAM == channel->io->socktype)
-		socketShutdown(channel->io->fd, SHUT_WR);
-	else {
+	if (channel->flag & CHANNEL_FLAG_STREAM)
+		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);
+	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		NetPacket_t* packet = channel->dgram.finpacket;
 		if (!packet) {
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize);
@@ -631,6 +630,7 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 			packet->bodylen = 0;
 			channel->dgram.finpacket = packet;
 		}
+		packet->channel_object = channel;
 		reactorobjectSendPacket(channel->io, packet);
 	}
 }
@@ -649,21 +649,19 @@ void channelDestroy(Channel_t* channel) {
 		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
 	}
+	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
+		ListNode_t* cur, *next;
+		for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
+			next = cur->next;
+			free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
+		}
+		listInit(&channel->dgram.ctx.recvpacketlist);
+	}
 	else {
-		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			ListNode_t* cur, *next;
-			for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
-				next = cur->next;
-				free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
-			}
-			listInit(&channel->dgram.ctx.recvpacketlist);
-		}
-		else {
-			free(channel->dgram.synpacket);
-			channel->dgram.synpacket = NULL;
-			channel_free_packetlist(&channel->dgram.ctx.recvpacketlist);
-			channel_free_packetlist(&channel->dgram.ctx.sendpacketlist);
-		}
+		free(channel->dgram.synpacket);
+		channel->dgram.synpacket = NULL;
+		channel_free_packetlist(&channel->dgram.ctx.recvpacketlist);
+		channel_free_packetlist(&channel->dgram.ctx.sendpacketlist);
 	}
 	free(channel);
 }
