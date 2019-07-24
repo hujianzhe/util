@@ -620,7 +620,10 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 	if (channel->flag & CHANNEL_FLAG_STREAM)
 		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet = channel->dgram.finpacket;
+		NetPacket_t* packet;
+		if (_xchg16(&channel->dgram.m_shutdownhaspost, 1))
+			return;
+		packet = channel->dgram.finpacket;
 		if (!packet) {
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize);
 			if (!packet)
