@@ -492,27 +492,17 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 /*******************************************************************************/
 
 Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) {
-	Channel_t* channel = malloc(sizeof(Channel_t));
+	Channel_t* channel = (Channel_t*)calloc(1, sizeof(Channel_t));
 	if (!channel)
 		return NULL;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	channel->flag = flag;
 	channel->io = io;
-	channel->maxhdrsize = 0;
-	channel->heartbeat_timeout_sec = 0;
-	channel->heartbeat_maxtimes = 0;
-	channel->heartbeat_msec = 0;
-	channel->has_recvfin = 0;
-	channel->has_sendfin = 0;
-	memset(&channel->dgram.listen_addr, 0, sizeof(channel->dgram.listen_addr));
-	channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
-	memset(&channel->dgram.connect_addr, 0, sizeof(channel->dgram.connect_addr));
-	channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
-	memset(&channel->to_addr, 0, sizeof(channel->to_addr));
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	if (flag & CHANNEL_FLAG_DGRAM) {
-		memset(&channel->dgram, 0, sizeof(channel->dgram));
+		channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
+		channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
 		channel->dgram.rto = 200;
 		channel->dgram.resend_maxtimes = 5;
 		dgramtransportctxInit(&channel->dgram.ctx, initseq);
@@ -520,16 +510,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) 
 	else {
 		streamtransportctxInit(&channel->io->stream.ctx, initseq);
 	}
-	channel->decode = NULL;
-	channel->recv = NULL;
-	channel->reply_ack = NULL;
-	channel->heartbeat = NULL;
-	channel->zombie = NULL;
-	channel->shutdown = NULL;
-	channel->hdrsize = NULL;
-	channel->encode = NULL;
-
-	channel->m_heartbeat_times = 0;
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;
 	io->sendpacket_hook = reactorobject_sendpacket_hook;
