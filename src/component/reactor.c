@@ -647,12 +647,23 @@ void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec) {
 
 /*****************************************************************************************/
 
-ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol) {
-	int fd_create;
+ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol) {
+	int fd_create, obj_create;
+	if (!o) {
+		o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
+		if (!o)
+			return NULL;
+		obj_create = 1;
+	}
+	else
+		obj_create = 0;
 	if (INVALID_FD_HANDLE == fd) {
 		fd = socket(domain, socktype, protocol);
-		if (INVALID_FD_HANDLE == fd)
+		if (INVALID_FD_HANDLE == fd) {
+			if (obj_create)
+				free(o);
 			return NULL;
+		}
 		fd_create = 1;
 	}
 	else
@@ -660,8 +671,11 @@ ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int 
 	if (!socketNonBlock(fd, TRUE)) {
 		if (fd_create)
 			socketClose(fd);
+		if (obj_create)
+			free(o);
 		return NULL;
 	}
+	o->fd = fd;
 	o->domain = domain;
 	o->socktype = socktype;
 	o->protocol = protocol;

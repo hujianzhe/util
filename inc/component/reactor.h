@@ -109,7 +109,7 @@ __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long lo
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
-__declspec_dll ReactorObject_t* reactorobjectInit(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
+__declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
 
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
