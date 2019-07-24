@@ -29,7 +29,7 @@ typedef struct Channel_t {
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
 	unsigned char has_recvfin;
-	unsigned char has_sendfin;
+	Atom8_t has_sendfin;
 	Sockaddr_t to_addr;
 	struct {
 		union {
@@ -45,7 +45,6 @@ typedef struct Channel_t {
 				void(*resend_err)(struct Channel_t* self, NetPacket_t* packet);
 				unsigned short rto;
 				unsigned char resend_maxtimes;
-				Atom8_t m_shutdownhaspost;
 			};
 		};
 		DgramTransportCtx_t ctx;
