@@ -36,7 +36,7 @@ typedef struct Channel_t {
 			struct {
 				Sockaddr_t listen_addr;
 				void(*reply_synack)(FD_t listenfd, unsigned short newport, const void* from_addr); /* listener use */
-				void(*ack_halfconn)(FD_t newfd, const void* peer_addr); /* listener use */
+				void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 			};
 			struct {
 				Sockaddr_t connect_addr;

@@ -268,7 +268,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						continue;
 					if (socketRead(halfconn->sockfd, NULL, 0, 0, &addr.st))
 						continue;
-					channel->dgram.ack_halfconn(halfconn->sockfd, &addr);
+					channel->dgram.ack_halfconn(channel, halfconn->sockfd, &addr, timestamp_msec);
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
 					halfconn->sockfd = INVALID_FD_HANDLE;
 					free_halfconn(halfconn);
