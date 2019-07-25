@@ -198,7 +198,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = cur->next) {
 					halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr)) {
-						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
+						channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
 						break;
 					}
 				}
@@ -232,7 +232,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node);
 						reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
-						channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
+						channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
 					} while (0);
 					if (!halfconn) {
 						free(halfconn);
@@ -428,7 +428,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 					free_halfconn(halfconn);
 					continue;
 				}
-				channel->dgram.reply_synack(channel->io->fd, halfconn->local_port, &halfconn->from_addr);
+				channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 				reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
