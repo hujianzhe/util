@@ -15,6 +15,8 @@ typedef struct DgramHalfConn_t {
 	FD_t sockfd;
 	Sockaddr_t from_addr;
 	unsigned short local_port;
+	unsigned int len;
+	unsigned char buf[1];
 } DgramHalfConn_t;
 
 #ifdef	__cplusplus
@@ -194,7 +196,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = cur->next) {
 					halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 					if (sockaddrIsEqual(&halfconn->from_addr, from_saddr)) {
-						channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
+						socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 						break;
 					}
 				}
@@ -204,6 +206,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					do {
 						unsigned short local_port;
 						Sockaddr_t local_saddr;
+						unsigned int buflen;
 						memcpy(&local_saddr, &channel->dgram.listen_addr, sockaddrLength(&channel->dgram.listen_addr));
 						if (!sockaddrSetPort(&local_saddr.st, 0))
 							break;
@@ -218,7 +221,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 							break;
 						if (!socketNonBlock(new_sockfd, TRUE))
 							break;
-						halfconn = (DgramHalfConn_t*)malloc(sizeof(DgramHalfConn_t));
+						buflen = channel->hdrsize(channel, sizeof(local_port)) + sizeof(local_port);
+						halfconn = (DgramHalfConn_t*)malloc(sizeof(DgramHalfConn_t) + buflen);
 						if (!halfconn)
 							break;
 						halfconn->sockfd = new_sockfd;
@@ -226,9 +230,12 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						halfconn->local_port = local_port;
 						halfconn->resend_times = 0;
 						halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
+						halfconn->len = buflen;
 						listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node);
 						reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
-						channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
+						channel->encode(channel, halfconn->buf, sizeof(local_port), NETPACKET_SYN_ACK, 0);
+						*(unsigned short*)(halfconn->buf + buflen - sizeof(local_port)) = htons(local_port);
+						socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 					} while (0);
 					if (!halfconn) {
 						free(halfconn);
@@ -244,10 +251,15 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				return 1;
 			if (!from_listen)
 				return 1;
+			if (channel->decode_result.bodylen < sizeof(unsigned short))
+				return 1;
 			if (channel->dgram.synpacket) {
+				unsigned short port = *(unsigned short*)channel->decode_result.bodyptr;
+				port = ntohs(port);
+				sockaddrSetPort(&channel->to_addr.st, port);
 				free(channel->dgram.synpacket);
 				channel->dgram.synpacket = NULL;
-				channel->recv(channel, from_saddr);
+				channel->synack(channel, 0, timestamp_msec);
 			}
 			channel->reply_ack(channel, 0, from_saddr);
 			socketWrite(channel->io->fd, NULL, 0, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
@@ -424,7 +436,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 					free_halfconn(halfconn);
 					continue;
 				}
-				channel->dgram.reply_synack(channel, halfconn->local_port, &halfconn->from_addr);
+				socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 				reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
@@ -435,8 +447,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			if (packet->resend_msec > timestamp_msec)
 				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
 			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
-				if (channel->dgram.resend_err)
-					channel->dgram.resend_err(channel, packet);
+				channel->synack(channel, ETIMEDOUT, timestamp_msec);
 			}
 			else {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));

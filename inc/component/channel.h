@@ -40,7 +40,6 @@ typedef struct Channel_t {
 			/* listener use */
 			struct {
 				Sockaddr_t listen_addr;
-				void(*reply_synack)(struct Channel_t* self, unsigned short newport, const void* from_addr); 
 			};
 			/* client connect use */
 			struct {
