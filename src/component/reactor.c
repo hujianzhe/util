@@ -282,7 +282,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 		}
 		else if (0 == res) {
 			reactorobjectInvalid(o, timestamp_msec);
-			o->preread(o, NULL, 0, 0, timestamp_msec, &from_addr);
+			if (o->stream.readfin)
+				o->stream.readfin(o);
 			return;
 		}
 		else {
@@ -301,7 +302,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			}
 			else if (0 == res) {
 				reactorobjectInvalid(o, timestamp_msec);
-				o->preread(o, NULL, 0, 0, timestamp_msec, &from_addr);
+				if (o->stream.readfin)
+					o->stream.readfin(o);
 				return;
 			}
 			o->m_inbuflen += res;

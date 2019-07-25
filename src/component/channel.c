@@ -29,6 +29,18 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
+static void channel_readfin_handler(Channel_t* channel) {
+	channel->has_recvfin = 1;
+	if (channel->readfin) {
+		channel->readfin(channel);
+		channel->readfin = NULL;
+	}
+}
+
+static void reactorobject_stream_readfin(ReactorObject_t* o) {
+	channel_readfin_handler(pod_container_of(o->channel_list.head, Channel_t, node));
+}
+
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
 	NetPacket_t* packet;
@@ -63,11 +75,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 			next = cur->next;
 			free(pod_container_of(cur, NetPacket_t, node));
 		}
-		channel->has_recvfin = 1;
-		if (channel->shutdown) {
-			channel->shutdown(channel);
-			channel->shutdown = NULL;
-		}
+		channel_readfin_handler(channel);
 	}
 	else {
 		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
@@ -80,14 +88,6 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist) 
 }
 
 static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec) {
-	if (0 == len) {
-		channel->has_recvfin = 1;
-		if (channel->shutdown) {
-			channel->shutdown(channel);
-			channel->shutdown = NULL;
-		}
-		return 0;
-	}
 	while (off < len) {
 		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
 		channel->decode(channel, buf + off, len - off);
@@ -587,6 +587,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) 
 	}
 	else {
 		streamtransportctxInit(&channel->io->stream.ctx, initseq);
+		io->stream.readfin = reactorobject_stream_readfin;
 	}
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;
