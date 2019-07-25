@@ -36,7 +36,7 @@ static void free_io_resource(ReactorObject_t* o) {
 	}
 }
 
-static reactorobject_free(ReactorObject_t* o) {
+static void reactorobject_free(ReactorObject_t* o) {
 	free_io_resource(o);
 	if (o->free) {
 		o->free(o);
