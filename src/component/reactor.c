@@ -734,6 +734,8 @@ void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
 
 void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {
 	ListNode_t* cur;
+	if (!packetlist->head)
+		return;
 	for (cur = packetlist->head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		packet->node.type = REACTOR_SEND_PACKET_CMD;

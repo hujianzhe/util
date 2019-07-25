@@ -486,39 +486,13 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 			channelDestroy(channel);
 		}
 	}
-	if (!o->channel_list.head)
+	if (SOCK_STREAM == o->socktype && o->stream.accept)
+		return;
+	else if (!o->channel_list.head)
 		reactorobjectInvalid(o, timestamp_msec);
 }
 
-/*******************************************************************************/
-
-Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) {
-	Channel_t* channel = (Channel_t*)calloc(1, sizeof(Channel_t));
-	if (!channel)
-		return NULL;
-	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
-	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
-	channel->flag = flag;
-	channel->io = io;
-	channel->to_addr.sa.sa_family = AF_UNSPEC;
-	if (flag & CHANNEL_FLAG_DGRAM) {
-		channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
-		channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
-		channel->dgram.rto = 200;
-		channel->dgram.resend_maxtimes = 5;
-		dgramtransportctxInit(&channel->dgram.ctx, initseq);
-	}
-	else {
-		streamtransportctxInit(&channel->io->stream.ctx, initseq);
-	}
-	io->exec = reactorobject_exec_channel;
-	io->preread = reactorobject_recv_handler;
-	io->sendpacket_hook = reactorobject_sendpacket_hook;
-	listInsertNodeBack(&io->channel_list, io->channel_list.tail, &channel->node._);
-	return channel;
-}
-
-int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
+static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	NetPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
@@ -593,24 +567,68 @@ int channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovc
 	return 1;
 }
 
-int channelSendPacket(Channel_t* channel, NetPacket_t* packet) {
-	if (channel->has_sendfin)
-		return 0;
-	packet->channel_object = channel;
-	reactorobjectSendPacket(channel->io, packet);
-	return 1;
+/*******************************************************************************/
+
+Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) {
+	Channel_t* channel = (Channel_t*)calloc(1, sizeof(Channel_t));
+	if (!channel)
+		return NULL;
+	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
+	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
+	channel->flag = flag;
+	channel->io = io;
+	channel->to_addr.sa.sa_family = AF_UNSPEC;
+	if (flag & CHANNEL_FLAG_DGRAM) {
+		channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
+		channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
+		channel->dgram.rto = 200;
+		channel->dgram.resend_maxtimes = 5;
+		dgramtransportctxInit(&channel->dgram.ctx, initseq);
+	}
+	else {
+		streamtransportctxInit(&channel->io->stream.ctx, initseq);
+	}
+	io->exec = reactorobject_exec_channel;
+	io->preread = reactorobject_recv_handler;
+	io->sendpacket_hook = reactorobject_sendpacket_hook;
+	listInsertNodeBack(&io->channel_list, io->channel_list.tail, &channel->node._);
+	return channel;
 }
 
-int channelSendPacketList(Channel_t* channel, List_t* packetlist) {
-	ListNode_t* cur;
+Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack) {
+	Iobuf_t iov = iobufStaticInit(data, len);
+	return channelSendv(channel, &iov, 1, no_ack);
+}
+
+Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack) {
+	List_t packetlist;
 	if (channel->has_sendfin)
-		return 0;
+		return NULL;
+	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
+		return NULL;
+	return channelSendPacketList(channel, &packetlist);
+}
+
+Channel_t* channelSendPacket(Channel_t* channel, NetPacket_t* packet) {
+	if (channel->has_sendfin)
+		return NULL;
+	packet->channel_object = channel;
+	reactorobjectSendPacket(channel->io, packet);
+	return channel;
+}
+
+Channel_t* channelSendPacketList(Channel_t* channel, List_t* packetlist) {
+	ListNode_t* cur;
+	if (!packetlist->head)
+		return channel;
+	if (channel->has_sendfin)
+		return NULL;
 	for (cur = packetlist->head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		packet->channel_object = channel;
 	}
 	reactorobjectSendPacketList(channel->io, packetlist);
-	return 1;
+	return channel;
 }
 
 void channelShutdown(Channel_t* channel, long long timestamp_msec) {
