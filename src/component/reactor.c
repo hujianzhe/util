@@ -495,7 +495,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_FREE_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, freecmd);
-		if (!o->m_reghaspost) {
+		if (!o->m_reghaspost || !reactor) {
 			reactorobject_free(o);
 			return;
 		}
