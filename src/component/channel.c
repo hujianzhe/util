@@ -37,10 +37,6 @@ static void channel_readfin_handler(Channel_t* channel) {
 	}
 }
 
-static void reactorobject_stream_readfin(ReactorObject_t* o) {
-	channel_readfin_handler(pod_container_of(o->channel_list.head, Channel_t, node));
-}
-
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
 	NetPacket_t* packet;
@@ -268,7 +264,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						continue;
 					if (socketRead(halfconn->sockfd, NULL, 0, 0, &addr.st))
 						continue;
-					channel->dgram.ack_halfconn(channel, halfconn->sockfd, &addr, timestamp_msec);
+					channel->ack_halfconn(channel, halfconn->sockfd, &addr, timestamp_msec);
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
 					halfconn->sockfd = INVALID_FD_HANDLE;
 					free_halfconn(halfconn);
@@ -567,6 +563,23 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	return 1;
 }
 
+void reactorobject_stream_accept(ReactorObject_t* o, FD_t newfd, const void* peeraddr, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
+	if (channel->ack_halfconn)
+		channel->ack_halfconn(channel, newfd, peeraddr, timestamp_msec);
+	else
+		socketClose(newfd);
+}
+
+void reactorobject_stream_connect(ReactorObject_t* o, int err, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
+	channel->synack(channel, err, timestamp_msec);
+}
+
+static void reactorobject_stream_readfin(ReactorObject_t* o) {
+	channel_readfin_handler(pod_container_of(o->channel_list.head, Channel_t, node));
+}
+
 /*******************************************************************************/
 
 Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) {
@@ -587,6 +600,10 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) 
 	}
 	else {
 		streamtransportctxInit(&channel->io->stream.ctx, initseq);
+		if (flag & CHANNEL_FLAG_LISTEN)
+			io->stream.accept = reactorobject_stream_accept;
+		else
+			io->stream.connect = reactorobject_stream_connect;
 		io->stream.readfin = reactorobject_stream_readfin;
 	}
 	io->exec = reactorobject_exec_channel;
