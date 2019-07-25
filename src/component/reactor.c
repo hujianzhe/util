@@ -36,6 +36,16 @@ static void free_io_resource(ReactorObject_t* o) {
 	}
 }
 
+static reactorobject_free(ReactorObject_t* o) {
+	free_io_resource(o);
+	if (o->free) {
+		o->free(o);
+		o->free = NULL;
+	}
+	else
+		free(o);
+}
+
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
 	if (SOCK_STREAM == o->socktype) {
 		free_io_resource(o);
@@ -166,11 +176,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
-			free_io_resource(o);
-			if (o->free) {
-				o->free(o);
-				o->free = NULL;
-			}
+			reactorobject_free(o);
 			continue;
 		}
 		else if (REACTOR_STREAM_SHUTDOWN_CMD == cmd->type) {
@@ -487,6 +493,13 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (SOCK_STREAM != o->socktype || _xchg16(&o->stream.m_shutdownhaspost, 1))
 			return;
 	}
+	else if (REACTOR_FREE_CMD == cmdnode->type) {
+		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, freecmd);
+		if (!o->m_reghaspost) {
+			reactorobject_free(o);
+			return;
+		}
+	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
@@ -601,11 +614,7 @@ void reactorDestroy(Reactor_t* reactor) {
 				continue;
 			if (REACTOR_FREE_CMD == cmd->type) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
-				free_io_resource(o);
-				if (o->free) {
-					o->free(o);
-					o->free = NULL;
-				}
+				reactorobject_free(o);
 				continue;
 			}
 			if (reactor->cmd_free)
@@ -617,11 +626,7 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 			next = hashtableNextNode(cur);
-			free_io_resource(o);
-			if (o->free) {
-				o->free(o);
-				o->free = NULL;
-			}
+			reactorobject_free(o);
 		}
 	} while (0);
 	do {
@@ -629,11 +634,7 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_invalidlist.head; cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 			next = cur->next;
-			free_io_resource(o);
-			if (o->free) {
-				o->free(o);
-				o->free = NULL;
-			}
+			reactorobject_free(o);
 		}
 	} while (0);
 }
