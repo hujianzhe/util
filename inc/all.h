@@ -33,6 +33,7 @@
 #include "sysapi/terminal.h"
 #include "sysapi/time.h"
 #include "sysapi/uuid.h"
+#include "component/channel.h"
 #include "component/cJSON.h"
 #include "component/collision_detection.h"
 #include "component/cXML.h"
@@ -42,6 +43,7 @@
 #include "component/lengthfieldframe.h"
 #include "component/log.h"
 #include "component/rbtimer.h"
+#include "component/reactor.h"
 #include "component/session.h"
 #include "component/websocketframe.h"
 
