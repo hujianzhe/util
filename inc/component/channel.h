@@ -36,6 +36,7 @@ typedef struct Channel_t {
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
 	Sockaddr_t to_addr;
+	NetPacket_t* finpacket;
 	union {
 		void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 		void(*synack)(struct Channel_t* self, int err, long long ts_msec); /* client connect use */
@@ -53,7 +54,6 @@ typedef struct Channel_t {
 			};
 		};
 		struct {
-			NetPacket_t* finpacket;
 			void(*resend_err)(struct Channel_t* self, NetPacket_t* packet);
 			unsigned short rto;
 			unsigned char resend_maxtimes;

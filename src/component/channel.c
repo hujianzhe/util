@@ -37,6 +37,14 @@ static void channel_readfin_handler(Channel_t* channel) {
 		channel->readfin(channel);
 		channel->readfin = NULL;
 	}
+	/*
+	if (!channel->m_has_sendfin)
+		return;
+	if (channel->inactive) {
+		channel->inactive(channel, CHANNEL_INACTIVE_REASON_NORMAL);
+		channel->inactive = NULL;
+	}
+	*/
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -287,8 +295,14 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				packet = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
 				if (!packet)
 					return 1;
-				if (packet == channel->dgram.finpacket)
-					channel->dgram.finpacket = NULL;
+				if (packet == channel->finpacket)
+					channel->finpacket = NULL;
+				if (NETPACKET_FIN == packet->type && channel->m_has_recvfin) {
+					if (channel->inactive) {
+						channel->inactive(channel, CHANNEL_INACTIVE_REASON_NORMAL);
+						channel->inactive = NULL;
+					}
+				}
 				free(packet);
 				if (!cwndskip)
 					return 1;
@@ -654,10 +668,8 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 	if (_xchg8(&channel->m_ban_send, 1))
 		return;
-	if (channel->flag & CHANNEL_FLAG_STREAM)
-		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet = channel->dgram.finpacket;
+		NetPacket_t* packet = channel->finpacket;
 		if (!packet) {
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->hdrsize(channel, 0));
 			if (!packet)
@@ -666,10 +678,13 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 			packet->type = NETPACKET_FIN;
 			packet->hdrlen = channel->hdrsize(channel, 0);
 			packet->bodylen = 0;
-			channel->dgram.finpacket = packet;
+			channel->finpacket = packet;
 		}
 		packet->channel_object = channel;
 		reactorobjectSendPacket(channel->io, packet);
+	}
+	else if (channel->flag & CHANNEL_FLAG_STREAM) {
+		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);
 	}
 }
 
