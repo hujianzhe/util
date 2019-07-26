@@ -297,12 +297,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					return 1;
 				if (packet == channel->finpacket)
 					channel->finpacket = NULL;
-				if (NETPACKET_FIN == packet->type && channel->m_has_recvfin) {
-					if (channel->inactive) {
-						channel->inactive(channel, CHANNEL_INACTIVE_REASON_NORMAL);
-						channel->inactive = NULL;
-					}
-				}
+				if (NETPACKET_FIN == packet->type && channel->m_has_recvfin)
+					channel->inactive_reason = CHANNEL_INACTIVE_REASON_NORMAL;
 				free(packet);
 				if (!cwndskip)
 					return 1;
@@ -481,8 +477,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 					continue;
 				}
 				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
-					if (channel->dgram.resend_err)
-						channel->dgram.resend_err(channel, packet);
+					channel->inactive_reason = CHANNEL_INACTIVE_REASON_RESEND_TIMES_LIMIT;
 					break;
 				}
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
@@ -617,7 +612,7 @@ static void reactorobject_stream_readfin(ReactorObject_t* o) {
 
 /*******************************************************************************/
 
-Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) {
+Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, const void* saddr) {
 	Channel_t* channel;
 	if (SOCK_STREAM == io->socktype && io->channel_list.head)
 		return pod_container_of(io->channel_list.head, Channel_t, node);
@@ -628,10 +623,12 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) 
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	channel->flag = flag;
 	channel->io = io;
-	channel->to_addr.sa.sa_family = AF_UNSPEC;
+	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	if (flag & CHANNEL_FLAG_DGRAM) {
-		channel->dgram.listen_addr.sa.sa_family = AF_UNSPEC;
-		channel->dgram.connect_addr.sa.sa_family = AF_UNSPEC;
+		if (flag & CHANNEL_FLAG_LISTEN)
+			memcpy(&channel->dgram.listen_addr, saddr, sockaddrLength(saddr));
+		else if (flag & CHANNEL_FLAG_CLIENT)
+			memcpy(&channel->dgram.connect_addr, saddr, sockaddrLength(saddr));
 		channel->dgram.rto = 200;
 		channel->dgram.resend_maxtimes = 5;
 		dgramtransportctxInit(&channel->dgram.ctx, initseq);
@@ -640,8 +637,10 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq) 
 		streamtransportctxInit(&channel->io->stream.ctx, initseq);
 		if (flag & CHANNEL_FLAG_LISTEN)
 			io->stream.accept = reactorobject_stream_accept;
-		else
+		else if (flag & CHANNEL_FLAG_CLIENT) {
 			io->stream.connect = reactorobject_stream_connect;
+			memcpy(&io->stream.connect_addr, saddr, sockaddrLength(saddr));
+		}
 		io->stream.readfin = reactorobject_stream_readfin;
 	}
 	io->exec = reactorobject_exec_channel;
