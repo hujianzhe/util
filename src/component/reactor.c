@@ -182,7 +182,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_STREAM_SHUTDOWN_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.shutdowncmd);
 			if (streamtransportctxSendCheckBusy(&o->stream.ctx))
-				o->stream.m_shutdownexec = 1;
+				o->stream.m_shutdownwait = 1;
 			else
 				socketShutdown(o->fd, SHUT_WR);
 			continue;
@@ -394,7 +394,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		else
 			free(packet);
 	}
-	if (!busy && o->stream.m_shutdownexec)
+	if (!busy && o->stream.m_shutdownwait)
 		socketShutdown(o->fd, SHUT_WR);
 }
 
@@ -499,7 +499,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_STREAM_SHUTDOWN_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.shutdowncmd);
-		if (SOCK_STREAM != o->socktype || _xchg16(&o->stream.m_shutdownhaspost, 1))
+		if (SOCK_STREAM != o->socktype || _xchg16(&o->stream.m_shutdowncmdhaspost, 1))
 			return;
 	}
 	else if (REACTOR_FREE_CMD == cmdnode->type) {
@@ -698,8 +698,8 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
 		o->stream.shutdowncmd.type = REACTOR_STREAM_SHUTDOWN_CMD;
-		o->stream.m_shutdownhaspost = 0;
-		o->stream.m_shutdownexec = 0;
+		o->stream.m_shutdowncmdhaspost = 0;
+		o->stream.m_shutdownwait = 0;
 	}
 	else {
 		o->dgram.read_mtu = 1464;

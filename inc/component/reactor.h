@@ -64,8 +64,8 @@ typedef struct ReactorObject_t {
 			StreamTransportCtx_t ctx;
 			ReactorCmd_t shutdowncmd;
 			void(*readfin)(struct ReactorObject_t* self);
-			Atom16_t m_shutdownhaspost;
-			Atom16_t m_shutdownexec;
+			Atom16_t m_shutdowncmdhaspost;
+			short m_shutdownwait;
 		} stream;
 		struct {
 			unsigned short read_mtu;
