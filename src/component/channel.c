@@ -32,7 +32,7 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 }
 
 static void channel_readfin_handler(Channel_t* channel) {
-	channel->has_recvfin = 1;
+	channel->m_has_recvfin = 1;
 	if (channel->readfin) {
 		channel->readfin(channel);
 		channel->readfin = NULL;
@@ -467,8 +467,6 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 					continue;
 				}
 				if (packet->resend_times >= channel->dgram.resend_maxtimes) {
-					if (!channel->has_sendfin && !channel->has_recvfin)
-						return 0;
 					if (channel->dgram.resend_err)
 						channel->dgram.resend_err(channel, packet);
 					break;
@@ -578,8 +576,6 @@ static Channel_t* channel_send_packetlist(Channel_t* channel, List_t* packetlist
 	ListNode_t* cur;
 	if (!packetlist->head)
 		return channel;
-	if (channel->has_sendfin)
-		return NULL;
 	for (cur = packetlist->head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		packet->channel_object = channel;
@@ -648,7 +644,7 @@ Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, i
 
 Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack) {
 	List_t packetlist;
-	if (channel->has_sendfin)
+	if (channel->m_ban_send)
 		return NULL;
 	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
 		return NULL;
@@ -656,7 +652,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 }
 
 void channelShutdown(Channel_t* channel, long long timestamp_msec) {
-	if (_xchg8(&channel->has_sendfin, 1))
+	if (_xchg8(&channel->m_ban_send, 1))
 		return;
 	if (channel->flag & CHANNEL_FLAG_STREAM)
 		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);

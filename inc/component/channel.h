@@ -35,8 +35,6 @@ typedef struct Channel_t {
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
-	unsigned char has_recvfin;
-	Atom8_t has_sendfin;
 	Sockaddr_t to_addr;
 	union {
 		void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
@@ -80,8 +78,11 @@ typedef struct Channel_t {
 	void(*readfin)(struct Channel_t* self);
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
+	int(*inactive)(struct Channel_t* self, int reason);
 /* private */
 	unsigned int m_heartbeat_times;
+	unsigned char m_has_recvfin;
+	Atom8_t m_ban_send;
 } Channel_t;
 
 #ifdef	__cplusplus
