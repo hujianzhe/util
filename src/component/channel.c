@@ -107,7 +107,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			unsigned int pkseq = channel->decode_result.pkseq;
 			if (streamtransportctxRecvCheck(&channel->io->stream.ctx, pkseq, pktype)) {
 				NetPacket_t* packet;
-				if (pktype >= NETPACKET_FRAGMENT)
+				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->reply_ack(channel, pkseq, &channel->to_addr);
 				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
 				if (!packet)
@@ -133,7 +133,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				else
 					return -1;
 			}
-			else if (pktype >= NETPACKET_FRAGMENT)
+			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->reply_ack(channel, pkseq, &channel->to_addr);
 			else
 				return -1;
@@ -320,7 +320,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				return 1;
 			channel->recv(channel, from_saddr);
 		}
-		else {
+		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
 			if (channel->flag & CHANNEL_FLAG_LISTEN)
 				return 1;
 			channel->reply_ack(channel, pkseq, from_saddr);
