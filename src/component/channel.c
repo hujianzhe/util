@@ -515,7 +515,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		packet = NULL;
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
-			unsigned int hdrsize = channel->hdrsize ? channel->hdrsize(channel, memsz) : 0;
+			unsigned int hdrsize = channel->hdrsize(channel, memsz);
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize + memsz);
 			if (!packet)
 				break;
@@ -659,12 +659,12 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		NetPacket_t* packet = channel->dgram.finpacket;
 		if (!packet) {
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->maxhdrsize);
+			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->hdrsize(channel, 0));
 			if (!packet)
 				return;
 			memset(packet, 0, sizeof(*packet));
 			packet->type = NETPACKET_FIN;
-			packet->hdrlen = channel->hdrsize ? channel->hdrsize(channel, 0) : 0;
+			packet->hdrlen = channel->hdrsize(channel, 0);
 			packet->bodylen = 0;
 			channel->dgram.finpacket = packet;
 		}
