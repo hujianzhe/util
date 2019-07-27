@@ -32,19 +32,23 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 }
 
 static void channel_readfin_handler(Channel_t* channel) {
+	List_t* plist;
 	channel->m_has_recvfin = 1;
+	if (channel->flag & CHANNEL_FLAG_STREAM)
+		plist = &channel->io->stream.ctx.sendpacketlist;
+	else
+		plist = &channel->dgram.ctx.sendpacketlist;
+	if (plist->head) {
+		NetPacket_t* packet = pod_container_of(plist->head, NetPacket_t, node);
+		if (NETPACKET_FIN == packet->type) {
+			channel->inactive_reason = CHANNEL_INACTIVE_REASON_NORMAL;
+			return;
+		}
+	}
 	if (channel->readfin) {
 		channel->readfin(channel);
 		channel->readfin = NULL;
 	}
-	/*
-	if (!channel->m_has_sendfin)
-		return;
-	if (channel->inactive) {
-		channel->inactive(channel, CHANNEL_INACTIVE_REASON_NORMAL);
-		channel->inactive = NULL;
-	}
-	*/
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -304,7 +308,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					return 1;
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
 					packet = pod_container_of(cur, NetPacket_t, node);
-					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
+					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
 						break;
 					if (packet->wait_ack && packet->resend_msec > timestamp_msec)
 						continue;
@@ -383,7 +387,7 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 			if (packet->hdrlen)
 				channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
 			if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet)) {
-				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet->seq))
+				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
 					return 0;
 				packet->wait_ack = 1;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;

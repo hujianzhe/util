@@ -130,8 +130,10 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 	return (NetPacket_t*)0;
 }
 
-int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, unsigned int seq) {
-	return seq >= ctx->m_cwndseq && seq - ctx->m_cwndseq < ctx->cwndsize;
+int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+	if (NETPACKET_FIN == packet->type && ctx->sendpacketlist.head != &packet->node._)
+		return 0;
+	return packet->seq >= ctx->m_cwndseq && packet->seq - ctx->m_cwndseq < ctx->cwndsize;
 }
 
 /*********************************************************************************/
