@@ -63,7 +63,7 @@ typedef struct ReactorObject_t {
 			Sockaddr_t connect_addr;
 			StreamTransportCtx_t ctx;
 			ReactorCmd_t shutdowncmd;
-			void(*readfin)(struct ReactorObject_t* self);
+			void(*readfin)(struct ReactorObject_t* self, long long timestamp_msec);
 			Atom16_t m_shutdowncmdhaspost;
 			short m_shutdownwait;
 		} stream;
