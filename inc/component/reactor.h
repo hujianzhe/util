@@ -65,7 +65,7 @@ typedef struct ReactorObject_t {
 			StreamTransportCtx_t ctx;
 			ReactorCmd_t shutdowncmd;
 			void(*shutdown)(struct ReactorObject_t* self, long long timestamp_msec);
-			Atom16_t m_shutdowncmdhaspost;
+			Atom8_t m_shutdowncmdhaspost;
 			char m_shutdownwait;
 			char m_recvfin;
 		} stream;
@@ -84,7 +84,7 @@ typedef struct ReactorObject_t {
 /* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
-	Atom16_t m_reghaspost;
+	Atom8_t m_reghaspost;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;

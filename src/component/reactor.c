@@ -511,13 +511,13 @@ void reactorWake(Reactor_t* reactor) {
 void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	if (REACTOR_REG_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, regcmd);
-		if (_xchg16(&o->m_reghaspost, 1))
+		if (_xchg8(&o->m_reghaspost, 1))
 			return;
 		o->reactor = reactor;
 	}
 	else if (REACTOR_STREAM_SHUTDOWN_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.shutdowncmd);
-		if (SOCK_STREAM != o->socktype || _xchg16(&o->stream.m_shutdowncmdhaspost, 1))
+		if (SOCK_STREAM != o->socktype || _xchg8(&o->stream.m_shutdowncmdhaspost, 1))
 			return;
 	}
 	else if (REACTOR_FREE_CMD == cmdnode->type) {
