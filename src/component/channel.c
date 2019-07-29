@@ -78,15 +78,26 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			free(pod_container_of(cur, NetPacket_t, node));
 		}
-		channel->m_recvfin = 1;
-		if (!channel->m_sendfin)
-			channelSendFin(channel, timestamp_msec);
-		else if (channel->flag & CHANNEL_FLAG_STREAM) {
-			int reason = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-			channel->inactive_reason = reason;
+		if (channel->flag & CHANNEL_FLAG_STREAM) {
+			if (channel->io->stream.has_recvfin)
+				return 1;
+			channel->io->stream.has_recvfin = 1;
+			if (channel->io->stream.has_sendfin) {
+				int reason = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+				channel->inactive_reason = reason;
+			}
+			else
+				channelSendFin(channel, timestamp_msec);
 		}
-		else
-			channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
+		else {
+			if (channel->dgram.has_recvfin)
+				return 1;
+			channel->dgram.has_recvfin = 1;
+			if (channel->dgram.has_sendfin)
+				channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
+			else
+				channelSendFin(channel, timestamp_msec);
+		}
 	}
 	else {
 		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
@@ -311,7 +322,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					return 1;
 				if (packet == channel->finpacket)
 					channel->finpacket = NULL;
-				if (NETPACKET_FIN == packet->type && channel->m_recvfin)
+				if (NETPACKET_FIN == packet->type && channel->dgram.has_recvfin)
 					channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
 				free(packet);
 				if (cwndskip) {
@@ -320,7 +331,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
 							break;
 						if (NETPACKET_FIN == packet->type)
-							channel->m_sendfin = 1;
+							channel->dgram.has_sendfin = 1;
 						if (packet->wait_ack && packet->resend_msec > timestamp_msec)
 							continue;
 						packet->wait_ack = 1;
@@ -412,7 +423,7 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
 					return 0;
 				if (NETPACKET_FIN == packet->type)
-					channel->m_sendfin = 1;
+					channel->dgram.has_sendfin = 1;
 				packet->wait_ack = 1;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				reactorSetEventTimestamp(o->reactor, packet->resend_msec);
@@ -633,8 +644,10 @@ static void reactorobject_stream_connect(ReactorObject_t* o, int err, long long 
 
 static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	if (!o->stream.has_sendfin)
+	if (!o->stream.has_sendfin) {
+		channelSendFin(channel, timestamp_msec);
 		return;
+	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
 		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
 		channel_inactive_handler(channel, reason, timestamp_msec);

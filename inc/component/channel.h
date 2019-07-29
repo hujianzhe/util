@@ -57,6 +57,8 @@ typedef struct Channel_t {
 		struct {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
+			char has_recvfin;
+			char has_sendfin;
 			DgramTransportCtx_t ctx;
 		};
 	} dgram;
@@ -80,9 +82,6 @@ typedef struct Channel_t {
 	void(*inactive)(struct Channel_t* self, int reason);
 /* private */
 	unsigned int m_heartbeat_times;
-	unsigned char m_has_detached;
-	unsigned char m_recvfin;
-	unsigned char m_sendfin;
 	Atom8_t m_ban_send;
 } Channel_t;
 
