@@ -153,7 +153,15 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
-static void reactorobject_shutdowncmd_handler(ReactorObject_t* o, long long timestamp_msec) {
+static void reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp_msec) {
+	o->stream.m_recvfin = 1;
+	if (o->stream.recvfin) {
+		o->stream.recvfin(o, timestamp_msec);
+		o->stream.recvfin = NULL;
+	}
+}
+
+static void reactorobject_sendfin_handler(ReactorObject_t* o, long long timestamp_msec) {
 	if (streamtransportctxSendCheckBusy(&o->stream.ctx))
 		o->stream.m_sendfinwait = 1;
 	else {
@@ -194,7 +202,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
-			reactorobject_shutdowncmd_handler(o, timestamp_msec);
+			reactorobject_sendfin_handler(o, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
@@ -298,8 +306,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else if (0 == res) {
-			o->stream.m_recvfin = 1;
-			reactorobject_shutdowncmd_handler(o, timestamp_msec);
+			reactorobject_recvfin_handler(o, timestamp_msec);
+			reactorobject_sendfin_handler(o, timestamp_msec);
 			return;
 		}
 		else {
@@ -317,8 +325,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			else if (0 == res) {
-				o->stream.m_recvfin = 1;
-				reactorobject_shutdowncmd_handler(o, timestamp_msec);
+				reactorobject_recvfin_handler(o, timestamp_msec);
+				reactorobject_sendfin_handler(o, timestamp_msec);
 				return;
 			}
 			o->m_inbuflen += res;

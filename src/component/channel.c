@@ -363,11 +363,12 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 }
 
 static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
-	int res;
 	Channel_t* channel;
-	if (SOCK_STREAM == o->socktype) {
+	if (!o->channel_list.head)
+		return -1;
+	else if (SOCK_STREAM == o->socktype) {
 		channel = pod_container_of(o->channel_list.head, Channel_t, node);
-		res = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
+		int res = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 		if (res < 0)
 			channel_inactive_handler(channel, CHANNEL_INACTIVE_FATE, timestamp_msec);
 		else if (channel->inactive_reason)
@@ -526,9 +527,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 			continue;
 		channel_inactive_handler(channel, inactive_reason, timestamp_msec);
 	}
-	if (SOCK_STREAM == o->socktype && o->stream.accept)
-		return;
-	else if (!o->channel_list.head)
+	if (!o->channel_list.head)
 		reactorobjectInvalid(o, timestamp_msec);
 }
 
@@ -627,7 +626,7 @@ void reactorobject_stream_accept(ReactorObject_t* o, FD_t newfd, const void* pee
 		socketClose(newfd);
 }
 
-void reactorobject_stream_connect(ReactorObject_t* o, int err, long long timestamp_msec) {
+static void reactorobject_stream_connect(ReactorObject_t* o, int err, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
 	channel->synack(channel, err, timestamp_msec);
 }
@@ -636,6 +635,17 @@ static void reactorobject_stream_shutdown(ReactorObject_t* o, long long timestam
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
 	int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
 	channel_inactive_handler(channel, reason, timestamp_msec);
+}
+
+static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
+	channel->m_recvfin = 1;
+	if (!channel->m_sendfin)
+		return;
+	else if (channel->flag & CHANNEL_FLAG_STREAM)
+		reactorobject_stream_shutdown(o, timestamp_msec);
+	else
+		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
 
 static void reactorobject_stream_usersendfin(ReactorObject_t* o, long long timestamp_msec) {
@@ -680,6 +690,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 			io->stream.connect = reactorobject_stream_connect;
 			memcpy(&io->stream.connect_addr, saddr, sockaddrLength(saddr));
 		}
+		io->stream.recvfin = reactorobject_stream_recvfin;
 		io->stream.shutdown = reactorobject_stream_shutdown;
 		io->stream.usersendfin = reactorobject_stream_usersendfin;
 	}

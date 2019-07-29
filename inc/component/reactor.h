@@ -64,6 +64,7 @@ typedef struct ReactorObject_t {
 			Sockaddr_t connect_addr;
 			StreamTransportCtx_t ctx;
 			ReactorCmd_t sendfincmd;
+			void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
 			void(*shutdown)(struct ReactorObject_t* self, long long timestamp_msec);
 			void(*usersendfin)(struct ReactorObject_t* self, long long timestamp_msec);
 			Atom8_t m_sendfincmdhaspost;
