@@ -283,7 +283,7 @@ List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
 		next = cur->next;
 		if (packet->off < packet->hdrlen + packet->bodylen)
 			break;
-		if (packet->type < NETPACKET_FRAGMENT) {
+		if (packet->type < NETPACKET_STREAM_HAS_SEND_SEQ) {
 			listRemoveNode(&ctx->sendpacketlist, cur);
 			listInsertNodeBack(&freelist, freelist.tail, cur);
 			packet->cached = 0;
