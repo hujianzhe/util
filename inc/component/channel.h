@@ -75,15 +75,14 @@ typedef struct Channel_t {
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	void(*heartbeat)(struct Channel_t* self);
 	int(*zombie)(struct Channel_t* self);
-	void(*readfin)(struct Channel_t* self);
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 	void(*inactive)(struct Channel_t* self, int reason);
 /* private */
 	unsigned int m_heartbeat_times;
-	unsigned char m_has_recvfin;
-	unsigned char m_has_sendfin;
 	unsigned char m_has_detached;
+	unsigned char m_recvfin;
+	unsigned char m_sendfin;
 	Atom8_t m_ban_send;
 } Channel_t;
 

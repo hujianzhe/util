@@ -153,6 +153,19 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
+static void reactorobject_shutdowncmd_handler(ReactorObject_t* o, long long timestamp_msec) {
+	if (streamtransportctxSendCheckBusy(&o->stream.ctx))
+		o->stream.m_shutdownwait = 1;
+	else {
+		socketShutdown(o->fd, SHUT_WR);
+		if (o->stream.shutdown) {
+			o->stream.shutdown(o, timestamp_msec);
+			o->stream.shutdown = NULL;
+		}
+		reactorobjectInvalid(o, timestamp_msec);
+	}
+}
+
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -181,10 +194,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_SHUTDOWN_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.shutdowncmd);
-			if (streamtransportctxSendCheckBusy(&o->stream.ctx))
-				o->stream.m_shutdownwait = 1;
-			else
-				socketShutdown(o->fd, SHUT_WR);
+			reactorobject_shutdowncmd_handler(o, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
@@ -284,9 +294,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else if (0 == res) {
-			reactorobjectInvalid(o, timestamp_msec);
-			if (o->stream.readfin)
-				o->stream.readfin(o, timestamp_msec);
+			o->stream.m_recvfin = 1;
+			reactorobject_shutdowncmd_handler(o, timestamp_msec);
 			return;
 		}
 		else {
@@ -304,9 +313,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			else if (0 == res) {
-				reactorobjectInvalid(o, timestamp_msec);
-				if (o->stream.readfin)
-					o->stream.readfin(o, timestamp_msec);
+				o->stream.m_recvfin = 1;
+				reactorobject_shutdowncmd_handler(o, timestamp_msec);
 				return;
 			}
 			o->m_inbuflen += res;
@@ -394,8 +402,18 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		else
 			free(packet);
 	}
-	if (!busy && o->stream.m_shutdownwait)
-		socketShutdown(o->fd, SHUT_WR);
+	if (busy)
+		return;
+	if (!o->stream.m_shutdownwait)
+		return;
+	socketShutdown(o->fd, SHUT_WR);
+	if (!o->stream.m_recvfin)
+		return;
+	if (o->stream.shutdown) {
+		o->stream.shutdown(o, timestamp_msec);
+		o->stream.shutdown = NULL;
+	}
+	reactorobjectInvalid(o, timestamp_msec);
 }
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
