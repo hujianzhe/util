@@ -80,7 +80,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 		}
 		channel->m_recvfin = 1;
 		if (!channel->m_sendfin)
-			channelShutdown(channel, timestamp_msec);
+			channelSendFin(channel, timestamp_msec);
 		else if (channel->flag & CHANNEL_FLAG_STREAM) {
 			int reason = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
 			channel->inactive_reason = reason;
@@ -704,7 +704,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 	return channel_send_packetlist(channel, &packetlist);
 }
 
-void channelShutdown(Channel_t* channel, long long timestamp_msec) {
+void channelSendFin(Channel_t* channel, long long timestamp_msec) {
 	if (_xchg8(&channel->m_ban_send, 1))
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
