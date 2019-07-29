@@ -631,30 +631,26 @@ static void reactorobject_stream_connect(ReactorObject_t* o, int err, long long 
 	channel->synack(channel, err, timestamp_msec);
 }
 
-static void reactorobject_stream_shutdown(ReactorObject_t* o, long long timestamp_msec) {
-	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-	channel_inactive_handler(channel, reason, timestamp_msec);
-}
-
 static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	channel->m_recvfin = 1;
-	if (!channel->m_sendfin)
+	if (!o->stream.has_sendfin)
 		return;
-	else if (channel->flag & CHANNEL_FLAG_STREAM)
-		reactorobject_stream_shutdown(o, timestamp_msec);
+	else if (channel->flag & CHANNEL_FLAG_STREAM) {
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+		channel_inactive_handler(channel, reason, timestamp_msec);
+	}
 	else
 		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
 
-static void reactorobject_stream_usersendfin(ReactorObject_t* o, long long timestamp_msec) {
+static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	channel->m_sendfin = 1;
-	if (!channel->m_recvfin)
+	if (!o->stream.has_recvfin)
 		return;
-	else if (channel->flag & CHANNEL_FLAG_STREAM)
-		reactorobject_stream_shutdown(o, timestamp_msec);
+	else if (channel->flag & CHANNEL_FLAG_STREAM) {
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+		channel_inactive_handler(channel, reason, timestamp_msec);
+	}
 	else
 		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
@@ -691,8 +687,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 			memcpy(&io->stream.connect_addr, saddr, sockaddrLength(saddr));
 		}
 		io->stream.recvfin = reactorobject_stream_recvfin;
-		io->stream.shutdown = reactorobject_stream_shutdown;
-		io->stream.usersendfin = reactorobject_stream_usersendfin;
+		io->stream.sendfin = reactorobject_stream_sendfin;
 	}
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;

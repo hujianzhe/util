@@ -65,11 +65,11 @@ typedef struct ReactorObject_t {
 			StreamTransportCtx_t ctx;
 			ReactorCmd_t sendfincmd;
 			void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
-			void(*shutdown)(struct ReactorObject_t* self, long long timestamp_msec);
-			void(*usersendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+			void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+			char has_recvfin;
+			char has_sendfin;
 			Atom8_t m_sendfincmdhaspost;
 			char m_sendfinwait;
-			char m_recvfin;
 		} stream;
 	};
 	ReactorCmd_t regcmd;
