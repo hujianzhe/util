@@ -274,6 +274,16 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 	return 0;
 }
 
+int streamtransportctxAllSendPacketIsAcked(StreamTransportCtx_t* ctx) {
+	ListNode_t* cur;
+	for (cur = ctx->sendpacketlist.head; cur; cur = cur->next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ)
+			return 0;
+	}
+	return 1;
+}
+
 List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
 	ListNode_t* cur, *next;
 	List_t freelist;
