@@ -18,7 +18,7 @@ typedef NetPacketListNode_t	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,
-	REACTOR_STREAM_SHUTDOWN_CMD,
+	REACTOR_STREAM_SENDFIN_CMD,
 	REACTOR_SEND_PACKET_CMD,
 	REACTOR_USER_CMD
 };
@@ -63,10 +63,11 @@ typedef struct ReactorObject_t {
 			};
 			Sockaddr_t connect_addr;
 			StreamTransportCtx_t ctx;
-			ReactorCmd_t shutdowncmd;
+			ReactorCmd_t sendfincmd;
 			void(*shutdown)(struct ReactorObject_t* self, long long timestamp_msec);
-			Atom8_t m_shutdowncmdhaspost;
-			char m_shutdownwait;
+			void(*usersendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+			Atom8_t m_sendfincmdhaspost;
+			char m_sendfinwait;
 			char m_recvfin;
 		} stream;
 	};

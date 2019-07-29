@@ -44,33 +44,6 @@ static void channel_inactive_handler(Channel_t* channel, int reason, long long t
 	}
 }
 
-static void channel_stream_shutdown_handler(Channel_t* channel, long long timestamp_msec) {
-	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		ReactorObject_t* o = channel->io;
-		ListNode_t* cur;
-		for (cur = o->stream.ctx.sendpacketlist.head; cur; cur = cur->next) {
-			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-			if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ) {
-				channel_inactive_handler(channel, CHANNEL_INACTIVE_UNSENT, timestamp_msec);
-				return;
-			}
-			else if (NETPACKET_FIN == packet->type && cur == o->stream.ctx.sendpacketlist.head) {
-				channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
-				return;
-			}
-		}
-	}
-	channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
-}
-
-static void channel_recvfin_handler(Channel_t* channel, long long timestamp_msec) {
-	channel->m_recvfin = 1;
-	if (channel->flag & CHANNEL_FLAG_STREAM)
-		channel_stream_shutdown_handler(channel, timestamp_msec);
-	else if (channel->m_sendfin)
-		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
-}
-
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
 	NetPacket_t* packet;
@@ -105,7 +78,15 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			free(pod_container_of(cur, NetPacket_t, node));
 		}
-		channel_recvfin_handler(channel, timestamp_msec);
+		channel->m_recvfin = 1;
+		if (!channel->m_sendfin)
+			channelShutdown(channel, timestamp_msec);
+		else if (channel->flag & CHANNEL_FLAG_STREAM) {
+			int reason = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+			channel->inactive_reason = reason;
+		}
+		else
+			channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
 	}
 	else {
 		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
@@ -152,10 +133,19 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (NETPACKET_ACK == pktype) {
 				NetPacket_t* ackpk = NULL;
-				if (streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
-					free(ackpk);
-				else
+				if (!streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					return -1;
+				free(ackpk);
+				if (streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx)) {
+					NetPacket_t* packet = channel->finpacket;
+					if (packet) {
+						int res = reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type);
+						if (res < 0)
+							return -1;
+						free(channel->finpacket);
+						channel->finpacket = NULL;
+					}
+				}
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->reply_ack(channel, pkseq, &channel->to_addr);
@@ -403,13 +393,13 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 	Channel_t* channel;
 	if (SOCK_STREAM == o->socktype) {
 		channel = pod_container_of(o->channel_list.head, Channel_t, node);
-		if (NETPACKET_FIN == packet->type)
-			channel->m_sendfin = 1;
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
 			packet->seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->type);
 		if (packet->hdrlen)
 			channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
-		return 1;
+		if (NETPACKET_FIN != packet->type)
+			return 1;
+		return streamtransportctxAllSendPacketIsAcked(&o->stream.ctx);
 	}
 	else {
 		channel = (Channel_t*)packet->channel_object;
@@ -643,7 +633,20 @@ void reactorobject_stream_connect(ReactorObject_t* o, int err, long long timesta
 }
 
 static void reactorobject_stream_shutdown(ReactorObject_t* o, long long timestamp_msec) {
-	channel_stream_shutdown_handler(pod_container_of(o->channel_list.head, Channel_t, node), timestamp_msec);
+	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
+	int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+	channel_inactive_handler(channel, reason, timestamp_msec);
+}
+
+static void reactorobject_stream_usersendfin(ReactorObject_t* o, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
+	channel->m_sendfin = 1;
+	if (!channel->m_recvfin)
+		return;
+	else if (channel->flag & CHANNEL_FLAG_STREAM)
+		reactorobject_stream_shutdown(o, timestamp_msec);
+	else
+		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
 
 /*******************************************************************************/
@@ -678,6 +681,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 			memcpy(&io->stream.connect_addr, saddr, sockaddrLength(saddr));
 		}
 		io->stream.shutdown = reactorobject_stream_shutdown;
+		io->stream.usersendfin = reactorobject_stream_usersendfin;
 	}
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;
@@ -719,7 +723,7 @@ void channelShutdown(Channel_t* channel, long long timestamp_msec) {
 		reactorobjectSendPacket(channel->io, packet);
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
-		reactorCommitCmd(channel->io->reactor, &channel->io->stream.shutdowncmd);
+		reactorCommitCmd(channel->io->reactor, &channel->io->stream.sendfincmd);
 	}
 }
 
