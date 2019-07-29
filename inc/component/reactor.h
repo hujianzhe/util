@@ -52,6 +52,7 @@ typedef struct ReactorObject_t {
 	Reactor_t* reactor;
 	void* userdata;
 	int invalid_timeout_msec;
+	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
 	volatile int valid;
 	union {
@@ -68,9 +69,6 @@ typedef struct ReactorObject_t {
 			char m_shutdownwait;
 			char m_recvfin;
 		} stream;
-		struct {
-			unsigned short read_mtu;
-		} dgram;
 	};
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;

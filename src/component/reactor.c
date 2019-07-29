@@ -75,7 +75,7 @@ static int reactorobject_request_read(ReactorObject_t* o) {
 	else
 		opcode = NIO_OP_READ;
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->dgram.read_mtu : 0);
+		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->read_fragment_size : 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -335,12 +335,12 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			unsigned char* ptr;
 			if (readtimes) {
 				if (!o->m_inbuf) {
-					o->m_inbuf = (unsigned char*)malloc(o->dgram.read_mtu);
+					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size);
 					if (!o->m_inbuf) {
 						reactorobjectInvalid(o, timestamp_msec);
 						return;
 					}
-					o->m_inbuflen = o->dgram.read_mtu;
+					o->m_inbuflen = o->read_fragment_size;
 				}
 				ptr = o->m_inbuf;
 				res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
@@ -718,9 +718,10 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 		o->stream.shutdowncmd.type = REACTOR_STREAM_SHUTDOWN_CMD;
 		o->stream.m_shutdowncmdhaspost = 0;
 		o->stream.m_shutdownwait = 0;
+		o->read_fragment_size = 1460;
 	}
 	else {
-		o->dgram.read_mtu = 1464;
+		o->read_fragment_size = 1464;
 	}
 	o->regcmd.type = REACTOR_REG_CMD;
 	o->freecmd.type = REACTOR_FREE_CMD;
