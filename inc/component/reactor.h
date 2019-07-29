@@ -55,23 +55,21 @@ typedef struct ReactorObject_t {
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
 	volatile int valid;
-	union {
-		struct {
-			union {
-				void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
-				void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
-			};
-			Sockaddr_t connect_addr;
-			StreamTransportCtx_t ctx;
-			ReactorCmd_t sendfincmd;
-			void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
-			void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
-			char has_recvfin;
-			char has_sendfin;
-			Atom8_t m_sendfincmdhaspost;
-			char m_sendfinwait;
-		} stream;
-	};
+	struct {
+		union {
+			void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
+			void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
+		};
+		Sockaddr_t connect_addr;
+		StreamTransportCtx_t ctx;
+		ReactorCmd_t sendfincmd;
+		void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
+		void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+		char has_recvfin;
+		char has_sendfin;
+		char m_sendfinwait;
+		Atom8_t m_sendfincmdhaspost;
+	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
 	List_t channel_list; /* ext channel module */
