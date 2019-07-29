@@ -31,17 +31,16 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
-static void channel_inactive_handler(Channel_t* channel, int reason, long long timestamp_msec) {
-	ReactorObject_t* o = channel->io;
-	listRemoveNode(&o->channel_list, &channel->node._);
-	if (!o->channel_list.head)
-		reactorobjectInvalid(o, timestamp_msec);
-	if (!channel->inactive_reason)
-		channel->inactive_reason = reason;
-	if (channel->inactive) {
+static void channel_detach_handler(Channel_t* channel, int reason, long long timestamp_msec) {
+	if (channel->m_detached)
+		return;
+	channel->m_detached = 1;
+	channel->inactive_reason = reason;
+	listRemoveNode(&channel->io->channel_list, &channel->node._);
+	if (!channel->io->channel_list.head)
+		reactorobjectInvalid(channel->io, timestamp_msec);
+	if (channel->inactive)
 		channel->inactive(channel, reason);
-		channel->inactive = NULL;
-	}
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -381,9 +380,9 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 		channel = pod_container_of(o->channel_list.head, Channel_t, node);
 		int res = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 		if (res < 0)
-			channel_inactive_handler(channel, CHANNEL_INACTIVE_FATE, timestamp_msec);
+			channel_detach_handler(channel, CHANNEL_INACTIVE_FATE, timestamp_msec);
 		else if (channel->inactive_reason)
-			channel_inactive_handler(channel, channel->inactive_reason, timestamp_msec);
+			channel_detach_handler(channel, channel->inactive_reason, timestamp_msec);
 		return res;
 	}
 	else {
@@ -392,11 +391,11 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 			channel = pod_container_of(cur, Channel_t, node);
 			if (channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr))
 				break;
-			channel_inactive_handler(channel, CHANNEL_INACTIVE_FATE, timestamp_msec);
+			channel_detach_handler(channel, CHANNEL_INACTIVE_FATE, timestamp_msec);
 			return -1;
 		}
 		if (channel->inactive_reason)
-			channel_inactive_handler(channel, channel->inactive_reason, timestamp_msec);
+			channel_detach_handler(channel, channel->inactive_reason, timestamp_msec);
 		return 1;
 	}
 }
@@ -536,7 +535,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 		inactive_reason = channel_event_handler(channel, timestamp_msec);
 		if (!inactive_reason)
 			continue;
-		channel_inactive_handler(channel, inactive_reason, timestamp_msec);
+		channel_detach_handler(channel, inactive_reason, timestamp_msec);
 	}
 	if (!o->channel_list.head)
 		reactorobjectInvalid(o, timestamp_msec);
@@ -650,10 +649,10 @@ static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
 		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-		channel_inactive_handler(channel, reason, timestamp_msec);
+		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 	else
-		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
+		channel_detach_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
 
 static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp_msec) {
@@ -662,10 +661,10 @@ static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp
 		return;
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
 		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-		channel_inactive_handler(channel, reason, timestamp_msec);
+		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 	else
-		channel_inactive_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
+		channel_detach_handler(channel, CHANNEL_INACTIVE_NORMAL, timestamp_msec);
 }
 
 /*******************************************************************************/

@@ -82,6 +82,7 @@ typedef struct Channel_t {
 	void(*inactive)(struct Channel_t* self, int reason);
 /* private */
 	unsigned int m_heartbeat_times;
+	char m_detached;
 	Atom8_t m_ban_send;
 } Channel_t;
 
