@@ -197,7 +197,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		if (REACTOR_REG_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
 			if (!reactor_reg_object(reactor, o)) {
-				reactorobjectInvalid(o, timestamp_msec);
+				reactorobject_free(o);
 				continue;
 			}
 			if (SOCK_STREAM == o->socktype && !o->m_stream_connected && !o->m_stream_listened)
@@ -618,7 +618,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					if (SOCK_STREAM == o->socktype) {
 						if (o->m_stream_connected)
 							reactor_stream_writeev(o, timestamp_msec);
-						else if (reactor_stream_connect(o, timestamp_msec))
+						else if (!reactor_stream_connect(o, timestamp_msec))
 							o->valid = 0;
 					}
 					else if (o->writeev)
