@@ -709,6 +709,54 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 	return channel;
 }
 
+Channel_t* channelConnect(Channel_t* channel) {
+	if ((channel->flag & CHANNEL_FLAG_STREAM) &&
+		(channel->flag & CHANNEL_FLAG_CLIENT))
+	{
+		// TODO
+	}
+	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
+		(channel->flag & CHANNEL_FLAG_RELIABLE))
+	{
+		unsigned int hdrsize = channel->hdrsize(channel, 0);
+		NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+		if (!packet)
+			return NULL;
+		memset(packet, 0, sizeof(*packet));
+		packet->channel_object = channel;
+		packet->type = NETPACKET_SYN;
+		packet->hdrlen = hdrsize;
+		packet->bodylen = 0;
+		channel->dgram.synpacket = packet;
+		reactorobjectSendPacket(channel->io, packet);
+	}
+	return channel;
+}
+
+void channelSendFin(Channel_t* channel, long long timestamp_msec) {
+	if (_xchg8(&channel->m_ban_send, 1))
+		return;
+	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
+		NetPacket_t* packet = channel->finpacket;
+		if (!packet) {
+			unsigned int hdrsize = channel->hdrsize(channel, 0);
+			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+			if (!packet)
+				return;
+			memset(packet, 0, sizeof(*packet));
+			packet->type = NETPACKET_FIN;
+			packet->hdrlen = hdrsize;
+			packet->bodylen = 0;
+			channel->finpacket = packet;
+		}
+		packet->channel_object = channel;
+		reactorobjectSendPacket(channel->io, packet);
+	}
+	else if (channel->flag & CHANNEL_FLAG_STREAM) {
+		reactorCommitCmd(channel->io->reactor, &channel->io->stream.sendfincmd);
+	}
+}
+
 Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack) {
 	Iobuf_t iov = iobufStaticInit(data, len);
 	return channelSendv(channel, &iov, 1, no_ack);
@@ -722,29 +770,6 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		return NULL;
 	reactorobjectSendPacketList(channel->io, &packetlist);
 	return channel;
-}
-
-void channelSendFin(Channel_t* channel, long long timestamp_msec) {
-	if (_xchg8(&channel->m_ban_send, 1))
-		return;
-	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet = channel->finpacket;
-		if (!packet) {
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->hdrsize(channel, 0));
-			if (!packet)
-				return;
-			memset(packet, 0, sizeof(*packet));
-			packet->type = NETPACKET_FIN;
-			packet->hdrlen = channel->hdrsize(channel, 0);
-			packet->bodylen = 0;
-			channel->finpacket = packet;
-		}
-		packet->channel_object = channel;
-		reactorobjectSendPacket(channel->io, packet);
-	}
-	else if (channel->flag & CHANNEL_FLAG_STREAM) {
-		reactorCommitCmd(channel->io->reactor, &channel->io->stream.sendfincmd);
-	}
 }
 
 static void channel_free_packetlist(List_t* list) {
