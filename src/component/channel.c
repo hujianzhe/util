@@ -49,8 +49,7 @@ static void channel_detach_handler(Channel_t* channel, int reason, long long tim
 	listRemoveNode(&channel->io->channel_list, &channel->node._);
 	if (!channel->io->channel_list.head)
 		reactorobjectInvalid(channel->io, timestamp_msec);
-	if (channel->inactive)
-		channel->inactive(channel, reason);
+	channel->inactive(channel, reason);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
