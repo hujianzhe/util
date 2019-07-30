@@ -492,8 +492,11 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			NetPacket_t* packet = channel->dgram.synpacket;
 			if (packet->resend_msec > timestamp_msec)
 				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
-			else if (packet->resend_times >= channel->dgram.resend_maxtimes)
+			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
+				free(channel->dgram.synpacket);
+				channel->dgram.synpacket = NULL;
 				channel->synack(channel, ETIMEDOUT, timestamp_msec);
+			}
 			else {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
 				packet->resend_times++;
