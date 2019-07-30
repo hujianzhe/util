@@ -242,8 +242,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				if (reactor->cmd_free)
 					reactor->cmd_free(&packet->node);
-				else
-					free(packet);
 				continue;
 			}
 			if (packet->off < packet->hdrlen + packet->bodylen)
@@ -255,8 +253,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactor->cmd_exec(cmd);
 		if (reactor->cmd_free)
 			reactor->cmd_free(cmd);
-		else
-			free(cmd);
 	}
 }
 
@@ -428,8 +424,6 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		next = cur->next;
 		if (o->reactor->cmd_free)
 			o->reactor->cmd_free(&packet->node);
-		else
-			free(packet);
 	}
 	if (busy)
 		return;
