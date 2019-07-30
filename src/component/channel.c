@@ -31,6 +31,16 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
+static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
+	channel->heartbeat_msec = timestamp_msec;
+	if (channel->heartbeat_timeout_sec > 0) {
+		long long ts = channel->heartbeat_timeout_sec;
+		ts *= 1000;
+		ts += channel->heartbeat_msec;
+		reactorSetEventTimestamp(channel->io->reactor, ts);
+	}
+}
+
 static void channel_detach_handler(Channel_t* channel, int reason, long long timestamp_msec) {
 	if (channel->m_detached)
 		return;
@@ -163,16 +173,8 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		else
 			channel->recv(channel, &channel->to_addr);
 	}
-
 	channel->m_heartbeat_times = 0;
-	channel->heartbeat_msec = timestamp_msec;
-	if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += channel->heartbeat_msec;
-		reactorSetEventTimestamp(channel->io->reactor, ts);
-	}
-
+	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return off;
 }
 
@@ -257,13 +259,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 		}
 	}
 	channel->m_heartbeat_times = 0;
-	channel->heartbeat_msec = timestamp_msec;
-	if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += channel->heartbeat_msec;
-		reactorSetEventTimestamp(channel->io->reactor, ts);
-	}
+	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return 1;
 }
 
@@ -367,13 +363,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		channel->recv(channel, from_saddr);
 	}
 	channel->m_heartbeat_times = 0;
-	channel->heartbeat_msec = timestamp_msec;
-	if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += channel->heartbeat_msec;
-		reactorSetEventTimestamp(channel->io->reactor, ts);
-	}
+	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return 1;
 }
 
