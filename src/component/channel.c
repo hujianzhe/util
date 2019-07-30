@@ -442,22 +442,21 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		return 0;
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->heartbeat_msec > 0 &&
-			channel->heartbeat_timeout_sec > 0)
+			channel->heartbeat_timeout_sec > 0 &&
+			channel->heartbeat)
 		{
 			long long ts = channel->heartbeat_timeout_sec;
 			ts *= 1000;
 			ts += channel->heartbeat_msec;
 			if (ts <= timestamp_msec) {
-				do {
-					if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
-						channel->heartbeat(channel);
-						channel->m_heartbeat_times++;
-						break;
-					}
-					if (!channel->zombie || !channel->zombie(channel))
-						return CHANNEL_INACTIVE_ZOMBIE;
+				if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
+					channel->heartbeat(channel, channel->m_heartbeat_times);
+					channel->m_heartbeat_times++;
+				}
+				else if (channel->heartbeat(channel, channel->m_heartbeat_times))
 					channel->m_heartbeat_times = 0;
-				} while (0);
+				else
+					return CHANNEL_INACTIVE_ZOMBIE;
 				channel->heartbeat_msec = timestamp_msec;
 				ts = channel->heartbeat_timeout_sec;
 				ts *= 1000;
@@ -625,6 +624,10 @@ void reactorobject_stream_accept(ReactorObject_t* o, FD_t newfd, const void* pee
 static void reactorobject_stream_connect(ReactorObject_t* o, int err, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
 	channel->synack(channel, err, timestamp_msec);
+	if (err)
+		return;
+	channel->m_heartbeat_times = 0;
+	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 }
 
 static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp_msec) {

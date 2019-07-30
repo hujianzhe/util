@@ -75,8 +75,7 @@ typedef struct Channel_t {
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
 	void(*recv)(struct Channel_t* self, const void* from_saddr);
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
-	void(*heartbeat)(struct Channel_t* self);
-	int(*zombie)(struct Channel_t* self);
+	int(*heartbeat)(struct Channel_t* self, int heartbeat_times);
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 	void(*inactive)(struct Channel_t* self, int reason);
