@@ -614,18 +614,6 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	return 1;
 }
 
-static Channel_t* channel_send_packetlist(Channel_t* channel, List_t* packetlist) {
-	ListNode_t* cur;
-	if (!packetlist->head)
-		return channel;
-	for (cur = packetlist->head; cur; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		packet->channel_object = channel;
-	}
-	reactorobjectSendPacketList(channel->io, packetlist);
-	return channel;
-}
-
 void reactorobject_stream_accept(ReactorObject_t* o, FD_t newfd, const void* peeraddr, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
 	if (channel->ack_halfconn)
@@ -729,7 +717,8 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		return NULL;
 	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
 		return NULL;
-	return channel_send_packetlist(channel, &packetlist);
+	reactorobjectSendPacketList(channel->io, &packetlist);
+	return channel;
 }
 
 void channelSendFin(Channel_t* channel, long long timestamp_msec) {
