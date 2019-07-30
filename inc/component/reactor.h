@@ -74,7 +74,7 @@ typedef struct ReactorObject_t {
 	ReactorCmd_t freecmd;
 	List_t channel_list; /* ext channel module */
 	/* interface */
-	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
+	void(*reg)(struct ReactorObject_t* self, int err, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec);
 	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*sendpacket_hook)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
