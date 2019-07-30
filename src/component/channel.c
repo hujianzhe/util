@@ -696,12 +696,11 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 		return NULL;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
-	channel->flag = flag;
-	channel->io = io;
-	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	if (flag & CHANNEL_FLAG_DGRAM) {
-		if (flag & CHANNEL_FLAG_LISTEN)
+		if (flag & CHANNEL_FLAG_LISTEN) {
+			flag |= CHANNEL_FLAG_RELIABLE;
 			memcpy(&channel->dgram.listen_addr, saddr, sockaddrLength(saddr));
+		}
 		else if (flag & CHANNEL_FLAG_CLIENT)
 			memcpy(&channel->dgram.connect_addr, saddr, sockaddrLength(saddr));
 		channel->dgram.rto = 200;
@@ -719,6 +718,9 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 		io->stream.recvfin = reactorobject_stream_recvfin;
 		io->stream.sendfin = reactorobject_stream_sendfin;
 	}
+	channel->flag = flag;
+	channel->io = io;
+	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;
 	io->sendpacket_hook = reactorobject_sendpacket_hook;
