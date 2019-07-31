@@ -3,7 +3,6 @@
 //
 
 #include "../../inc/component/channel.h"
-#include "../../inc/component/reactor.h"
 #include "../../inc/sysapi/error.h"
 #include <stdlib.h>
 #include <string.h>
@@ -757,6 +756,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 		io->stream.sendfin = reactorobject_stream_sendfin;
 	}
 	channel->flag = flag;
+	channel->inactivecmd.type = REACTOR_CHANNEL_INACTIVE_CMD;
 	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	io->reg = reactorobject_reg_handler;
 	io->exec = reactorobject_exec_channel;

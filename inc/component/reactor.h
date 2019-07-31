@@ -18,6 +18,7 @@ typedef NetPacketListNode_t	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,
+	REACTOR_CHANNEL_INACTIVE_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
 	REACTOR_SEND_PACKET_CMD,
 	REACTOR_USER_CMD
@@ -69,7 +70,7 @@ typedef struct ReactorObject_t {
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	List_t channel_list; /* ext channel module */
+	List_t channel_list; /* ext channel module use */
 	/* interface */
 	void(*reg)(struct ReactorObject_t* self, int err, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);

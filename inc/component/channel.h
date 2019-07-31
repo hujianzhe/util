@@ -5,9 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_CHANNEL_H
 #define	UTIL_C_COMPONENT_CHANNEL_H
 
-#include "../datastruct/transport_ctx.h"
-#include "../sysapi/atomic.h"
-#include "../sysapi/socket.h"
+#include "../component/reactor.h"
 
 enum {
 	CHANNEL_FLAG_CLIENT = 1 << 0,
@@ -35,11 +33,10 @@ typedef struct ChannelInbufDecodeResult_t {
 	unsigned char* bodyptr;
 } ChannelInbufDecodeResult_t;
 
-struct ReactorObject_t;
 typedef struct Channel_t {
 /* public */
 	NetPacketListNode_t node;
-	struct ReactorObject_t* io;
+	ReactorObject_t* io;
 	int flag;
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
@@ -48,6 +45,7 @@ typedef struct Channel_t {
 	Sockaddr_t to_addr;
 	NetPacket_t* finpacket;
 	int inactive_reason;
+	ReactorCmd_t inactivecmd;
 	struct {
 		union {
 			/* listener use */
@@ -89,7 +87,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(struct ReactorObject_t* io, int flag, int initseq, const void* saddr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, const void* saddr);
 __declspec_dll void channelSendFin(Channel_t* channel, long long timestamp_msec);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack);
