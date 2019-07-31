@@ -435,6 +435,11 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				channel_set_timestamp(channel, packet->resend_msec);
 			}
+			else if (NETPACKET_SYN == packet->type) {
+				packet->wait_ack = 1;
+				packet->resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->resend_msec);
+			}
 			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
 		else {
