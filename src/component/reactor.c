@@ -80,13 +80,10 @@ static int reactorobject_request_read(ReactorObject_t* o) {
 			return 0;
 	}
 	saddr.sa.sa_family = o->domain;
-	if (nioCommit(&o->reactor->m_nio, o->fd, opcode, o->m_readol,
-		&saddr.sa, sockaddrLength(&saddr)))
-	{
-		o->m_readol_has_commit = 1;
-		return 1;
-	}
-	return 0;
+	if (!nioCommit(&o->reactor->m_nio, o->fd, opcode, o->m_readol, &saddr.sa, sockaddrLength(&saddr)))
+		return 0;
+	o->m_readol_has_commit = 1;
+	return 1;
 }
 
 static int reactorobject_request_write(ReactorObject_t* o) {
