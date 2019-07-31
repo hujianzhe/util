@@ -750,6 +750,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->free = NULL;
 
 	o->m_reghaspost = 0;
+	o->m_hashnode.key = &o->fd;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_invalid_msec = 0;
