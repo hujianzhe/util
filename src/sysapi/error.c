@@ -11,7 +11,8 @@ extern "C" {
 
 int errnoGet(void) {
 #if defined(_WIN32) || defined(_WIN64)
-	switch (GetLastError()) {
+	DWORD err = GetLastError();
+	switch (err) {
 		case ERROR_TOO_MANY_OPEN_FILES:
 			errno = ENFILE;
 			break;
@@ -130,7 +131,7 @@ int errnoGet(void) {
 			errno = EWOULDBLOCK;
 			break;
 		default:
-			errno = GetLastError();
+			errno = err;
 	}
 #else
 #if EAGAIN != EWOULDBLOCK

@@ -76,9 +76,8 @@ static int reactorobject_request_read(ReactorObject_t* o) {
 		opcode = NIO_OP_READ;
 	if (!o->m_readol) {
 		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->read_fragment_size : 0);
-		if (!o->m_readol) {
+		if (!o->m_readol)
 			return 0;
-		}
 	}
 	saddr.sa.sa_family = o->domain;
 	if (nioCommit(&o->reactor->m_nio, o->fd, opcode, o->m_readol,
