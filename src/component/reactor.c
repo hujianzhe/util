@@ -148,7 +148,11 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 		if (!socketHasAddr(o->fd, &bval))
 			return 0;
 		if (!bval) {
-			// TODO bind a address
+			Sockaddr_t local_addr;
+			if (!sockaddrEncode(&local_addr.st, o->domain, NULL, 0))
+				return 0;
+			if (!socketBindAddr(o->fd, &local_addr.sa, sockaddrLength(&local_addr)))
+				return 0;
 		}
 		if (!reactorobject_request_read(o))
 			return 0;
