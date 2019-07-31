@@ -399,9 +399,8 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 }
 
 static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet, long long timestamp_msec) {
-	Channel_t* channel;
+	Channel_t* channel = (Channel_t*)packet->channel_object;
 	if (SOCK_STREAM == o->socktype) {
-		channel = pod_container_of(o->channel_list.head, Channel_t, node);
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
 			packet->seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->type);
 		if (packet->hdrlen)
@@ -411,7 +410,6 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 		return streamtransportctxAllSendPacketIsAcked(&o->stream.ctx);
 	}
 	else {
-		channel = (Channel_t*)packet->channel_object;
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			packet->seq = dgramtransportctxNextSendSeq(&channel->dgram.ctx, packet->type);
 			if (packet->hdrlen)

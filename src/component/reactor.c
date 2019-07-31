@@ -219,6 +219,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
 			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
+			if (!o->valid) {
+				if (reactor->cmd_free)
+					reactor->cmd_free(&packet->node);
+				continue;
+			}
 			if (o->sendpacket_hook && !o->sendpacket_hook(o, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM != o->socktype)
