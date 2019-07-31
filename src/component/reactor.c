@@ -143,8 +143,16 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 			o->m_writeol_has_commit = 1;
 		}
 	}
-	else if (!reactorobject_request_read(o))
-		return 0;
+	else {
+		BOOL bval;
+		if (!socketHasAddr(o->fd, &bval))
+			return 0;
+		if (!bval) {
+			// TODO bind a address
+		}
+		if (!reactorobject_request_read(o))
+			return 0;
+	}
 	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
 	return 1;
 }
