@@ -367,11 +367,11 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 }
 
 static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
-	int err;
 	Channel_t* channel;
 	if (!o->channel_list.head)
 		return -1;
 	else if (SOCK_STREAM == o->socktype) {
+		int err = 0;
 		channel = pod_container_of(o->channel_list.head, Channel_t, node);
 		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec, &err);
 		if (off < 0)
@@ -388,6 +388,7 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 			if (channel->flag & CHANNEL_FLAG_LISTEN)
 				channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
 			else {
+				int err = 0;
 				if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr, &err))
 					err = CHANNEL_INACTIVE_FATE;
 				if (err)
