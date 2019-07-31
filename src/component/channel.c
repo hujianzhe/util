@@ -658,13 +658,17 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 			}
 		}
 	}
-	else if (SOCK_DGRAM == channel->io->socktype) {
-		packet = (NetPacket_t*)malloc(sizeof(NetPacket_t));
+	else {
+		unsigned int hdrsize = channel->hdrsize(channel, 0);
+		if (0 == hdrsize && SOCK_STREAM == channel->io->socktype)
+			return 1;
+		packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
 		if (!packet)
 			return 0;
 		memset(packet, 0, sizeof(*packet));
 		packet->channel_object = channel;
 		packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
+		packet->hdrlen = hdrsize;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
 	}
 	return 1;
