@@ -329,6 +329,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 				iocp_ol->base.commit = 1;
 				return TRUE;
 			}
+			/* note: UDP socket need bind a address before call this function, otherwise WSAGetLastError return WSAINVALID */
 		}
 		else {
 			if (ReadFile((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, NULL, (LPOVERLAPPED)ol)) {
