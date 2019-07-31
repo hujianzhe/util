@@ -88,7 +88,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, long long timestamp_msec, int* err) {
+static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, long long timestamp_msec, int* err, ChannelInbufDecodeResult_t* decode_result) {
 	NetPacket_t* packet = pod_container_of(packetlist->tail, NetPacket_t, node);
 	if (NETPACKET_FIN == packet->type) {
 		ListNode_t* cur, *next;
@@ -116,44 +116,45 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 		}
 	}
 	else {
-		channel->decode_result.bodyptr = merge_packet(packetlist, &channel->decode_result.bodylen);
-		if (!channel->decode_result.bodyptr)
+		decode_result->bodyptr = merge_packet(packetlist, &decode_result->bodylen);
+		if (!decode_result->bodyptr)
 			return 0;
-		channel->recv(channel, &channel->to_addr);
-		free(channel->decode_result.bodyptr);
+		channel->recv(channel, &channel->to_addr, decode_result);
+		free(decode_result->bodyptr);
 	}
 	return 1;
 }
 
 static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec, int* err) {
+	ChannelInbufDecodeResult_t decode_result;
 	while (off < len) {
-		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, buf + off, len - off);
-		if (channel->decode_result.err)
+		memset(&decode_result, 0, sizeof(decode_result));
+		channel->decode(channel, buf + off, len - off, &decode_result);
+		if (decode_result.err)
 			return -1;
-		else if (channel->decode_result.incomplete)
+		else if (decode_result.incomplete)
 			return off;
-		off += channel->decode_result.decodelen;
+		off += decode_result.decodelen;
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-			unsigned char pktype = channel->decode_result.pktype;
-			unsigned int pkseq = channel->decode_result.pkseq;
+			unsigned char pktype = decode_result.pktype;
+			unsigned int pkseq = decode_result.pkseq;
 			if (streamtransportctxRecvCheck(&channel->io->stream.ctx, pkseq, pktype)) {
 				NetPacket_t* packet;
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->reply_ack(channel, pkseq, &channel->to_addr);
-				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
+				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + decode_result.bodylen);
 				if (!packet)
 					return -1;
 				memset(packet, 0, sizeof(*packet));
 				packet->type = pktype;
 				packet->seq = pkseq;
-				packet->bodylen = channel->decode_result.bodylen;
-				memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
+				packet->bodylen = decode_result.bodylen;
+				memcpy(packet->buf, decode_result.bodyptr, packet->bodylen);
 				packet->buf[packet->bodylen] = 0;
 				if (streamtransportctxCacheRecvPacket(&channel->io->stream.ctx, packet)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(&channel->io->stream.ctx, &list)) {
-						if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err))
+						if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err, &decode_result))
 							return -1;
 					}
 				}
@@ -180,7 +181,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				return -1;
 		}
 		else
-			channel->recv(channel, &channel->to_addr);
+			channel->recv(channel, &channel->to_addr, &decode_result);
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
@@ -188,14 +189,15 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 }
 
 static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr) {
+	ChannelInbufDecodeResult_t decode_result;
 	unsigned char pktype;
-	memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-	channel->decode(channel, buf, len);
-	if (channel->decode_result.err)
+	memset(&decode_result, 0, sizeof(decode_result));
+	channel->decode(channel, buf, len, &decode_result);
+	if (decode_result.err)
 		return 1;
-	else if (channel->decode_result.incomplete)
+	else if (decode_result.incomplete)
 		return 1;
-	pktype = channel->decode_result.pktype;
+	pktype = decode_result.pktype;
 	if (NETPACKET_SYN == pktype) {
 		DgramHalfConn_t* halfconn;
 		ListNode_t* cur;
@@ -273,6 +275,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 }
 
 static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr, int* err) {
+	ChannelInbufDecodeResult_t decode_result;
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		NetPacket_t* packet;
 		unsigned char pktype;
@@ -287,29 +290,29 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		if (!from_peer && !from_listen)
 			return 1;
 
-		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, buf, len);
-		if (channel->decode_result.err)
+		memset(&decode_result, 0, sizeof(decode_result));
+		channel->decode(channel, buf, len, &decode_result);
+		if (decode_result.err)
 			return 1;
-		else if (channel->decode_result.incomplete)
+		else if (decode_result.incomplete)
 			return 1;
-		pktype = channel->decode_result.pktype;
-		pkseq = channel->decode_result.pkseq;
+		pktype = decode_result.pktype;
+		pkseq = decode_result.pkseq;
 		if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->reply_ack(channel, pkseq, from_saddr);
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + channel->decode_result.bodylen);
+			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + decode_result.bodylen);
 			if (!packet)
 				return 0;
 			memset(packet, 0, sizeof(*packet));
 			packet->type = pktype;
 			packet->seq = pkseq;
-			packet->bodylen = channel->decode_result.bodylen;
-			memcpy(packet->buf, channel->decode_result.bodyptr, packet->bodylen);
+			packet->bodylen = decode_result.bodylen;
+			memcpy(packet->buf, decode_result.bodyptr, packet->bodylen);
 			packet->buf[packet->bodylen] = 0;
 			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, packet)) {
 				List_t list;
 				while (dgramtransportctxMergeRecvPacket(&channel->dgram.ctx, &list)) {
-					if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err))
+					if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err, &decode_result))
 						return 0;
 				}
 			}
@@ -317,10 +320,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else if (NETPACKET_SYN_ACK == pktype) {
 			if (!from_listen)
 				return 1;
-			if (channel->decode_result.bodylen < sizeof(unsigned short))
+			if (decode_result.bodylen < sizeof(unsigned short))
 				return 1;
 			if (channel->dgram.synpacket) {
-				unsigned short port = *(unsigned short*)channel->decode_result.bodyptr;
+				unsigned short port = *(unsigned short*)decode_result.bodyptr;
 				port = ntohs(port);
 				sockaddrSetPort(&channel->to_addr.st, port);
 				free(channel->dgram.synpacket);
@@ -359,18 +362,18 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			}
 		}
 		else if (NETPACKET_NO_ACK_FRAGMENT_EOF == pktype)
-			channel->recv(channel, from_saddr);
+			channel->recv(channel, from_saddr, &decode_result);
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ)
 			channel->reply_ack(channel, pkseq, from_saddr);
 	}
 	else {
-		memset(&channel->decode_result, 0, sizeof(channel->decode_result));
-		channel->decode(channel, buf, len);
-		if (channel->decode_result.err)
+		memset(&decode_result, 0, sizeof(decode_result));
+		channel->decode(channel, buf, len, &decode_result);
+		if (decode_result.err)
 			return 0;
-		else if (channel->decode_result.incomplete)
+		else if (decode_result.incomplete)
 			return 1;
-		channel->recv(channel, from_saddr);
+		channel->recv(channel, from_saddr, &decode_result);
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);

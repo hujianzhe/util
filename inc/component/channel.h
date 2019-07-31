@@ -25,6 +25,16 @@ enum {
 	CHANNEL_INACTIVE_FATE
 };
 
+typedef struct ChannelInbufDecodeResult_t {
+	char err;
+	char incomplete;
+	char pktype;
+	unsigned int pkseq;
+	unsigned int decodelen;
+	unsigned int bodylen;
+	unsigned char* bodyptr;
+} ChannelInbufDecodeResult_t;
+
 struct ReactorObject_t;
 typedef struct Channel_t {
 /* public */
@@ -58,20 +68,11 @@ typedef struct Channel_t {
 			DgramTransportCtx_t ctx;
 		};
 	} dgram;
-	struct {
-		char err;
-		char incomplete;
-		char pktype;
-		unsigned int pkseq;
-		unsigned int decodelen;
-		unsigned int bodylen;
-		unsigned char* bodyptr;
-	} decode_result;
 	/* interface */
 	void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 	void(*reg)(struct Channel_t* self, int err, long long timestamp_msec);
-	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
-	void(*recv)(struct Channel_t* self, const void* from_saddr);
+	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
+	void(*recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	int(*heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
