@@ -110,7 +110,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 				return 1;
 			channel->dgram.has_recvfin = 1;
 			if (channel->dgram.has_sendfin)
-				channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
+				*err = CHANNEL_INACTIVE_NORMAL;
 			else
 				channelSendFin(channel, timestamp_msec);
 		}
@@ -336,10 +336,11 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			packet = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
 			if (!packet)
 				return 1;
-			if (packet == channel->finpacket)
+			if (packet == channel->finpacket) {
 				channel->finpacket = NULL;
-			if (NETPACKET_FIN == packet->type && channel->dgram.has_recvfin)
-				channel->inactive_reason = CHANNEL_INACTIVE_NORMAL;
+				if (channel->dgram.has_recvfin)
+					*err = CHANNEL_INACTIVE_NORMAL;
+			}
 			free(packet);
 			if (cwndskip) {
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
