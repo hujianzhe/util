@@ -261,7 +261,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	}
 }
 
-static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
+static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
@@ -269,7 +269,7 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 		if (o->valid) {
 			if (!o->exec)
 				continue;
-			o->exec(o, now_msec);
+			o->exec(o, now_msec, ev_msec);
 			if (o->valid)
 				continue;
 		}
@@ -639,8 +639,9 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 	}
 	reactor_exec_cmdlist(reactor, timestamp_msec);
 	if (reactor->m_event_msec > 0 && timestamp_msec >= reactor->m_event_msec) {
+		long long ev_msec = reactor->m_event_msec;
 		reactor->m_event_msec = 0;
-		reactor_exec_object(reactor, timestamp_msec);
+		reactor_exec_object(reactor, timestamp_msec, ev_msec);
 		reactor_exec_invalidlist(reactor, timestamp_msec);
 	}
 	return n;

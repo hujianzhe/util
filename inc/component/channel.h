@@ -78,6 +78,7 @@ typedef struct Channel_t {
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 	void(*inactive)(struct Channel_t* self, int reason);
 /* private */
+	long long m_event_msec;
 	unsigned int m_heartbeat_times;
 	char m_detached;
 	Atom8_t m_ban_send;

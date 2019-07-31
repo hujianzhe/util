@@ -31,13 +31,21 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
+static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) {
+	if (timestamp_msec <= 0)
+		return;
+	if (channel->m_event_msec <= 0 || channel->m_event_msec > timestamp_msec)
+		channel->m_event_msec = timestamp_msec;
+	reactorSetEventTimestamp(channel->io->reactor, timestamp_msec);
+}
+
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
 	channel->heartbeat_msec = timestamp_msec;
 	if (channel->heartbeat_timeout_sec > 0) {
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
 		ts += channel->heartbeat_msec;
-		reactorSetEventTimestamp(channel->io->reactor, ts);
+		channel_set_timestamp(channel, ts);
 	}
 }
 
@@ -228,7 +236,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
 				halfconn->len = buflen;
 				listInsertNodeBack(&channel->dgram.ctx.recvpacketlist, channel->dgram.ctx.recvpacketlist.tail, &halfconn->node);
-				reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
+				channel_set_timestamp(channel, halfconn->resend_msec);
 				channel->encode(channel, halfconn->buf, sizeof(local_port), NETPACKET_SYN_ACK, 0);
 				*(unsigned short*)(halfconn->buf + buflen - sizeof(local_port)) = htons(local_port);
 				socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
@@ -342,7 +350,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						continue;
 					packet->wait_ack = 1;
 					packet->resend_msec = timestamp_msec + channel->dgram.rto;
-					reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+					channel_set_timestamp(channel, packet->resend_msec);
 					socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				}
 			}
@@ -422,7 +430,7 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 					channel->dgram.has_sendfin = 1;
 				packet->wait_ack = 1;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				reactorSetEventTimestamp(o->reactor, packet->resend_msec);
+				channel_set_timestamp(channel, packet->resend_msec);
 			}
 			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
@@ -461,7 +469,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				ts *= 1000;
 				ts += timestamp_msec;
 			}
-			reactorSetEventTimestamp(channel->io->reactor, ts);
+			channel_set_timestamp(channel, ts);
 		}
 	}
 	else if (channel->heartbeat_timeout_sec > 0) {
@@ -470,7 +478,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		ts += channel->heartbeat_msec;
 		if (ts <= timestamp_msec)
 			return CHANNEL_INACTIVE_ZOMBIE;
-		reactorSetEventTimestamp(channel->io->reactor, ts);
+		channel_set_timestamp(channel, ts);
 	}
 /* reliable dgram resend packet */
 	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
@@ -482,7 +490,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 				next = cur->next;
 				if (halfconn->resend_msec > timestamp_msec) {
-					reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
+					channel_set_timestamp(channel, halfconn->resend_msec);
 					continue;
 				}
 				if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
@@ -493,13 +501,13 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 				halfconn->resend_times++;
 				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
-				reactorSetEventTimestamp(channel->io->reactor, halfconn->resend_msec);
+				channel_set_timestamp(channel, halfconn->resend_msec);
 			}
 		}
 		else if (channel->dgram.synpacket) {
 			NetPacket_t* packet = channel->dgram.synpacket;
 			if (packet->resend_msec > timestamp_msec)
-				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+				channel_set_timestamp(channel, packet->resend_msec);
 			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 				free(channel->dgram.synpacket);
 				channel->dgram.synpacket = NULL;
@@ -510,7 +518,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+				channel_set_timestamp(channel, packet->resend_msec);
 			}
 		}
 		else {
@@ -520,7 +528,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				if (!packet->wait_ack)
 					break;
 				if (packet->resend_msec > timestamp_msec) {
-					reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+					channel_set_timestamp(channel, packet->resend_msec);
 					continue;
 				}
 				if (packet->resend_times >= channel->dgram.resend_maxtimes)
@@ -528,7 +536,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				reactorSetEventTimestamp(channel->io->reactor, packet->resend_msec);
+				channel_set_timestamp(channel, packet->resend_msec);
 			}
 		}
 	}
@@ -569,12 +577,14 @@ static void reactorobject_reg_handler(ReactorObject_t* o, int err, long long tim
 	}
 }
 
-static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_msec) {
+static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_msec, long long ev_msec) {
 	ListNode_t* cur, *next;
 	for (cur = o->channel_list.head; cur; cur = next) {
 		int inactive_reason;
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
 		next = cur->next;
+		if (channel->m_event_msec > ev_msec)
+			continue;
 		inactive_reason = channel_event_handler(channel, timestamp_msec);
 		if (!inactive_reason)
 			continue;
