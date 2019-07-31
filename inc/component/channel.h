@@ -38,10 +38,6 @@ typedef struct Channel_t {
 	Sockaddr_t to_addr;
 	NetPacket_t* finpacket;
 	int inactive_reason;
-	union {
-		void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-		void(*synack)(struct Channel_t* self, int err, long long ts_msec); /* client connect use */
-	};
 	struct {
 		union {
 			/* listener use */
@@ -72,10 +68,12 @@ typedef struct Channel_t {
 		unsigned char* bodyptr;
 	} decode_result;
 	/* interface */
+	void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
+	void(*reg)(struct Channel_t* self, int err, long long timestamp_msec);
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen);
 	void(*recv)(struct Channel_t* self, const void* from_saddr);
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
-	int(*heartbeat)(struct Channel_t* self, int heartbeat_times);
+	int(*heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 	void(*inactive)(struct Channel_t* self, int reason);
@@ -90,7 +88,6 @@ extern "C" {
 #endif
 
 __declspec_dll Channel_t* reactorobjectOpenChannel(struct ReactorObject_t* io, int flag, int initseq, const void* saddr);
-__declspec_dll Channel_t* channelConnect(Channel_t* channel);
 __declspec_dll void channelSendFin(Channel_t* channel, long long timestamp_msec);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack);

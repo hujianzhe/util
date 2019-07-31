@@ -56,10 +56,7 @@ typedef struct ReactorObject_t {
 	unsigned int write_fragment_size;
 	volatile int valid;
 	struct {
-		union {
-			void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
-			void(*connect)(struct ReactorObject_t* self, int err, long long timestamp_msec);
-		};
+		void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
 		Sockaddr_t connect_addr;
 		StreamTransportCtx_t ctx;
 		ReactorCmd_t sendfincmd;
