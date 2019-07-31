@@ -710,6 +710,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 	channel = (Channel_t*)calloc(1, sizeof(Channel_t));
 	if (!channel)
 		return NULL;
+	channel->io = io;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	if (flag & CHANNEL_FLAG_DGRAM) {
@@ -733,7 +734,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 		io->stream.sendfin = reactorobject_stream_sendfin;
 	}
 	channel->flag = flag;
-	channel->io = io;
 	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	io->reg = reactorobject_reg_handler;
 	io->exec = reactorobject_exec_channel;
