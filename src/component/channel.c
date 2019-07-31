@@ -446,8 +446,6 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 }
 
 int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
-	if (timestamp_msec > channel->io->reactor->m_event_msec)
-		return 0;
 /* heartbeat */
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->heartbeat_msec > 0 &&
