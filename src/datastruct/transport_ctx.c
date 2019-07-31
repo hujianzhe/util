@@ -118,8 +118,8 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 		listRemoveNode(&ctx->sendpacketlist, cur);
 		if (packet->seq == ctx->m_cwndseq) {
 			if (next) {
-				packet = pod_container_of(next, NetPacket_t, node);
-				ctx->m_cwndseq = packet->seq;
+				NetPacket_t* next_packet = pod_container_of(next, NetPacket_t, node);
+				ctx->m_cwndseq = next_packet->seq;
 				*cwndskip = 1;
 			}
 			else
