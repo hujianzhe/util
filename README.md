@@ -11,6 +11,7 @@ util/
 		compiler_define			根据编译器不同,给出统一的关键字,定一缺失类型,必须的预处理语句,频闭不需要的警告等  
 		platform_define			根据系统平台的不同,给出统一的关键字,定义缺失类型,必须的预处理语句,频闭不需要的警告等  
 		-- component/  
+			channel				在下面的reactor,transport_ctx模块的基础上扩展封装,对使用者屏蔽普通TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存等实现细节  
 			cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
 			cXML				用于解析XML  
 			dataqueue			用于线程间通信的消息队列  
@@ -19,7 +20,8 @@ util/
 			lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 			websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 			log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
-			session				一个session层面的网络通讯模块,支持普通的TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存,断线重连与恢复  
+			reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件  
+			session				废弃  
 			collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
@@ -30,7 +32,7 @@ util/
 				list			类型无关的双向链表  
 				random			随机数算法,提供rand48与MT19937算法  
 				strings			一些安全的字符串操作接口  
-				transport_ctx	提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,与OS平台无关  
+				transport_ctx	提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
 				tree			类型无关的普通树  
 				sort			合并有序数组,topN统计接口  
 				url				URL解析与编解码接口  
