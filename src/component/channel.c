@@ -40,6 +40,8 @@ static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) 
 }
 
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
+	if (timestamp_msec <= 0)
+		return;
 	channel->heartbeat_msec = timestamp_msec;
 	if (channel->heartbeat_timeout_sec > 0) {
 		long long ts = channel->heartbeat_timeout_sec;
