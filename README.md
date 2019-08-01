@@ -12,7 +12,7 @@ util/
 		compiler_define			根据编译器不同,给出统一的关键字,定一缺失类型,必须的预处理语句,频闭不需要的警告等  
 		platform_define			根据系统平台的不同,给出统一的关键字,定义缺失类型,必须的预处理语句,频闭不需要的警告等  
 		-- component/  
-			channel				在下面的reactor,transport_ctx模块的基础上扩展封装,对使用者屏蔽普通TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存等实现细节  
+			channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存等实现细节  
 			cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
 			cXML				用于解析XML  
 			dataqueue			用于线程间通信的消息队列  
@@ -21,7 +21,7 @@ util/
 			lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 			websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 			log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
-			reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件  
+			reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,对使用者屏蔽TCP发送细节问题  
 			collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
