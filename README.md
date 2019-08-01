@@ -1,4 +1,5 @@
 # util工具库,C/C++代码分离,可运行于linux/windows/mac平台,提供实用类和方法,可直接集成到项目中,或抽取部分文件使用.  
+# 侧重网络通讯,对使用者屏蔽普通TCP/UDP传输,可靠UDP传输,带ACK确认的TCP传输,数据包缓存等实现细节.  
 作者QQ：976784480  
 目录结构:  
 util/  
@@ -21,7 +22,6 @@ util/
 			websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 			log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
 			reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件  
-			session				废弃  
 			collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
