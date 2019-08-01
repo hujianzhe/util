@@ -37,6 +37,7 @@ typedef struct Channel_t {
 /* public */
 	NetPacketListNode_t node;
 	ReactorObject_t* io;
+	void* userdata;
 	int flag;
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
