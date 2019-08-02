@@ -164,9 +164,15 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 					return -1;
 				free(ackpk);
 				if (streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx)) {
-					NetPacket_t* packet = channel->m_finpacket;
+					NetPacket_t* packet = channel->m_stream_finpacket;
 					if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
 						return -1;
+					/*
+					 * must use packet,
+					 * reactorobjectSendStreamData maybe call sendfin->channel_detach_handler->inactive->channelDestroy
+					 * then set channel->m_stream_finpacket = NULL
+					 */
+					free(packet);
 				}
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
@@ -772,24 +778,35 @@ void channelSendFin(Channel_t* channel, long long timestamp_msec) {
 	if (_xchg8(&channel->m_ban_send, 1))
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet = channel->m_finpacket;
-		if (!packet) {
-			unsigned int hdrsize = channel->hdrsize(channel, 0);
+		NetPacket_t* packet;
+		unsigned int hdrsize;
+		if (channel->flag & CHANNEL_FLAG_STREAM) {
+			packet = channel->m_stream_finpacket;
+			if (!packet) {
+				hdrsize = channel->hdrsize(channel, 0);
+				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+				if (!packet)
+					return;
+				memset(packet, 0, sizeof(*packet));
+				packet->hdrlen = hdrsize;
+				channel->m_stream_finpacket = packet;
+			}
+		}
+		else {
+			hdrsize = channel->hdrsize(channel, 0);
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
 			if (!packet)
 				return;
 			memset(packet, 0, sizeof(*packet));
-			packet->type = NETPACKET_FIN;
 			packet->hdrlen = hdrsize;
-			packet->bodylen = 0;
-			channel->m_finpacket = packet;
 		}
+		packet->type = NETPACKET_FIN;
+		packet->bodylen = 0;
 		packet->channel_object = channel;
 		reactorobjectSendPacket(channel->io, packet);
 	}
-	else if (channel->flag & CHANNEL_FLAG_STREAM) {
+	else if (channel->flag & CHANNEL_FLAG_STREAM)
 		reactorCommitCmd(channel->io->reactor, &channel->io->stream.sendfincmd);
-	}
 }
 
 Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack) {
@@ -820,6 +837,7 @@ void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
 		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
+		channel->m_stream_finpacket = NULL;
 	}
 	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		ListNode_t* cur, *next;
