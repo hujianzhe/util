@@ -341,11 +341,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			packet = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
 			if (!packet)
 				return 1;
-			if (packet == channel->m_finpacket) {
-				channel->m_finpacket = NULL;
-				if (channel->dgram.has_recvfin)
-					*err = CHANNEL_INACTIVE_NORMAL;
-			}
+			if (NETPACKET_FIN == packet->type && channel->dgram.has_recvfin)
+				*err = CHANNEL_INACTIVE_NORMAL;
 			free(packet);
 			if (cwndskip) {
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
@@ -821,11 +818,6 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		if (channel->m_finpacket) {
-			if (!channel->m_finpacket->cached)
-				free(channel->m_finpacket);
-			channel->m_finpacket = NULL;
-		}
 		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
 	}
