@@ -165,13 +165,8 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				free(ackpk);
 				if (streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx)) {
 					NetPacket_t* packet = channel->m_finpacket;
-					if (packet) {
-						int res = reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type);
-						if (res < 0)
-							return -1;
-						free(channel->m_finpacket);
-						channel->m_finpacket = NULL;
-					}
+					if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
+						return -1;
 				}
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
