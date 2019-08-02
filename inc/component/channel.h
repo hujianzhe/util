@@ -44,7 +44,6 @@ typedef struct Channel_t {
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
 	Sockaddr_t to_addr;
-	NetPacket_t* finpacket;
 	int inactive_reason;
 	ReactorCmd_t inactivecmd;
 	struct {
@@ -52,11 +51,13 @@ typedef struct Channel_t {
 			/* listener use */
 			struct {
 				Sockaddr_t listen_addr;
+				int halfconn_maxwaitcnt;
+				int m_halfconn_curwaitcnt;
 			};
 			/* client connect use */
 			struct {
 				Sockaddr_t connect_addr;
-				NetPacket_t* synpacket;
+				NetPacket_t* m_synpacket;
 			};
 		};
 		struct {
@@ -80,6 +81,7 @@ typedef struct Channel_t {
 /* private */
 	long long m_event_msec;
 	unsigned int m_heartbeat_times;
+	NetPacket_t* m_finpacket;
 	char m_detached;
 	Atom8_t m_ban_send;
 } Channel_t;
