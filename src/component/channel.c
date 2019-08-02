@@ -511,6 +511,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				}
 				if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
 					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
+					channel->dgram.m_halfconn_curwaitcnt--;
 					free_halfconn(halfconn);
 					continue;
 				}
