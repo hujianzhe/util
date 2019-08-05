@@ -705,11 +705,7 @@ static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp
 		return;
 	}
 	else {
-		int reason;
-		if (channel->flag & CHANNEL_FLAG_STREAM)
-			reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-		else
-			reason = CHANNEL_INACTIVE_NORMAL;
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }
@@ -722,11 +718,7 @@ static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp
 	if (!o->stream.has_recvfin)
 		return;
 	else {
-		int reason;
-		if (channel->flag & CHANNEL_FLAG_STREAM)
-			reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
-		else
-			reason = CHANNEL_INACTIVE_NORMAL;
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }
