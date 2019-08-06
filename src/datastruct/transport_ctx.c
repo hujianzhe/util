@@ -311,11 +311,13 @@ List_t streamtransportctxRemoveAckAndResetSendPacket(StreamTransportCtx_t* ctx) 
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
 		if (NETPACKET_ACK != packet->type) {
-			if (break_flag && 0 == packet->off)
+			if (packet->off) {
+				if (packet->off < packet->hdrlen + packet->bodylen)
+					break_flag = 1;
+				packet->off = 0;
+			}
+			else if (break_flag)
 				break;
-			else if (packet->off && packet->off < packet->hdrlen + packet->bodylen)
-				break_flag = 1;
-			packet->off = 0;
 		}
 		else {
 			listRemoveNode(&ctx->sendpacketlist, cur);
