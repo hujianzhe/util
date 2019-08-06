@@ -70,7 +70,7 @@ static int reactorobject_request_read(ReactorObject_t* o) {
 		return 0;
 	else if (o->m_readol_has_commit)
 		return 1;
-	else if (SOCK_STREAM == o->socktype && o->m_stream_listened)
+	else if (SOCK_STREAM == o->socktype && o->stream.m_listened)
 		opcode = NIO_OP_ACCEPT;
 	else
 		opcode = NIO_OP_READ;
@@ -117,19 +117,19 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 		if (!socketIsListened(o->fd, &ret))
 			return 0;
 		if (ret) {
-			o->m_stream_listened = 1;
+			o->stream.m_listened = 1;
 			if (!reactorobject_request_read(o))
 				return 0;
 		}
 		else if (!socketIsConnected(o->fd, &ret))
 			return 0;
 		else if (ret) {
-			o->m_stream_connected = 1;
+			o->stream.m_connected = 1;
 			if (!reactorobject_request_read(o))
 				return 0;
 		}
 		else {
-			o->m_stream_connected = 0;
+			o->stream.m_connected = 0;
 			if (!o->m_writeol) {
 				o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 				if (!o->m_writeol)
@@ -209,7 +209,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reactorobject_free(o);
 				continue;
 			}
-			if (SOCK_STREAM == o->socktype && !o->m_stream_connected && !o->m_stream_listened)
+			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
 			o->reg(o, 0, timestamp_msec);
 			continue;
@@ -446,7 +446,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
 	int err, ok;
-	o->m_stream_connected = 1;
+	o->stream.m_connected = 1;
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
@@ -620,7 +620,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			switch (nioEventOpcode(e + i)) {
 				case NIO_OP_READ:
 					o->m_readol_has_commit = 0;
-					if (SOCK_STREAM == o->socktype && o->m_stream_listened)
+					if (SOCK_STREAM == o->socktype && o->stream.m_listened)
 						reactor_stream_accept(o, timestamp_msec);
 					else
 						reactor_readev(o, timestamp_msec);
@@ -630,7 +630,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
-						if (o->m_stream_connected)
+						if (o->stream.m_connected)
 							reactor_stream_writeev(o, timestamp_msec);
 						else if (!reactor_stream_connect(o, timestamp_msec))
 							o->valid = 0;
@@ -668,14 +668,13 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
 			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 			next = cur->next;
-			if (REACTOR_REG_CMD == cmd->type || REACTOR_STREAM_SENDFIN_CMD == cmd->type)
-				continue;
 			if (REACTOR_FREE_CMD == cmd->type) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 				reactorobject_free(o);
-				continue;
 			}
-			if (reactor->cmd_free)
+			else if (REACTOR_INNERT_CMD > cmd->type)
+				continue;
+			else if (reactor->cmd_free)
 				reactor->cmd_free(cmd);
 		}
 	} while (0);
@@ -749,6 +748,8 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 		o->stream.sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		o->stream.m_sendfincmdhaspost = 0;
 		o->stream.m_sendfinwait = 0;
+		o->stream.m_connected = 0;
+		o->stream.m_listened = 0;
 		o->read_fragment_size = 1460;
 	}
 	else {
@@ -772,8 +773,6 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->m_invalid_msec = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
-	o->m_stream_connected = 0;
-	o->m_stream_listened = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;

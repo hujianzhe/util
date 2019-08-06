@@ -20,6 +20,9 @@ enum {
 	REACTOR_FREE_CMD,
 	REACTOR_CHANNEL_INACTIVE_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
+
+	REACTOR_INNERT_CMD,
+
 	REACTOR_SEND_PACKET_CMD,
 	REACTOR_USER_CMD
 };
@@ -65,8 +68,10 @@ typedef struct ReactorObject_t {
 		void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
 		char has_recvfin;
 		char has_sendfin;
-		char m_sendfinwait;
 		Atom8_t m_sendfincmdhaspost;
+		char m_sendfinwait;
+		char m_connected;
+		char m_listened;
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -88,8 +93,6 @@ typedef struct ReactorObject_t {
 	long long m_invalid_msec;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
-	char m_stream_connected;
-	char m_stream_listened;
 	unsigned char* m_inbuf;
 	int m_inbufoff;
 	int m_inbuflen;
@@ -108,7 +111,6 @@ __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long times
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
-
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
 __declspec_dll int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype);
