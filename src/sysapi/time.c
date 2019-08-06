@@ -34,6 +34,11 @@ int gmtimeTimezoneOffsetSecond(void) {
 	return tm_gmtoff;
 }
 
+time_t gmtimeSecond(void) {
+	time_t v;
+	return time(&v);
+}
+
 long long gmtimeMillisecond(void) {
 #if defined(WIN32) || defined(_WIN64)
 	long long intervals;
