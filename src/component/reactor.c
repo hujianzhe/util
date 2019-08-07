@@ -746,10 +746,6 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
 		o->stream.sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
-		o->stream.m_sendfincmdhaspost = 0;
-		o->stream.m_sendfinwait = 0;
-		o->stream.m_connected = 0;
-		o->stream.m_listened = 0;
 		o->read_fragment_size = 1460;
 	}
 	else {
