@@ -110,6 +110,7 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
+__declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o);
 __declspec_dll ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec);
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);

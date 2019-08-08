@@ -775,6 +775,25 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	return o;
 }
 
+ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o) {
+	new_o = reactorobjectOpen(new_o, INVALID_FD_HANDLE, old_o->domain, old_o->socktype, old_o->protocol);
+	if (new_o) {
+		new_o->read_fragment_size = old_o->read_fragment_size;
+		new_o->write_fragment_size = old_o->write_fragment_size;
+		new_o->stream.accept = old_o->stream.accept;
+		new_o->stream.connect_addr = old_o->stream.connect_addr;
+		new_o->stream.recvfin = old_o->stream.recvfin;
+		new_o->stream.sendfin = old_o->stream.sendfin;
+		new_o->reg = old_o->reg;
+		new_o->exec = old_o->exec;
+		new_o->preread = old_o->preread;
+		new_o->sendpacket_hook = old_o->sendpacket_hook;
+		new_o->writeev = old_o->writeev;
+		new_o->inactive = old_o->inactive;
+	}
+	return new_o;
+}
+
 ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec) {
 	o->valid = 0;
 	if (o->m_invalid_msec <= 0)
