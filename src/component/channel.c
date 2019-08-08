@@ -725,7 +725,7 @@ static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp
 
 /*******************************************************************************/
 
-Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, const void* saddr) {
+Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int initseq, const void* saddr) {
 	Channel_t* channel;
 	if (SOCK_STREAM == io->socktype && io->channel_list.head)
 		return pod_container_of(io->channel_list.head, Channel_t, node);
@@ -733,6 +733,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 	if (!channel)
 		return NULL;
 	channel->io = io;
+	channel->inactivecmd.type = REACTOR_CHANNEL_INACTIVE_CMD;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	if (flag & CHANNEL_FLAG_DGRAM) {
@@ -757,14 +758,37 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, int initseq, 
 		io->stream.sendfin = reactorobject_stream_sendfin;
 	}
 	channel->flag = flag;
-	channel->inactivecmd.type = REACTOR_CHANNEL_INACTIVE_CMD;
 	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
+	channel->m_initseq = initseq;
 	io->reg = reactorobject_reg_handler;
 	io->exec = reactorobject_exec_channel;
 	io->preread = reactorobject_recv_handler;
 	io->sendpacket_hook = reactorobject_sendpacket_hook;
 	listInsertNodeBack(&io->channel_list, io->channel_list.tail, &channel->node._);
 	return channel;
+}
+
+Channel_t* reactorobjectDupChannel(ReactorObject_t* io, Channel_t* channel) {
+	Channel_t* dup_channel = reactorobjectOpenChannel(io, channel->flag, channel->m_initseq, &channel->to_addr);
+	if (dup_channel) {
+		dup_channel->io = io;
+		dup_channel->maxhdrsize = channel->maxhdrsize;
+		dup_channel->heartbeat_timeout_sec = channel->heartbeat_timeout_sec;
+		dup_channel->heartbeat_maxtimes = channel->heartbeat_maxtimes;
+		dup_channel->dgram.rto = channel->dgram.rto;
+		dup_channel->dgram.resend_maxtimes = channel->dgram.resend_maxtimes;
+		dup_channel->ack_halfconn = channel->ack_halfconn;
+		dup_channel->reg = channel->reg;
+		dup_channel->decode = channel->decode;
+		dup_channel->recv = channel->recv;
+		dup_channel->reply_ack = channel->reply_ack;
+		dup_channel->heartbeat = channel->heartbeat;
+		dup_channel->hdrsize = channel->hdrsize;
+		dup_channel->encode = channel->encode;
+		dup_channel->inactive = channel->inactive;
+		dup_channel->m_detached = 1;
+	}
+	return dup_channel;
 }
 
 void channelSendFin(Channel_t* channel, long long timestamp_msec) {

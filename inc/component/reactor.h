@@ -14,7 +14,6 @@
 #include "../datastruct/hashtable.h"
 #include "../datastruct/transport_ctx.h"
 
-typedef NetPacketListNode_t	ReactorCmd_t;
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,
@@ -26,8 +25,8 @@ enum {
 	REACTOR_SEND_PACKET_CMD,
 	REACTOR_USER_CMD
 };
+typedef NetPacketListNode_t	ReactorCmd_t;
 
-struct ReactorObject_t;
 typedef struct Reactor_t {
 	/* public */
 	void(*cmd_exec)(ReactorCmd_t* cmdnode);
@@ -75,7 +74,8 @@ typedef struct ReactorObject_t {
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	List_t channel_list; /* ext channel module use */
+	/* ext channel module use */
+	List_t channel_list;
 	/* interface */
 	void(*reg)(struct ReactorObject_t* self, int err, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);
