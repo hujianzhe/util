@@ -200,7 +200,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 		return 1;
 	pktype = decode_result.pktype;
 	if (NETPACKET_SYN == pktype) {
-		DgramHalfConn_t* halfconn;
+		DgramHalfConn_t* halfconn = NULL;
 		ListNode_t* cur;
 		for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = cur->next) {
 			halfconn = pod_container_of(cur, DgramHalfConn_t, node);
