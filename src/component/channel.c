@@ -528,7 +528,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
 				channel->reg(channel, ETIMEDOUT, timestamp_msec);
-				return CHANNEL_INACTIVE_UNSENT;
+				return CHANNEL_INACTIVE_CONNECT_ERROR;
 			}
 			else {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
@@ -585,8 +585,8 @@ static void reactorobject_reg_handler(ReactorObject_t* o, int err, long long tim
 		}
 		channel->reg(channel, err, timestamp_msec);
 		if (err) {
-			listRemoveNode(&o->channel_list, cur);
-			channelDestroy(channel);
+			int reason = (channel->flag & CHANNEL_FLAG_CLIENT) ? CHANNEL_INACTIVE_CONNECT_ERROR : CHANNEL_INACTIVE_FATE;
+			channel_detach_handler(channel, reason, timestamp_msec);
 		}
 		else
 			channel_set_heartbeat_timestamp(channel, timestamp_msec);
