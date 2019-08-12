@@ -54,11 +54,11 @@ static void channel_detach_handler(Channel_t* channel, int reason, long long tim
 	if (channel->m_detached)
 		return;
 	channel->m_detached = 1;
-	channel->inactive_reason = reason;
+	channel->detach_reason = reason;
 	listRemoveNode(&channel->io->channel_list, &channel->node._);
 	if (!channel->io->channel_list.head)
 		reactorobjectInvalid(channel->io, timestamp_msec);
-	channel->inactive(channel, reason);
+	channel->detach(channel, reason);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -170,7 +170,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 						return -1;
 					/*
 					 * must use packet,
-					 * reactorobjectSendStreamData maybe call sendfin->channel_detach_handler->inactive->channelDestroy
+					 * reactorobjectSendStreamData maybe call sendfin->channel_detach_handler->detach->channelDestroy
 					 * then set channel->m_stream_finpacket = NULL
 					 */
 					free(packet);
@@ -733,7 +733,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int 
 	if (!channel)
 		return NULL;
 	channel->io = io;
-	channel->inactivecmd.type = REACTOR_CHANNEL_INACTIVE_CMD;
+	channel->detachcmd.type = REACTOR_CHANNEL_DETACH_CMD;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	if (flag & CHANNEL_FLAG_DGRAM) {
@@ -785,7 +785,7 @@ Channel_t* reactorobjectDupChannel(ReactorObject_t* io, Channel_t* channel) {
 		dup_channel->heartbeat = channel->heartbeat;
 		dup_channel->hdrsize = channel->hdrsize;
 		dup_channel->encode = channel->encode;
-		dup_channel->inactive = channel->inactive;
+		dup_channel->detach = channel->detach;
 		dup_channel->m_detached = 1;
 	}
 	return dup_channel;

@@ -45,8 +45,8 @@ typedef struct Channel_t {
 	unsigned int heartbeat_maxtimes;
 	long long heartbeat_msec;
 	Sockaddr_t to_addr;
-	int inactive_reason;
-	ReactorCmd_t inactivecmd;
+	int detach_reason;
+	ReactorCmd_t detachcmd;
 	struct {
 		union {
 			/* listener use */
@@ -78,7 +78,7 @@ typedef struct Channel_t {
 	int(*heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
-	void(*inactive)(struct Channel_t* self, int reason);
+	void(*detach)(struct Channel_t* self, int reason);
 /* private */
 	long long m_event_msec;
 	unsigned int m_initseq;

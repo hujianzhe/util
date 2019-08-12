@@ -17,7 +17,7 @@
 enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_FREE_CMD,
-	REACTOR_CHANNEL_INACTIVE_CMD, /* ext channel module use */
+	REACTOR_CHANNEL_DETACH_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
 
 	REACTOR_INNERT_CMD,
