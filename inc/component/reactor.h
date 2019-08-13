@@ -57,7 +57,6 @@ typedef struct ReactorObject_t {
 	int invalid_timeout_msec;
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
-	volatile int valid;
 	struct {
 		void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
 		Sockaddr_t connect_addr;
@@ -88,6 +87,7 @@ typedef struct ReactorObject_t {
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	Atom8_t m_reghaspost;
+	char m_valid;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;

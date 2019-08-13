@@ -66,7 +66,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 static int reactorobject_request_read(ReactorObject_t* o) {
 	Sockaddr_t saddr;
 	int opcode;
-	if (!o->valid)
+	if (!o->m_valid)
 		return 0;
 	else if (o->m_readol_has_commit)
 		return 1;
@@ -88,7 +88,7 @@ static int reactorobject_request_read(ReactorObject_t* o) {
 
 static int reactorobject_request_write(ReactorObject_t* o) {
 	Sockaddr_t saddr;
-	if (!o->valid)
+	if (!o->m_valid)
 		return 0;
 	else if (o->m_writeol_has_commit)
 		return 1;
@@ -227,7 +227,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
 			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
-			if (!o->valid) {
+			if (!o->m_valid) {
 				if (reactor->cmd_free)
 					reactor->cmd_free(&packet->node);
 				continue;
@@ -274,11 +274,11 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 		next = hashtableNextNode(cur);
-		if (o->valid) {
+		if (o->m_valid) {
 			if (!o->exec)
 				continue;
 			o->exec(o, now_msec, ev_msec);
-			if (o->valid)
+			if (o->m_valid)
 				continue;
 		}
 		hashtableRemoveNode(&reactor->m_objht, cur);
@@ -615,7 +615,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (!find_node)
 				continue;
 			o = pod_container_of(find_node, ReactorObject_t, m_hashnode);
-			if (!o->valid)
+			if (!o->m_valid)
 				continue;
 			switch (nioEventOpcode(e + i)) {
 				case NIO_OP_READ:
@@ -625,7 +625,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					else
 						reactor_readev(o, timestamp_msec);
 					if (!reactorobject_request_read(o))
-						o->valid = 0;
+						o->m_valid = 0;
 					break;
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
@@ -633,15 +633,15 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 						if (o->stream.m_connected)
 							reactor_stream_writeev(o, timestamp_msec);
 						else if (!reactor_stream_connect(o, timestamp_msec))
-							o->valid = 0;
+							o->m_valid = 0;
 					}
 					else if (o->writeev)
 						o->writeev(o, timestamp_msec);
 					break;
 				default:
-					o->valid = 0;
+					o->m_valid = 0;
 			}
-			if (o->valid)
+			if (o->m_valid)
 				continue;
 			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
@@ -741,7 +741,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->userdata = NULL;
 	o->invalid_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
-	o->valid = 1;
+	o->m_valid = 1;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
@@ -795,7 +795,7 @@ ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o
 }
 
 ReactorObject_t* reactorobjectInvalid(ReactorObject_t* o, long long timestamp_msec) {
-	o->valid = 0;
+	o->m_valid = 0;
 	if (o->m_invalid_msec <= 0)
 		o->m_invalid_msec = timestamp_msec;
 	return o;
