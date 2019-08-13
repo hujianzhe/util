@@ -76,7 +76,7 @@ typedef struct ReactorObject_t {
 	/* ext channel module use */
 	List_t channel_list;
 	/* interface */
-	void(*reg)(struct ReactorObject_t* self, int err, long long timestamp_msec);
+	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);
 	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*sendpacket_hook)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);

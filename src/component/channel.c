@@ -337,7 +337,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				sockaddrSetPort(&channel->to_addr.st, port);
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
-				channel->reg(channel, 0, timestamp_msec);
+				channel->reg(channel, timestamp_msec);
 			}
 			channel->reply_ack(channel, 0, from_saddr);
 			socketWrite(channel->io->fd, NULL, 0, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
@@ -527,7 +527,6 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
-				channel->reg(channel, ETIMEDOUT, timestamp_msec);
 				return CHANNEL_DETACH_CONNECT_ERROR;
 			}
 			else {
@@ -559,13 +558,12 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 	return 0;
 }
 
-static void reactorobject_reg_handler(ReactorObject_t* o, int err, long long timestamp_msec) {
+static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	for (cur = o->channel_list.head; cur; cur = next) {
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
 		next = cur->next;
-		if (!err &&
-			(channel->flag & CHANNEL_FLAG_DGRAM) &&
+		if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
 			(channel->flag & CHANNEL_FLAG_RELIABLE) &&
 			(channel->flag & CHANNEL_FLAG_CLIENT))
 		{
@@ -581,15 +579,11 @@ static void reactorobject_reg_handler(ReactorObject_t* o, int err, long long tim
 				reactorobjectSendPacket(channel->io, packet);
 				continue;
 			}
-			err = errnoGet();
+			channel_detach_handler(channel, CHANNEL_DETACH_CONNECT_ERROR, timestamp_msec);
+			continue;
 		}
-		channel->reg(channel, err, timestamp_msec);
-		if (err) {
-			int reason = (channel->flag & CHANNEL_FLAG_CLIENT) ? CHANNEL_DETACH_CONNECT_ERROR : CHANNEL_DETACH_FATE;
-			channel_detach_handler(channel, reason, timestamp_msec);
-		}
-		else
-			channel_set_heartbeat_timestamp(channel, timestamp_msec);
+		channel_set_heartbeat_timestamp(channel, timestamp_msec);
+		channel->reg(channel, timestamp_msec);
 	}
 }
 

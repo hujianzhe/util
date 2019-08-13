@@ -70,7 +70,7 @@ typedef struct Channel_t {
 	} dgram;
 	/* interface */
 	void(*ack_halfconn)(struct Channel_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-	void(*reg)(struct Channel_t* self, int err, long long timestamp_msec);
+	void(*reg)(struct Channel_t* self, long long timestamp_msec);
 	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
 	void(*recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
 	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);

@@ -205,13 +205,12 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		if (REACTOR_REG_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
 			if (!reactor_reg_object(reactor, o)) {
-				o->reg(o, errnoGet(), timestamp_msec);
-				reactorobject_free(o);
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
 				continue;
 			}
 			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
-			o->reg(o, 0, timestamp_msec);
+			o->reg(o, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_FREE_CMD == cmd->type) {
@@ -462,7 +461,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		err = 0;
 		ok = 1;
 		o->stream.m_connected = 1;
-		o->reg(o, err, timestamp_msec);
+		o->reg(o, timestamp_msec);
 	}
 	return ok;
 }
