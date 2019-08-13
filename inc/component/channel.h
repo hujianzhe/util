@@ -17,11 +17,11 @@ enum {
 };
 
 enum {
-	CHANNEL_INACTIVE_NORMAL = 1,
-	CHANNEL_INACTIVE_UNSENT,
-	CHANNEL_INACTIVE_CONNECT_ERROR,
-	CHANNEL_INACTIVE_ZOMBIE,
-	CHANNEL_INACTIVE_FATE
+	CHANNEL_DETACH_NORMAL = 1,
+	CHANNEL_DETACH_UNSENT,
+	CHANNEL_DETACH_CONNECT_ERROR,
+	CHANNEL_DETACH_ZOMBIE,
+	CHANNEL_DETACH_FATE
 };
 
 typedef struct ChannelInbufDecodeResult_t {
@@ -42,8 +42,7 @@ typedef struct Channel_t {
 	int flag;
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
-	unsigned int heartbeat_maxtimes;
-	long long heartbeat_msec;
+	unsigned int heartbeat_maxtimes; /* client use */
 	Sockaddr_t to_addr;
 	int detach_reason;
 	ReactorCmd_t detachcmd;
@@ -81,6 +80,7 @@ typedef struct Channel_t {
 	void(*detach)(struct Channel_t* self, int reason);
 /* private */
 	long long m_event_msec;
+	long long m_heartbeat_msec;
 	unsigned int m_initseq;
 	unsigned int m_heartbeat_times;
 	NetPacket_t* m_stream_finpacket;

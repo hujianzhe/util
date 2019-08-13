@@ -462,8 +462,8 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		err = 0;
 		ok = 1;
 		o->stream.m_connected = 1;
+		o->reg(o, err, timestamp_msec);
 	}
-	o->reg(o, err, timestamp_msec);
 	return ok;
 }
 

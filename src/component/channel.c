@@ -41,11 +41,11 @@ static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) 
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
 	if (timestamp_msec <= 0)
 		return;
-	channel->heartbeat_msec = timestamp_msec;
+	channel->m_heartbeat_msec = timestamp_msec;
 	if (channel->heartbeat_timeout_sec > 0) {
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
-		ts += channel->heartbeat_msec;
+		ts += channel->m_heartbeat_msec;
 		channel_set_timestamp(channel, ts);
 	}
 }
@@ -100,7 +100,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 				return 1;
 			channel->io->stream.has_recvfin = 1;
 			if (channel->io->stream.has_sendfin)
-				*err = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+				*err = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 			else
 				channelSendFin(channel, timestamp_msec);
 		}
@@ -109,7 +109,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 				return 1;
 			channel->dgram.has_recvfin = 1;
 			if (channel->dgram.has_sendfin)
-				*err = CHANNEL_INACTIVE_NORMAL;
+				*err = CHANNEL_DETACH_NORMAL;
 			else
 				channelSendFin(channel, timestamp_msec);
 		}
@@ -349,7 +349,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			if (!packet)
 				return 1;
 			if (NETPACKET_FIN == packet->type && channel->dgram.has_recvfin)
-				*err = CHANNEL_INACTIVE_NORMAL;
+				*err = CHANNEL_DETACH_NORMAL;
 			free(packet);
 			if (cwndskip) {
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
@@ -395,7 +395,7 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 		channel = pod_container_of(o->channel_list.head, Channel_t, node);
 		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec, &err);
 		if (off < 0)
-			err = CHANNEL_INACTIVE_FATE;
+			err = CHANNEL_DETACH_FATE;
 		if (err)
 			channel_detach_handler(channel, err, timestamp_msec);
 		return off;
@@ -410,7 +410,7 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 			else {
 				int err = 0;
 				if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr, &err))
-					err = CHANNEL_INACTIVE_FATE;
+					err = CHANNEL_DETACH_FATE;
 				if (err)
 					channel_detach_handler(channel, err, timestamp_msec);
 			}
@@ -463,13 +463,13 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 /* heartbeat */
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->heartbeat_msec > 0 &&
+		if (channel->m_heartbeat_msec > 0 &&
 			channel->heartbeat_timeout_sec > 0 &&
 			channel->heartbeat)
 		{
 			long long ts = channel->heartbeat_timeout_sec;
 			ts *= 1000;
-			ts += channel->heartbeat_msec;
+			ts += channel->m_heartbeat_msec;
 			if (ts <= timestamp_msec) {
 				if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
 					channel->heartbeat(channel, channel->m_heartbeat_times);
@@ -478,8 +478,8 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				else if (channel->heartbeat(channel, channel->m_heartbeat_times))
 					channel->m_heartbeat_times = 0;
 				else
-					return CHANNEL_INACTIVE_ZOMBIE;
-				channel->heartbeat_msec = timestamp_msec;
+					return CHANNEL_DETACH_ZOMBIE;
+				channel->m_heartbeat_msec = timestamp_msec;
 				ts = channel->heartbeat_timeout_sec;
 				ts *= 1000;
 				ts += timestamp_msec;
@@ -490,9 +490,9 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 	else if (channel->heartbeat_timeout_sec > 0) {
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
-		ts += channel->heartbeat_msec;
+		ts += channel->m_heartbeat_msec;
 		if (ts <= timestamp_msec)
-			return CHANNEL_INACTIVE_ZOMBIE;
+			return CHANNEL_DETACH_ZOMBIE;
 		channel_set_timestamp(channel, ts);
 	}
 /* reliable dgram resend packet */
@@ -528,7 +528,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
 				channel->reg(channel, ETIMEDOUT, timestamp_msec);
-				return CHANNEL_INACTIVE_CONNECT_ERROR;
+				return CHANNEL_DETACH_CONNECT_ERROR;
 			}
 			else {
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
@@ -548,7 +548,7 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 					continue;
 				}
 				if (packet->resend_times >= channel->dgram.resend_maxtimes)
-					return NETPACKET_FIN != packet->type ? CHANNEL_INACTIVE_UNSENT : CHANNEL_INACTIVE_NORMAL;
+					return NETPACKET_FIN != packet->type ? CHANNEL_DETACH_UNSENT : CHANNEL_DETACH_NORMAL;
 				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				packet->resend_times++;
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
@@ -585,7 +585,7 @@ static void reactorobject_reg_handler(ReactorObject_t* o, int err, long long tim
 		}
 		channel->reg(channel, err, timestamp_msec);
 		if (err) {
-			int reason = (channel->flag & CHANNEL_FLAG_CLIENT) ? CHANNEL_INACTIVE_CONNECT_ERROR : CHANNEL_INACTIVE_FATE;
+			int reason = (channel->flag & CHANNEL_FLAG_CLIENT) ? CHANNEL_DETACH_CONNECT_ERROR : CHANNEL_DETACH_FATE;
 			channel_detach_handler(channel, reason, timestamp_msec);
 		}
 		else
@@ -705,7 +705,7 @@ static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp
 		return;
 	}
 	else {
-		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }
@@ -718,7 +718,7 @@ static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp
 	if (!o->stream.has_recvfin)
 		return;
 	else {
-		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_INACTIVE_NORMAL : CHANNEL_INACTIVE_UNSENT;
+		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }
