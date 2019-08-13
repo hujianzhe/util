@@ -446,7 +446,6 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
 	int err, ok;
-	o->stream.m_connected = 1;
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
@@ -462,6 +461,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	else {
 		err = 0;
 		ok = 1;
+		o->stream.m_connected = 1;
 	}
 	o->reg(o, err, timestamp_msec);
 	return ok;
