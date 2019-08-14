@@ -43,6 +43,7 @@ typedef struct Channel_t {
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
+	unsigned int connected_times; /* client use */
 	Sockaddr_t to_addr;
 	int detach_reason;
 	ReactorCmd_t detachcmd;
@@ -54,7 +55,7 @@ typedef struct Channel_t {
 				int halfconn_maxwaitcnt;
 				int m_halfconn_curwaitcnt;
 			};
-			/* client connect use */
+			/* client use */
 			struct {
 				Sockaddr_t connect_addr;
 				NetPacket_t* m_synpacket;

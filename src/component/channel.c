@@ -337,6 +337,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				sockaddrSetPort(&channel->to_addr.st, port);
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
+				++channel->connected_times;
 				channel->reg(channel, timestamp_msec);
 			}
 			channel->reply_ack(channel, 0, from_saddr);
@@ -563,24 +564,25 @@ static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_ms
 	for (cur = o->channel_list.head; cur; cur = next) {
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
 		next = cur->next;
-		if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
-			(channel->flag & CHANNEL_FLAG_RELIABLE) &&
-			(channel->flag & CHANNEL_FLAG_CLIENT))
-		{
-			unsigned int hdrsize = channel->hdrsize(channel, 0);
-			NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
-			if (packet) {
-				memset(packet, 0, sizeof(*packet));
-				packet->channel_object = channel;
-				packet->type = NETPACKET_SYN;
-				packet->hdrlen = hdrsize;
-				packet->bodylen = 0;
-				channel->dgram.m_synpacket = packet;
-				reactorobjectSendPacket(channel->io, packet);
+		if (channel->flag & CHANNEL_FLAG_CLIENT) {
+			if (channel->flag & CHANNEL_FLAG_STREAM)
+				++channel->connected_times;
+			else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
+				unsigned int hdrsize = channel->hdrsize(channel, 0);
+				NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+				if (packet) {
+					memset(packet, 0, sizeof(*packet));
+					packet->channel_object = channel;
+					packet->type = NETPACKET_SYN;
+					packet->hdrlen = hdrsize;
+					packet->bodylen = 0;
+					channel->dgram.m_synpacket = packet;
+					reactorobjectSendPacket(channel->io, packet);
+					continue;
+				}
+				channel_detach_handler(channel, CHANNEL_DETACH_CONNECT_ERROR, timestamp_msec);
 				continue;
 			}
-			channel_detach_handler(channel, CHANNEL_DETACH_CONNECT_ERROR, timestamp_msec);
-			continue;
 		}
 		channel_set_heartbeat_timestamp(channel, timestamp_msec);
 		channel->reg(channel, timestamp_msec);
