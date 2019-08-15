@@ -83,9 +83,12 @@ SortInsertTopN_t* sortInsertTopN(void* top, void* new_, SortInsertTopN_t* arg) {
 		__byte_copy(p, new_, arg->esize);
 		arg->ecnt++;
 		arg->insert_ok = 1;
+		arg->has_discard = 0;
 	}
-	else
+	else {
 		arg->insert_ok = 0;
+		arg->has_discard = 0;
+	}
 	return arg;
 }
 
