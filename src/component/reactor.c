@@ -267,7 +267,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, inactivecmd);
 			if (!o->m_valid)
 				continue;
-			o->m_valid = 0;
+			reactorobject_invalid(o, timestamp_msec);
 			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 			continue;
