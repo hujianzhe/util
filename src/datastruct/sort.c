@@ -52,34 +52,41 @@ void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, co
 	}
 }
 
-int sortInsertTopN(void* p_, ptrlen_t* picnt, ptrlen_t topn, const void* new_, ptrlen_t esize, const void*(*cmp)(const void*, const void*)) {
-	unsigned char* p = (unsigned char*)p_;
+SortInsertTopN_t* sortInsertTopN(void* top, void* new_, SortInsertTopN_t* arg) {
+	unsigned char* p = (unsigned char*)top;
 	unsigned char* pp = p;
-	unsigned char* pnew = (unsigned char*)new_;
-	ptrlen_t i, icnt = *picnt;
-	for (i = 0; i < icnt; ++i, p += esize) {
-		if (cmp(p, pnew) == pnew)
+	ptrlen_t i;
+	for (i = 0; i < arg->ecnt; ++i, p += arg->esize) {
+		if (arg->cmp(p, new_) == new_)
 			break;
 	}
-	if (i < icnt) {
-		pp += esize * icnt;
-		if (icnt >= topn)
-			pp -= esize;
-		else
-			(*picnt)++;
-		while (pp != p) {
-			__byte_copy(pp, pp - esize, esize);
-			pp -= esize;
+	if (i < arg->ecnt) {
+		pp += arg->esize * arg->ecnt;
+		if (arg->ecnt >= arg->N) {
+			pp -= arg->esize;
+			arg->has_discard = 1;
 		}
-		__byte_copy(p, pnew, esize);
-		return icnt < topn;
+		else {
+			arg->ecnt++;
+			arg->has_discard = 0;
+		}
+		while (pp != p) {
+			__byte_copy(pp, pp - arg->esize, arg->esize);
+			pp -= arg->esize;
+		}
+		if (arg->has_discard && arg->discard_bak)
+			__byte_copy(arg->discard_bak, p, arg->esize);
+		__byte_copy(p, new_, arg->esize);
+		arg->insert_ok = 1;
 	}
-	else if (icnt < topn) {
-		__byte_copy(p, pnew, esize);
-		(*picnt)++;
-		return 1;
+	else if (arg->ecnt < arg->N) {
+		__byte_copy(p, new_, arg->esize);
+		arg->ecnt++;
+		arg->insert_ok = 1;
 	}
-	return 0;
+	else
+		arg->insert_ok = 0;
+	return arg;
 }
 
 #ifdef	__cplusplus
