@@ -65,6 +65,8 @@ SortInsertTopN_t* sortInsertTopN(void* top, void* new_, SortInsertTopN_t* arg) {
 		if (arg->ecnt >= arg->N) {
 			pp -= arg->esize;
 			arg->has_discard = 1;
+			if (arg->discard_bak)
+				__byte_copy(arg->discard_bak, pp, arg->esize);
 		}
 		else {
 			arg->ecnt++;
@@ -74,8 +76,6 @@ SortInsertTopN_t* sortInsertTopN(void* top, void* new_, SortInsertTopN_t* arg) {
 			__byte_copy(pp, pp - arg->esize, arg->esize);
 			pp -= arg->esize;
 		}
-		if (arg->has_discard && arg->discard_bak)
-			__byte_copy(arg->discard_bak, p, arg->esize);
 		__byte_copy(p, new_, arg->esize);
 		arg->insert_ok = 1;
 	}
