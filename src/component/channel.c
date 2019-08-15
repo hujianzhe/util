@@ -51,13 +51,15 @@ static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timest
 }
 
 static void channel_detach_handler(Channel_t* channel, int reason, long long timestamp_msec) {
+	ReactorObject_t* io;
 	if (channel->m_detached)
 		return;
 	channel->m_detached = 1;
 	channel->detach_reason = reason;
-	listRemoveNode(&channel->io->channel_list, &channel->node._);
-	if (!channel->io->channel_list.head)
-		reactorobjectInvalid(channel->io, timestamp_msec);
+	io = channel->io;
+	listRemoveNode(&io->channel_list, &channel->node._);
+	if (!io->channel_list.head)
+		reactorCommitCmd(io->reactor, &io->inactivecmd);
 	channel->detach(channel, reason);
 }
 
@@ -604,7 +606,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 		channel_detach_handler(channel, inactive_reason, timestamp_msec);
 	}
 	if (!o->channel_list.head)
-		reactorobjectInvalid(o, timestamp_msec);
+		reactorCommitCmd(o->reactor, &o->inactivecmd);
 }
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
