@@ -200,91 +200,6 @@ static void reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_
 	reactorobject_sendfin_direct_handler(o, timestamp_msec, 1);
 }
 
-static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
-	ListNode_t* cur, *next;
-	criticalsectionEnter(&reactor->m_cmdlistlock);
-	cur = reactor->m_cmdlist.head;
-	listInit(&reactor->m_cmdlist);
-	criticalsectionLeave(&reactor->m_cmdlistlock);
-	for (; cur; cur = next) {
-		ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
-		next = cur->next;
-		if (REACTOR_SEND_PACKET_CMD == cmd->type) {
-			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
-			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
-			if (!o->m_valid) {
-				if (reactor->cmd_free)
-					reactor->cmd_free(&packet->node);
-				continue;
-			}
-			if (o->sendpacket_hook && !o->sendpacket_hook(o, packet, timestamp_msec))
-				continue;
-			if (SOCK_STREAM != o->socktype)
-				continue;
-			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
-				if (res < 0) {
-					if (errnoGet() != EWOULDBLOCK) {
-						reactorobject_invalid(o, timestamp_msec);
-						continue;
-					}
-					res = 0;
-				}
-				packet->off = res;
-			}
-			if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-				if (NETPACKET_FIN == packet->type && !o->stream.has_sendfin) {
-					o->stream.has_sendfin = 1;
-					if (o->stream.sendfin)
-						o->stream.sendfin(o, timestamp_msec);
-				}
-				if (reactor->cmd_free)
-					reactor->cmd_free(&packet->node);
-				continue;
-			}
-			if (packet->off < packet->hdrlen + packet->bodylen)
-				reactorobject_request_write(o);
-			continue;
-		}
-		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
-			reactorobject_sendfin_check(o, timestamp_msec);
-			continue;
-		}
-		else if (REACTOR_REG_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
-			if (!reactor_reg_object(reactor, o)) {
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(o, timestamp_msec);
-				continue;
-			}
-			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
-				continue;
-			o->reg(o, timestamp_msec);
-			continue;
-		}
-		else if (REACTOR_INACTIVE_OBJECT_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, inactivecmd);
-			if (!o->m_valid)
-				continue;
-			reactorobject_invalid(o, timestamp_msec);
-			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
-			reactorobject_invalid_inner_handler(o, timestamp_msec);
-			continue;
-		}
-		else if (REACTOR_FREE_OBJECT_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
-			reactorobject_free(o);
-			continue;
-		}
-
-		if (reactor->cmd_exec)
-			reactor->cmd_exec(cmd);
-		if (reactor->cmd_free)
-			reactor->cmd_free(cmd);
-	}
-}
-
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
@@ -479,8 +394,97 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		ok = 1;
 		o->stream.m_connected = 1;
 		o->reg(o, timestamp_msec);
+		if (o->m_valid)
+			reactor_stream_writeev(o, timestamp_msec); /* reconnect resend packet */
 	}
 	return ok;
+}
+
+static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
+	ListNode_t* cur, *next;
+	criticalsectionEnter(&reactor->m_cmdlistlock);
+	cur = reactor->m_cmdlist.head;
+	listInit(&reactor->m_cmdlist);
+	criticalsectionLeave(&reactor->m_cmdlistlock);
+	for (; cur; cur = next) {
+		ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
+		next = cur->next;
+		if (REACTOR_SEND_PACKET_CMD == cmd->type) {
+			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
+			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
+			if (!o->m_valid) {
+				if (reactor->cmd_free)
+					reactor->cmd_free(&packet->node);
+				continue;
+			}
+			if (o->sendpacket_hook && !o->sendpacket_hook(o, packet, timestamp_msec))
+				continue;
+			if (SOCK_STREAM != o->socktype)
+				continue;
+			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
+				if (res < 0) {
+					if (errnoGet() != EWOULDBLOCK) {
+						reactorobject_invalid(o, timestamp_msec);
+						continue;
+					}
+					res = 0;
+				}
+				packet->off = res;
+			}
+			if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
+				if (NETPACKET_FIN == packet->type && !o->stream.has_sendfin) {
+					o->stream.has_sendfin = 1;
+					if (o->stream.sendfin)
+						o->stream.sendfin(o, timestamp_msec);
+				}
+				if (reactor->cmd_free)
+					reactor->cmd_free(&packet->node);
+				continue;
+			}
+			if (packet->off < packet->hdrlen + packet->bodylen)
+				reactorobject_request_write(o);
+			continue;
+		}
+		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
+			reactorobject_sendfin_check(o, timestamp_msec);
+			continue;
+		}
+		else if (REACTOR_REG_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
+			if (!reactor_reg_object(reactor, o)) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+				continue;
+			}
+			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
+				continue;
+			o->reg(o, timestamp_msec);
+			if (o->stream.m_connected && o->m_valid)
+				reactor_stream_writeev(o, timestamp_msec); /* reconnect resend packet */
+			continue;
+		}
+		else if (REACTOR_INACTIVE_OBJECT_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, inactivecmd);
+			if (!o->m_valid)
+				continue;
+			reactorobject_invalid(o, timestamp_msec);
+			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
+			reactorobject_invalid_inner_handler(o, timestamp_msec);
+			continue;
+		}
+		else if (REACTOR_FREE_OBJECT_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
+			reactorobject_free(o);
+			continue;
+		}
+
+		if (reactor->cmd_exec)
+			reactor->cmd_exec(cmd);
+		if (reactor->cmd_free)
+			reactor->cmd_free(cmd);
+	}
 }
 
 static int objht_keycmp(const void* node_key, const void* key) {
