@@ -394,8 +394,6 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		ok = 1;
 		o->stream.m_connected = 1;
 		o->reg(o, timestamp_msec);
-		if (o->m_valid)
-			reactor_stream_writeev(o, timestamp_msec); /* reconnect resend packet */
 	}
 	return ok;
 }
@@ -461,8 +459,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
 			o->reg(o, timestamp_msec);
-			if (SOCK_STREAM == o->socktype && o->stream.m_connected && o->m_valid)
-				reactor_stream_writeev(o, timestamp_msec); /* reconnect resend packet */
 			continue;
 		}
 		else if (REACTOR_INACTIVE_OBJECT_CMD == cmd->type) {
