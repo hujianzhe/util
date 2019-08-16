@@ -588,6 +588,24 @@ static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_ms
 		}
 		channel_set_heartbeat_timestamp(channel, timestamp_msec);
 		channel->reg(channel, timestamp_msec);
+		if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
+			!(channel->flag & CHANNEL_FLAG_LISTEN))
+		{
+			ListNode_t* cur;
+			for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
+				NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
+					break;
+				if (NETPACKET_FIN == packet->type)
+					channel->dgram.has_sendfin = 1;
+				if (packet->wait_ack)
+					continue;
+				packet->wait_ack = 1;
+				packet->resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->resend_msec);
+				socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			}
+		}
 	}
 }
 
