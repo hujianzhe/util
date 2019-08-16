@@ -419,7 +419,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 }
 
 static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec) {
-	int busy = 0, has_userfin = 0;
+	int busy = 0;
 	List_t finishedlist;
 	ListNode_t* cur, *next;
 	StreamTransportCtx_t* ctxptr = &o->stream.ctx;
@@ -697,7 +697,7 @@ void reactorDestroy(Reactor_t* reactor) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 				reactorobject_free(o);
 			}
-			else if (REACTOR_INNERT_CMD > cmd->type)
+			else if (REACTOR_INNER_CMD > cmd->type)
 				continue;
 			else if (reactor->cmd_free)
 				reactor->cmd_free(cmd);
