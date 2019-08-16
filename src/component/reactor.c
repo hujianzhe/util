@@ -461,7 +461,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
 			o->reg(o, timestamp_msec);
-			if (o->stream.m_connected && o->m_valid)
+			if (SOCK_STREAM == o->socktype && o->stream.m_connected && o->m_valid)
 				reactor_stream_writeev(o, timestamp_msec); /* reconnect resend packet */
 			continue;
 		}
