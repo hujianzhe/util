@@ -353,7 +353,7 @@ struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* ke
 {
 	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
-		int res = root->keycmp(node, key);
+		int res = root->keycmp(node->key, key);
 		if (res < 0) {
 			node = node->rb_left;
 		}
