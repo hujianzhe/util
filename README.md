@@ -26,6 +26,7 @@ util/
 			rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 		datastruct/  
 				base64			提供base64编解码接口  
+				bstree			类型无关的二叉搜索树  
 				hash			提供一些常用的hash算法  
 				hashtable		类型无关的哈希表  
 				rbtree			类型无关的红黑树(内部基于linux内核红黑树代码)  

@@ -138,6 +138,43 @@ struct BSTreeNode_t* bstreeSearchKey(struct BSTree_t* tree, const void* key) {
 	return node;
 }
 
+struct BSTreeNode_t* bstreeRemoveKey(struct BSTree_t* tree, const void* key) {
+	struct BSTreeNode_t* exist_node = bstreeSearchKey(tree, key);
+	if (exist_node)
+		bstreeRemoveNode(tree, exist_node);
+	return exist_node;
+}
+
+struct BSTreeNode_t* bstreeFirstNode(const struct BSTree_t* tree) {
+	if (tree->bs_root)
+		return bstreeMinNode(tree->bs_root);
+	return (struct BSTreeNode_t*)0;
+}
+
+struct BSTreeNode_t* bstreeLastNode(const struct BSTree_t* tree) {
+	if (tree->bs_root)
+		return bstreeMaxNode(tree->bs_root);
+	return (struct BSTreeNode_t*)0;
+}
+
+struct BSTreeNode_t* bstreeNextNode(struct BSTreeNode_t* node) {
+	struct BSTreeNode_t* parent;
+	if (node->bs_right)
+		return bstreeMinNode(node->bs_right);
+	while ((parent = node->bs_parent) && node == parent->bs_right)
+		node = parent;
+	return parent;
+}
+
+struct BSTreeNode_t* bstreePrevNode(struct BSTreeNode_t* node) {
+	struct BSTreeNode_t* parent;
+	if (node->bs_left)
+		return bstreeMaxNode(node->bs_left);
+	while ((parent = node->bs_parent) && node == parent->bs_left)
+		node = parent;
+	return parent;
+}
+
 #ifdef	__cplusplus
 }
 #endif

@@ -32,6 +32,11 @@ __declspec_dll void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t*
 __declspec_dll struct BSTreeNode_t* bstreeMinNode(const struct BSTreeNode_t* node);
 __declspec_dll struct BSTreeNode_t* bstreeMaxNode(const struct BSTreeNode_t* node);
 __declspec_dll struct BSTreeNode_t* bstreeSearchKey(struct BSTree_t* tree, const void* key);
+__declspec_dll struct BSTreeNode_t* bstreeRemoveKey(struct BSTree_t* tree, const void* key);
+__declspec_dll struct BSTreeNode_t* bstreeFirstNode(const struct BSTree_t* tree);
+__declspec_dll struct BSTreeNode_t* bstreeLastNode(const struct BSTree_t* tree);
+__declspec_dll struct BSTreeNode_t* bstreeNextNode(struct BSTreeNode_t* node);
+__declspec_dll struct BSTreeNode_t* bstreePrevNode(struct BSTreeNode_t* node);
 
 #ifdef	__cplusplus
 }
