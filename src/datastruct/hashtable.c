@@ -133,6 +133,20 @@ struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node) {
 	}
 }
 
+void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size) {
+	struct HashtableNode_t* cur, *next;
+	struct Hashtable_t tb;
+	hashtableInit(&tb, buckets, buckets_size, hashtable->keycmp, hashtable->keyhash);
+	for (cur = hashtableFirstNode(hashtable); cur; cur = next) {
+		next = hashtableNextNode(cur);
+		hashtableRemoveNode(hashtable, cur);
+		hashtableInsertNode(&tb, cur);
+		cur->table = hashtable;
+	}
+	hashtable->buckets = buckets;
+	hashtable->buckets_size = buckets_size;
+}
+
 #ifdef	__cplusplus
 }
 #endif

@@ -43,6 +43,8 @@ __declspec_dll struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* ha
 __declspec_dll struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable);
 __declspec_dll struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node);
 
+__declspec_dll void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size);
+
 #ifdef	__cplusplus
 }
 #endif
