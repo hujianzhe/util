@@ -49,16 +49,6 @@ void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct Lis
 	node->next = new_node;
 }
 
-struct List_t* listPushNodeFront(struct List_t* list, struct ListNode_t* node) {
-	listInsertNodeFront(list, list->head, node);
-	return list;
-}
-
-struct List_t* listPushNodeBack(struct List_t* list, struct ListNode_t* node) {
-	listInsertNodeBack(list, list->tail, node);
-	return list;
-}
-
 void listRemoveNode(struct List_t* list, struct ListNode_t* node) {
 	if (list->head == node) {
 		list->head = node->next;
@@ -94,6 +84,30 @@ void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNo
 		node->next->prev = new_node;
 	}
 	*new_node = *node;
+}
+
+struct List_t* listPushNodeFront(struct List_t* list, struct ListNode_t* node) {
+	listInsertNodeFront(list, list->head, node);
+	return list;
+}
+
+struct List_t* listPushNodeBack(struct List_t* list, struct ListNode_t* node) {
+	listInsertNodeBack(list, list->tail, node);
+	return list;
+}
+
+struct ListNode_t* listPopNodeFront(struct List_t* list) {
+	struct ListNode_t* head = list->head;
+	if (head)
+		listRemoveNode(list, head);
+	return head;
+}
+
+struct ListNode_t* listPopNodeBack(struct List_t* list) {
+	struct ListNode_t* tail = list->tail;
+	if (tail)
+		listRemoveNode(list, tail);
+	return tail;
 }
 
 void listMerge(struct List_t* to, struct List_t* from) {
