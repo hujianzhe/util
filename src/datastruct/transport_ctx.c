@@ -14,7 +14,7 @@ extern "C" {
 
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->cwndsize = 1;
-	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
+	ctx->cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
@@ -104,7 +104,7 @@ int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
 	ListNode_t* cur, *next;
 	*cwndskip = 0;
-	if (seq1_before_seq2(ackseq, ctx->m_cwndseq))
+	if (seq1_before_seq2(ackseq, ctx->cwndseq))
 		return (NetPacket_t*)0;
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -116,14 +116,14 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 		if (seq1_before_seq2(ctx->m_ackseq, ackseq))
 			ctx->m_ackseq = ackseq;
 		listRemoveNode(&ctx->sendpacketlist, cur);
-		if (packet->seq == ctx->m_cwndseq) {
+		if (packet->seq == ctx->cwndseq) {
 			if (next) {
 				NetPacket_t* next_packet = pod_container_of(next, NetPacket_t, node);
-				ctx->m_cwndseq = next_packet->seq;
+				ctx->cwndseq = next_packet->seq;
 				*cwndskip = 1;
 			}
 			else
-				ctx->m_cwndseq = ctx->m_ackseq + 1;
+				ctx->cwndseq = ctx->m_ackseq + 1;
 		}
 		return packet;
 	}
@@ -133,13 +133,13 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (NETPACKET_FIN == packet->type && ctx->sendpacketlist.head != &packet->node._)
 		return 0;
-	return packet->seq >= ctx->m_cwndseq && packet->seq - ctx->m_cwndseq < ctx->cwndsize;
+	return packet->seq >= ctx->cwndseq && packet->seq - ctx->cwndseq < ctx->cwndsize;
 }
 
 /*********************************************************************************/
 
 StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
-	ctx->m_recvseq = ctx->m_sendseq = ctx->m_cwndseq = initseq;
+	ctx->m_recvseq = ctx->m_sendseq = ctx->cwndseq = initseq;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
 	return ctx;
@@ -252,9 +252,9 @@ int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) {
 	ListNode_t* cur, *next;
 	*ackpacket = (NetPacket_t*)0;
-	if (seq1_before_seq2(ackseq, ctx->m_cwndseq))
+	if (seq1_before_seq2(ackseq, ctx->cwndseq))
 		return 1;
-	if (ctx->m_cwndseq != ackseq)
+	if (ctx->cwndseq != ackseq)
 		return 0;
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -265,7 +265,7 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 			continue;
 		if (packet->seq != ackseq)
 			return 0;
-		ctx->m_cwndseq++;
+		ctx->cwndseq++;
 		listRemoveNode(&ctx->sendpacketlist, cur);
 		packet->cached = 0;
 		*ackpacket = packet;

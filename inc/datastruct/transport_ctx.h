@@ -49,12 +49,12 @@ typedef struct NetPacket_t {
 
 typedef struct DgramTransportCtx_t {
 	unsigned char cwndsize;
-	List_t sendpacketlist;
 	List_t recvpacketlist;
+	List_t sendpacketlist;
 	void* userdata;
+	unsigned int cwndseq;
 	/* private */
 	ListNode_t* m_recvnode;
-	unsigned int m_cwndseq;
 	unsigned int m_recvseq;
 	unsigned int m_sendseq;
 	unsigned int m_ackseq;
@@ -64,10 +64,10 @@ typedef struct StreamTransportCtx_t {
 	List_t recvpacketlist;
 	List_t sendpacketlist;
 	void* userdata;
+	unsigned int cwndseq;
 	/* private */
 	unsigned int m_recvseq;
 	unsigned int m_sendseq;
-	unsigned int m_cwndseq;
 } StreamTransportCtx_t;
 
 #ifdef	__cplusplus
