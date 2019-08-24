@@ -291,6 +291,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
+			if (o->stream.ctx.finpacket && o->stream.ctx.sendpacket_all_acked)
+				reactorCommitCmd(o->reactor, &o->stream.ctx.finpacket->node);
 		}
 	}
 	else {
@@ -419,6 +421,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				continue;
 			if (SOCK_STREAM != o->socktype)
 				continue;
+			if (NETPACKET_FIN == packet->type && !o->stream.ctx.sendpacket_all_acked) {
+				o->stream.ctx.finpacket = packet;
+				continue;
+			}
 			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
 				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
 				if (res < 0) {
@@ -430,18 +436,20 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				packet->off = res;
 			}
-			if (!streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-				if (NETPACKET_FIN == packet->type && !o->stream.has_sendfin) {
-					o->stream.has_sendfin = 1;
-					if (o->stream.sendfin)
-						o->stream.sendfin(o, timestamp_msec);
-				}
-				if (reactor->cmd_free)
-					reactor->cmd_free(&packet->node);
+			if (NETPACKET_FIN == packet->type)
+				o->stream.ctx.finpacket = NULL;
+			if (streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
+				if (packet->off < packet->hdrlen + packet->bodylen)
+					reactorobject_request_write(o);
 				continue;
 			}
-			if (packet->off < packet->hdrlen + packet->bodylen)
-				reactorobject_request_write(o);
+			if (NETPACKET_FIN == packet->type && !o->stream.has_sendfin) {
+				o->stream.has_sendfin = 1;
+				if (o->stream.sendfin)
+					o->stream.sendfin(o, timestamp_msec);
+			}
+			if (reactor->cmd_free)
+				reactor->cmd_free(&packet->node);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {

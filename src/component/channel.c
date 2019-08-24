@@ -165,18 +165,18 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (!streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					return -1;
 				free(ackpk);
-				if (channel->io->stream.ctx.sendpacket_all_acked) {
-					NetPacket_t* packet = channel->m_stream_finpacket;
-					channel->m_stream_finpacket = NULL;
-					if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
-						return -1;
+				//if (channel->io->stream.ctx.sendpacket_all_acked) {
+				//	NetPacket_t* packet = channel->m_stream_finpacket;
+				//	channel->m_stream_finpacket = NULL;
+				//	if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
+				//		return -1;
 					/*
 					 * must use packet,
 					 * reactorobjectSendStreamData maybe call sendfin->channel_detach_handler->detach->channelDestroy
 					 * then set channel->m_stream_finpacket = NULL
 					 */
-					free(packet);
-				}
+				//	free(packet);
+				//}
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->reply_ack(channel, pkseq, &channel->to_addr);
@@ -429,9 +429,7 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 			packet->seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->type);
 		if (packet->hdrlen)
 			channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
-		if (NETPACKET_FIN != packet->type)
-			return 1;
-		return o->stream.ctx.sendpacket_all_acked;
+		return 1;
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
@@ -811,28 +809,12 @@ void channelSendFin(Channel_t* channel, long long timestamp_msec) {
 	if (_xchg8(&channel->m_ban_send, 1))
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet;
-		unsigned int hdrsize;
-		if (channel->flag & CHANNEL_FLAG_STREAM) {
-			packet = channel->m_stream_finpacket;
-			if (!packet) {
-				hdrsize = channel->hdrsize(channel, 0);
-				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
-				if (!packet)
-					return;
-				memset(packet, 0, sizeof(*packet));
-				packet->hdrlen = hdrsize;
-				channel->m_stream_finpacket = packet;
-			}
-		}
-		else {
-			hdrsize = channel->hdrsize(channel, 0);
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
-			if (!packet)
-				return;
-			memset(packet, 0, sizeof(*packet));
-			packet->hdrlen = hdrsize;
-		}
+		unsigned int hdrsize = channel->hdrsize(channel, 0);
+		NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+		if (!packet)
+			return;
+		memset(packet, 0, sizeof(*packet));
+		packet->hdrlen = hdrsize;
 		packet->type = NETPACKET_FIN;
 		packet->bodylen = 0;
 		packet->channel_object = channel;
@@ -868,9 +850,10 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
+		free(channel->io->stream.ctx.finpacket);
+		channel->io->stream.ctx.finpacket = NULL;
 		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
-		channel->m_stream_finpacket = NULL;
 	}
 	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		ListNode_t* cur, *next;

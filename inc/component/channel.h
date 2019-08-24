@@ -84,7 +84,6 @@ typedef struct Channel_t {
 	long long m_heartbeat_msec;
 	unsigned int m_initseq;
 	unsigned int m_heartbeat_times;
-	NetPacket_t* m_stream_finpacket;
 	char m_detached;
 	Atom8_t m_ban_send;
 } Channel_t;
