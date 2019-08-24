@@ -574,7 +574,14 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (!o->m_reghaspost || _xchg8(&o->m_inactivehaspost, 1))
 			return;
 		if (threadEqual(reactor->m_runthread, threadSelf())) {
-			reactorobject_invalid(o, gmtimeMillisecond());
+			if (o->m_valid) {
+				o->m_valid = 0;
+				o->m_invalid_msec = gmtimeMillisecond();
+				if (o->invalid_timeout_msec > 0)
+					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->invalid_timeout_msec);
+				else
+					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec);
+			}
 			return;
 		}
 	}
