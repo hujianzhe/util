@@ -447,11 +447,6 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 				packet->resend_msec = timestamp_msec + channel->dgram.rto;
 				channel_set_timestamp(channel, packet->resend_msec);
 			}
-			else if (NETPACKET_SYN == packet->type) {
-				packet->wait_ack = 1;
-				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->resend_msec);
-			}
 			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
 		else {
@@ -596,7 +591,13 @@ static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_ms
 					packet->hdrlen = hdrsize;
 					packet->bodylen = 0;
 					channel->dgram.m_synpacket = packet;
-					reactorobjectSendPacket(channel->io, packet);
+
+					if (packet->hdrlen)
+						channel->encode(channel, packet->buf, 0, NETPACKET_SYN, 0);
+					packet->wait_ack = 1;
+					packet->resend_msec = timestamp_msec + channel->dgram.rto;
+					channel_set_timestamp(channel, packet->resend_msec);
+					socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 					continue;
 				}
 				channel_detach_handler(channel, CHANNEL_DETACH_CONNECT_ERROR, timestamp_msec);

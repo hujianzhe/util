@@ -55,7 +55,7 @@ typedef struct DgramTransportCtx_t {
 	unsigned int cwndseq;
 	void* userdata;
 	/* private */
-	ListNode_t* m_recvnode;	
+	ListNode_t* m_recvnode;
 	unsigned int m_sendseq;
 	unsigned int m_ackseq;
 } DgramTransportCtx_t;
