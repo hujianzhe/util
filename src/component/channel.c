@@ -165,18 +165,6 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (!streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					return -1;
 				free(ackpk);
-				//if (channel->io->stream.ctx.sendpacket_all_acked) {
-				//	NetPacket_t* packet = channel->m_stream_finpacket;
-				//	channel->m_stream_finpacket = NULL;
-				//	if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
-				//		return -1;
-					/*
-					 * must use packet,
-					 * reactorobjectSendStreamData maybe call sendfin->channel_detach_handler->detach->channelDestroy
-					 * then set channel->m_stream_finpacket = NULL
-					 */
-				//	free(packet);
-				//}
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->reply_ack(channel, pkseq, &channel->to_addr);

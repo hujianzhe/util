@@ -443,11 +443,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					reactorobject_request_write(o);
 				continue;
 			}
-			if (NETPACKET_FIN == packet->type && !o->stream.has_sendfin) {
-				o->stream.has_sendfin = 1;
-				if (o->stream.sendfin)
-					o->stream.sendfin(o, timestamp_msec);
-			}
+			if (NETPACKET_FIN == packet->type)
+				reactorobject_sendfin_direct_handler(o, timestamp_msec, 0);
 			if (reactor->cmd_free)
 				reactor->cmd_free(&packet->node);
 			continue;
