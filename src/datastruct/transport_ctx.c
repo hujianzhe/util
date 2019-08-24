@@ -14,7 +14,7 @@ extern "C" {
 
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->cwndsize = 1;
-	ctx->cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
+	ctx->cwndseq = ctx->recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
@@ -24,7 +24,7 @@ DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned in
 int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) {
 	if (pktype < NETPACKET_DGRAM_HAS_SEND_SEQ)
 		return 0;
-	else if (seq1_before_seq2(seq, ctx->m_recvseq))
+	else if (seq1_before_seq2(seq, ctx->recvseq))
 		return 0;
 	else {
 		ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvpacketlist.head;
@@ -58,9 +58,9 @@ int dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 	cur = &packet->node._;
 	while (cur) {
 		packet = pod_container_of(cur, NetPacket_t, node);
-		if (ctx->m_recvseq != packet->seq)
+		if (ctx->recvseq != packet->seq)
 			break;
-		ctx->m_recvseq++;
+		ctx->recvseq++;
 		ctx->m_recvnode = &packet->node._;
 		cur = cur->next;
 	}
@@ -139,7 +139,7 @@ int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* 
 /*********************************************************************************/
 
 StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
-	ctx->m_recvseq = ctx->m_sendseq = ctx->cwndseq = initseq;
+	ctx->recvseq = ctx->m_sendseq = ctx->cwndseq = initseq;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
 	return ctx;
@@ -150,9 +150,9 @@ int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int
 		return 1;
 	if (pktype <= NETPACKET_ACK)
 		return 0;
-	if (seq1_before_seq2(seq, ctx->m_recvseq))
+	if (seq1_before_seq2(seq, ctx->recvseq))
 		return 0;
-	if (ctx->m_recvseq == seq)
+	if (ctx->recvseq == seq)
 		return 1;
 	return 0;
 }
@@ -163,17 +163,17 @@ int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 		packet->cached = 1;
 		return 1;
 	}
-	else if (seq1_before_seq2(packet->seq, ctx->m_recvseq)) {
+	else if (seq1_before_seq2(packet->seq, ctx->recvseq)) {
 		packet->cached = 0;
 		return 0;
 	}
-	else if (packet->seq != ctx->m_recvseq) {
+	else if (packet->seq != ctx->recvseq) {
 		packet->cached = 0;
 		return 0;
 	}
 	else {
 		listInsertNodeBack(&ctx->recvpacketlist, ctx->recvpacketlist.tail, &packet->node._);
-		ctx->m_recvseq++;
+		ctx->recvseq++;
 		packet->cached = 1;
 		return 1;
 	}

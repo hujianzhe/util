@@ -51,11 +51,11 @@ typedef struct DgramTransportCtx_t {
 	unsigned char cwndsize;
 	List_t recvpacketlist;
 	List_t sendpacketlist;
-	void* userdata;
+	unsigned int recvseq;
 	unsigned int cwndseq;
+	void* userdata;
 	/* private */
-	ListNode_t* m_recvnode;
-	unsigned int m_recvseq;
+	ListNode_t* m_recvnode;	
 	unsigned int m_sendseq;
 	unsigned int m_ackseq;
 } DgramTransportCtx_t;
@@ -63,10 +63,10 @@ typedef struct DgramTransportCtx_t {
 typedef struct StreamTransportCtx_t {
 	List_t recvpacketlist;
 	List_t sendpacketlist;
-	void* userdata;
+	unsigned int recvseq;
 	unsigned int cwndseq;
+	void* userdata;
 	/* private */
-	unsigned int m_recvseq;
 	unsigned int m_sendseq;
 } StreamTransportCtx_t;
 
