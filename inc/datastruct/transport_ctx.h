@@ -48,12 +48,12 @@ typedef struct NetPacket_t {
 } NetPacket_t;
 
 typedef struct DgramTransportCtx_t {
-	unsigned char cwndsize;
 	List_t recvpacketlist;
 	List_t sendpacketlist;
 	unsigned int recvseq;
 	unsigned int cwndseq;
 	void* userdata;
+	unsigned char cwndsize;
 	/* private */
 	ListNode_t* m_recvnode;
 	unsigned int m_sendseq;
@@ -66,6 +66,7 @@ typedef struct StreamTransportCtx_t {
 	unsigned int recvseq;
 	unsigned int cwndseq;
 	void* userdata;
+	unsigned char sendpacket_all_acked;
 	/* private */
 	unsigned int m_sendseq;
 } StreamTransportCtx_t;
@@ -91,7 +92,6 @@ __declspec_dll int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx);
 __declspec_dll unsigned int streamtransportctxNextSendSeq(StreamTransportCtx_t* ctx, int pktype);
 __declspec_dll int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket);
-__declspec_dll int streamtransportctxAllSendPacketIsAcked(StreamTransportCtx_t* ctx);
 __declspec_dll List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx);
 __declspec_dll List_t streamtransportctxRemoveAckAndResetSendPacket(StreamTransportCtx_t* ctx);
 

@@ -102,7 +102,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 				return 1;
 			channel->io->stream.has_recvfin = 1;
 			if (channel->io->stream.has_sendfin)
-				*err = streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
+				*err = channel->io->stream.ctx.sendpacket_all_acked ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 			else
 				channelSendFin(channel, timestamp_msec);
 		}
@@ -165,7 +165,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (!streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					return -1;
 				free(ackpk);
-				if (streamtransportctxAllSendPacketIsAcked(&channel->io->stream.ctx)) {
+				if (channel->io->stream.ctx.sendpacket_all_acked) {
 					NetPacket_t* packet = channel->m_stream_finpacket;
 					channel->m_stream_finpacket = NULL;
 					if (packet && reactorobjectSendStreamData(channel->io, packet->buf, packet->hdrlen + packet->bodylen, packet->type) < 0)
@@ -431,7 +431,7 @@ static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet
 			channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
 		if (NETPACKET_FIN != packet->type)
 			return 1;
-		return streamtransportctxAllSendPacketIsAcked(&o->stream.ctx);
+		return o->stream.ctx.sendpacket_all_acked;
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
@@ -721,7 +721,7 @@ static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp
 		return;
 	}
 	else {
-		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
+		int reason = o->stream.ctx.sendpacket_all_acked ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }
@@ -734,7 +734,7 @@ static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp
 	if (!o->stream.has_recvfin)
 		return;
 	else {
-		int reason = streamtransportctxAllSendPacketIsAcked(&o->stream.ctx) ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
+		int reason = o->stream.ctx.sendpacket_all_acked ? CHANNEL_DETACH_NORMAL : CHANNEL_DETACH_UNSENT;
 		channel_detach_handler(channel, reason, timestamp_msec);
 	}
 }

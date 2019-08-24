@@ -139,6 +139,7 @@ int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* 
 /*********************************************************************************/
 
 StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
+	ctx->sendpacket_all_acked = 1;
 	ctx->recvseq = ctx->m_sendseq = ctx->cwndseq = initseq;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
@@ -243,6 +244,7 @@ int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 	}
 	else {
 		packet->wait_ack = 1;
+		ctx->sendpacket_all_acked = 0;
 		listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node._);
 	}
 	packet->cached = 1;
@@ -269,19 +271,15 @@ int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int acks
 		listRemoveNode(&ctx->sendpacketlist, cur);
 		packet->cached = 0;
 		*ackpacket = packet;
+		for (cur = next; cur; cur = cur->next) {
+			packet = pod_container_of(cur, NetPacket_t, node);
+			if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ)
+				return 1;
+		}
+		ctx->sendpacket_all_acked = 1;
 		return 1;
 	}
 	return 0;
-}
-
-int streamtransportctxAllSendPacketIsAcked(StreamTransportCtx_t* ctx) {
-	ListNode_t* cur;
-	for (cur = ctx->sendpacketlist.head; cur; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ)
-			return 0;
-	}
-	return 1;
 }
 
 List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
