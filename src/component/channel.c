@@ -280,12 +280,15 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		unsigned char pktype;
 		unsigned int pkseq;
 
-		int from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
-		int from_listen;
+		int from_listen, from_peer;
 		if (channel->flag & CHANNEL_FLAG_CLIENT)
 			from_listen = sockaddrIsEqual(&channel->dgram.connect_addr, from_saddr);
 		else
 			from_listen = 0;
+		if (from_listen)
+			from_peer = 0;
+		else
+			from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
 		if (!from_peer && !from_listen)
 			return 1;
 
@@ -297,7 +300,24 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			return 1;
 		pktype = decode_result.pktype;
 		pkseq = decode_result.pkseq;
-		if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
+		if (from_listen) {
+			if (NETPACKET_SYN_ACK != pktype)
+				return 1;
+			if (decode_result.bodylen < sizeof(unsigned short))
+				return 1;
+			if (channel->dgram.m_synpacket) {
+				unsigned short port = *(unsigned short*)decode_result.bodyptr;
+				port = ntohs(port);
+				sockaddrSetPort(&channel->to_addr.st, port);
+				free(channel->dgram.m_synpacket);
+				channel->dgram.m_synpacket = NULL;
+				++channel->connected_times;
+				channel->reg(channel, timestamp_msec);
+			}
+			channel->reply_ack(channel, 0, from_saddr);
+			socketWrite(channel->io->fd, NULL, 0, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+		}
+		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->reply_ack(channel, pkseq, from_saddr);
 			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + decode_result.bodylen);
 			if (!packet)
@@ -315,23 +335,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						return 0;
 				}
 			}
-		}
-		else if (NETPACKET_SYN_ACK == pktype) {
-			if (!from_listen)
-				return 1;
-			if (decode_result.bodylen < sizeof(unsigned short))
-				return 1;
-			if (channel->dgram.m_synpacket) {
-				unsigned short port = *(unsigned short*)decode_result.bodyptr;
-				port = ntohs(port);
-				sockaddrSetPort(&channel->to_addr.st, port);
-				free(channel->dgram.m_synpacket);
-				channel->dgram.m_synpacket = NULL;
-				++channel->connected_times;
-				channel->reg(channel, timestamp_msec);
-			}
-			channel->reply_ack(channel, 0, from_saddr);
-			socketWrite(channel->io->fd, NULL, 0, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
 		else if (NETPACKET_ACK == pktype) {
 			ListNode_t* cur;
