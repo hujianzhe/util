@@ -46,6 +46,20 @@ void* memReverse(void* p, ptrlen_t len) {
 	return p;
 }
 
+unsigned short memCheckSum16(const void* buffer, int len) {
+	const unsigned short* pbuf = (const unsigned short*)buffer;
+	unsigned int cksum = 0;
+	while (len > 1) {
+		cksum += *pbuf++;
+		len -= sizeof(unsigned short);
+	}
+	if (len)
+		cksum += *(unsigned char*)pbuf;
+	cksum = (cksum >> 16) + (cksum & 0xFFFF);
+	cksum += (cksum >> 16);
+	return (unsigned short)(~cksum);
+}
+
 char* strSkipByte(const char* s, const char* delim) {
 	while (*s) {
 		const char* p = delim;

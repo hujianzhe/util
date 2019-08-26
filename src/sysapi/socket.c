@@ -16,21 +16,6 @@
 extern "C" {
 #endif
 
-/*
-static unsigned short check_sum(unsigned short* buffer, int iSize) {
-	unsigned long ulCksum = 0;
-	while (iSize > 1) {
-		ulCksum += *buffer++;
-		iSize -= sizeof(unsigned short);
-	}
-	if (iSize)
-		ulCksum += *(unsigned char*)buffer;
-	ulCksum = (ulCksum >> 16) + (ulCksum & 0xffff);
-	ulCksum += (ulCksum >> 16);
-	return (unsigned short)~ulCksum;
-}
-*/
-
 /* Network */
 #if defined(_WIN32) || defined(_WIN64)
 #define	__GetErrorCode()	GetLastError()
