@@ -573,6 +573,7 @@ BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned 
 			}
 			return FALSE;
 #else
+			len = INET_ADDRSTRLEN;
 			return inet_ntop(AF_INET, &addr_in->sin_addr, strIP, len) != NULL;
 #endif
 		}
@@ -598,6 +599,7 @@ BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned 
 			}
 			return FALSE;
 #else
+			len = INET6_ADDRSTRLEN;
 			return inet_ntop(AF_INET6, &addr_in6->sin6_addr, strIP, len) != NULL;
 #endif
 		}
