@@ -67,7 +67,6 @@ typedef struct StreamTransportCtx_t {
 	unsigned int cwndseq;
 	void* userdata;
 	unsigned char sendpacket_all_acked;
-	NetPacket_t* finpacket;
 	/* private */
 	unsigned int m_sendseq;
 } StreamTransportCtx_t;

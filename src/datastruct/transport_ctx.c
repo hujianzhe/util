@@ -141,7 +141,6 @@ int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* 
 StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->sendpacket_all_acked = 1;
 	ctx->recvseq = ctx->m_sendseq = ctx->cwndseq = initseq;
-	ctx->finpacket = (NetPacket_t*)0;
 	listInit(&ctx->recvpacketlist);
 	listInit(&ctx->sendpacketlist);
 	return ctx;
