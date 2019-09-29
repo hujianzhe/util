@@ -18,6 +18,7 @@ enum {
 	REACTOR_REG_CMD = 1,
 	REACTOR_INACTIVE_OBJECT_CMD,
 	REACTOR_FREE_OBJECT_CMD,
+	REACTOR_CHANNEL_ATTACH_CMD, /* ext channel module use */
 	REACTOR_CHANNEL_DETACH_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
 
@@ -76,7 +77,7 @@ typedef struct ReactorObject_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t inactivecmd;
 	ReactorCmd_t freecmd;
-	/* ext channel module use */
+	/* channel objcet list */
 	List_t channel_list;
 	/* interface */
 	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
@@ -101,6 +102,18 @@ typedef struct ReactorObject_t {
 	int m_inbufoff;
 	int m_inbuflen;
 } ReactorObject_t;
+
+typedef struct ChannelBase_t {
+	ReactorCmd_t node;
+	ReactorObject_t* o;
+	Sockaddr_t to_addr;
+	union {
+		StreamTransportCtx_t stream_ctx;
+		DgramTransportCtx_t dgram_ctx;
+	};
+	char attached;
+	ReactorCmd_t detachcmd;
+} ChannelBase_t;
 
 #ifdef	__cplusplus
 extern "C" {
