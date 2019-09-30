@@ -283,7 +283,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			o->m_inbuflen += res;
-			res = o->preread(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
+			res = o->on_read(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
 				reactorobject_invalid(o, timestamp_msec);
 				return;
@@ -327,7 +327,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 					reactorobject_invalid(o, timestamp_msec);
 				return;
 			}
-			if (o->preread(o, ptr, res, 0, timestamp_msec, &from_addr) < 0) {
+			if (o->on_read(o, ptr, res, 0, timestamp_msec, &from_addr) < 0) {
 				reactorobject_invalid(o, timestamp_msec);
 				return;
 			}
@@ -417,7 +417,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					reactor->cmd_free(&packet->node);
 				continue;
 			}
-			if (o->sendpacket_hook && !o->sendpacket_hook(o, packet, timestamp_msec))
+			if (o->pre_send && !o->pre_send(o, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM != o->socktype)
 				continue;
@@ -801,8 +801,8 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	listInit(&o->channel_list);
 	o->reg = NULL;
 	o->exec = NULL;
-	o->preread = NULL;
-	o->sendpacket_hook = NULL;
+	o->on_read = NULL;
+	o->pre_send = NULL;
 	o->writeev = NULL;
 	o->detach = NULL;
 	o->free = NULL;
@@ -832,8 +832,8 @@ ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o
 		new_o->stream.sendfin = old_o->stream.sendfin;
 		new_o->reg = old_o->reg;
 		new_o->exec = old_o->exec;
-		new_o->preread = old_o->preread;
-		new_o->sendpacket_hook = old_o->sendpacket_hook;
+		new_o->on_read = old_o->on_read;
+		new_o->pre_send = old_o->pre_send;
 		new_o->writeev = old_o->writeev;
 		new_o->detach = old_o->detach;
 	}

@@ -82,8 +82,8 @@ typedef struct ReactorObject_t {
 	/* interface */
 	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);
-	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	int(*sendpacket_hook)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
+	int(*on_read)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
+	int(*pre_send)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*detach)(struct ReactorObject_t* self);
 	void(*free)(struct ReactorObject_t* self);

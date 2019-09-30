@@ -380,7 +380,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	return 1;
 }
 
-static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
+static int reactorobject_on_read(ReactorObject_t* o, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
 	Channel_t* channel;
 	if (!o->channel_list.head)
 		return -1;
@@ -413,7 +413,7 @@ static int reactorobject_recv_handler(ReactorObject_t* o, unsigned char* buf, un
 	}
 }
 
-static int reactorobject_sendpacket_hook(ReactorObject_t* o, NetPacket_t* packet, long long timestamp_msec) {
+static int reactorobject_pre_send(ReactorObject_t* o, NetPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = (Channel_t*)packet->channel_object;
 	if (SOCK_STREAM == o->socktype) {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
@@ -767,8 +767,8 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int 
 	channel->m_initseq = initseq;
 	io->reg = reactorobject_reg_handler;
 	io->exec = reactorobject_exec_channel;
-	io->preread = reactorobject_recv_handler;
-	io->sendpacket_hook = reactorobject_sendpacket_hook;
+	io->on_read = reactorobject_on_read;
+	io->pre_send = reactorobject_pre_send;
 	listInsertNodeBack(&io->channel_list, io->channel_list.tail, &channel->node._);
 	return channel;
 }
