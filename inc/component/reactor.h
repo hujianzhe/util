@@ -105,7 +105,7 @@ typedef struct ReactorObject_t {
 
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
-	ReactorObject_t* o;
+	ReactorObject_t* io_object;
 	Sockaddr_t to_addr;
 	union {
 		StreamTransportCtx_t stream_ctx;

@@ -482,9 +482,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
 			ChannelBase_t* channelbase = pod_container_of(cmd, ChannelBase_t, regcmd);
-			ReactorObject_t* o = channelbase->o;
-			listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channelbase->regcmd._);
-			channelbase->attached = 1;
+			ReactorObject_t* o = channelbase->io_object;
+			if (!channelbase->attached) {
+				listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channelbase->regcmd._);
+				channelbase->attached = 1;
+			}
 			continue;
 		}
 
