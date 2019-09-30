@@ -59,7 +59,7 @@ static void channel_detach_handler(Channel_t* channel, int reason, long long tim
 	io = channel->io;
 	listRemoveNode(&io->channel_list, &channel->node._);
 	if (!io->channel_list.head)
-		reactorCommitCmd(io->reactor, &io->inactivecmd);
+		reactorCommitCmd(io->reactor, &io->detachcmd);
 	channel->detach(channel, reason);
 }
 
@@ -613,7 +613,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 		channel_detach_handler(channel, inactive_reason, timestamp_msec);
 	}
 	if (!o->channel_list.head)
-		reactorCommitCmd(o->reactor, &o->inactivecmd);
+		reactorCommitCmd(o->reactor, &o->detachcmd);
 }
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {

@@ -15,10 +15,10 @@
 #include "../datastruct/transport_ctx.h"
 
 enum {
-	REACTOR_REG_CMD = 1,
-	REACTOR_INACTIVE_OBJECT_CMD,
-	REACTOR_FREE_OBJECT_CMD,
-	REACTOR_CHANNEL_ATTACH_CMD, /* ext channel module use */
+	REACTOR_OBJECT_REG_CMD = 1,
+	REACTOR_OBJECT_DETACH_CMD,
+	REACTOR_OBJECT_FREE_CMD,
+	REACTOR_CHANNEL_REG_CMD, /* ext channel module use */
 	REACTOR_CHANNEL_DETACH_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
 
@@ -56,7 +56,7 @@ typedef struct ReactorObject_t {
 	int protocol;
 	Reactor_t* reactor;
 	void* userdata;
-	int invalid_timeout_msec;
+	int detach_timeout_msec;
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
 	struct {
@@ -75,7 +75,7 @@ typedef struct ReactorObject_t {
 		char m_listened;
 	} stream;
 	ReactorCmd_t regcmd;
-	ReactorCmd_t inactivecmd;
+	ReactorCmd_t detachcmd;
 	ReactorCmd_t freecmd;
 	/* channel objcet list */
 	List_t channel_list;
@@ -85,13 +85,13 @@ typedef struct ReactorObject_t {
 	int(*preread)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*sendpacket_hook)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*inactive)(struct ReactorObject_t* self);
+	void(*detach)(struct ReactorObject_t* self);
 	void(*free)(struct ReactorObject_t* self);
 /* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	Atom8_t m_reghaspost;
-	Atom8_t m_inactivehaspost;
+	Atom8_t m_detachhaspost;
 	char m_valid;
 	void* m_readol;
 	void* m_writeol;
@@ -104,7 +104,7 @@ typedef struct ReactorObject_t {
 } ReactorObject_t;
 
 typedef struct ChannelBase_t {
-	ReactorCmd_t node;
+	ReactorCmd_t regcmd;
 	ReactorObject_t* o;
 	Sockaddr_t to_addr;
 	union {

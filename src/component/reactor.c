@@ -58,15 +58,15 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 		free_io_resource(o);
 	}
 	o->m_invalid_msec = now_msec;
-	if (o->invalid_timeout_msec <= 0 ||
-		o->invalid_timeout_msec + o->m_invalid_msec <= now_msec)
+	if (o->detach_timeout_msec <= 0 ||
+		o->detach_timeout_msec + o->m_invalid_msec <= now_msec)
 	{
 		free_io_resource(o);
-		o->inactive(o);
+		o->detach(o);
 	}
 	else {
 		listInsertNodeBack(&o->reactor->m_invalidlist, o->reactor->m_invalidlist.tail, &o->m_invalidnode);
-		reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->invalid_timeout_msec);
+		reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->detach_timeout_msec);
 	}
 }
 
@@ -224,8 +224,8 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	for (cur = reactor->m_invalidlist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
-		if (o->m_invalid_msec + o->invalid_timeout_msec > now_msec) {
-			reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->invalid_timeout_msec);
+		if (o->m_invalid_msec + o->detach_timeout_msec > now_msec) {
+			reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
 			break;
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
@@ -235,7 +235,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	for (cur = invalidfreelist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
-		o->inactive(o);
+		o->detach(o);
 	}
 }
 
@@ -454,7 +454,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorobject_sendfin_check(o, timestamp_msec);
 			continue;
 		}
-		else if (REACTOR_REG_CMD == cmd->type) {
+		else if (REACTOR_OBJECT_REG_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
 			if (!reactor_reg_object(reactor, o)) {
 				o->m_valid = 0;
@@ -466,8 +466,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			o->reg(o, timestamp_msec);
 			continue;
 		}
-		else if (REACTOR_INACTIVE_OBJECT_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, inactivecmd);
+		else if (REACTOR_OBJECT_DETACH_CMD == cmd->type) {
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, detachcmd);
 			if (!o->m_valid)
 				continue;
 			reactorobject_invalid(o, timestamp_msec);
@@ -475,15 +475,15 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 			continue;
 		}
-		else if (REACTOR_FREE_OBJECT_CMD == cmd->type) {
+		else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 			reactorobject_free(o);
 			continue;
 		}
-		else if (REACTOR_CHANNEL_ATTACH_CMD == cmd->type) {
-			ChannelBase_t* channelbase = pod_container_of(cmd, ChannelBase_t, node);
+		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
+			ChannelBase_t* channelbase = pod_container_of(cmd, ChannelBase_t, regcmd);
 			ReactorObject_t* o = channelbase->o;
-			listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channelbase->node._);
+			listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channelbase->regcmd._);
 			channelbase->attached = 1;
 			continue;
 		}
@@ -565,7 +565,7 @@ void reactorWake(Reactor_t* reactor) {
 }
 
 void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
-	if (REACTOR_REG_CMD == cmdnode->type) {
+	if (REACTOR_OBJECT_REG_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, regcmd);
 		if (_xchg8(&o->m_reghaspost, 1))
 			return;
@@ -576,23 +576,23 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (SOCK_STREAM != o->socktype || _xchg8(&o->stream.m_sendfincmdhaspost, 1))
 			return;
 	}
-	else if (REACTOR_INACTIVE_OBJECT_CMD == cmdnode->type) {
-		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, inactivecmd);
-		if (!o->m_reghaspost || _xchg8(&o->m_inactivehaspost, 1))
+	else if (REACTOR_OBJECT_DETACH_CMD == cmdnode->type) {
+		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, detachcmd);
+		if (!o->m_reghaspost || _xchg8(&o->m_detachhaspost, 1))
 			return;
 		if (threadEqual(reactor->m_runthread, threadSelf())) {
 			if (o->m_valid) {
 				o->m_valid = 0;
 				o->m_invalid_msec = gmtimeMillisecond();
-				if (o->invalid_timeout_msec > 0)
-					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->invalid_timeout_msec);
+				if (o->detach_timeout_msec > 0)
+					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->detach_timeout_msec);
 				else
 					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec);
 			}
 			return;
 		}
 	}
-	else if (REACTOR_FREE_OBJECT_CMD == cmdnode->type) {
+	else if (REACTOR_OBJECT_FREE_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, freecmd);
 		if (!o->m_reghaspost || !reactor) {
 			reactorobject_free(o);
@@ -712,7 +712,7 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
 			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 			next = cur->next;
-			if (REACTOR_FREE_OBJECT_CMD == cmd->type) {
+			if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 				reactorobject_free(o);
 			}
@@ -783,7 +783,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
-	o->invalid_timeout_msec = 0;
+	o->detach_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	o->m_valid = 1;
 	if (SOCK_STREAM == socktype) {
@@ -795,20 +795,20 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	else {
 		o->read_fragment_size = 1464;
 	}
-	o->regcmd.type = REACTOR_REG_CMD;
-	o->inactivecmd.type = REACTOR_INACTIVE_OBJECT_CMD;
-	o->freecmd.type = REACTOR_FREE_OBJECT_CMD;
+	o->regcmd.type = REACTOR_OBJECT_REG_CMD;
+	o->detachcmd.type = REACTOR_OBJECT_DETACH_CMD;
+	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 	listInit(&o->channel_list);
 	o->reg = NULL;
 	o->exec = NULL;
 	o->preread = NULL;
 	o->sendpacket_hook = NULL;
 	o->writeev = NULL;
-	o->inactive = NULL;
+	o->detach = NULL;
 	o->free = NULL;
 
 	o->m_reghaspost = 0;
-	o->m_inactivehaspost = 0;
+	o->m_detachhaspost = 0;
 	o->m_hashnode.key = &o->fd;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
@@ -835,7 +835,7 @@ ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o
 		new_o->preread = old_o->preread;
 		new_o->sendpacket_hook = old_o->sendpacket_hook;
 		new_o->writeev = old_o->writeev;
-		new_o->inactive = old_o->inactive;
+		new_o->detach = old_o->detach;
 	}
 	return new_o;
 }
