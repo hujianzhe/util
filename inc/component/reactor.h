@@ -116,9 +116,9 @@ typedef struct ChannelBase_t {
 	/* interface */
 	union {
 		void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-		void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec);
+		void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
 	};
-	void(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
+	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*detach)(struct ChannelBase_t* self, int reason);
 } ChannelBase_t;
 
