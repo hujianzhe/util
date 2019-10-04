@@ -359,9 +359,14 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 				reactorobject_sendfin_direct_handler(o, timestamp_msec, 0);
 			continue;
 		}
-		busy = 1;
-		reactorobject_request_write(o);
-		break;
+		if (reactorobject_request_write(o)) {
+			busy = 1;
+			break;
+		}
+		else {
+			o->m_valid = 0;
+			return;
+		}
 	}
 	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
 	for (cur = finishedlist.head; cur; cur = next) {
