@@ -255,7 +255,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 	if (SOCK_STREAM == o->socktype) {
 		int res = socketTcpReadableBytes(o->fd);
 		if (res < 0) {
-			reactorobject_invalid(o, timestamp_msec);
+			o->m_valid = 0;
 			return;
 		}
 		else if (0 == res) {
@@ -266,14 +266,14 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 		else {
 			unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res);
 			if (!ptr) {
-				reactorobject_invalid(o, timestamp_msec);
+				o->m_valid = 0;
 				return;
 			}
 			o->m_inbuf = ptr;
 			res = socketRead(o->fd, o->m_inbuf + o->m_inbufoff, res, 0, &from_addr.st);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
-					reactorobject_invalid(o, timestamp_msec);
+					o->m_valid = 0;
 				}
 				return;
 			}
@@ -285,7 +285,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			o->m_inbuflen += res;
 			res = o->on_read(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
-				reactorobject_invalid(o, timestamp_msec);
+				o->m_valid = 0;
 				return;
 			}
 			o->m_inbufoff = res;
@@ -304,7 +304,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				if (!o->m_inbuf) {
 					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size);
 					if (!o->m_inbuf) {
-						reactorobject_invalid(o, timestamp_msec);
+						o->m_valid = 0;
 						return;
 					}
 					o->m_inbuflen = o->read_fragment_size;
@@ -324,11 +324,11 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK)
-					reactorobject_invalid(o, timestamp_msec);
+					o->m_valid = 0;
 				return;
 			}
 			if (o->on_read(o, ptr, res, 0, timestamp_msec, &from_addr) < 0) {
-				reactorobject_invalid(o, timestamp_msec);
+				o->m_valid = 0;
 				return;
 			}
 		}
@@ -348,7 +348,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
-				reactorobject_invalid(o, timestamp_msec);
+				o->m_valid = 0;
 				return;
 			}
 			res = 0;
@@ -378,26 +378,21 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 }
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
-	int err, ok;
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
 	}
 	if (!nioConnectCheckSuccess(o->fd)) {
-		err = errnoGet();
-		ok = 0;
+		return 0;
 	}
 	else if (!reactorobject_request_read(o)) {
-		err = errnoGet();
-		ok = 0;
+		return 0;
 	}
 	else {
-		err = 0;
-		ok = 1;
 		o->stream.m_connected = 1;
 		o->reg(o, timestamp_msec);
+		return 1;
 	}
-	return ok;
 }
 
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
@@ -429,7 +424,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
 				if (res < 0) {
 					if (errnoGet() != EWOULDBLOCK) {
-						reactorobject_invalid(o, timestamp_msec);
+						o->m_valid = 0;
+						hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
+						reactorobject_invalid_inner_handler(o, timestamp_msec);
 						continue;
 					}
 					res = 0;
@@ -470,7 +467,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, detachcmd);
 			if (!o->m_valid)
 				continue;
-			reactorobject_invalid(o, timestamp_msec);
+			o->m_valid = 0;
 			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 			continue;
