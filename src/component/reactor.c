@@ -175,7 +175,7 @@ static void reactorobject_recvfin_handler(ReactorObject_t* o, long long timestam
 	if (o->stream.recvfin)
 		o->stream.recvfin(o, timestamp_msec);
 	if (o->stream.has_sendfin)
-		reactorobject_invalid(o, timestamp_msec);
+		o->m_valid = 0;
 }
 
 static void reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec, int call_shutdown) {

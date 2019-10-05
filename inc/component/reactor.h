@@ -111,6 +111,8 @@ typedef struct ChannelBase_t {
 		StreamTransportCtx_t stream_ctx;
 		DgramTransportCtx_t dgram_ctx;
 	};
+	char has_recvfin;
+	char has_sendfin;
 	char attached;
 	ReactorCmd_t detachcmd;
 	/* interface */
