@@ -178,11 +178,9 @@ static void reactorobject_recvfin_handler(ReactorObject_t* o, long long timestam
 		o->m_valid = 0;
 }
 
-static void reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec, int call_shutdown) {
+static void reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
 	if (o->stream.has_sendfin)
 		return;
-	if (call_shutdown)
-		socketShutdown(o->fd, SHUT_WR);
 	o->stream.has_sendfin = 1;
 	if (o->stream.sendfin)
 		o->stream.sendfin(o, timestamp_msec);
@@ -197,7 +195,8 @@ static void reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_
 		o->stream.m_sendfinwait = 1;
 		return;
 	}
-	reactorobject_sendfin_direct_handler(o, timestamp_msec, 1);
+	socketShutdown(o->fd, SHUT_WR);
+	reactorobject_sendfin_direct_handler(o, timestamp_msec);
 }
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
@@ -356,7 +355,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
 			if (NETPACKET_FIN == packet->type)
-				reactorobject_sendfin_direct_handler(o, timestamp_msec, 0);
+				reactorobject_sendfin_direct_handler(o, timestamp_msec);
 			continue;
 		}
 		if (reactorobject_request_write(o)) {
@@ -379,7 +378,8 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		return;
 	if (!o->stream.m_sendfinwait)
 		return;
-	reactorobject_sendfin_direct_handler(o, timestamp_msec, 1);
+	socketShutdown(o->fd, SHUT_WR);
+	reactorobject_sendfin_direct_handler(o, timestamp_msec);
 }
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
@@ -446,7 +446,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				continue;
 			}
 			if (NETPACKET_FIN == packet->type)
-				reactorobject_sendfin_direct_handler(o, timestamp_msec, 0);
+				reactorobject_sendfin_direct_handler(o, timestamp_msec);
 			if (reactor->cmd_free)
 				reactor->cmd_free(&packet->node);
 			continue;
@@ -890,7 +890,7 @@ int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned in
 			}
 			if (res >= len) {
 				if (NETPACKET_FIN == pktype)
-					reactorobject_sendfin_direct_handler(o, gmtimeMillisecond(), 0);
+					reactorobject_sendfin_direct_handler(o, gmtimeMillisecond());
 				return res;
 			}
 		}
