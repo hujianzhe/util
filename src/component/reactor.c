@@ -439,6 +439,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (packet->off < packet->hdrlen + packet->bodylen) {
 					if (!reactorobject_request_write(o)) {
 						o->m_valid = 0;
+						hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 				}
