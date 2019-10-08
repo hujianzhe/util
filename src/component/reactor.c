@@ -47,19 +47,18 @@ static void reactorobject_free(ReactorObject_t* o) {
 }
 
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
-	if (SOCK_STREAM == o->socktype) {
-		free_io_resource(o);
-	}
 	o->m_invalid_msec = now_msec;
-	if (o->detach_timeout_msec <= 0 ||
-		o->detach_timeout_msec + o->m_invalid_msec <= now_msec)
-	{
+	if (SOCK_STREAM == o->socktype)
 		free_io_resource(o);
+	if (o->detach_timeout_msec <= 0) {
+		if (SOCK_STREAM != o->socktype)
+			free_io_resource(o);
 		o->detach(o);
 	}
 	else {
-		listInsertNodeBack(&o->reactor->m_invalidlist, o->reactor->m_invalidlist.tail, &o->m_invalidnode);
-		reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->detach_timeout_msec);
+		Reactor_t* reactor = o->reactor;
+		listInsertNodeBack(&reactor->m_invalidlist, reactor->m_invalidlist.tail, &o->m_invalidnode);
+		reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
 	}
 }
 
@@ -220,7 +219,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		next = cur->next;
 		if (o->m_invalid_msec + o->detach_timeout_msec > now_msec) {
 			reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
-			break;
+			continue; /* not use timer heap, so continue,,,,this is temp... */
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
 		free_io_resource(o);
