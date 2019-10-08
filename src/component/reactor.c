@@ -107,7 +107,7 @@ static int reactorobject_request_write(ReactorObject_t* o) {
 	return 0;
 }
 
-static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
+static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 	o->reactor = reactor;
 	if (!nioReg(&reactor->m_nio, o->fd))
 		return 0;
@@ -156,7 +156,6 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o) {
 		if (!reactorobject_request_read(o))
 			return 0;
 	}
-	hashtableReplaceNode(hashtableInsertNode(&reactor->m_objht, &o->m_hashnode), &o->m_hashnode);
 	return 1;
 }
 
@@ -457,10 +456,19 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_OBJECT_REG_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
-			if (!reactor_reg_object(reactor, o)) {
+			if (!reactor_reg_object_check(reactor, o)) {
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 				continue;
+			}
+			else {
+				HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
+				if (htnode != &o->m_hashnode) {
+					ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
+					hashtableReplaceNode(htnode, &o->m_hashnode);
+					exist_o->m_valid = 0;
+					reactorobject_invalid_inner_handler(exist_o, timestamp_msec);
+				}
 			}
 			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
