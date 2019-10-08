@@ -58,9 +58,9 @@ static void channel_detach_handler(Channel_t* channel, int reason, long long tim
 	channel->detach_reason = reason;
 	io = channel->io;
 	listRemoveNode(&io->channel_list, &channel->node._);
+	channel->detach(channel, reason);
 	if (!io->channel_list.head)
 		reactorCommitCmd(io->reactor, &io->detachcmd);
-	channel->detach(channel, reason);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
