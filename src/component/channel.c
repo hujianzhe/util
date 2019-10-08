@@ -600,6 +600,10 @@ static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_ms
 
 static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_msec, long long ev_msec) {
 	ListNode_t* cur, *next;
+	if (!o->channel_list.head) {
+		o->m_valid = 0;
+		return;
+	}
 	for (cur = o->channel_list.head; cur; cur = next) {
 		int inactive_reason;
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
@@ -612,8 +616,6 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 			continue;
 		channel_detach_handler(channel, inactive_reason, timestamp_msec);
 	}
-	if (!o->channel_list.head)
-		reactorCommitCmd(o->reactor, &o->detachcmd);
 }
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
