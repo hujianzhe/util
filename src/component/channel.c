@@ -608,8 +608,10 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 		int inactive_reason;
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
 		next = cur->next;
-		if (ev_msec < channel->m_event_msec)
+		if (timestamp_msec < channel->m_event_msec) {
+			reactorSetEventTimestamp(channel->io->reactor, channel->m_event_msec);
 			continue;
+		}
 		channel->m_event_msec = 0;
 		inactive_reason = channel_event_handler(channel, timestamp_msec);
 		if (!inactive_reason)
