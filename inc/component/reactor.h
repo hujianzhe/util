@@ -93,6 +93,7 @@ typedef struct ReactorObject_t {
 	Atom8_t m_reghaspost;
 	Atom8_t m_detachhaspost;
 	char m_valid;
+	char m_hashnode_has_insert;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;

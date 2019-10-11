@@ -48,6 +48,10 @@ static void reactorobject_free(ReactorObject_t* o) {
 
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
 	o->m_invalid_msec = now_msec;
+	if (o->m_hashnode_has_insert) {
+		o->m_hashnode_has_insert = 0;
+		hashtableRemoveNode(&o->reactor->m_objht, &o->m_hashnode);
+	}
 	if (SOCK_STREAM == o->socktype)
 		free_io_resource(o);
 	if (o->detach_timeout_msec <= 0) {
@@ -169,27 +173,24 @@ static void reactorobject_recvfin_handler(ReactorObject_t* o, long long timestam
 		o->m_valid = 0;
 }
 
-static void reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
-	if (o->stream.has_sendfin)
-		return;
-	o->stream.has_sendfin = 1;
-	if (o->stream.sendfin)
-		o->stream.sendfin(o, timestamp_msec);
-	if (o->stream.has_recvfin) {
-		o->m_valid = 0;
-		o->m_invalid_msec = timestamp_msec;
+static int reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
+	if (!o->stream.has_sendfin) {
+		o->stream.has_sendfin = 1;
+		if (o->stream.sendfin)
+			o->stream.sendfin(o, timestamp_msec);
 	}
+	return o->stream.has_recvfin;
 }
 
-static void reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_msec) {
+static int reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_msec) {
 	if (o->stream.has_sendfin)
-		return;
+		return o->stream.has_recvfin;
 	if (streamtransportctxSendCheckBusy(&o->stream.ctx)) {
 		o->stream.m_sendfinwait = 1;
-		return;
+		return 0;
 	}
 	socketShutdown(o->fd, SHUT_WR);
-	reactorobject_sendfin_direct_handler(o, timestamp_msec);
+	return reactorobject_sendfin_direct_handler(o, timestamp_msec);
 }
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
@@ -204,7 +205,6 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 			if (o->m_valid)
 				continue;
 		}
-		hashtableRemoveNode(&reactor->m_objht, cur);
 		reactorobject_invalid_inner_handler(o, now_msec);
 	}
 }
@@ -252,7 +252,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 		}
 		else if (0 == res) {
 			reactorobject_recvfin_handler(o, timestamp_msec);
-			reactorobject_sendfin_check(o, timestamp_msec);
+			if (reactorobject_sendfin_check(o, timestamp_msec))
+				o->m_valid = 0;
 			return;
 		}
 		else {
@@ -271,7 +272,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			}
 			else if (0 == res) {
 				reactorobject_recvfin_handler(o, timestamp_msec);
-				reactorobject_sendfin_check(o, timestamp_msec);
+				if (reactorobject_sendfin_check(o, timestamp_msec))
+					o->m_valid = 0;
 				return;
 			}
 			o->m_inbuflen += res;
@@ -347,8 +349,11 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		}
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			if (NETPACKET_FIN == packet->type)
-				reactorobject_sendfin_direct_handler(o, timestamp_msec);
+			if (NETPACKET_FIN == packet->type &&
+				reactorobject_sendfin_direct_handler(o, timestamp_msec))
+			{
+				o->m_valid = 0;
+			}
 			continue;
 		}
 		if (reactorobject_request_write(o)) {
@@ -372,7 +377,8 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	if (!o->stream.m_sendfinwait)
 		return;
 	socketShutdown(o->fd, SHUT_WR);
-	reactorobject_sendfin_direct_handler(o, timestamp_msec);
+	if (reactorobject_sendfin_direct_handler(o, timestamp_msec))
+		o->m_valid = 0;
 }
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
@@ -423,7 +429,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (res < 0) {
 					if (errnoGet() != EWOULDBLOCK) {
 						o->m_valid = 0;
-						hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 						continue;
 					}
@@ -437,21 +442,27 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (packet->off < packet->hdrlen + packet->bodylen) {
 					if (!reactorobject_request_write(o)) {
 						o->m_valid = 0;
-						hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 				}
 				continue;
 			}
-			if (NETPACKET_FIN == packet->type)
-				reactorobject_sendfin_direct_handler(o, timestamp_msec);
+			if (NETPACKET_FIN == packet->type &&
+				reactorobject_sendfin_direct_handler(o, timestamp_msec))
+			{
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+			}
 			if (reactor->cmd_free)
 				reactor->cmd_free(&packet->node);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
-			reactorobject_sendfin_check(o, timestamp_msec);
+			if (reactorobject_sendfin_check(o, timestamp_msec)) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+			}
 			continue;
 		}
 		else if (REACTOR_OBJECT_REG_CMD == cmd->type) {
@@ -467,8 +478,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
 					hashtableReplaceNode(htnode, &o->m_hashnode);
 					exist_o->m_valid = 0;
+					exist_o->m_hashnode_has_insert = 0;
 					reactorobject_invalid_inner_handler(exist_o, timestamp_msec);
 				}
+				o->m_hashnode_has_insert = 1;
 			}
 			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
 				continue;
@@ -480,7 +493,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (!o->m_valid)
 				continue;
 			o->m_valid = 0;
-			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 			continue;
 		}
@@ -698,7 +710,6 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			}
 			if (o->m_valid)
 				continue;
-			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, timestamp_msec);
 		}
 	}
@@ -796,7 +807,6 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->userdata = NULL;
 	o->detach_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
-	o->m_valid = 1;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		streamtransportctxInit(&o->stream.ctx, 0);
@@ -818,9 +828,11 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->detach = NULL;
 	o->free = NULL;
 
+	o->m_hashnode.key = &o->fd;
 	o->m_reghaspost = 0;
 	o->m_detachhaspost = 0;
-	o->m_hashnode.key = &o->fd;
+	o->m_valid = 1;
+	o->m_hashnode_has_insert = 0;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_invalid_msec = 0;
@@ -896,8 +908,13 @@ int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned in
 				res = 0;
 			}
 			if (res >= len) {
-				if (NETPACKET_FIN == pktype)
-					reactorobject_sendfin_direct_handler(o, gmtimeMillisecond());
+				long long now_msec = gmtimeMillisecond();
+				if (NETPACKET_FIN == pktype &&
+					reactorobject_sendfin_direct_handler(o, now_msec))
+				{
+					o->m_valid = 0;
+					reactorobject_invalid_inner_handler(o, now_msec);
+				}
 				return res;
 			}
 		}
@@ -907,7 +924,6 @@ int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned in
 		streamtransportctxCacheSendPacket(&o->stream.ctx, packet);
 		if (!reactorobject_request_write(o)) {
 			o->m_valid = 0;
-			hashtableRemoveNode(&o->reactor->m_objht, &o->m_hashnode);
 			reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
 			return -1;
 		}
