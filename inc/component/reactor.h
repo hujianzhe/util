@@ -109,7 +109,11 @@ typedef struct ChannelBase_t {
 	ReactorObject_t* io_object;
 	Sockaddr_t to_addr;
 	union {
-		StreamTransportCtx_t stream_ctx;
+		struct {
+			StreamTransportCtx_t stream_ctx;
+			void(*stream_recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
+			void(*stream_sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+		};
 		DgramTransportCtx_t dgram_ctx;
 	};
 	char has_recvfin;
