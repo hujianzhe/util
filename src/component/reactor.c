@@ -7,6 +7,16 @@
 #include "../../inc/sysapi/time.h"
 #include <stdlib.h>
 
+#define	socketAllChannelDoAction(o, var_name, do_action)\
+do {\
+	ListNode_t* cur, *next;\
+	for (cur = (o)->channel_list.head; cur; cur = next) {\
+		var_name = pod_container_of(cur, ChannelBase_t, regcmd._);\
+		next = cur->next;\
+		do_action\
+	}\
+} while (0)
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
