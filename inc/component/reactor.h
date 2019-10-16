@@ -127,6 +127,7 @@ typedef struct ChannelBase_t {
 	};
 	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*detach)(struct ChannelBase_t* self, int reason);
+	int(*pre_send)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
 } ChannelBase_t;
 
 #ifdef	__cplusplus
