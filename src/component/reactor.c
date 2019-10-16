@@ -243,6 +243,58 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	}
 }
 
+static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec) {
+	int busy = 0;
+	List_t finishedlist;
+	ListNode_t* cur, *next;
+	StreamTransportCtx_t* ctxptr = &o->stream.ctx;
+	for (cur = ctxptr->sendpacketlist.head; cur; cur = cur->next) {
+		int res;
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		if (packet->off >= packet->hdrlen + packet->bodylen)
+			continue;
+		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				o->m_valid = 0;
+				return;
+			}
+			res = 0;
+		}
+		packet->off += res;
+		if (packet->off >= packet->hdrlen + packet->bodylen) {
+			if (NETPACKET_FIN == packet->type &&
+				reactorobject_sendfin_direct_handler(o, timestamp_msec))
+			{
+				o->m_valid = 0;
+			}
+			continue;
+		}
+		if (reactorobject_request_write(o)) {
+			busy = 1;
+			break;
+		}
+		else {
+			o->m_valid = 0;
+			return;
+		}
+	}
+	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
+	for (cur = finishedlist.head; cur; cur = next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		next = cur->next;
+		if (o->reactor->cmd_free)
+			o->reactor->cmd_free(&packet->node);
+	}
+	if (busy)
+		return;
+	if (!o->stream.m_sendfinwait)
+		return;
+	socketShutdown(o->fd, SHUT_WR);
+	if (reactorobject_sendfin_direct_handler(o, timestamp_msec))
+		o->m_valid = 0;
+}
+
 static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t saddr;
 	FD_t connfd;
@@ -297,8 +349,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
-			if (o->stream.finpacket && o->stream.ctx.sendpacket_all_acked)
-				reactorCommitCmd(o->reactor, &o->stream.finpacket->node);
+			if (o->stream.m_sendfinwait && o->stream.ctx.sendpacket_all_acked)
+				reactor_stream_writeev(o, timestamp_msec);
 		}
 	}
 	else {
@@ -341,58 +393,6 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 	}
 }
 
-static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec) {
-	int busy = 0;
-	List_t finishedlist;
-	ListNode_t* cur, *next;
-	StreamTransportCtx_t* ctxptr = &o->stream.ctx;
-	for (cur = ctxptr->sendpacketlist.head; cur; cur = cur->next) {
-		int res;
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (packet->off >= packet->hdrlen + packet->bodylen)
-			continue;
-		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				o->m_valid = 0;
-				return;
-			}
-			res = 0;
-		}
-		packet->off += res;
-		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			if (NETPACKET_FIN == packet->type &&
-				reactorobject_sendfin_direct_handler(o, timestamp_msec))
-			{
-				o->m_valid = 0;
-			}
-			continue;
-		}
-		if (reactorobject_request_write(o)) {
-			busy = 1;
-			break;
-		}
-		else {
-			o->m_valid = 0;
-			return;
-		}
-	}
-	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
-	for (cur = finishedlist.head; cur; cur = next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		next = cur->next;
-		if (o->reactor->cmd_free)
-			o->reactor->cmd_free(&packet->node);
-	}
-	if (busy)
-		return;
-	if (!o->stream.m_sendfinwait)
-		return;
-	socketShutdown(o->fd, SHUT_WR);
-	if (reactorobject_sendfin_direct_handler(o, timestamp_msec))
-		o->m_valid = 0;
-}
-
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
@@ -433,7 +433,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (SOCK_STREAM != o->socktype)
 				continue;
 			if (NETPACKET_FIN == packet->type && !o->stream.ctx.sendpacket_all_acked) {
-				o->stream.finpacket = packet;
+				o->stream.m_sendfinwait = 1;
+				streamtransportctxCacheSendPacket(&o->stream.ctx, packet);
 				continue;
 			}
 			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
@@ -448,8 +449,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				packet->off = res;
 			}
-			if (NETPACKET_FIN == packet->type)
-				o->stream.finpacket = NULL;
 			if (streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
 				if (packet->off < packet->hdrlen + packet->bodylen) {
 					if (!reactorobject_request_write(o)) {

@@ -845,8 +845,6 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		free(channel->io->stream.finpacket);
-		channel->io->stream.finpacket = NULL;
 		channel_free_packetlist(&channel->io->stream.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->io->stream.ctx.sendpacketlist);
 	}

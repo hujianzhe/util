@@ -64,7 +64,6 @@ typedef struct ReactorObject_t {
 		Sockaddr_t connect_addr;
 		StreamTransportCtx_t ctx;
 		ReactorCmd_t sendfincmd;
-		NetPacket_t* finpacket;
 		void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
 		void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
 		char has_recvfin;
