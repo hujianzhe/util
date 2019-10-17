@@ -58,7 +58,7 @@ typedef struct Channel_t {
 			/* client use */
 			struct {
 				Sockaddr_t connect_addr;
-				NetPacket_t* m_synpacket;
+				ReactorPacket_t* m_synpacket;
 			};
 		};
 		struct {

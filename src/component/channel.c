@@ -65,24 +65,24 @@ static void channel_detach_handler(Channel_t* channel, int reason, long long tim
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
-	NetPacket_t* packet;
+	ReactorPacket_t* packet;
 	ListNode_t* cur, *next;
 	unsigned int off;
 	off = 0;
 	for (cur = list->head; cur; cur = next) {
-		packet = pod_container_of(cur, NetPacket_t, node);
+		packet = pod_container_of(cur, ReactorPacket_t, _.node);
 		next = cur->next;
-		off += packet->bodylen;
+		off += packet->_.bodylen;
 	}
 	ptr = (unsigned char*)malloc(off);
 	if (ptr) {
 		*mergelen = off;
 		off = 0;
 		for (cur = list->head; cur; cur = next) {
-			packet = pod_container_of(cur, NetPacket_t, node);
+			packet = pod_container_of(cur, ReactorPacket_t, _.node);
 			next = cur->next;
-			memcpy(ptr + off, packet->buf + packet->hdrlen, packet->bodylen);
-			off += packet->bodylen;
+			memcpy(ptr + off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+			off += packet->_.bodylen;
 			free(packet);
 		}
 	}
@@ -90,12 +90,12 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 }
 
 static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, long long timestamp_msec, int* err, ChannelInbufDecodeResult_t* decode_result) {
-	NetPacket_t* packet = pod_container_of(packetlist->tail, NetPacket_t, node);
-	if (NETPACKET_FIN == packet->type) {
+	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
+	if (NETPACKET_FIN == packet->_.type) {
 		ListNode_t* cur, *next;
 		for (cur = packetlist->head; cur; cur = next) {
 			next = cur->next;
-			free(pod_container_of(cur, NetPacket_t, node));
+			free(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
 		if (channel->flag & CHANNEL_FLAG_STREAM) {
 			if (channel->io->stream.has_recvfin)
@@ -140,19 +140,19 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			unsigned char pktype = decode_result.pktype;
 			unsigned int pkseq = decode_result.pkseq;
 			if (streamtransportctxRecvCheck(&channel->io->stream.ctx, pkseq, pktype)) {
-				NetPacket_t* packet;
+				ReactorPacket_t* packet;
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->reply_ack(channel, pkseq, &channel->to_addr);
-				packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + decode_result.bodylen);
+				packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + decode_result.bodylen);
 				if (!packet)
 					return -1;
 				memset(packet, 0, sizeof(*packet));
-				packet->type = pktype;
-				packet->seq = pkseq;
-				packet->bodylen = decode_result.bodylen;
-				memcpy(packet->buf, decode_result.bodyptr, packet->bodylen);
-				packet->buf[packet->bodylen] = 0;
-				if (streamtransportctxCacheRecvPacket(&channel->io->stream.ctx, packet)) {
+				packet->_.type = pktype;
+				packet->_.seq = pkseq;
+				packet->_.bodylen = decode_result.bodylen;
+				memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
+				packet->_.buf[packet->_.bodylen] = 0;
+				if (streamtransportctxCacheRecvPacket(&channel->io->stream.ctx, &packet->_)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(&channel->io->stream.ctx, &list)) {
 						if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err, &decode_result))
@@ -164,7 +164,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				NetPacket_t* ackpk = NULL;
 				if (!streamtransportctxAckSendPacket(&channel->io->stream.ctx, pkseq, &ackpk))
 					return -1;
-				free(ackpk);
+				free(pod_container_of(ackpk, ReactorPacket_t, _));
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->reply_ack(channel, pkseq, &channel->to_addr);
@@ -276,7 +276,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr, int* err) {
 	ChannelInbufDecodeResult_t decode_result;
 	if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-		NetPacket_t* packet;
+		ReactorPacket_t* packet;
 		unsigned char pktype;
 		unsigned int pkseq;
 
@@ -319,16 +319,16 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->reply_ack(channel, pkseq, from_saddr);
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + decode_result.bodylen);
+			packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + decode_result.bodylen);
 			if (!packet)
 				return 0;
 			memset(packet, 0, sizeof(*packet));
-			packet->type = pktype;
-			packet->seq = pkseq;
-			packet->bodylen = decode_result.bodylen;
-			memcpy(packet->buf, decode_result.bodyptr, packet->bodylen);
-			packet->buf[packet->bodylen] = 0;
-			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, packet)) {
+			packet->_.type = pktype;
+			packet->_.seq = pkseq;
+			packet->_.bodylen = decode_result.bodylen;
+			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
+			packet->_.buf[packet->_.bodylen] = 0;
+			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, &packet->_)) {
 				List_t list;
 				while (dgramtransportctxMergeRecvPacket(&channel->dgram.ctx, &list)) {
 					if (!channel_merge_packet_handler(channel, &list, timestamp_msec, err, &decode_result))
@@ -339,25 +339,26 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else if (NETPACKET_ACK == pktype) {
 			ListNode_t* cur;
 			int cwndskip;
-			packet = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
-			if (!packet)
+			NetPacket_t* packetbase = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
+			if (!packetbase)
 				return 1;
-			if (NETPACKET_FIN == packet->type && channel->dgram.has_recvfin)
+			packet = pod_container_of(packetbase, ReactorPacket_t, _);
+			if (NETPACKET_FIN == packet->_.type && channel->dgram.has_recvfin)
 				*err = CHANNEL_DETACH_NORMAL;
 			free(packet);
 			if (cwndskip) {
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
-					packet = pod_container_of(cur, NetPacket_t, node);
-					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
+					packet = pod_container_of(cur, ReactorPacket_t, _.node);
+					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
 						break;
-					if (NETPACKET_FIN == packet->type)
+					if (NETPACKET_FIN == packet->_.type)
 						channel->dgram.has_sendfin = 1;
-					if (packet->wait_ack && packet->resend_msec > timestamp_msec)
+					if (packet->_.wait_ack && packet->_.resend_msec > timestamp_msec)
 						continue;
-					packet->wait_ack = 1;
-					packet->resend_msec = timestamp_msec + channel->dgram.rto;
-					channel_set_timestamp(channel, packet->resend_msec);
-					socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+					packet->_.wait_ack = 1;
+					packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+					channel_set_timestamp(channel, packet->_.resend_msec);
+					socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 				}
 			}
 		}
@@ -413,35 +414,35 @@ static int reactorobject_on_read(ReactorObject_t* o, unsigned char* buf, unsigne
 	}
 }
 
-static int reactorobject_pre_send(ReactorObject_t* o, NetPacket_t* packet, long long timestamp_msec) {
-	Channel_t* channel = (Channel_t*)packet->channel_object;
+static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, long long timestamp_msec) {
+	Channel_t* channel = (Channel_t*)packet->channel;
 	if (SOCK_STREAM == o->socktype) {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
-			packet->seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->type);
-		if (packet->hdrlen)
-			channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
+			packet->_.seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->_.type);
+		if (packet->_.hdrlen)
+			channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		return 1;
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-			packet->seq = dgramtransportctxNextSendSeq(&channel->dgram.ctx, packet->type);
-			if (packet->hdrlen)
-				channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
-			if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, packet)) {
-				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
+			packet->_.seq = dgramtransportctxNextSendSeq(&channel->dgram.ctx, packet->_.type);
+			if (packet->_.hdrlen)
+				channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+			if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, &packet->_)) {
+				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
 					return 0;
-				if (NETPACKET_FIN == packet->type)
+				if (NETPACKET_FIN == packet->_.type)
 					channel->dgram.has_sendfin = 1;
-				packet->wait_ack = 1;
-				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->resend_msec);
+				packet->_.wait_ack = 1;
+				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->_.resend_msec);
 			}
-			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
 		else {
-			if (packet->hdrlen)
-				channel->encode(channel, packet->buf, packet->bodylen, packet->type, packet->seq);
-			socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			if (packet->_.hdrlen)
+				channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
 		return 0;
 	}
@@ -508,37 +509,37 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			}
 		}
 		else if (channel->dgram.m_synpacket) {
-			NetPacket_t* packet = channel->dgram.m_synpacket;
-			if (packet->resend_msec > timestamp_msec)
-				channel_set_timestamp(channel, packet->resend_msec);
-			else if (packet->resend_times >= channel->dgram.resend_maxtimes) {
+			ReactorPacket_t* packet = channel->dgram.m_synpacket;
+			if (packet->_.resend_msec > timestamp_msec)
+				channel_set_timestamp(channel, packet->_.resend_msec);
+			else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
 				return CHANNEL_DETACH_CONNECT_ERROR;
 			}
 			else {
-				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
-				packet->resend_times++;
-				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->resend_msec);
+				socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
+				packet->_.resend_times++;
+				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->_.resend_msec);
 			}
 		}
 		else {
 			ListNode_t* cur;
 			for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
-				NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-				if (!packet->wait_ack)
+				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+				if (!packet->_.wait_ack)
 					break;
-				if (packet->resend_msec > timestamp_msec) {
-					channel_set_timestamp(channel, packet->resend_msec);
+				if (packet->_.resend_msec > timestamp_msec) {
+					channel_set_timestamp(channel, packet->_.resend_msec);
 					continue;
 				}
-				if (packet->resend_times >= channel->dgram.resend_maxtimes)
-					return NETPACKET_FIN != packet->type ? CHANNEL_DETACH_UNSENT : CHANNEL_DETACH_NORMAL;
-				socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
-				packet->resend_times++;
-				packet->resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->resend_msec);
+				if (packet->_.resend_times >= channel->dgram.resend_maxtimes)
+					return NETPACKET_FIN != packet->_.type ? CHANNEL_DETACH_UNSENT : CHANNEL_DETACH_NORMAL;
+				socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+				packet->_.resend_times++;
+				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->_.resend_msec);
 			}
 		}
 	}
@@ -548,17 +549,17 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 static void channel_reset_send_packet(Channel_t* channel, long long timestamp_msec) {
 	ListNode_t* cur;
 	for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, packet))
+		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+		if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
 			break;
-		if (NETPACKET_FIN == packet->type)
+		if (NETPACKET_FIN == packet->_.type)
 			channel->dgram.has_sendfin = 1;
-		if (packet->wait_ack)
+		if (packet->_.wait_ack)
 			continue;
-		packet->wait_ack = 1;
-		packet->resend_msec = timestamp_msec + channel->dgram.rto;
-		channel_set_timestamp(channel, packet->resend_msec);
-		socketWrite(channel->io->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+		packet->_.wait_ack = 1;
+		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+		channel_set_timestamp(channel, packet->_.resend_msec);
+		socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 	}
 }
 
@@ -572,21 +573,21 @@ static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_ms
 				++channel->connected_times;
 			else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 				unsigned int hdrsize = channel->hdrsize(channel, 0);
-				NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+				ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 				if (packet) {
 					memset(packet, 0, sizeof(*packet));
-					packet->channel_object = channel;
-					packet->type = NETPACKET_SYN;
-					packet->hdrlen = hdrsize;
-					packet->bodylen = 0;
+					packet->channel = channel;
+					packet->_.type = NETPACKET_SYN;
+					packet->_.hdrlen = hdrsize;
+					packet->_.bodylen = 0;
 					channel->dgram.m_synpacket = packet;
 
-					if (packet->hdrlen)
-						channel->encode(channel, packet->buf, 0, NETPACKET_SYN, 0);
-					packet->wait_ack = 1;
-					packet->resend_msec = timestamp_msec + channel->dgram.rto;
-					channel_set_timestamp(channel, packet->resend_msec);
-					socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+					if (packet->_.hdrlen)
+						channel->encode(channel, packet->_.buf, 0, NETPACKET_SYN, 0);
+					packet->_.wait_ack = 1;
+					packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+					channel_set_timestamp(channel, packet->_.resend_msec);
+					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 					continue;
 				}
 				channel_detach_handler(channel, CHANNEL_DETACH_CONNECT_ERROR, timestamp_msec);
@@ -622,7 +623,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
-	NetPacket_t* packet;
+	ReactorPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
@@ -639,43 +640,43 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
 			unsigned int hdrsize = channel->hdrsize(channel, memsz);
-			packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize + memsz);
+			packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize + memsz);
 			if (!packet)
 				break;
 			memset(packet, 0, sizeof(*packet));
-			packet->channel_object = channel;
-			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
-			packet->hdrlen = hdrsize;
-			packet->bodylen = memsz;
-			listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
+			packet->channel = channel;
+			packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
+			packet->_.hdrlen = hdrsize;
+			packet->_.bodylen = memsz;
+			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
 		}
 		if (packet) {
-			packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
+			packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
 		}
 		else {
 			ListNode_t *next;
 			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
-				free(pod_container_of(cur, NetPacket_t, node));
+				free(pod_container_of(cur, ReactorPacket_t, cmd._));
 			}
 			listInit(packetlist);
 			return 0;
 		}
 		iov_i = iov_off = 0;
 		for (cur = packetlist->head; cur; cur = cur->next) {
-			packet = pod_container_of(cur, NetPacket_t, node);
+			packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 			off = 0;
 			while (iov_i < iovcnt) {
-				unsigned int pkleftsize = packet->bodylen - off;
+				unsigned int pkleftsize = packet->_.bodylen - off;
 				unsigned int iovleftsize = iobufLen(iov + iov_i) - iov_off;
 				if (iovleftsize > pkleftsize) {
-					memcpy(packet->buf + packet->hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
+					memcpy(packet->_.buf + packet->_.hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
 					iov_off += pkleftsize;
 					break;
 				}
 				else {
-					memcpy(packet->buf + packet->hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
+					memcpy(packet->_.buf + packet->_.hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
 					iov_off = 0;
 					iov_i++;
 					off += iovleftsize;
@@ -687,14 +688,14 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		unsigned int hdrsize = channel->hdrsize(channel, 0);
 		if (0 == hdrsize && SOCK_STREAM == channel->io->socktype)
 			return 1;
-		packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+		packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 		if (!packet)
 			return 0;
 		memset(packet, 0, sizeof(*packet));
-		packet->channel_object = channel;
-		packet->type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
-		packet->hdrlen = hdrsize;
-		listInsertNodeBack(packetlist, packetlist->tail, &packet->node._);
+		packet->channel = channel;
+		packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
+		packet->_.hdrlen = hdrsize;
+		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 	}
 	return 1;
 }
@@ -805,14 +806,14 @@ void channelSendFin(Channel_t* channel, long long timestamp_msec) {
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		unsigned int hdrsize = channel->hdrsize(channel, 0);
-		NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + hdrsize);
+		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 		if (!packet)
 			return;
 		memset(packet, 0, sizeof(*packet));
-		packet->hdrlen = hdrsize;
-		packet->type = NETPACKET_FIN;
-		packet->bodylen = 0;
-		packet->channel_object = channel;
+		packet->_.hdrlen = hdrsize;
+		packet->_.type = NETPACKET_FIN;
+		packet->_.bodylen = 0;
+		packet->channel = channel;
 		reactorobjectSendPacket(channel->io, packet);
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM)
@@ -838,7 +839,7 @@ static void channel_free_packetlist(List_t* list) {
 	ListNode_t* cur, *next;
 	for (cur = list->head; cur; cur = next) {
 		next = cur->next;
-		free(pod_container_of(cur, NetPacket_t, node));
+		free(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
 	listInit(list);
 }

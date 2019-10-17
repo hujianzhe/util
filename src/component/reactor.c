@@ -281,10 +281,10 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	}
 	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
 	for (cur = finishedlist.head; cur; cur = next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 		next = cur->next;
 		if (o->reactor->cmd_free)
-			o->reactor->cmd_free(&packet->node);
+			o->reactor->cmd_free(&packet->cmd);
 	}
 	if (busy)
 		return;
@@ -421,24 +421,24 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 		next = cur->next;
 		if (REACTOR_SEND_PACKET_CMD == cmd->type) {
-			NetPacket_t* packet = pod_container_of(cmd, NetPacket_t, node);
-			ReactorObject_t* o = (ReactorObject_t*)packet->io_object;
+			ReactorPacket_t* packet = pod_container_of(cmd, ReactorPacket_t, cmd);
+			ReactorObject_t* o = packet->o;
 			if (!o->m_valid) {
 				if (reactor->cmd_free)
-					reactor->cmd_free(&packet->node);
+					reactor->cmd_free(&packet->cmd);
 				continue;
 			}
 			if (o->pre_send && !o->pre_send(o, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM != o->socktype)
 				continue;
-			if (NETPACKET_FIN == packet->type && !o->stream.ctx.sendpacket_all_acked) {
+			if (NETPACKET_FIN == packet->_.type && !o->stream.ctx.sendpacket_all_acked) {
 				o->stream.m_sendfinwait = 1;
-				streamtransportctxCacheSendPacket(&o->stream.ctx, packet);
+				streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
 				continue;
 			}
 			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-				int res = socketWrite(o->fd, packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
+				int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
 				if (res < 0) {
 					if (errnoGet() != EWOULDBLOCK) {
 						o->m_valid = 0;
@@ -447,10 +447,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					}
 					res = 0;
 				}
-				packet->off = res;
+				packet->_.off = res;
 			}
-			if (streamtransportctxCacheSendPacket(&o->stream.ctx, packet)) {
-				if (packet->off < packet->hdrlen + packet->bodylen) {
+			if (streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_)) {
+				if (packet->_.off < packet->_.hdrlen + packet->_.bodylen) {
 					if (!reactorobject_request_write(o)) {
 						o->m_valid = 0;
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
@@ -458,14 +458,14 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				continue;
 			}
-			if (NETPACKET_FIN == packet->type &&
+			if (NETPACKET_FIN == packet->_.type &&
 				reactorobject_sendfin_direct_handler(o, timestamp_msec))
 			{
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 			}
 			if (reactor->cmd_free)
-				reactor->cmd_free(&packet->node);
+				reactor->cmd_free(&packet->cmd);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
@@ -512,6 +512,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorobject_free(o);
 			continue;
 		}
+		/*
 		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
 			ChannelBase_t* channelbase = pod_container_of(cmd, ChannelBase_t, regcmd);
 			ReactorObject_t* o = channelbase->io_object;
@@ -521,6 +522,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			continue;
 		}
+		*/
 
 		if (reactor->cmd_exec)
 			reactor->cmd_exec(cmd);
@@ -874,10 +876,10 @@ ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o
 	return new_o;
 }
 
-void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet) {
-	packet->node.type = REACTOR_SEND_PACKET_CMD;
-	packet->io_object = o;
-	reactorCommitCmd(o->reactor, &packet->node);
+void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet) {
+	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
+	packet->o = o;
+	reactorCommitCmd(o->reactor, &packet->cmd);
 }
 
 void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {
@@ -885,28 +887,28 @@ void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {
 	if (!packetlist->head)
 		return;
 	for (cur = packetlist->head; cur; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		packet->node.type = REACTOR_SEND_PACKET_CMD;
-		packet->io_object = o;
+		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd);
+		packet->cmd.type = REACTOR_SEND_PACKET_CMD;
+		packet->o = o;
 	}
 	reactor_commit_cmdlist(o->reactor, packetlist);
 }
 
-static NetPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {
-	NetPacket_t* packet = (NetPacket_t*)malloc(sizeof(NetPacket_t) + len);
+static ReactorPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {
+	ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + len);
 	if (packet) {
 		memset(packet, 0, sizeof(*packet));
-		memcpy(packet->buf, buf, len);
-		packet->hdrlen = 0;
-		packet->bodylen = len;
-		packet->off = off;
-		packet->type = pktype;
+		memcpy(packet->_.buf, buf, len);
+		packet->_.hdrlen = 0;
+		packet->_.bodylen = len;
+		packet->_.off = off;
+		packet->_.type = pktype;
 	}
 	return packet;
 }
 
 int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype) {
-	NetPacket_t* packet;
+	ReactorPacket_t* packet;
 	if (SOCK_STREAM != o->socktype)
 		return 0;
 	if (threadEqual(o->reactor->m_runthread, threadSelf())) {
@@ -932,7 +934,7 @@ int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned in
 		packet = make_packet(buf, len, res, pktype);
 		if (!packet)
 			return -1;
-		streamtransportctxCacheSendPacket(&o->stream.ctx, packet);
+		streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
 		if (!reactorobject_request_write(o)) {
 			o->m_valid = 0;
 			reactorobject_invalid_inner_handler(o, gmtimeMillisecond());

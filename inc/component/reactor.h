@@ -34,7 +34,8 @@ enum {
 	REACTOR_ZOMBIE_ERR,
 	REACTOR_FATE_ERR
 };
-typedef NetPacketListNode_t	ReactorCmd_t;
+typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
+struct ReactorObject_t;
 
 typedef struct Reactor_t {
 	/* public */
@@ -54,6 +55,13 @@ typedef struct Reactor_t {
 	Hashtable_t m_objht;
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
+
+typedef struct ReactorPacket_t {
+	ReactorCmd_t cmd;
+	struct ReactorObject_t* o;
+	void* channel;
+	NetPacket_t _;
+} ReactorPacket_t;
 
 typedef struct ReactorObject_t {
 /* public */
@@ -89,7 +97,7 @@ typedef struct ReactorObject_t {
 	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);
 	int(*on_read)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	int(*pre_send)(struct ReactorObject_t* self, NetPacket_t* packet, long long timestamp_msec);
+	int(*pre_send)(struct ReactorObject_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*detach)(struct ReactorObject_t* self);
 	void(*free)(struct ReactorObject_t* self);
@@ -133,7 +141,7 @@ typedef struct ChannelBase_t {
 	};
 	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*detach)(struct ChannelBase_t* self, int reason);
-	int(*pre_send)(struct ChannelBase_t* self, NetPacket_t* packet, long long timestamp_msec);
+	int(*pre_send)(struct ChannelBase_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 } ChannelBase_t;
 
 #ifdef	__cplusplus
@@ -149,7 +157,7 @@ __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long times
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o);
-__declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, NetPacket_t* packet);
+__declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
 __declspec_dll int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype);
 

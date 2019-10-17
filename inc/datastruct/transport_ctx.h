@@ -22,11 +22,8 @@ enum {
 	NETPACKET_STREAM_HAS_SEND_SEQ = NETPACKET_FRAGMENT
 };
 
-typedef ListNodeTemplateDeclare(int, type)	NetPacketListNode_t;
 typedef struct NetPacket_t {
-	NetPacketListNode_t node;
-	void* io_object;
-	void* channel_object;
+	ListNode_t node;
 	char type;
 	char wait_ack;
 	char cached;
