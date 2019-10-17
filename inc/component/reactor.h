@@ -32,7 +32,7 @@ enum {
 	REACTOR_IO_ERR,
 	REACTOR_CONNECT_ERR,
 	REACTOR_ZOMBIE_ERR,
-	REACTOR_IO_FATE
+	REACTOR_FATE_ERR
 };
 typedef NetPacketListNode_t	ReactorCmd_t;
 
