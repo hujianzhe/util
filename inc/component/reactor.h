@@ -27,6 +27,13 @@ enum {
 	REACTOR_SEND_PACKET_CMD,
 	REACTOR_USER_CMD
 };
+enum {
+	REACTOR_REG_ERR = 1,
+	REACTOR_IO_ERR,
+	REACTOR_CONNECT_ERR,
+	REACTOR_ZOMBIE_ERR,
+	REACTOR_IO_FATE
+};
 typedef NetPacketListNode_t	ReactorCmd_t;
 
 typedef struct Reactor_t {
