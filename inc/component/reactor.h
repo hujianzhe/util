@@ -108,11 +108,12 @@ typedef struct ReactorObject_t {
 	Atom8_t m_detachhaspost;
 	char m_valid;
 	char m_hashnode_has_insert;
+	char m_detach_has_commit;
+	char m_readol_has_commit;
+	char m_writeol_has_commit;
 	void* m_readol;
 	void* m_writeol;
 	long long m_invalid_msec;
-	char m_readol_has_commit;
-	char m_writeol_has_commit;
 	unsigned char* m_inbuf;
 	int m_inbufoff;
 	int m_inbuflen;

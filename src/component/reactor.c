@@ -59,6 +59,9 @@ static void reactorobject_free(ReactorObject_t* o) {
 }
 
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
+	if (o->m_detach_has_commit)
+		return;
+	o->m_detach_has_commit = 1;
 	o->m_invalid_msec = now_msec;
 	if (o->m_hashnode_has_insert) {
 		o->m_hashnode_has_insert = 0;
@@ -846,11 +849,12 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->m_detachhaspost = 0;
 	o->m_valid = 1;
 	o->m_hashnode_has_insert = 0;
+	o->m_detach_has_commit = 0;
+	o->m_readol_has_commit = 0;
+	o->m_writeol_has_commit = 0;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_invalid_msec = 0;
-	o->m_readol_has_commit = 0;
-	o->m_writeol_has_commit = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
