@@ -821,6 +821,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
+	o->detach_reason = 0;
 	o->detach_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {
