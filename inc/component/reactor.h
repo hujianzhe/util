@@ -32,7 +32,7 @@ enum {
 	REACTOR_IO_ERR,
 	REACTOR_CONNECT_ERR,
 	REACTOR_ZOMBIE_ERR,
-	REACTOR_FATE_ERR
+	REACTOR_USER_ERR
 };
 typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
 struct ReactorObject_t;
