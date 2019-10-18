@@ -84,9 +84,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 static int reactorobject_request_read(ReactorObject_t* o) {
 	Sockaddr_t saddr;
 	int opcode;
-	if (!o->m_valid)
-		return 0;
-	else if (o->m_readol_has_commit)
+	if (o->m_readol_has_commit)
 		return 1;
 	else if (SOCK_STREAM == o->socktype && o->stream.m_listened)
 		opcode = NIO_OP_ACCEPT;
@@ -260,6 +258,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				o->m_valid = 0;
+				o->detach_reason = REACTOR_IO_ERR;
 				return;
 			}
 			res = 0;
@@ -279,6 +278,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		}
 		else {
 			o->m_valid = 0;
+			o->detach_reason = REACTOR_IO_ERR;
 			return;
 		}
 	}
@@ -334,6 +334,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					o->m_valid = 0;
+					o->detach_reason = REACTOR_IO_ERR;
 				}
 				return;
 			}
@@ -456,6 +457,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (packet->_.off < packet->_.hdrlen + packet->_.bodylen) {
 					if (!reactorobject_request_write(o)) {
 						o->m_valid = 0;
+						o->detach_reason = REACTOR_IO_ERR;
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 				}
@@ -483,6 +485,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
 			if (!reactor_reg_object_check(reactor, o)) {
 				o->m_valid = 0;
+				o->detach_reason = REACTOR_REG_ERR;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 				continue;
 			}
@@ -707,16 +710,20 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 						reactor_stream_accept(o, timestamp_msec);
 					else
 						reactor_readev(o, timestamp_msec);
-					if (!reactorobject_request_read(o))
+					if (o->m_valid && !reactorobject_request_read(o)) {
 						o->m_valid = 0;
+						o->detach_reason = REACTOR_IO_ERR;
+					}
 					break;
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
 						if (o->stream.m_connected)
 							reactor_stream_writeev(o, timestamp_msec);
-						else if (!reactor_stream_connect(o, timestamp_msec))
+						else if (!reactor_stream_connect(o, timestamp_msec)) {
 							o->m_valid = 0;
+							o->detach_reason = REACTOR_CONNECT_ERR;
+						}
 					}
 					else if (o->writeev)
 						o->writeev(o, timestamp_msec);
