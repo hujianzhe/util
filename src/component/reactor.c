@@ -258,7 +258,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				o->m_valid = 0;
-				o->detach_reason = REACTOR_IO_ERR;
+				o->detach_error = REACTOR_IO_ERR;
 				return;
 			}
 			res = 0;
@@ -278,7 +278,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		}
 		else {
 			o->m_valid = 0;
-			o->detach_reason = REACTOR_IO_ERR;
+			o->detach_error = REACTOR_IO_ERR;
 			return;
 		}
 	}
@@ -334,7 +334,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					o->m_valid = 0;
-					o->detach_reason = REACTOR_IO_ERR;
+					o->detach_error = REACTOR_IO_ERR;
 				}
 				return;
 			}
@@ -348,7 +348,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			res = o->on_read(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
 				o->m_valid = 0;
-				o->detach_reason = REACTOR_USER_ERR;
+				o->detach_error = REACTOR_USER_ERR;
 				return;
 			}
 			o->m_inbufoff = res;
@@ -458,7 +458,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (packet->_.off < packet->_.hdrlen + packet->_.bodylen) {
 					if (!reactorobject_request_write(o)) {
 						o->m_valid = 0;
-						o->detach_reason = REACTOR_IO_ERR;
+						o->detach_error = REACTOR_IO_ERR;
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 				}
@@ -486,7 +486,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
 			if (!reactor_reg_object_check(reactor, o)) {
 				o->m_valid = 0;
-				o->detach_reason = REACTOR_REG_ERR;
+				o->detach_error = REACTOR_REG_ERR;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 				continue;
 			}
@@ -713,7 +713,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 						reactor_readev(o, timestamp_msec);
 					if (o->m_valid && !reactorobject_request_read(o)) {
 						o->m_valid = 0;
-						o->detach_reason = REACTOR_IO_ERR;
+						o->detach_error = REACTOR_IO_ERR;
 					}
 					break;
 				case NIO_OP_WRITE:
@@ -723,7 +723,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 							reactor_stream_writeev(o, timestamp_msec);
 						else if (!reactor_stream_connect(o, timestamp_msec)) {
 							o->m_valid = 0;
-							o->detach_reason = REACTOR_CONNECT_ERR;
+							o->detach_error = REACTOR_CONNECT_ERR;
 						}
 					}
 					else if (o->writeev)
@@ -829,7 +829,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	o->protocol = protocol;
 	o->reactor = NULL;
 	o->userdata = NULL;
-	o->detach_reason = 0;
+	o->detach_error = 0;
 	o->detach_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {

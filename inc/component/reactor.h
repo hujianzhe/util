@@ -71,7 +71,7 @@ typedef struct ReactorObject_t {
 	int protocol;
 	Reactor_t* reactor;
 	void* userdata;
-	int detach_reason;
+	int detach_error;
 	int detach_timeout_msec;
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
