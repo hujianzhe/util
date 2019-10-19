@@ -348,7 +348,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			res = o->on_read(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
 				o->m_valid = 0;
-				o->detach_error = REACTOR_USER_ERR;
+				o->detach_error = REACTOR_ONREAD_ERR;
 				return;
 			}
 			o->m_inbufoff = res;
