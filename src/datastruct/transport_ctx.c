@@ -13,6 +13,7 @@ extern "C" {
 /*********************************************************************************/
 
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
+	ctx->sendpacket_all_acked = 1;
 	ctx->cwndsize = 1;
 	ctx->cwndseq = ctx->recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
@@ -95,6 +96,8 @@ int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 		packet->cached = 0;
 		return 0;
 	}
+	else if (packet->type > NETPACKET_FIN)
+		ctx->sendpacket_all_acked = 0;
 	packet->wait_ack = 0;
 	listInsertNodeBack(&ctx->sendpacketlist, ctx->sendpacketlist.tail, &packet->node);
 	packet->cached = 1;
@@ -124,6 +127,11 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 			}
 			else
 				ctx->cwndseq = ctx->m_ackseq + 1;
+		}
+		if (!ctx->sendpacketlist.head ||
+			NETPACKET_FIN == pod_container_of(ctx->sendpacketlist.head, NetPacket_t, node)->type)
+		{
+			ctx->sendpacket_all_acked = 1;
 		}
 		return packet;
 	}

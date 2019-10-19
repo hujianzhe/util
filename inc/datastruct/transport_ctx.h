@@ -49,7 +49,7 @@ typedef struct DgramTransportCtx_t {
 	List_t sendpacketlist;
 	unsigned int recvseq;
 	unsigned int cwndseq;
-	void* userdata;
+	unsigned char sendpacket_all_acked;
 	unsigned char cwndsize;
 	/* private */
 	unsigned int m_sendseq;
@@ -62,7 +62,6 @@ typedef struct StreamTransportCtx_t {
 	List_t sendpacketlist;
 	unsigned int recvseq;
 	unsigned int cwndseq;
-	void* userdata;
 	unsigned char sendpacket_all_acked;
 	/* private */
 	unsigned int m_sendseq;
