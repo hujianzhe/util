@@ -16,14 +16,6 @@ enum {
 	CHANNEL_FLAG_RELIABLE = 1 << 5
 };
 
-enum {
-	CHANNEL_DETACH_NORMAL = 1,
-	CHANNEL_DETACH_UNSENT,
-	CHANNEL_DETACH_CONNECT_ERROR,
-	CHANNEL_DETACH_ZOMBIE,
-	CHANNEL_DETACH_FATE
-};
-
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
 	char incomplete;
@@ -45,7 +37,7 @@ typedef struct Channel_t {
 	unsigned int heartbeat_maxtimes; /* client use */
 	unsigned int connected_times; /* client use */
 	Sockaddr_t to_addr;
-	int detach_reason;
+	int detach_error;
 	ReactorCmd_t detachcmd;
 	struct {
 		union {
@@ -78,7 +70,7 @@ typedef struct Channel_t {
 	int(*heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
-	void(*detach)(struct Channel_t* self, int reason);
+	void(*detach)(struct Channel_t* self);
 /* private */
 	long long m_event_msec;
 	long long m_heartbeat_msec;
