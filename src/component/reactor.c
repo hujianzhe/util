@@ -920,47 +920,50 @@ static ReactorPacket_t* make_packet(const void* buf, unsigned int len, int off, 
 	return packet;
 }
 
-int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype) {
-	ReactorPacket_t* packet;
-	if (SOCK_STREAM != o->socktype)
-		return 0;
-	if (threadEqual(o->reactor->m_runthread, threadSelf())) {
-		int res = 0;
-		if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-			int res = socketWrite(o->fd, buf, len, 0, NULL, 0);
-			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK)
-					return -1;
-				res = 0;
-			}
-			if (res >= len) {
-				long long now_msec = gmtimeMillisecond();
-				if (NETPACKET_FIN == pktype &&
-					reactorobject_sendfin_direct_handler(o, now_msec))
-				{
-					o->m_valid = 0;
-					reactorobject_invalid_inner_handler(o, now_msec);
+int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned int len, const void* addr) {
+	if (SOCK_STREAM == o->socktype) {
+		ReactorPacket_t* packet;
+		if (threadEqual(o->reactor->m_runthread, threadSelf())) {
+			int res = 0;
+			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+				int res = socketWrite(o->fd, buf, len, 0, NULL, 0);
+				if (res < 0) {
+					if (errnoGet() != EWOULDBLOCK)
+						return -1;
+					res = 0;
 				}
-				return res;
+				if (res >= len) {
+					long long now_msec = gmtimeMillisecond();
+					if (NETPACKET_FIN == pktype &&
+						reactorobject_sendfin_direct_handler(o, now_msec))
+					{
+						o->m_valid = 0;
+						reactorobject_invalid_inner_handler(o, now_msec);
+					}
+					return res;
+				}
 			}
+			packet = make_packet(buf, len, res, pktype);
+			if (!packet)
+				return -1;
+			streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
+			if (!reactorobject_request_write(o)) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
+				return -1;
+			}
+			return res;
 		}
-		packet = make_packet(buf, len, res, pktype);
-		if (!packet)
-			return -1;
-		streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
-		if (!reactorobject_request_write(o)) {
-			o->m_valid = 0;
-			reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
-			return -1;
+		else {
+			packet = make_packet(buf, len, 0, pktype);
+			if (!packet)
+				return -1;
+			reactorobjectSendPacket(o, packet);
+			return 0;
 		}
-		return res;
 	}
 	else {
-		packet = make_packet(buf, len, 0, pktype);
-		if (!packet)
-			return -1;
-		reactorobjectSendPacket(o, packet);
-		return 0;
+		return socketWrite(o->fd, buf, len, 0, addr, sockaddrLength(addr));
 	}
 }
 

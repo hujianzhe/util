@@ -161,7 +161,7 @@ __declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, i
 __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o);
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
-__declspec_dll int reactorobjectSendStreamData(ReactorObject_t* o, const void* buf, unsigned int len, int pktype);
+__declspec_dll int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned int len, const void* addr);
 
 #ifdef	__cplusplus
 }
