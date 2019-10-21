@@ -122,27 +122,28 @@ typedef struct ReactorObject_t {
 
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
+	ReactorCmd_t detachcmd;
 	ReactorObject_t* io_object;
 	Sockaddr_t to_addr;
 	union {
 		struct {
 			StreamTransportCtx_t stream_ctx;
-			void(*stream_recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
-			void(*stream_sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
+			void(*stream_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
+			void(*stream_sendfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		};
 		DgramTransportCtx_t dgram_ctx;
 	};
 	char has_recvfin;
 	char has_sendfin;
 	char attached;
-	ReactorCmd_t detachcmd;
+	char detach_error;
 	/* interface */
 	union {
 		void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 		void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
 	};
 	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
-	void(*detach)(struct ChannelBase_t* self, int reason);
+	void(*detach)(struct ChannelBase_t* self);
 	int(*pre_send)(struct ChannelBase_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 } ChannelBase_t;
 
