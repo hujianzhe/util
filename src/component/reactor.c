@@ -176,14 +176,13 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
-static void reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp_msec) {
-	if (o->stream.has_recvfin)
-		return;
-	o->stream.has_recvfin = 1;
-	if (o->stream.recvfin)
-		o->stream.recvfin(o, timestamp_msec);
-	if (o->stream.has_sendfin)
-		o->m_valid = 0;
+static int reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp_msec) {
+	if (!o->stream.has_recvfin) {
+		o->stream.has_recvfin = 1;
+		if (o->stream.recvfin)
+			o->stream.recvfin(o, timestamp_msec);
+	}
+	return o->stream.has_sendfin;
 }
 
 static int reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
@@ -318,9 +317,11 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else if (0 == res) {
-			reactorobject_recvfin_handler(o, timestamp_msec);
-			if (reactorobject_sendfin_check(o, timestamp_msec))
+			if (reactorobject_recvfin_handler(o, timestamp_msec) ||
+				reactorobject_sendfin_check(o, timestamp_msec))
+			{
 				o->m_valid = 0;
+			}
 			return;
 		}
 		else {
@@ -339,9 +340,11 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			else if (0 == res) {
-				reactorobject_recvfin_handler(o, timestamp_msec);
-				if (reactorobject_sendfin_check(o, timestamp_msec))
+				if (reactorobject_recvfin_handler(o, timestamp_msec) ||
+					reactorobject_sendfin_check(o, timestamp_msec))
+				{
 					o->m_valid = 0;
+				}
 				return;
 			}
 			o->m_inbuflen += res;
