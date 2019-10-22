@@ -437,7 +437,7 @@ static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, l
 	}
 }
 
-int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
+void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 /* heartbeat */
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->m_heartbeat_msec > 0 &&
@@ -454,8 +454,10 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				}
 				else if (channel->heartbeat(channel, channel->m_heartbeat_times))
 					channel->m_heartbeat_times = 0;
-				else
-					return REACTOR_ZOMBIE_ERR;
+				else {
+					channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, timestamp_msec);
+					return;
+				}
 				channel->m_heartbeat_msec = timestamp_msec;
 				ts = channel->heartbeat_timeout_sec;
 				ts *= 1000;
@@ -468,71 +470,77 @@ int channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
 		ts += channel->m_heartbeat_msec;
-		if (ts <= timestamp_msec)
-			return REACTOR_ZOMBIE_ERR;
+		if (ts <= timestamp_msec) {
+			channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, timestamp_msec);
+			return;
+		}
 		channel_set_timestamp(channel, ts);
 	}
 /* reliable dgram resend packet */
-	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
-		(channel->flag & CHANNEL_FLAG_RELIABLE))
+	if (!(channel->flag & CHANNEL_FLAG_DGRAM) ||
+		!(channel->flag & CHANNEL_FLAG_RELIABLE))
 	{
-		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			ListNode_t* cur, *next;
-			for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
-				DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
-				next = cur->next;
-				if (halfconn->resend_msec > timestamp_msec) {
-					channel_set_timestamp(channel, halfconn->resend_msec);
-					continue;
-				}
-				if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
-					listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
-					channel->dgram.m_halfconn_curwaitcnt--;
-					free_halfconn(halfconn);
-					continue;
-				}
-				socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
-				halfconn->resend_times++;
-				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
+		return;
+	}
+	if (channel->flag & CHANNEL_FLAG_LISTEN) {
+		ListNode_t* cur, *next;
+		for (cur = channel->dgram.ctx.recvpacketlist.head; cur; cur = next) {
+			DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
+			next = cur->next;
+			if (halfconn->resend_msec > timestamp_msec) {
 				channel_set_timestamp(channel, halfconn->resend_msec);
+				continue;
 			}
-		}
-		else if (channel->dgram.m_synpacket) {
-			ReactorPacket_t* packet = channel->dgram.m_synpacket;
-			if (packet->_.resend_msec > timestamp_msec)
-				channel_set_timestamp(channel, packet->_.resend_msec);
-			else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
-				free(channel->dgram.m_synpacket);
-				channel->dgram.m_synpacket = NULL;
-				return REACTOR_CONNECT_ERR;
+			if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
+				listRemoveNode(&channel->dgram.ctx.recvpacketlist, cur);
+				channel->dgram.m_halfconn_curwaitcnt--;
+				free_halfconn(halfconn);
+				continue;
 			}
-			else {
-				socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
-				packet->_.resend_times++;
-				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->_.resend_msec);
-			}
-		}
-		else {
-			ListNode_t* cur;
-			for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
-				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
-				if (!packet->_.wait_ack)
-					break;
-				if (packet->_.resend_msec > timestamp_msec) {
-					channel_set_timestamp(channel, packet->_.resend_msec);
-					continue;
-				}
-				if (packet->_.resend_times >= channel->dgram.resend_maxtimes)
-					return NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0;
-				socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
-				packet->_.resend_times++;
-				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->_.resend_msec);
-			}
+			socketWrite(channel->io->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
+			halfconn->resend_times++;
+			halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, halfconn->resend_msec);
 		}
 	}
-	return 0;
+	else if (channel->dgram.m_synpacket) {
+		ReactorPacket_t* packet = channel->dgram.m_synpacket;
+		if (packet->_.resend_msec > timestamp_msec)
+			channel_set_timestamp(channel, packet->_.resend_msec);
+		else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
+			free(channel->dgram.m_synpacket);
+			channel->dgram.m_synpacket = NULL;
+			channel_detach_handler(channel, REACTOR_CONNECT_ERR, timestamp_msec);
+			return;
+		}
+		else {
+			socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
+			packet->_.resend_times++;
+			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, packet->_.resend_msec);
+		}
+	}
+	else {
+		ListNode_t* cur;
+		for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
+			ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+			if (!packet->_.wait_ack)
+				break;
+			if (packet->_.resend_msec > timestamp_msec) {
+				channel_set_timestamp(channel, packet->_.resend_msec);
+				continue;
+			}
+			if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
+				int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
+				channel_detach_handler(channel, err, timestamp_msec);
+				return;
+			}
+			socketWrite(channel->io->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			packet->_.resend_times++;
+			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, packet->_.resend_msec);
+		}
+	}
 }
 
 static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_msec) {
@@ -578,7 +586,6 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 		return;
 	}
 	for (cur = o->channel_list.head; cur; cur = next) {
-		int inactive_reason;
 		Channel_t* channel = pod_container_of(cur, Channel_t, node);
 		next = cur->next;
 		if (timestamp_msec < channel->m_event_msec) {
@@ -586,10 +593,7 @@ static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_m
 			continue;
 		}
 		channel->m_event_msec = 0;
-		inactive_reason = channel_event_handler(channel, timestamp_msec);
-		if (!inactive_reason)
-			continue;
-		channel_detach_handler(channel, inactive_reason, timestamp_msec);
+		channel_event_handler(channel, timestamp_msec);
 	}
 }
 
