@@ -123,7 +123,7 @@ typedef struct ReactorObject_t {
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t detachcmd;
-	ReactorObject_t* io;
+	ReactorObject_t* o;
 	Sockaddr_t to_addr;
 	union {
 		Sockaddr_t listen_addr;
@@ -163,7 +163,8 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
-__declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o);
+__declspec_dll ChannelBase_t* channelbaseInit(ChannelBase_t* channel, ReactorObject_t* o, const void* saddr);
+
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
 __declspec_dll int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned int len, const void* addr);

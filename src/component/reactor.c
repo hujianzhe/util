@@ -875,23 +875,32 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	return o;
 }
 
-ReactorObject_t* reactorobjectDup(ReactorObject_t* new_o, ReactorObject_t* old_o) {
-	new_o = reactorobjectOpen(new_o, INVALID_FD_HANDLE, old_o->domain, old_o->socktype, old_o->protocol);
-	if (new_o) {
-		new_o->read_fragment_size = old_o->read_fragment_size;
-		new_o->write_fragment_size = old_o->write_fragment_size;
-		new_o->stream.accept = old_o->stream.accept;
-		new_o->stream.connect_addr = old_o->stream.connect_addr;
-		new_o->stream.recvfin = old_o->stream.recvfin;
-		new_o->stream.sendfin = old_o->stream.sendfin;
-		new_o->reg = old_o->reg;
-		new_o->exec = old_o->exec;
-		new_o->on_read = old_o->on_read;
-		new_o->pre_send = old_o->pre_send;
-		new_o->writeev = old_o->writeev;
-		new_o->detach = old_o->detach;
-	}
-	return new_o;
+ChannelBase_t* channelbaseInit(ChannelBase_t* channel, ReactorObject_t* o, const void* saddr) {
+	int addrlen = sockaddrLength(saddr);
+	channel->regcmd.type = REACTOR_CHANNEL_REG_CMD;
+	channel->detachcmd.type = REACTOR_CHANNEL_DETACH_CMD;
+	channel->o = o;
+	memcpy(&channel->to_addr, saddr, addrlen);
+	memcpy(&channel->listen_addr, saddr, addrlen);
+	memcpy(&channel->connect_addr, saddr, addrlen);
+	if (SOCK_STREAM == o->socktype)
+		memcpy(&o->stream.connect_addr, saddr, addrlen);
+	streamtransportctxInit(&channel->stream_ctx, 0);
+	channel->stream_recvfin = NULL;
+	channel->stream_sendfin = NULL;
+	channel->stream_sendfinwait = 0;
+	channel->has_recvfin = 0;
+	channel->has_sendfin = 0;
+	channel->attached = 0;
+	channel->detach_error = 0;
+	channel->ack_halfconn = NULL;
+	channel->syn_ack = NULL;
+	channel->reg = NULL;
+	channel->detach = NULL;
+	channel->on_read = NULL;
+	channel->pre_send = NULL;
+	channel->exec = NULL;
+	return channel;
 }
 
 void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet) {
