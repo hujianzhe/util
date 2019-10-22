@@ -931,7 +931,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 		if (threadEqual(o->reactor->m_runthread, threadSelf())) {
 			int res = 0;
 			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-				int res = socketWrite(o->fd, buf, len, 0, NULL, 0);
+				res = socketWrite(o->fd, buf, len, 0, NULL, 0);
 				if (res < 0) {
 					if (errnoGet() != EWOULDBLOCK) {
 						o->m_valid = 0;
