@@ -7,7 +7,7 @@
 #include "../../inc/sysapi/time.h"
 #include <stdlib.h>
 
-#define	socketAllChannelDoAction(o, var_name, do_action)\
+#define	allChannelDoAction(o, var_name, do_action)\
 do {\
 	ListNode_t* cur, *next;\
 	for (cur = (o)->channel_list.head; cur; cur = next) {\
@@ -18,6 +18,8 @@ do {\
 		} while (0);\
 	}\
 } while (0)
+#define	streamChannel(o)\
+(o->channel_list.head ? pod_container_of(o->channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
 #ifdef	__cplusplus
 extern "C" {
