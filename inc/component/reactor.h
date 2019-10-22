@@ -126,12 +126,14 @@ typedef struct ChannelBase_t {
 	ReactorObject_t* io_object;
 	Sockaddr_t to_addr;
 	union {
-		struct {
-			StreamTransportCtx_t stream_ctx;
-			void(*stream_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
-			void(*stream_sendfin)(struct ChannelBase_t* self, long long timestamp_msec);
-		};
-		DgramTransportCtx_t dgram_ctx;
+		Sockaddr_t listen_addr;
+		Sockaddr_t connect_addr;
+	};
+	struct {
+		StreamTransportCtx_t stream_ctx;
+		void(*stream_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
+		void(*stream_sendfin)(struct ChannelBase_t* self, long long timestamp_msec);
+		char stream_sendfinwait;
 	};
 	char has_recvfin;
 	char has_sendfin;
@@ -146,6 +148,7 @@ typedef struct ChannelBase_t {
 	void(*detach)(struct ChannelBase_t* self);
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*pre_send)(struct ChannelBase_t* self, ReactorPacket_t* packet, long long timestamp_msec);
+	void(*exec)(struct ChannelBase_t* self, long long timestamp_msec);
 } ChannelBase_t;
 
 #ifdef	__cplusplus
