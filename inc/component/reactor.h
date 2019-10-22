@@ -123,7 +123,7 @@ typedef struct ReactorObject_t {
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t detachcmd;
-	ReactorObject_t* io_object;
+	ReactorObject_t* io;
 	Sockaddr_t to_addr;
 	union {
 		Sockaddr_t listen_addr;
