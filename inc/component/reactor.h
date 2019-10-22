@@ -144,6 +144,7 @@ typedef struct ChannelBase_t {
 	};
 	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*detach)(struct ChannelBase_t* self);
+	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*pre_send)(struct ChannelBase_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 } ChannelBase_t;
 
