@@ -428,13 +428,11 @@ static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, l
 				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 				channel_set_timestamp(channel, packet->_.resend_msec);
 			}
-			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		}
-		else {
-			if (packet->_.hdrlen)
-				channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
-			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+		else if (packet->_.hdrlen) {
+			channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		}
+		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
 		return 0;
 	}
 }
