@@ -933,8 +933,12 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
 				int res = socketWrite(o->fd, buf, len, 0, NULL, 0);
 				if (res < 0) {
-					if (errnoGet() != EWOULDBLOCK)
+					if (errnoGet() != EWOULDBLOCK) {
+						o->m_valid = 0;
+						o->detach_error = REACTOR_IO_ERR;
+						reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
 						return -1;
+					}
 					res = 0;
 				}
 				if (res >= len) {
@@ -954,6 +958,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 			streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
 			if (!reactorobject_request_write(o)) {
 				o->m_valid = 0;
+				o->detach_error = REACTOR_IO_ERR;
 				reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
 				return -1;
 			}
