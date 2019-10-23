@@ -717,7 +717,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int 
 	if (!channel)
 		return NULL;
 	channel->io = io;
-	channel->detachcmd.type = REACTOR_CHANNEL_DETACH_CMD;
+	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == io->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	if (flag & CHANNEL_FLAG_DGRAM) {
@@ -750,29 +750,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int 
 	io->pre_send = reactorobject_pre_send;
 	listInsertNodeBack(&io->channel_list, io->channel_list.tail, &channel->node._);
 	return channel;
-}
-
-Channel_t* reactorobjectDupChannel(ReactorObject_t* io, Channel_t* channel) {
-	Channel_t* dup_channel = reactorobjectOpenChannel(io, channel->flag, channel->m_initseq, &channel->to_addr);
-	if (dup_channel) {
-		dup_channel->io = io;
-		dup_channel->maxhdrsize = channel->maxhdrsize;
-		dup_channel->heartbeat_timeout_sec = channel->heartbeat_timeout_sec;
-		dup_channel->heartbeat_maxtimes = channel->heartbeat_maxtimes;
-		dup_channel->dgram.rto = channel->dgram.rto;
-		dup_channel->dgram.resend_maxtimes = channel->dgram.resend_maxtimes;
-		dup_channel->ack_halfconn = channel->ack_halfconn;
-		dup_channel->reg = channel->reg;
-		dup_channel->decode = channel->decode;
-		dup_channel->recv = channel->recv;
-		dup_channel->reply_ack = channel->reply_ack;
-		dup_channel->heartbeat = channel->heartbeat;
-		dup_channel->hdrsize = channel->hdrsize;
-		dup_channel->encode = channel->encode;
-		dup_channel->detach = channel->detach;
-		dup_channel->m_detached = 1;
-	}
-	return dup_channel;
 }
 
 void channelSendFin(Channel_t* channel, long long timestamp_msec) {
@@ -838,7 +815,6 @@ void channelDestroy(Channel_t* channel) {
 		channel_free_packetlist(&channel->dgram.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->dgram.ctx.sendpacketlist);
 	}
-	free(channel);
 }
 
 #ifdef	__cplusplus

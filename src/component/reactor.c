@@ -524,17 +524,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorobject_free(o);
 			continue;
 		}
-		/*
-		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
-			ChannelBase_t* channelbase = pod_container_of(cmd, ChannelBase_t, regcmd);
-			ReactorObject_t* o = channelbase->io_object;
-			if (!channelbase->attached) {
-				listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channelbase->regcmd._);
-				channelbase->attached = 1;
-			}
-			continue;
-		}
-		*/
 
 		if (reactor->cmd_exec)
 			reactor->cmd_exec(cmd);
@@ -647,8 +636,6 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 	}
-	else if (REACTOR_CHANNEL_DETACH_CMD == cmdnode->type)
-		return;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
@@ -800,21 +787,15 @@ void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec) {
 
 /*****************************************************************************************/
 
-ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol) {
-	int fd_create, obj_create;
-	if (!o) {
-		o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
-		if (!o)
-			return NULL;
-		obj_create = 1;
-	}
-	else
-		obj_create = 0;
+ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
+	int fd_create;
+	ReactorObject_t* o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
+	if (!o)
+		return NULL;
 	if (INVALID_FD_HANDLE == fd) {
 		fd = socket(domain, socktype, protocol);
 		if (INVALID_FD_HANDLE == fd) {
-			if (obj_create)
-				free(o);
+			free(o);
 			return NULL;
 		}
 		fd_create = 1;
@@ -824,8 +805,7 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	if (!socketNonBlock(fd, TRUE)) {
 		if (fd_create)
 			socketClose(fd);
-		if (obj_create)
-			free(o);
+		free(o);
 		return NULL;
 	}
 	o->fd = fd;
@@ -875,34 +855,6 @@ ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int 
 	return o;
 }
 
-ChannelBase_t* channelbaseInit(ChannelBase_t* channel, ReactorObject_t* o, const void* saddr) {
-	int addrlen = sockaddrLength(saddr);
-	channel->regcmd.type = REACTOR_CHANNEL_REG_CMD;
-	channel->detachcmd.type = REACTOR_CHANNEL_DETACH_CMD;
-	channel->o = o;
-	memcpy(&channel->to_addr, saddr, addrlen);
-	memcpy(&channel->listen_addr, saddr, addrlen);
-	memcpy(&channel->connect_addr, saddr, addrlen);
-	if (SOCK_STREAM == o->socktype)
-		memcpy(&o->stream.connect_addr, saddr, addrlen);
-	streamtransportctxInit(&channel->stream_ctx, 0);
-	channel->stream_recvfin = NULL;
-	channel->stream_sendfin = NULL;
-	channel->stream_sendfinwait = 0;
-	channel->has_recvfin = 0;
-	channel->has_sendfin = 0;
-	channel->attached = 0;
-	channel->detach_error = 0;
-	channel->ack_halfconn = NULL;
-	channel->syn_ack = NULL;
-	channel->reg = NULL;
-	channel->detach = NULL;
-	channel->on_read = NULL;
-	channel->pre_send = NULL;
-	channel->exec = NULL;
-	return channel;
-}
-
 void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet) {
 	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 	packet->o = o;
@@ -945,7 +897,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 					if (errnoGet() != EWOULDBLOCK) {
 						o->m_valid = 0;
 						o->detach_error = REACTOR_IO_ERR;
-						reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
+						reactorSetEventTimestamp(o->reactor, gmtimeMillisecond());
 						return -1;
 					}
 					res = 0;
@@ -956,7 +908,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 						reactorobject_sendfin_direct_handler(o, now_msec))
 					{
 						o->m_valid = 0;
-						reactorobject_invalid_inner_handler(o, now_msec);
+						reactorSetEventTimestamp(o->reactor, now_msec);
 					}
 					return res;
 				}
@@ -968,7 +920,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 			if (!reactorobject_request_write(o)) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_IO_ERR;
-				reactorobject_invalid_inner_handler(o, gmtimeMillisecond());
+				reactorSetEventTimestamp(o->reactor, gmtimeMillisecond());
 				return -1;
 			}
 			return res;

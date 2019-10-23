@@ -18,9 +18,9 @@ enum {
 	REACTOR_OBJECT_REG_CMD = 1,
 	REACTOR_OBJECT_DETACH_CMD,
 	REACTOR_OBJECT_FREE_CMD,
-	REACTOR_CHANNEL_REG_CMD, /* ext channel module use */
-	REACTOR_CHANNEL_DETACH_CMD, /* ext channel module use */
 	REACTOR_STREAM_SENDFIN_CMD,
+
+	REACTOR_CHANNEL_FREE_CMD,
 
 	REACTOR_INNER_CMD,
 
@@ -120,37 +120,6 @@ typedef struct ReactorObject_t {
 	int m_inbuflen;
 } ReactorObject_t;
 
-typedef struct ChannelBase_t {
-	ReactorCmd_t regcmd;
-	ReactorCmd_t detachcmd;
-	ReactorObject_t* o;
-	Sockaddr_t to_addr;
-	union {
-		Sockaddr_t listen_addr;
-		Sockaddr_t connect_addr;
-	};
-	struct {
-		StreamTransportCtx_t stream_ctx;
-		void(*stream_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
-		void(*stream_sendfin)(struct ChannelBase_t* self, long long timestamp_msec);
-		char stream_sendfinwait;
-	};
-	char has_recvfin;
-	char has_sendfin;
-	char attached;
-	char detach_error;
-	/* interface */
-	union {
-		void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-		void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
-	};
-	int(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
-	void(*detach)(struct ChannelBase_t* self);
-	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	int(*pre_send)(struct ChannelBase_t* self, ReactorPacket_t* packet, long long timestamp_msec);
-	void(*exec)(struct ChannelBase_t* self, long long timestamp_msec);
-} ChannelBase_t;
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -162,8 +131,7 @@ __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long lo
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
-__declspec_dll ReactorObject_t* reactorobjectOpen(ReactorObject_t* o, FD_t fd, int domain, int socktype, int protocol);
-__declspec_dll ChannelBase_t* channelbaseInit(ChannelBase_t* channel, ReactorObject_t* o, const void* saddr);
+__declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 
 __declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet);
 __declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);

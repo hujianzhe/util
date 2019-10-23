@@ -38,7 +38,7 @@ typedef struct Channel_t {
 	unsigned int connected_times; /* client use */
 	Sockaddr_t to_addr;
 	int detach_error;
-	ReactorCmd_t detachcmd;
+	ReactorCmd_t freecmd;
 	struct {
 		union {
 			/* listener use */
@@ -85,7 +85,6 @@ extern "C" {
 #endif
 
 __declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int initseq, const void* saddr);
-__declspec_dll Channel_t* reactorobjectDupChannel(ReactorObject_t* io, Channel_t* channel);
 __declspec_dll void channelSendFin(Channel_t* channel, long long timestamp_msec);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack);
