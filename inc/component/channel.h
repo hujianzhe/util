@@ -29,7 +29,7 @@ typedef struct ChannelInbufDecodeResult_t {
 typedef struct Channel_t {
 /* public */
 	ReactorCmd_t node;
-	ReactorObject_t* io;
+	ReactorObject_t* o;
 	void* userdata;
 	int flag;
 	unsigned int maxhdrsize;
