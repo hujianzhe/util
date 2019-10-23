@@ -70,7 +70,6 @@ typedef struct ReactorObject_t {
 	int socktype;
 	int protocol;
 	Reactor_t* reactor;
-	void* userdata;
 	int detach_error;
 	int detach_timeout_msec;
 	unsigned int read_fragment_size;
@@ -101,7 +100,6 @@ typedef struct ReactorObject_t {
 	int(*pre_send)(struct ReactorObject_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*detach)(struct ReactorObject_t* self);
-	void(*free)(struct ReactorObject_t* self);
 /* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;

@@ -52,12 +52,7 @@ static void free_io_resource(ReactorObject_t* o) {
 
 static void reactorobject_free(ReactorObject_t* o) {
 	free_io_resource(o);
-	if (o->free) {
-		o->free(o);
-		o->free = NULL;
-	}
-	else
-		free(o);
+	free(o);
 }
 
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
@@ -813,7 +808,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->socktype = socktype;
 	o->protocol = protocol;
 	o->reactor = NULL;
-	o->userdata = NULL;
 	o->detach_error = 0;
 	o->detach_timeout_msec = 0;
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
@@ -836,7 +830,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->pre_send = NULL;
 	o->writeev = NULL;
 	o->detach = NULL;
-	o->free = NULL;
 
 	o->m_hashnode.key = &o->fd;
 	o->m_reghaspost = 0;

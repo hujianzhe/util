@@ -52,15 +52,15 @@ static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timest
 
 static void channel_detach_handler(Channel_t* channel, int error, long long timestamp_msec) {
 	ReactorObject_t* o;
-	if (channel->m_detached)
+	if (channel->detached)
 		return;
-	channel->m_detached = 1;
+	channel->detached = 1;
 	channel->detach_error = error;
 	o = channel->o;
 	listRemoveNode(&o->channel_list, &channel->node._);
-	channel->detach(channel);
 	if (!o->channel_list.head)
 		o->m_valid = 0;
+	channel->detach(channel);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {

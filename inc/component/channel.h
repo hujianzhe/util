@@ -76,7 +76,7 @@ typedef struct Channel_t {
 	long long m_heartbeat_msec;
 	unsigned int m_initseq;
 	unsigned int m_heartbeat_times;
-	char m_detached;
+	char detached;
 	Atom8_t m_ban_send;
 } Channel_t;
 
