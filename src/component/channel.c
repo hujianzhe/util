@@ -35,7 +35,7 @@ static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) 
 		return;
 	if (channel->m_event_msec <= 0 || channel->m_event_msec > timestamp_msec)
 		channel->m_event_msec = timestamp_msec;
-	reactorSetEventTimestamp(channel->o->reactor, timestamp_msec);
+	reactorSetEventTimestamp(channel->_.o->reactor, timestamp_msec);
 }
 
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
@@ -52,15 +52,15 @@ static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timest
 
 static void channel_detach_handler(Channel_t* channel, int error, long long timestamp_msec) {
 	ReactorObject_t* o;
-	if (channel->detached)
+	if (channel->_.detached)
 		return;
-	channel->detached = 1;
-	channel->detach_error = error;
-	o = channel->o;
-	listRemoveNode(&o->channel_list, &channel->node._);
+	channel->_.detached = 1;
+	channel->_.detach_error = error;
+	o = channel->_.o;
+	listRemoveNode(&o->channel_list, &channel->_.regcmd._);
 	if (!o->channel_list.head)
 		o->m_valid = 0;
-	channel->detach(channel);
+	channel->_.detach(&channel->_);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -97,28 +97,18 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			free(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
-		if (channel->flag & CHANNEL_FLAG_STREAM) {
-			if (channel->o->stream.has_recvfin)
-				return 1;
-			channel->o->stream.has_recvfin = 1;
-			if (channel->o->stream.has_sendfin)
-				return 1;
-			channelSendFin(channel, timestamp_msec);
-		}
-		else {
-			if (channel->dgram.has_recvfin)
-				return 1;
-			channel->dgram.has_recvfin = 1;
-			if (channel->dgram.has_sendfin)
-				return 1;
-			channelSendFin(channel, timestamp_msec);
-		}
+		if (channel->_.has_recvfin)
+			return 1;
+		channel->_.has_recvfin = 1;
+		if (channel->_.has_sendfin)
+			return 1;
+		channelSendFin(channel, timestamp_msec);
 	}
 	else {
 		decode_result->bodyptr = merge_packet(packetlist, &decode_result->bodylen);
 		if (!decode_result->bodyptr)
 			return 0;
-		channel->recv(channel, &channel->to_addr, decode_result);
+		channel->recv(channel, &channel->_.to_addr, decode_result);
 		free(decode_result->bodyptr);
 	}
 	return 1;
@@ -137,11 +127,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned char pktype = decode_result.pktype;
 			unsigned int pkseq = decode_result.pkseq;
-			StreamTransportCtx_t* ctx = &channel->o->stream.ctx;
+			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
 				ReactorPacket_t* packet;
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
-					channel->reply_ack(channel, pkseq, &channel->to_addr);
+					channel->reply_ack(channel, pkseq, &channel->_.to_addr);
 				packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + decode_result.bodylen);
 				if (!packet)
 					return -1;
@@ -166,12 +156,12 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				free(pod_container_of(ackpk, ReactorPacket_t, _));
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
-				channel->reply_ack(channel, pkseq, &channel->to_addr);
+				channel->reply_ack(channel, pkseq, &channel->_.to_addr);
 			else
 				return -1;
 		}
 		else
-			channel->recv(channel, &channel->to_addr, &decode_result);
+			channel->recv(channel, &channel->_.to_addr, &decode_result);
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
@@ -197,7 +187,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				break;
 		}
 		if (cur) {
-			socketWrite(channel->o->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
+			socketWrite(channel->_.o->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 		}
 		else if (channel->dgram.m_halfconn_curwaitcnt >= channel->dgram.halfconn_maxwaitcnt) {
 			/* TODO return rst, now let client syn timeout */
@@ -210,10 +200,10 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				unsigned short local_port;
 				Sockaddr_t local_saddr;
 				unsigned int buflen;
-				memcpy(&local_saddr, &channel->dgram.listen_addr, sockaddrLength(&channel->dgram.listen_addr));
+				memcpy(&local_saddr, &channel->_.listen_addr, sockaddrLength(&channel->_.listen_addr));
 				if (!sockaddrSetPort(&local_saddr.st, 0))
 					break;
-				o = channel->o;
+				o = channel->_.o;
 				new_sockfd = socket(o->domain, o->socktype, o->protocol);
 				if (INVALID_FD_HANDLE == new_sockfd)
 					break;
@@ -266,7 +256,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 			channel->dgram.m_halfconn_curwaitcnt--;
 			halfconn->sockfd = INVALID_FD_HANDLE;
 			free_halfconn(halfconn);
-			channel->ack_halfconn(channel, connfd, &addr, timestamp_msec);
+			channel->_.ack_halfconn(&channel->_, connfd, &addr, timestamp_msec);
 		}
 	}
 	channel->m_heartbeat_times = 0;
@@ -283,13 +273,13 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 
 		int from_listen, from_peer;
 		if (channel->flag & CHANNEL_FLAG_CLIENT)
-			from_listen = sockaddrIsEqual(&channel->dgram.connect_addr, from_saddr);
+			from_listen = sockaddrIsEqual(&channel->_.connect_addr, from_saddr);
 		else
 			from_listen = 0;
 		if (from_listen)
 			from_peer = 0;
 		else
-			from_peer = sockaddrIsEqual(&channel->to_addr, from_saddr);
+			from_peer = sockaddrIsEqual(&channel->_.to_addr, from_saddr);
 		if (!from_peer && !from_listen)
 			return 1;
 
@@ -309,14 +299,13 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			if (channel->dgram.m_synpacket) {
 				unsigned short port = *(unsigned short*)decode_result.bodyptr;
 				port = ntohs(port);
-				sockaddrSetPort(&channel->to_addr.st, port);
+				sockaddrSetPort(&channel->_.to_addr.st, port);
 				free(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
-				++channel->connected_times;
-				channel->syn_ack(channel, timestamp_msec);
+				channel->_.syn_ack(&channel->_, timestamp_msec);
 			}
 			channel->reply_ack(channel, 0, from_saddr);
-			socketWrite(channel->o->fd, NULL, 0, 0, &channel->to_addr, sockaddrLength(&channel->to_addr));
+			socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->reply_ack(channel, pkseq, from_saddr);
@@ -350,14 +339,14 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
 						break;
 					if (NETPACKET_FIN == packet->_.type)
-						channel->dgram.has_sendfin = 1;
+						channel->_.has_sendfin = 1;
 					if (packet->_.wait_ack && packet->_.resend_msec > timestamp_msec)
 						continue;
 					packet->_.wait_ack = 1;
 					packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 					channel_set_timestamp(channel, packet->_.resend_msec);
-					socketWrite(channel->o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-						&channel->to_addr, sockaddrLength(&channel->to_addr));
+					socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+						&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 				}
 			}
 		}
@@ -380,40 +369,32 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	return 1;
 }
 
-static int reactorobject_on_read(ReactorObject_t* o, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
-	Channel_t* channel;
-	if (!o->channel_list.head)
-		return -1;
-	else if (SOCK_STREAM == o->socktype) {
-		channel = pod_container_of(o->channel_list.head, Channel_t, node);
+static int channel_on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	if (CHANNEL_FLAG_STREAM & channel->flag) {
 		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 		if (off < 0)
 			channel_detach_handler(channel, REACTOR_ONREAD_ERR, timestamp_msec);
-		else if (o->stream.has_recvfin && o->stream.has_sendfin)
+		else if (base->has_recvfin && base->has_sendfin)
 			channel_detach_handler(channel, 0, timestamp_msec);
 		return off;
 	}
 	else {
-		ListNode_t* cur, *next;
-		for (cur = o->channel_list.head; cur; cur = next) {
-			channel = pod_container_of(cur, Channel_t, node);
-			next = cur->next;
-			if (channel->flag & CHANNEL_FLAG_LISTEN)
-				channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
-			else if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr))
-				channel_detach_handler(channel, REACTOR_ONREAD_ERR, timestamp_msec);
-			else if (channel->dgram.has_recvfin && channel->dgram.has_sendfin)
-				channel_detach_handler(channel, 0, timestamp_msec);
-		}
+		if (channel->flag & CHANNEL_FLAG_LISTEN)
+			channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
+		else if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr))
+			channel_detach_handler(channel, REACTOR_ONREAD_ERR, timestamp_msec);
+		else if (base->has_recvfin && base->has_sendfin)
+			channel_detach_handler(channel, 0, timestamp_msec);
 		return 1;
 	}
 }
 
-static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, long long timestamp_msec) {
-	Channel_t* channel = (Channel_t*)packet->channel;
-	if (SOCK_STREAM == o->socktype) {
+static int channel_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	if (CHANNEL_FLAG_STREAM & channel->flag) {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
-			packet->_.seq = streamtransportctxNextSendSeq(&o->stream.ctx, packet->_.type);
+			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
 		if (packet->_.hdrlen)
 			channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		return 1;
@@ -427,7 +408,7 @@ static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, l
 				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
 					return 0;
 				if (NETPACKET_FIN == packet->_.type)
-					channel->dgram.has_sendfin = 1;
+					channel->_.has_sendfin = 1;
 				packet->_.wait_ack = 1;
 				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 				channel_set_timestamp(channel, packet->_.resend_msec);
@@ -436,9 +417,7 @@ static int reactorobject_pre_send(ReactorObject_t* o, ReactorPacket_t* packet, l
 		else if (packet->_.hdrlen) {
 			channel->encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		}
-		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-			&channel->to_addr, sockaddrLength(&channel->to_addr));
-		return 0;
+		return 1;
 	}
 }
 
@@ -502,7 +481,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				free_halfconn(halfconn);
 				continue;
 			}
-			socketWrite(channel->o->fd, halfconn->buf, halfconn->len, 0,
+			socketWrite(channel->_.o->fd, halfconn->buf, halfconn->len, 0,
 				&halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 			halfconn->resend_times++;
 			halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
@@ -520,8 +499,8 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			return;
 		}
 		else {
-			socketWrite(channel->o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->dgram.connect_addr, sockaddrLength(&channel->dgram.connect_addr));
+			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+				&channel->_.connect_addr, sockaddrLength(&channel->_.connect_addr));
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 			channel_set_timestamp(channel, packet->_.resend_msec);
@@ -542,8 +521,8 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				channel_detach_handler(channel, err, timestamp_msec);
 				return;
 			}
-			socketWrite(channel->o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->to_addr, sockaddrLength(&channel->to_addr));
+			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+				&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 			channel_set_timestamp(channel, packet->_.resend_msec);
@@ -551,60 +530,14 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 	}
 }
 
-static void reactorobject_reg_handler(ReactorObject_t* o, long long timestamp_msec) {
-	ListNode_t* cur, *next;
-	for (cur = o->channel_list.head; cur; cur = next) {
-		Channel_t* channel = pod_container_of(cur, Channel_t, node);
-		next = cur->next;
-		if ((channel->flag & CHANNEL_FLAG_CLIENT) &&
-			(channel->flag & CHANNEL_FLAG_DGRAM) &&
-			(channel->flag & CHANNEL_FLAG_RELIABLE))
-		{
-			unsigned int hdrsize = channel->hdrsize(channel, 0);
-			ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
-			if (!packet) {
-				channel_detach_handler(channel, REACTOR_CONNECT_ERR, timestamp_msec);
-				continue;
-			}
-			memset(packet, 0, sizeof(*packet));
-			packet->channel = channel;
-			packet->_.type = NETPACKET_SYN;
-			packet->_.hdrlen = hdrsize;
-			packet->_.bodylen = 0;
-			channel->dgram.m_synpacket = packet;
-
-			if (packet->_.hdrlen)
-				channel->encode(channel, packet->_.buf, 0, NETPACKET_SYN, 0);
-			packet->_.wait_ack = 1;
-			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-			channel_set_timestamp(channel, packet->_.resend_msec);
-			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->to_addr, sockaddrLength(&channel->to_addr));
-		}
-		else {
-			channel_set_heartbeat_timestamp(channel, timestamp_msec);
-			if (channel->reg)
-				channel->reg(channel, timestamp_msec);
-		}
-	}
-}
-
-static void reactorobject_exec_channel(ReactorObject_t* o, long long timestamp_msec, long long ev_msec) {
-	ListNode_t* cur, *next;
-	if (!o->channel_list.head) {
-		o->m_valid = 0;
+static void channel_exec_channel(ChannelBase_t* base, long long timestamp_msec, long long ev_msec) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	if (timestamp_msec < channel->m_event_msec) {
+		reactorSetEventTimestamp(base->o->reactor, channel->m_event_msec);
 		return;
 	}
-	for (cur = o->channel_list.head; cur; cur = next) {
-		Channel_t* channel = pod_container_of(cur, Channel_t, node);
-		next = cur->next;
-		if (timestamp_msec < channel->m_event_msec) {
-			reactorSetEventTimestamp(channel->o->reactor, channel->m_event_msec);
-			continue;
-		}
-		channel->m_event_msec = 0;
-		channel_event_handler(channel, timestamp_msec);
-	}
+	channel->m_event_msec = 0;
+	channel_event_handler(channel, timestamp_msec);
 }
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
@@ -618,7 +551,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	if (nbytes) {
 		ListNode_t* cur;
 		unsigned int off, iov_i, iov_off;
-		unsigned int sharedsize = channel->o->write_fragment_size - channel->maxhdrsize;
+		unsigned int sharedsize = channel->_.o->write_fragment_size - channel->maxhdrsize;
 		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
 		if (sharedcnt > 1 && no_ack && (CHANNEL_FLAG_DGRAM & channel->flag))
 			return 0;
@@ -630,7 +563,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 			if (!packet)
 				break;
 			memset(packet, 0, sizeof(*packet));
-			packet->channel = channel;
+			packet->channel = &channel->_;
 			packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
 			packet->_.hdrlen = hdrsize;
 			packet->_.bodylen = memsz;
@@ -678,7 +611,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		if (!packet)
 			return 0;
 		memset(packet, 0, sizeof(*packet));
-		packet->channel = channel;
+		packet->channel = &channel->_;
 		packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
 		packet->_.hdrlen = hdrsize;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
@@ -686,83 +619,85 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	return 1;
 }
 
-static void reactorobject_stream_accept(ReactorObject_t* o, FD_t newfd, const void* peeraddr, long long timestamp_msec) {
-	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	channel->ack_halfconn(channel, newfd, peeraddr, timestamp_msec);
-}
-
-static void reactorobject_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
-	Channel_t* channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	++channel->connected_times;
-	channel_set_heartbeat_timestamp(channel, timestamp_msec);
-	channel->syn_ack(channel, timestamp_msec);
-}
-
-static void reactorobject_stream_recvfin(ReactorObject_t* o, long long timestamp_msec) {
-	Channel_t* channel;
-	if (!o->channel_list.head)
-		return;
-	channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	if (!o->stream.has_sendfin)
-		channelSendFin(channel, timestamp_msec);
+static void channel_stream_recvfin(ChannelBase_t* base, long long timestamp_msec) {
+	if (!base->has_sendfin)
+		channelSendFin(pod_container_of(base, Channel_t, _), timestamp_msec);
 	else
-		channel_detach_handler(channel, 0, timestamp_msec);
+		channel_detach_handler(pod_container_of(base, Channel_t, _), 0, timestamp_msec);
 }
 
-static void reactorobject_stream_sendfin(ReactorObject_t* o, long long timestamp_msec) {
-	Channel_t* channel;
-	if (!o->channel_list.head)
+static void channel_stream_sendfin(ChannelBase_t* base, long long timestamp_msec) {
+	if (!base->has_recvfin)
 		return;
-	channel = pod_container_of(o->channel_list.head, Channel_t, node);
-	if (!o->stream.has_recvfin)
-		return;
-	channel_detach_handler(channel, 0, timestamp_msec);
+	channel_detach_handler(pod_container_of(base, Channel_t, _), 0, timestamp_msec);
 }
 
 /*******************************************************************************/
 
 Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, int flag, unsigned int initseq, const void* saddr) {
-	Channel_t* channel;
-	if (SOCK_STREAM == o->socktype && o->channel_list.head)
-		return pod_container_of(o->channel_list.head, Channel_t, node);
-	channel = (Channel_t*)calloc(1, sizeof(Channel_t));
+	Channel_t* channel = (Channel_t*)channelbaseOpen(sizeof(Channel_t), o, saddr);
 	if (!channel)
 		return NULL;
-	channel->o = o;
-	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	flag &= ~(CHANNEL_FLAG_DGRAM | CHANNEL_FLAG_STREAM);
 	flag |= (SOCK_STREAM == o->socktype) ? CHANNEL_FLAG_STREAM : CHANNEL_FLAG_DGRAM;
 	if (flag & CHANNEL_FLAG_DGRAM) {
 		if (flag & CHANNEL_FLAG_LISTEN) {
 			flag |= CHANNEL_FLAG_RELIABLE;
 			channel->dgram.halfconn_maxwaitcnt = 200;
-			memcpy(&channel->dgram.listen_addr, saddr, sockaddrLength(saddr));
 		}
-		else if (flag & CHANNEL_FLAG_CLIENT)
-			memcpy(&channel->dgram.connect_addr, saddr, sockaddrLength(saddr));
 		channel->dgram.rto = 200;
 		channel->dgram.resend_maxtimes = 5;
 		dgramtransportctxInit(&channel->dgram.ctx, initseq);
 	}
 	else {
-		streamtransportctxInit(&channel->o->stream.ctx, initseq);
-		if (flag & CHANNEL_FLAG_LISTEN)
-			o->stream.accept = reactorobject_stream_accept;
-		else if (flag & CHANNEL_FLAG_CLIENT) {
-			memcpy(&o->stream.connect_addr, saddr, sockaddrLength(saddr));
-			o->stream.connect = reactorobject_stream_connect;
-		}
-		o->stream.recvfin = reactorobject_stream_recvfin;
-		o->stream.sendfin = reactorobject_stream_sendfin;
+		streamtransportctxInit(&channel->_.stream_ctx, initseq);
+		channel->_.stream_recvfin = channel_stream_recvfin;
+		channel->_.stream_sendfin = channel_stream_sendfin;
 	}
 	channel->flag = flag;
-	memcpy(&channel->to_addr, saddr, sockaddrLength(saddr));
 	channel->m_initseq = initseq;
-	o->reg = reactorobject_reg_handler;
-	o->exec = reactorobject_exec_channel;
-	o->on_read = reactorobject_on_read;
-	o->pre_send = reactorobject_pre_send;
-	listInsertNodeBack(&o->channel_list, o->channel_list.tail, &channel->node._);
+	channel->_.exec = channel_exec_channel;
+	channel->_.on_read = channel_on_read;
+	channel->_.pre_send = channel_pre_send;
+	return channel;
+}
+
+Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
+	Thread_t t = channel->_.o->reactor->m_runthread;
+	if (threadEqual(t, threadSelf()))
+		channel_set_heartbeat_timestamp(channel, now_msec);
+	return channel;
+}
+
+Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
+	Thread_t t = channel->_.o->reactor->m_runthread;
+	if (!threadEqual(t, threadSelf()))
+		return channel;
+	if ((channel->flag & CHANNEL_FLAG_CLIENT) &&
+		(channel->flag & CHANNEL_FLAG_DGRAM) &&
+		(channel->flag & CHANNEL_FLAG_RELIABLE))
+	{
+		unsigned int hdrsize = channel->hdrsize(channel, 0);
+		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
+		if (!packet) {
+			channel_detach_handler(channel, REACTOR_CONNECT_ERR, timestamp_msec);
+			return NULL;
+		}
+		memset(packet, 0, sizeof(*packet));
+		packet->channel = &channel->_;
+		packet->_.type = NETPACKET_SYN;
+		packet->_.hdrlen = hdrsize;
+		packet->_.bodylen = 0;
+		channel->dgram.m_synpacket = packet;
+
+		if (packet->_.hdrlen)
+			channel->encode(channel, packet->_.buf, 0, NETPACKET_SYN, 0);
+		packet->_.wait_ack = 1;
+		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+		channel_set_timestamp(channel, packet->_.resend_msec);
+		socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+			&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
+	}
 	return channel;
 }
 
@@ -778,11 +713,10 @@ void channelSendFin(Channel_t* channel, long long timestamp_msec) {
 		packet->_.hdrlen = hdrsize;
 		packet->_.type = NETPACKET_FIN;
 		packet->_.bodylen = 0;
-		packet->channel = channel;
-		reactorobjectSendPacket(channel->o, packet);
+		channelbaseSendPacket(&channel->_, packet);
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
-		ReactorObject_t* o = channel->o;
+		ReactorObject_t* o = channel->_.o;
 		reactorCommitCmd(o->reactor, &o->stream.sendfincmd);
 	}
 }
@@ -798,7 +732,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		return NULL;
 	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
 		return NULL;
-	reactorobjectSendPacketList(channel->o, &packetlist);
+	channelbaseSendPacketList(&channel->_, &packetlist);
 	return channel;
 }
 
@@ -813,8 +747,8 @@ static void channel_free_packetlist(List_t* list) {
 
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		channel_free_packetlist(&channel->o->stream.ctx.recvpacketlist);
-		channel_free_packetlist(&channel->o->stream.ctx.sendpacketlist);
+		channel_free_packetlist(&channel->_.stream_ctx.recvpacketlist);
+		channel_free_packetlist(&channel->_.stream_ctx.sendpacketlist);
 	}
 	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		ListNode_t* cur, *next;

@@ -35,7 +35,6 @@ enum {
 	REACTOR_ONREAD_ERR
 };
 typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
-struct ReactorObject_t;
 
 typedef struct Reactor_t {
 	/* public */
@@ -56,13 +55,6 @@ typedef struct Reactor_t {
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
-typedef struct ReactorPacket_t {
-	ReactorCmd_t cmd;
-	struct ReactorObject_t* o;
-	void* channel;
-	NetPacket_t _;
-} ReactorPacket_t;
-
 typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
@@ -75,17 +67,9 @@ typedef struct ReactorObject_t {
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
 	struct {
-		void(*accept)(struct ReactorObject_t* self, FD_t newfd, const void* peeraddr, long long timestamp_msec);
-		void(*connect)(struct ReactorObject_t* self, long long timestamp_msec);
 		Sockaddr_t connect_addr;
-		StreamTransportCtx_t ctx;
 		ReactorCmd_t sendfincmd;
-		void(*recvfin)(struct ReactorObject_t* self, long long timestamp_msec);
-		void(*sendfin)(struct ReactorObject_t* self, long long timestamp_msec);
-		char has_recvfin;
-		char has_sendfin;
 		Atom8_t m_sendfincmdhaspost;
-		char m_sendfinwait;
 		char m_connected;
 		char m_listened;
 	} stream;
@@ -96,9 +80,6 @@ typedef struct ReactorObject_t {
 	List_t channel_list;
 	/* interface */
 	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*exec)(struct ReactorObject_t* self, long long timestamp_msec, long long ev_msec);
-	int(*on_read)(struct ReactorObject_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	int(*pre_send)(struct ReactorObject_t* self, ReactorPacket_t* packet, long long timestamp_msec);
 	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*detach)(struct ReactorObject_t* self);
 /* private */
@@ -119,6 +100,42 @@ typedef struct ReactorObject_t {
 	int m_inbuflen;
 } ReactorObject_t;
 
+struct ReactorPacket_t;
+typedef struct ChannelBase_t {
+	ReactorCmd_t regcmd;
+	ReactorObject_t* o;
+	int detach_error;
+	ReactorCmd_t freecmd;
+	Sockaddr_t to_addr;
+	union {
+		Sockaddr_t listen_addr;
+		Sockaddr_t connect_addr;
+	};
+	struct {
+		StreamTransportCtx_t stream_ctx;
+		void(*stream_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
+		void(*stream_sendfin)(struct ChannelBase_t* self, long long timestamp_msec);
+		char stream_sendfinwait;
+	};
+	char has_recvfin;
+	char has_sendfin;
+	char detached;
+
+	void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
+	void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* listener use */
+	void(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
+	void(*exec)(struct ChannelBase_t* self, long long timestamp_msec, long long ev_msec);
+	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
+	int(*pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
+	void(*detach)(struct ChannelBase_t* self);
+} ChannelBase_t;
+
+typedef struct ReactorPacket_t {
+	ReactorCmd_t cmd;
+	ChannelBase_t* channel;
+	NetPacket_t _;
+} ReactorPacket_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -131,10 +148,11 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
+__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
 
-__declspec_dll void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet);
-__declspec_dll void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist);
-__declspec_dll int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned int len, const void* addr);
+__declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
+__declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
+__declspec_dll int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr);
 
 #ifdef	__cplusplus
 }

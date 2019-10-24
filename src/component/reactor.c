@@ -66,6 +66,17 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 	if (SOCK_STREAM == o->socktype)
 		free_io_resource(o);
+
+	allChannelDoAction(o, ChannelBase_t* channel,
+		if (REACTOR_CONNECT_ERR == o->detach_error)
+			channel->detach_error = o->detach_error;
+		else if (REACTOR_IO_ERR == o->detach_error && 0 == channel->detach_error)
+			channel->detach_error = o->detach_error;
+		channel->detached = 1;
+		channel->detach(channel);
+	);
+	listInit(&o->channel_list);
+
 	if (o->detach_timeout_msec <= 0) {
 		if (SOCK_STREAM != o->socktype)
 			free_io_resource(o);
@@ -174,28 +185,31 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 }
 
 static int reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp_msec) {
-	if (!o->stream.has_recvfin) {
-		o->stream.has_recvfin = 1;
-		if (o->stream.recvfin)
-			o->stream.recvfin(o, timestamp_msec);
+	ChannelBase_t* channel = streamChannel(o);
+	if (!channel->has_recvfin) {
+		channel->has_recvfin = 1;
+		if (channel->stream_recvfin)
+			channel->stream_recvfin(channel, timestamp_msec);
 	}
-	return o->stream.has_sendfin;
+	return channel->has_sendfin;
 }
 
 static int reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
-	if (!o->stream.has_sendfin) {
-		o->stream.has_sendfin = 1;
-		if (o->stream.sendfin)
-			o->stream.sendfin(o, timestamp_msec);
+	ChannelBase_t* channel = streamChannel(o);
+	if (!channel->has_sendfin) {
+		channel->has_sendfin = 1;
+		if (channel->stream_sendfin)
+			channel->stream_sendfin(channel, timestamp_msec);
 	}
-	return o->stream.has_recvfin;
+	return channel->has_recvfin;
 }
 
 static int reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_msec) {
-	if (o->stream.has_sendfin)
-		return o->stream.has_recvfin;
-	if (streamtransportctxSendCheckBusy(&o->stream.ctx)) {
-		o->stream.m_sendfinwait = 1;
+	ChannelBase_t* channel = streamChannel(o);
+	if (channel->has_sendfin)
+		return channel->has_recvfin;
+	if (streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
+		channel->stream_sendfinwait = 1;
 		return 0;
 	}
 	socketShutdown(o->fd, SHUT_WR);
@@ -208,9 +222,9 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (o->m_valid) {
-			if (!o->exec)
-				continue;
-			o->exec(o, now_msec, ev_msec);
+			allChannelDoAction(o, ChannelBase_t* channel,
+				channel->exec(channel, now_msec, ev_msec);
+			);
 			if (o->m_valid)
 				continue;
 		}
@@ -244,7 +258,8 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	int busy = 0;
 	List_t finishedlist;
 	ListNode_t* cur, *next;
-	StreamTransportCtx_t* ctxptr = &o->stream.ctx;
+	ChannelBase_t* channel = streamChannel(o);
+	StreamTransportCtx_t* ctxptr = &channel->stream_ctx;
 	for (cur = ctxptr->sendpacketlist.head; cur; cur = cur->next) {
 		int res;
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -287,7 +302,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	}
 	if (busy)
 		return;
-	if (!o->stream.m_sendfinwait)
+	if (!channel->stream_sendfinwait)
 		return;
 	socketShutdown(o->fd, SHUT_WR);
 	if (reactorobject_sendfin_direct_handler(o, timestamp_msec))
@@ -295,19 +310,21 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 }
 
 static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
+	ChannelBase_t* channel = streamChannel(o);
 	Sockaddr_t saddr;
 	FD_t connfd;
 	for (connfd = nioAcceptFirst(o->fd, o->m_readol, &saddr.st);
 		connfd != INVALID_FD_HANDLE;
 		connfd = nioAcceptNext(o->fd, &saddr.st))
 	{
-		o->stream.accept(o, connfd, &saddr, timestamp_msec);
+		channel->ack_halfconn(channel, connfd, &saddr, timestamp_msec);
 	}
 }
 
 static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
 	if (SOCK_STREAM == o->socktype) {
+		ChannelBase_t* channel;
 		int res = socketTcpReadableBytes(o->fd);
 		if (res < 0) {
 			o->m_valid = 0;
@@ -345,7 +362,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			o->m_inbuflen += res;
-			res = o->on_read(o, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
+			channel = streamChannel(o);
+			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (res < 0) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_ONREAD_ERR;
@@ -354,7 +372,10 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
-			if (o->stream.m_sendfinwait && o->stream.ctx.sendpacket_all_acked)
+			channel = streamChannel(o);
+			if (!channel)
+				return;
+			if (channel->stream_sendfinwait && channel->stream_ctx.sendpacket_all_acked)
 				reactor_stream_writeev(o, timestamp_msec);
 		}
 	}
@@ -390,10 +411,9 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 					o->m_valid = 0;
 				return;
 			}
-			if (o->on_read(o, ptr, res, 0, timestamp_msec, &from_addr) < 0) {
-				o->m_valid = 0;
-				return;
-			}
+			allChannelDoAction(o, ChannelBase_t* channel,
+				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr);
+			);
 		}
 	}
 }
@@ -411,7 +431,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	}
 	else {
 		o->stream.m_connected = 1;
-		o->stream.connect(o, timestamp_msec);
+		streamChannel(o)->syn_ack(streamChannel(o), timestamp_msec);
 		return 1;
 	}
 }
@@ -427,18 +447,19 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		next = cur->next;
 		if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			ReactorPacket_t* packet = pod_container_of(cmd, ReactorPacket_t, cmd);
-			ReactorObject_t* o = packet->o;
+			ChannelBase_t* channel = packet->channel;
+			ReactorObject_t* o = channel->o;
 			if (!o->m_valid) {
 				if (reactor->cmd_free)
 					reactor->cmd_free(&packet->cmd);
 				continue;
 			}
-			if (o->pre_send && !o->pre_send(o, packet, timestamp_msec))
+			if (channel->pre_send && !channel->pre_send(channel, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM == o->socktype) {
-				StreamTransportCtx_t* ctx = &o->stream.ctx;
+				StreamTransportCtx_t* ctx = &channel->stream_ctx;
 				if (NETPACKET_FIN == packet->_.type && !ctx->sendpacket_all_acked) {
-					o->stream.m_sendfinwait = 1;
+					channel->stream_sendfinwait = 1;
 					streamtransportctxCacheSendPacket(ctx, &packet->_);
 					continue;
 				}
@@ -472,6 +493,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 			}
 			else {
+				socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+					&channel->to_addr, sockaddrLength(&channel->to_addr));
 				if (packet->_.cached)
 					continue;
 			}
@@ -481,7 +504,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
-			if (!o->m_valid)
+			if (!o->m_valid || !streamChannel(o))
 				continue;
 			if (reactorobject_sendfin_check(o, timestamp_msec)) {
 				o->m_valid = 0;
@@ -510,13 +533,16 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			if (o->reg)
 				o->reg(o, timestamp_msec);
-			if (SOCK_STREAM == o->socktype) {
-				if (o->stream.m_listened)
-					continue;
-				else if (!o->stream.m_connected)
-					continue;
-				else if (o->stream.connect)
-					o->stream.connect(o, timestamp_msec);
+			allChannelDoAction(o, ChannelBase_t* channel,
+				if (channel->reg)
+					channel->reg(channel, timestamp_msec);
+			);
+			if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
+				continue;
+			else {
+				ChannelBase_t* channel = streamChannel(o);
+				if (channel->syn_ack)
+					channel->syn_ack(channel, timestamp_msec);
 			}
 			continue;
 		}
@@ -531,6 +557,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 			reactorobject_free(o);
+			continue;
+		}
+		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
+			free(channel);
 			continue;
 		}
 
@@ -763,6 +794,10 @@ void reactorDestroy(Reactor_t* reactor) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 				reactorobject_free(o);
 			}
+			else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
+				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
+				free(channel);
+			}
 			else if (REACTOR_INNER_CMD > cmd->type)
 				continue;
 			else if (reactor->cmd_free)
@@ -827,7 +862,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
-		streamtransportctxInit(&o->stream.ctx, 0);
 		o->stream.sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		o->read_fragment_size = 1460;
 	}
@@ -839,9 +873,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 	listInit(&o->channel_list);
 	o->reg = NULL;
-	o->exec = NULL;
-	o->on_read = NULL;
-	o->pre_send = NULL;
 	o->writeev = NULL;
 	o->detach = NULL;
 
@@ -862,22 +893,39 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	return o;
 }
 
-void reactorobjectSendPacket(ReactorObject_t* o, ReactorPacket_t* packet) {
-	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
-	packet->o = o;
-	reactorCommitCmd(o->reactor, &packet->cmd);
+ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) {
+	ChannelBase_t* channel = (ChannelBase_t*)calloc(1, sz);
+	if (!channel)
+		return NULL;
+	channel->o = o;
+	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
+	if (SOCK_STREAM == o->socktype) {
+		memcpy(&o->stream.connect_addr, addr, sockaddrLength(addr));
+		streamtransportctxInit(&channel->stream_ctx, 0);
+	}
+	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
+	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
+	memcpy(&channel->listen_addr, addr, sockaddrLength(addr));
+	listPushNodeBack(&o->channel_list, &channel->regcmd._);
+	return channel;
 }
 
-void reactorobjectSendPacketList(ReactorObject_t* o, List_t* packetlist) {
+void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
+	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
+	packet->channel = channel;
+	reactorCommitCmd(channel->o->reactor, &packet->cmd);
+}
+
+void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 	ListNode_t* cur;
 	if (!packetlist->head)
 		return;
 	for (cur = packetlist->head; cur; cur = cur->next) {
 		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd);
 		packet->cmd.type = REACTOR_SEND_PACKET_CMD;
-		packet->o = o;
+		packet->channel = channel;
 	}
-	reactor_commit_cmdlist(o->reactor, packetlist);
+	reactor_commit_cmdlist(channel->o->reactor, packetlist);
 }
 
 static ReactorPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {
@@ -893,12 +941,13 @@ static ReactorPacket_t* make_packet(const void* buf, unsigned int len, int off, 
 	return packet;
 }
 
-int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned int len, const void* addr) {
+int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr) {
+	ReactorObject_t* o = channel->o;
 	if (SOCK_STREAM == o->socktype) {
 		ReactorPacket_t* packet;
 		if (threadEqual(o->reactor->m_runthread, threadSelf())) {
 			int res = 0;
-			if (!streamtransportctxSendCheckBusy(&o->stream.ctx)) {
+			if (!streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
 				res = socketWrite(o->fd, buf, len, 0, NULL, 0);
 				if (res < 0) {
 					if (errnoGet() != EWOULDBLOCK) {
@@ -923,7 +972,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 			packet = make_packet(buf, len, res, pktype);
 			if (!packet)
 				return -1;
-			streamtransportctxCacheSendPacket(&o->stream.ctx, &packet->_);
+			streamtransportctxCacheSendPacket(&channel->stream_ctx, &packet->_);
 			if (!reactorobject_request_write(o)) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_IO_ERR;
@@ -936,7 +985,7 @@ int reactorobjectSend(ReactorObject_t* o, int pktype, const void* buf, unsigned 
 			packet = make_packet(buf, len, 0, pktype);
 			if (!packet)
 				return -1;
-			reactorobjectSendPacket(o, packet);
+			channelbaseSendPacket(channel, packet);
 			return 0;
 		}
 	}
