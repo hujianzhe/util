@@ -411,7 +411,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	}
 	else {
 		o->stream.m_connected = 1;
-		o->reg(o, timestamp_msec);
+		o->stream.connect(o, timestamp_msec);
 		return 1;
 	}
 }
@@ -508,9 +508,16 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				o->m_hashnode_has_insert = 1;
 			}
-			if (SOCK_STREAM == o->socktype && !o->stream.m_connected && !o->stream.m_listened)
-				continue;
-			o->reg(o, timestamp_msec);
+			if (o->reg)
+				o->reg(o, timestamp_msec);
+			if (SOCK_STREAM == o->socktype) {
+				if (o->stream.m_listened)
+					continue;
+				else if (!o->stream.m_connected)
+					continue;
+				else if (o->stream.connect)
+					o->stream.connect(o, timestamp_msec);
+			}
 			continue;
 		}
 		else if (REACTOR_OBJECT_DETACH_CMD == cmd->type) {
