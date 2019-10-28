@@ -366,6 +366,48 @@ struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* ke
 	}
 	return node;
 }
+
+struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const void* key)
+{
+	struct RBTreeNode_t *great_equal_node = (struct RBTreeNode_t*)0;
+	struct RBTreeNode_t *node = root->rb_tree_node;
+	while (node) {
+		int res = root->keycmp(node->key, key);
+		if (res < 0) {
+			great_equal_node = node;
+			node = node->rb_left;
+		}
+		else if (res > 0) {
+			node = node->rb_right;
+		}
+		else {
+			great_equal_node = node;
+			break;
+		}
+	}
+	return great_equal_node;
+}
+
+struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const void* key)
+{
+	struct RBTreeNode_t *great_node = (struct RBTreeNode_t*)0;
+	struct RBTreeNode_t *node = root->rb_tree_node;
+	while (node) {
+		int res = root->keycmp(node->key, key);
+		if (res < 0) {
+			great_node = node;
+			node = node->rb_left;
+		}
+		else if (res > 0) {
+			node = node->rb_right;
+		}
+		else {
+			break;
+		}
+	}
+	return great_node;
+}
+
 struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const void* key)
 {
 	struct RBTreeNode_t *node = rbtreeSearchKey(root, key);

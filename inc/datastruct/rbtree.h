@@ -35,6 +35,8 @@ __declspec_dll void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTr
 __declspec_dll void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node);
 
 __declspec_dll struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* key);
+__declspec_dll struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const void* key);
+__declspec_dll struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const void* key);
 __declspec_dll struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const void* key);
 
 __declspec_dll struct RBTreeNode_t* rbtreeNextNode(struct RBTreeNode_t* node);
