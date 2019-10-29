@@ -398,11 +398,8 @@ struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const void
 			great_node = node;
 			node = node->rb_left;
 		}
-		else if (res > 0) {
-			node = node->rb_right;
-		}
 		else {
-			break;
+			node = node->rb_right;
 		}
 	}
 	return great_node;
