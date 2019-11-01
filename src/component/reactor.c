@@ -684,7 +684,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 
 static void reactor_commit_cmdlist(Reactor_t* reactor, List_t* cmdlist) {
 	criticalsectionEnter(&reactor->m_cmdlistlock);
-	listMerge(&reactor->m_cmdlist, cmdlist);
+	listAppend(&reactor->m_cmdlist, cmdlist);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	reactorWake(reactor);
 }

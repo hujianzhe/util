@@ -110,7 +110,7 @@ struct ListNode_t* listPopNodeBack(struct List_t* list) {
 	return tail;
 }
 
-void listMerge(struct List_t* to, struct List_t* from) {
+void listAppend(struct List_t* to, struct List_t* from) {
 	if (!to->head) {
 		to->head = from->head;
 	}
@@ -119,11 +119,12 @@ void listMerge(struct List_t* to, struct List_t* from) {
 	}
 	if (from->head) {
 		from->head->prev = to->tail;
+		from->head = (struct ListNode_t*)0;
 	}
 	if (from->tail) {
 		to->tail = from->tail;
+		from->tail = (struct ListNode_t*)0;
 	}
-	from->head = from->tail = (struct ListNode_t*)0;
 }
 
 void listSwap(struct List_t* one, struct List_t* two) {

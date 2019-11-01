@@ -98,7 +98,7 @@ void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTi
 			break;
 		rbnext = rbtreeNextNode(rbcur);
 		rbtreeRemoveNode(&timer->m_rbtree, rbcur);
-		listMerge(&list, &evlist->m_list);
+		listAppend(&list, &evlist->m_list);
 		free(evlist);
 	}
 
@@ -124,7 +124,7 @@ void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*)) {
 	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
 		rbnext = rbtreeNextNode(rbcur);
-		listMerge(&list, &evlist->m_list);
+		listAppend(&list, &evlist->m_list);
 		free(evlist);
 	}
 	rbtreeInit(&timer->m_rbtree, rbtimer_keycmp);

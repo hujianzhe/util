@@ -51,7 +51,7 @@ void dataqueuePushList(DataQueue_t* dq, List_t* list) {
 	criticalsectionEnter(&dq->m_cslock);
 
 	is_empty = !dq->m_datalist.head;
-	listMerge(&dq->m_datalist, list);
+	listAppend(&dq->m_datalist, list);
 	if (is_empty) {
 		conditionvariableSignal(&dq->m_condition);
 	}
