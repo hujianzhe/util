@@ -345,7 +345,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			o->m_inbuf = ptr;
-			res = socketRead(o->fd, o->m_inbuf + o->m_inbufoff, res, 0, &from_addr.st);
+			res = socketRead(o->fd, o->m_inbuf + o->m_inbuflen, res, 0, &from_addr.st);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					o->m_valid = 0;
