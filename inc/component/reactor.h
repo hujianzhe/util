@@ -98,6 +98,7 @@ typedef struct ReactorObject_t {
 	unsigned char* m_inbuf;
 	int m_inbufoff;
 	int m_inbuflen;
+	int m_inbufsize;
 } ReactorObject_t;
 
 struct ReactorPacket_t;

@@ -31,6 +31,7 @@ static void free_inbuf(ReactorObject_t* o) {
 		o->m_inbuf = NULL;
 		o->m_inbuflen = 0;
 		o->m_inbufoff = 0;
+		o->m_inbufsize = 0;
 	}
 }
 
@@ -339,12 +340,15 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else {
-			unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res);
-			if (!ptr) {
-				o->m_valid = 0;
-				return;
+			if (o->m_inbufsize < o->m_inbuflen + res) {
+				unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res);
+				if (!ptr) {
+					o->m_valid = 0;
+					return;
+				}
+				o->m_inbuf = ptr;
+				o->m_inbufsize = o->m_inbuflen + res;
 			}
-			o->m_inbuf = ptr;
 			res = socketRead(o->fd, o->m_inbuf + o->m_inbuflen, res, 0, &from_addr.st);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
@@ -391,7 +395,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 						o->m_valid = 0;
 						return;
 					}
-					o->m_inbuflen = o->read_fragment_size;
+					o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
 				}
 				ptr = o->m_inbuf;
 				res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
@@ -890,6 +894,7 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
+	o->m_inbufsize = 0;
 	return o;
 }
 
