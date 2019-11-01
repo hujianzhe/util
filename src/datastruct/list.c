@@ -126,6 +126,12 @@ void listMerge(struct List_t* to, struct List_t* from) {
 	from->head = from->tail = (struct ListNode_t*)0;
 }
 
+void listSwap(struct List_t* one, struct List_t* two) {
+	struct List_t temp = *one;
+	*one = *two;
+	*two = temp;
+}
+
 void listReverse(struct List_t* list) {
 	struct ListNode_t* cur = list->head;
 	list->tail = cur;
