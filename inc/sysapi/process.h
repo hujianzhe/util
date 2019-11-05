@@ -31,9 +31,9 @@
 	} Thread_t;
 	typedef struct Fiber_t {
 		void* arg;
+		int m_fromthread;
 		void(*m_entry)(struct Fiber_t*);
 		LPVOID m_ctx;
-		int is_threadfiber;
 	} Fiber_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
@@ -57,6 +57,7 @@
 	} Thread_t;
 	typedef struct {
 		void* arg;
+		int m_fromthread;
 		ucontext_t m_ctx;
 		unsigned char m_stack[1];
 	} Fiber_t;

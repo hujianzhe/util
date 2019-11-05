@@ -362,13 +362,14 @@ Fiber_t* fiberFromThread(void) {
 	}
 	fiber->arg = NULL;
 	fiber->m_entry = NULL;
-	fiber->is_threadfiber = 1;
+	fiber->m_fromthread = 1;
 	return fiber;
 #else
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
 	if (!fiber)
 		return NULL;
 	fiber->arg = NULL;
+	fiber->m_fromthread = 1;
 	return fiber;
 #endif
 }
@@ -386,7 +387,7 @@ Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
 	}
 	fiber->arg = NULL;
 	fiber->m_entry = entry;
-	fiber->is_threadfiber = 0;
+	fiber->m_fromthread = 0;
 	return fiber;
 #else
 	if (0 == stack_size)
@@ -403,6 +404,7 @@ Fiber_t* fiberCreate(size_t stack_size, void (*entry)(Fiber_t*)) {
 	fiber->m_ctx.uc_link = NULL;
 	makecontext(&fiber->m_ctx, (void(*)(void))entry, 1, fiber);
 	fiber->arg = NULL;
+	fiber->m_fromthread = 0;
 	return fiber;
 #endif
 }
@@ -419,7 +421,7 @@ void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 
 void fiberFree(Fiber_t* fiber) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (fiber->is_threadfiber) {
+	if (fiber->m_fromthread) {
 		assertTRUE(ConvertFiberToThread());
 	}
 	else {
