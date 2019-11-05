@@ -347,11 +347,6 @@ static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
 	Fiber_t* fiber = (Fiber_t*)lpFiberParameter;
 	fiber->m_entry(fiber);
 }
-#else
-static void __get_thread_fiber(ucontext_t* temp_ctx, ucontext_t* thread_fiber_ctx) {
-	swapcontext(temp_ctx, thread_fiber_ctx);
-	while (1);
-}
 #endif
 
 Fiber_t* fiberFromThread(void) {
@@ -370,19 +365,10 @@ Fiber_t* fiberFromThread(void) {
 	fiber->is_threadfiber = 1;
 	return fiber;
 #else
-	unsigned char stack[512];
-	ucontext_t temp_ctx;
-	if (-1 == getcontext(&temp_ctx))
-		return NULL;
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
 	if (!fiber)
 		return NULL;
 	fiber->arg = NULL;
-	temp_ctx.uc_stack.ss_size = sizeof(stack);
-	temp_ctx.uc_stack.ss_sp = stack;
-	temp_ctx.uc_link = NULL;
-	makecontext(&temp_ctx, (void(*)(void))__get_thread_fiber, 2, &temp_ctx, &fiber->m_ctx);
-	swapcontext(&fiber->m_ctx, &temp_ctx);
 	return fiber;
 #endif
 }
