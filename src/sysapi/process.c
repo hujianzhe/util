@@ -369,6 +369,7 @@ Fiber_t* fiberFromThread(void) {
 	if (!fiber)
 		return NULL;
 	fiber->arg = NULL;
+	fiber->m_ctx.uc_link = NULL;
 	fiber->m_threadfiber = fiber;
 	return fiber;
 #endif
