@@ -16,10 +16,8 @@
 
 enum {
 	REACTOR_OBJECT_REG_CMD = 1,
-	REACTOR_OBJECT_DETACH_CMD,
 	REACTOR_OBJECT_FREE_CMD,
 	REACTOR_STREAM_SENDFIN_CMD,
-
 	REACTOR_CHANNEL_FREE_CMD,
 
 	REACTOR_INNER_CMD,
@@ -74,7 +72,6 @@ typedef struct ReactorObject_t {
 		char m_listened;
 	} stream;
 	ReactorCmd_t regcmd;
-	ReactorCmd_t detachcmd;
 	ReactorCmd_t freecmd;
 	/* channel objcet list */
 	List_t channel_list;

@@ -550,14 +550,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			continue;
 		}
-		else if (REACTOR_OBJECT_DETACH_CMD == cmd->type) {
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, detachcmd);
-			if (!o->m_valid)
-				continue;
-			o->m_valid = 0;
-			reactorobject_invalid_inner_handler(o, timestamp_msec);
-			continue;
-		}
 		else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 			reactorobject_free(o);
@@ -656,22 +648,6 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.sendfincmd);
 		if (SOCK_STREAM != o->socktype || _xchg8(&o->stream.m_sendfincmdhaspost, 1))
 			return;
-	}
-	else if (REACTOR_OBJECT_DETACH_CMD == cmdnode->type) {
-		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, detachcmd);
-		if (!o->m_reghaspost || _xchg8(&o->m_detachhaspost, 1))
-			return;
-		if (threadEqual(reactor->m_runthread, threadSelf())) {
-			if (o->m_valid) {
-				o->m_valid = 0;
-				o->m_invalid_msec = gmtimeMillisecond();
-				if (o->detach_timeout_msec > 0)
-					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec + o->detach_timeout_msec);
-				else
-					reactorSetEventTimestamp(o->reactor, o->m_invalid_msec);
-			}
-			return;
-		}
 	}
 	else if (REACTOR_OBJECT_FREE_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, freecmd);
@@ -873,7 +849,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 		o->read_fragment_size = 1464;
 	}
 	o->regcmd.type = REACTOR_OBJECT_REG_CMD;
-	o->detachcmd.type = REACTOR_OBJECT_DETACH_CMD;
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 	listInit(&o->channel_list);
 	o->reg = NULL;
