@@ -25,6 +25,13 @@ do {\
 extern "C" {
 #endif
 
+void __reactor_set_event_timestamp__(Reactor_t* reactor, long long timestamp_msec) {
+	if (timestamp_msec <= 0)
+		return;
+	else if (reactor->m_event_msec <= 0 || reactor->m_event_msec > timestamp_msec)
+		reactor->m_event_msec = timestamp_msec;
+}
+
 static void free_inbuf(ReactorObject_t* o) {
 	if (o->m_inbuf) {
 		free(o->m_inbuf);
@@ -86,7 +93,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	else {
 		Reactor_t* reactor = o->reactor;
 		listInsertNodeBack(&reactor->m_invalidlist, reactor->m_invalidlist.tail, &o->m_invalidnode);
-		reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
+		__reactor_set_event_timestamp__(reactor, o->m_invalid_msec + o->detach_timeout_msec);
 	}
 }
 
@@ -241,7 +248,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
 		if (o->m_invalid_msec + o->detach_timeout_msec > now_msec) {
-			reactorSetEventTimestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
+			__reactor_set_event_timestamp__(reactor, o->m_invalid_msec + o->detach_timeout_msec);
 			continue; /* not use timer heap, so continue,,,,this is temp... */
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
@@ -802,13 +809,6 @@ void reactorDestroy(Reactor_t* reactor) {
 	} while (0);
 }
 
-void reactorSetEventTimestamp(Reactor_t* reactor, long long timestamp_msec) {
-	if (timestamp_msec <= 0)
-		return;
-	else if (reactor->m_event_msec <= 0 || reactor->m_event_msec > timestamp_msec)
-		reactor->m_event_msec = timestamp_msec;
-}
-
 /*****************************************************************************************/
 
 ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
@@ -890,6 +890,19 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 	return channel;
 }
 
+void __channel_detach_handler__(ChannelBase_t* channel, int error, long long timestamp_msec) {
+	ReactorObject_t* o;
+	if (channel->detached)
+		return;
+	channel->detached = 1;
+	channel->detach_error = error;
+	o = channel->o;
+	listRemoveNode(&o->channel_list, &channel->regcmd._);
+	if (!o->channel_list.head)
+		o->m_valid = 0;
+	channel->detach(channel);
+}
+
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
 	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 	packet->channel = channel;
@@ -933,7 +946,7 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 					if (errnoGet() != EWOULDBLOCK) {
 						o->m_valid = 0;
 						o->detach_error = REACTOR_IO_ERR;
-						reactorSetEventTimestamp(o->reactor, gmtimeMillisecond());
+						__reactor_set_event_timestamp__(o->reactor, gmtimeMillisecond());
 						return -1;
 					}
 					res = 0;
@@ -944,7 +957,7 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 						reactorobject_sendfin_direct_handler(o, now_msec))
 					{
 						o->m_valid = 0;
-						reactorSetEventTimestamp(o->reactor, now_msec);
+						__reactor_set_event_timestamp__(o->reactor, now_msec);
 					}
 					return res;
 				}
@@ -956,7 +969,7 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 			if (!reactorobject_request_write(o)) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_IO_ERR;
-				reactorSetEventTimestamp(o->reactor, gmtimeMillisecond());
+				__reactor_set_event_timestamp__(o->reactor, gmtimeMillisecond());
 				return -1;
 			}
 			return res;

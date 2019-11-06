@@ -24,6 +24,9 @@ extern "C" {
 
 /*******************************************************************************/
 
+extern void __channel_detach_handler__(ChannelBase_t* channel, int error, long long timestamp_msec);
+extern void __reactor_set_event_timestamp__(Reactor_t* reactor, long long timestamp_msec);
+
 static void free_halfconn(DgramHalfConn_t* halfconn) {
 	if (INVALID_FD_HANDLE != halfconn->sockfd)
 		socketClose(halfconn->sockfd);
@@ -35,7 +38,7 @@ static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) 
 		return;
 	if (channel->m_event_msec <= 0 || channel->m_event_msec > timestamp_msec)
 		channel->m_event_msec = timestamp_msec;
-	reactorSetEventTimestamp(channel->_.o->reactor, timestamp_msec);
+	__reactor_set_event_timestamp__(channel->_.o->reactor, timestamp_msec);
 }
 
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
@@ -48,19 +51,6 @@ static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timest
 		ts += channel->m_heartbeat_msec;
 		channel_set_timestamp(channel, ts);
 	}
-}
-
-static void channel_detach_handler(Channel_t* channel, int error, long long timestamp_msec) {
-	ReactorObject_t* o;
-	if (channel->_.detached)
-		return;
-	channel->_.detached = 1;
-	channel->_.detach_error = error;
-	o = channel->_.o;
-	listRemoveNode(&o->channel_list, &channel->_.regcmd._);
-	if (!o->channel_list.head)
-		o->m_valid = 0;
-	channel->_.detach(&channel->_);
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -374,18 +364,18 @@ static int channel_on_read(ChannelBase_t* base, unsigned char* buf, unsigned int
 	if (CHANNEL_FLAG_STREAM & channel->flag) {
 		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 		if (off < 0)
-			channel_detach_handler(channel, REACTOR_ONREAD_ERR, timestamp_msec);
+			__channel_detach_handler__(base, REACTOR_ONREAD_ERR, timestamp_msec);
 		else if (base->has_recvfin && base->has_sendfin)
-			channel_detach_handler(channel, 0, timestamp_msec);
+			__channel_detach_handler__(base, 0, timestamp_msec);
 		return off;
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_LISTEN)
 			channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
 		else if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr))
-			channel_detach_handler(channel, REACTOR_ONREAD_ERR, timestamp_msec);
+			__channel_detach_handler__(base, REACTOR_ONREAD_ERR, timestamp_msec);
 		else if (base->has_recvfin && base->has_sendfin)
-			channel_detach_handler(channel, 0, timestamp_msec);
+			__channel_detach_handler__(base, 0, timestamp_msec);
 		return 1;
 	}
 }
@@ -439,7 +429,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				else if (channel->heartbeat(channel, channel->m_heartbeat_times))
 					channel->m_heartbeat_times = 0;
 				else {
-					channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, timestamp_msec);
+					__channel_detach_handler__(&channel->_, REACTOR_ZOMBIE_ERR, timestamp_msec);
 					return;
 				}
 				channel->m_heartbeat_msec = timestamp_msec;
@@ -455,7 +445,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		ts *= 1000;
 		ts += channel->m_heartbeat_msec;
 		if (ts <= timestamp_msec) {
-			channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, timestamp_msec);
+			__channel_detach_handler__(&channel->_, REACTOR_ZOMBIE_ERR, timestamp_msec);
 			return;
 		}
 		channel_set_timestamp(channel, ts);
@@ -495,7 +485,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
 			free(channel->dgram.m_synpacket);
 			channel->dgram.m_synpacket = NULL;
-			channel_detach_handler(channel, REACTOR_CONNECT_ERR, timestamp_msec);
+			__channel_detach_handler__(&channel->_, REACTOR_CONNECT_ERR, timestamp_msec);
 			return;
 		}
 		else {
@@ -518,7 +508,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			}
 			if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
 				int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
-				channel_detach_handler(channel, err, timestamp_msec);
+				__channel_detach_handler__(&channel->_, err, timestamp_msec);
 				return;
 			}
 			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
@@ -533,7 +523,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 static void channel_exec_channel(ChannelBase_t* base, long long timestamp_msec, long long ev_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (timestamp_msec < channel->m_event_msec) {
-		reactorSetEventTimestamp(base->o->reactor, channel->m_event_msec);
+		__reactor_set_event_timestamp__(base->o->reactor, channel->m_event_msec);
 		return;
 	}
 	channel->m_event_msec = 0;
@@ -623,13 +613,13 @@ static void channel_stream_recvfin(ChannelBase_t* base, long long timestamp_msec
 	if (!base->has_sendfin)
 		channelSendFin(pod_container_of(base, Channel_t, _), timestamp_msec);
 	else
-		channel_detach_handler(pod_container_of(base, Channel_t, _), 0, timestamp_msec);
+		__channel_detach_handler__(base, 0, timestamp_msec);
 }
 
 static void channel_stream_sendfin(ChannelBase_t* base, long long timestamp_msec) {
 	if (!base->has_recvfin)
 		return;
-	channel_detach_handler(pod_container_of(base, Channel_t, _), 0, timestamp_msec);
+	__channel_detach_handler__(base, 0, timestamp_msec);
 }
 
 /*******************************************************************************/
@@ -680,7 +670,7 @@ Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
 		unsigned int hdrsize = channel->hdrsize(channel, 0);
 		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 		if (!packet) {
-			channel_detach_handler(channel, REACTOR_CONNECT_ERR, timestamp_msec);
+			__channel_detach_handler__(&channel->_, REACTOR_CONNECT_ERR, timestamp_msec);
 			return NULL;
 		}
 		memset(packet, 0, sizeof(*packet));
