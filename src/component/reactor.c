@@ -453,7 +453,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorPacket_t* packet = pod_container_of(cmd, ReactorPacket_t, cmd);
 			ChannelBase_t* channel = packet->channel;
 			ReactorObject_t* o = channel->o;
-			if (!o->m_valid) {
+			if (channel->detached || !o->m_valid) {
 				if (reactor->cmd_free)
 					reactor->cmd_free(&packet->cmd);
 				continue;
