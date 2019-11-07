@@ -2,6 +2,7 @@
 # 侧重网络通讯,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存等实现细节.  
 作者QQ：976784480  
 目录结构:  
+  
 util/  
 	.gitignore					用于git忽略一些无用文件  
 	lib_compile.sh				unix系统编译静态链接库脚本  
