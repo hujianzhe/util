@@ -11,7 +11,8 @@ util/
 		all						自动include所有库内头文件  
 		compiler_define			根据编译器不同,给出统一的关键字,定一缺失类型,必须的预处理语句,频闭不需要的警告等  
 		platform_define			根据系统平台的不同,给出统一的关键字,定义缺失类型,必须的预处理语句,频闭不需要的警告等  
-		-- component/  
+  
+		component/  
 			channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存等实现细节  
 			cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
 			cXML				用于解析XML  
