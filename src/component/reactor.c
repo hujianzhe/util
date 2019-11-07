@@ -196,23 +196,25 @@ static int reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp
 	ChannelBase_t* channel = streamChannel(o);
 	if (!channel->has_recvfin) {
 		channel->has_recvfin = 1;
-		if (channel->stream_recvfin)
-			channel->stream_recvfin(channel, timestamp_msec);
+	}
+	if (!o->stream.m_sys_has_recvfin) {
+		o->stream.m_sys_has_recvfin = 1;
+		if (channel->stream_on_sys_recvfin)
+			channel->stream_on_sys_recvfin(channel, timestamp_msec);
 	}
 	return channel->has_sendfin;
 }
 
-static int reactorobject_sendfin_direct_handler(ReactorObject_t* o, long long timestamp_msec) {
+static int reactorobject_sendfin_direct_handler(ReactorObject_t* o) {
 	ChannelBase_t* channel = streamChannel(o);
+	channel->stream_sendfinwait = 0;
 	if (!channel->has_sendfin) {
 		channel->has_sendfin = 1;
-		if (channel->stream_sendfin)
-			channel->stream_sendfin(channel, timestamp_msec);
 	}
 	return channel->has_recvfin;
 }
 
-static int reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_msec) {
+static int reactorobject_sendfin_check(ReactorObject_t* o) {
 	ChannelBase_t* channel = streamChannel(o);
 	if (channel->has_sendfin)
 		return channel->has_recvfin;
@@ -221,7 +223,7 @@ static int reactorobject_sendfin_check(ReactorObject_t* o, long long timestamp_m
 		return 0;
 	}
 	socketShutdown(o->fd, SHUT_WR);
-	return reactorobject_sendfin_direct_handler(o, timestamp_msec);
+	return reactorobject_sendfin_direct_handler(o);
 }
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
@@ -284,9 +286,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 		}
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			if (NETPACKET_FIN == packet->type &&
-				reactorobject_sendfin_direct_handler(o, timestamp_msec))
-			{
+			if (NETPACKET_FIN == packet->type && reactorobject_sendfin_direct_handler(o)) {
 				o->m_valid = 0;
 			}
 			continue;
@@ -313,7 +313,7 @@ static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec)
 	if (!channel->stream_sendfinwait)
 		return;
 	socketShutdown(o->fd, SHUT_WR);
-	if (reactorobject_sendfin_direct_handler(o, timestamp_msec))
+	if (reactorobject_sendfin_direct_handler(o))
 		o->m_valid = 0;
 }
 
@@ -339,9 +339,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else if (0 == res) {
-			o->stream.m_sys_has_recvfin = 1;
 			if (reactorobject_recvfin_handler(o, timestamp_msec) ||
-				reactorobject_sendfin_check(o, timestamp_msec))
+				reactorobject_sendfin_check(o))
 			{
 				o->m_valid = 0;
 			}
@@ -366,9 +365,8 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			else if (0 == res) {
-				o->stream.m_sys_has_recvfin = 1;
 				if (reactorobject_recvfin_handler(o, timestamp_msec) ||
-					reactorobject_sendfin_check(o, timestamp_msec))
+					reactorobject_sendfin_check(o))
 				{
 					o->m_valid = 0;
 				}
@@ -504,9 +502,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					}
 					continue;
 				}
-				if (NETPACKET_FIN == packet->_.type &&
-					reactorobject_sendfin_direct_handler(o, timestamp_msec))
-				{
+				if (NETPACKET_FIN == packet->_.type && reactorobject_sendfin_direct_handler(o)) {
 					o->m_valid = 0;
 					reactorobject_invalid_inner_handler(o, timestamp_msec);
 				}
@@ -525,7 +521,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.sendfincmd);
 			if (!o->m_valid || !streamChannel(o))
 				continue;
-			if (reactorobject_sendfin_check(o, timestamp_msec)) {
+			if (reactorobject_sendfin_check(o)) {
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 			}
@@ -960,12 +956,9 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 					res = 0;
 				}
 				if (res >= len) {
-					long long now_msec = gmtimeMillisecond();
-					if (NETPACKET_FIN == pktype &&
-						reactorobject_sendfin_direct_handler(o, now_msec))
-					{
+					if (NETPACKET_FIN == pktype && reactorobject_sendfin_direct_handler(o)) {
 						o->m_valid = 0;
-						__reactor_set_event_timestamp__(o->reactor, now_msec);
+						__reactor_set_event_timestamp__(o->reactor, gmtimeMillisecond());
 					}
 					return res;
 				}

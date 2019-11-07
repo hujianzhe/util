@@ -609,9 +609,12 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	return 1;
 }
 
-static void channel_stream_recvfin(ChannelBase_t* base, long long timestamp_msec) {
+static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (!base->has_sendfin)
 		channelSendFin(pod_container_of(base, Channel_t, _), timestamp_msec);
+	if (channel->flag & CHANNEL_FLAG_RELIABLE)
+		base->has_sendfin = 1;
 }
 
 /*******************************************************************************/
@@ -633,7 +636,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, int flag, unsigned int i
 	}
 	else {
 		streamtransportctxInit(&channel->_.stream_ctx, initseq);
-		channel->_.stream_recvfin = channel_stream_recvfin;
+		channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
 	}
 	channel->flag = flag;
 	channel->m_initseq = initseq;
