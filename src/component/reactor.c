@@ -339,6 +339,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			return;
 		}
 		else if (0 == res) {
+			o->stream.m_sys_has_recvfin = 1;
 			if (reactorobject_recvfin_handler(o, timestamp_msec) ||
 				reactorobject_sendfin_check(o, timestamp_msec))
 			{
@@ -365,6 +366,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 				return;
 			}
 			else if (0 == res) {
+				o->stream.m_sys_has_recvfin = 1;
 				if (reactorobject_recvfin_handler(o, timestamp_msec) ||
 					reactorobject_sendfin_check(o, timestamp_msec))
 				{
@@ -375,7 +377,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			o->m_inbuflen += res;
 			channel = streamChannel(o);
 			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
-			if (res < 0) {
+			if (res < 0 || !o->m_valid) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_ONREAD_ERR;
 				return;
@@ -384,9 +386,9 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
 			channel = streamChannel(o);
-			if (!channel)
+			if (!channel || !channel->stream_sendfinwait)
 				return;
-			if (channel->stream_sendfinwait && channel->stream_ctx.sendpacket_all_acked)
+			if (channel->stream_ctx.sendpacket_all_acked)
 				reactor_stream_writeev(o, timestamp_msec);
 		}
 	}
@@ -470,8 +472,14 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (SOCK_STREAM == o->socktype) {
 				StreamTransportCtx_t* ctx = &channel->stream_ctx;
 				if (NETPACKET_FIN == packet->_.type && !ctx->sendpacket_all_acked) {
-					channel->stream_sendfinwait = 1;
-					streamtransportctxCacheSendPacket(ctx, &packet->_);
+					if (o->stream.m_sys_has_recvfin) {
+						o->m_valid = 0;
+						reactorobject_invalid_inner_handler(o, timestamp_msec);
+					}
+					else {
+						channel->stream_sendfinwait = 1;
+						streamtransportctxCacheSendPacket(ctx, &packet->_);
+					}
 					continue;
 				}
 				if (!streamtransportctxSendCheckBusy(ctx)) {

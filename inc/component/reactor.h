@@ -70,6 +70,7 @@ typedef struct ReactorObject_t {
 		Atom8_t m_sendfincmdhaspost;
 		char m_connected;
 		char m_listened;
+		char m_sys_has_recvfin;
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
