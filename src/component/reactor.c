@@ -64,12 +64,12 @@ static void reactorobject_free(ReactorObject_t* o) {
 }
 
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
-	if (o->m_detach_has_commit)
+	if (o->m_has_detached)
 		return;
-	o->m_detach_has_commit = 1;
+	o->m_has_detached = 1;
 	o->m_invalid_msec = now_msec;
-	if (o->m_hashnode_has_insert) {
-		o->m_hashnode_has_insert = 0;
+	if (o->m_has_inserted) {
+		o->m_has_inserted = 0;
 		hashtableRemoveNode(&o->reactor->m_objht, &o->m_hashnode);
 	}
 	if (SOCK_STREAM == o->socktype)
@@ -80,7 +80,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 			channel->detach_error = o->detach_error;
 		else if (REACTOR_IO_ERR == o->detach_error && 0 == channel->detach_error)
 			channel->detach_error = o->detach_error;
-		channel->detached = 1;
+		channel->m_has_detached = 1;
 		channel->detach(channel);
 	);
 	listInit(&o->channel_list);
@@ -460,7 +460,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorPacket_t* packet = pod_container_of(cmd, ReactorPacket_t, cmd);
 			ChannelBase_t* channel = packet->channel;
 			ReactorObject_t* o = channel->o;
-			if (channel->detached || !o->m_valid) {
+			if (channel->m_has_detached || !o->m_valid) {
 				if (reactor->cmd_free)
 					reactor->cmd_free(&packet->cmd);
 				continue;
@@ -541,10 +541,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
 					hashtableReplaceNode(htnode, &o->m_hashnode);
 					exist_o->m_valid = 0;
-					exist_o->m_hashnode_has_insert = 0;
+					exist_o->m_has_inserted = 0;
 					reactorobject_invalid_inner_handler(exist_o, timestamp_msec);
 				}
-				o->m_hashnode_has_insert = 1;
+				o->m_has_inserted = 1;
 			}
 			if (o->reg)
 				o->reg(o, timestamp_msec);
@@ -861,10 +861,9 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 
 	o->m_hashnode.key = &o->fd;
 	o->m_reghaspost = 0;
-	o->m_detachhaspost = 0;
 	o->m_valid = 1;
-	o->m_hashnode_has_insert = 0;
-	o->m_detach_has_commit = 0;
+	o->m_has_inserted = 0;
+	o->m_has_detached = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
 	o->m_readol = NULL;
@@ -890,15 +889,16 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->listen_addr, addr, sockaddrLength(addr));
+	channel->m_valid = 1;
 	listPushNodeBack(&o->channel_list, &channel->regcmd._);
 	return channel;
 }
 
 void __channel_detach_handler__(ChannelBase_t* channel, int error, long long timestamp_msec) {
 	ReactorObject_t* o;
-	if (channel->detached)
+	if (channel->m_has_detached)
 		return;
-	channel->detached = 1;
+	channel->m_has_detached = 1;
 	channel->detach_error = error;
 	o = channel->o;
 	listRemoveNode(&o->channel_list, &channel->regcmd._);

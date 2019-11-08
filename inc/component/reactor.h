@@ -84,10 +84,9 @@ typedef struct ReactorObject_t {
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	Atom8_t m_reghaspost;
-	Atom8_t m_detachhaspost;
 	char m_valid;
-	char m_hashnode_has_insert;
-	char m_detach_has_commit;
+	char m_has_inserted;
+	char m_has_detached;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
 	void* m_readol;
@@ -103,7 +102,6 @@ struct ReactorPacket_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorObject_t* o;
-	int detach_error;
 	ReactorCmd_t freecmd;
 	Sockaddr_t to_addr;
 	union {
@@ -117,7 +115,7 @@ typedef struct ChannelBase_t {
 	};
 	char has_recvfin;
 	char has_sendfin;
-	char detached;
+	int detach_error;
 
 	void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 	void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* listener use */
@@ -126,6 +124,9 @@ typedef struct ChannelBase_t {
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
 	void(*detach)(struct ChannelBase_t* self);
+/* private */
+	char m_valid;
+	char m_has_detached;
 } ChannelBase_t;
 
 typedef struct ReactorPacket_t {
