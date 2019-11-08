@@ -54,12 +54,12 @@ typedef struct Channel_t {
 		};
 	} dgram;
 	/* interface */
-	void(*decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
-	void(*reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
-	int(*heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
-	unsigned int(*hdrsize)(struct Channel_t* self, unsigned int bodylen);
-	void(*encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
+	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
+	void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
+	int(*on_heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
+	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
+	void(*on_encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 /* private */
 	long long m_event_msec;
 	long long m_heartbeat_msec;

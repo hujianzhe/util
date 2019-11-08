@@ -77,9 +77,9 @@ typedef struct ReactorObject_t {
 	/* channel objcet list */
 	List_t channel_list;
 	/* interface */
-	void(*reg)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*writeev)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*detach)(struct ReactorObject_t* self);
+	void(*on_reg)(struct ReactorObject_t* self, long long timestamp_msec);
+	void(*on_writeev)(struct ReactorObject_t* self, long long timestamp_msec);
+	void(*on_detach)(struct ReactorObject_t* self);
 /* private */
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
@@ -117,13 +117,13 @@ typedef struct ChannelBase_t {
 	char has_sendfin;
 	int detach_error;
 
-	void(*ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-	void(*syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* listener use */
-	void(*reg)(struct ChannelBase_t* self, long long timestamp_msec);
-	void(*exec)(struct ChannelBase_t* self, long long timestamp_msec);
+	void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
+	void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* listener use */
+	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec);
+	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec);
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
-	int(*pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
-	void(*detach)(struct ChannelBase_t* self);
+	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
+	void(*on_detach)(struct ChannelBase_t* self);
 /* private */
 	char m_valid;
 	char m_has_detached;

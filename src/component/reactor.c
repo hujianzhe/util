@@ -81,14 +81,14 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 		else if (REACTOR_IO_ERR == o->detach_error && 0 == channel->detach_error)
 			channel->detach_error = o->detach_error;
 		channel->m_has_detached = 1;
-		channel->detach(channel);
+		channel->on_detach(channel);
 	);
 	listInit(&o->channel_list);
 
 	if (o->detach_timeout_msec <= 0) {
 		if (SOCK_STREAM != o->socktype)
 			free_io_resource(o);
-		o->detach(o);
+		o->on_detach(o);
 	}
 	else {
 		Reactor_t* reactor = o->reactor;
@@ -233,7 +233,7 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 		next = hashtableNextNode(cur);
 		if (o->m_valid) {
 			allChannelDoAction(o, ChannelBase_t* channel,
-				channel->exec(channel, now_msec);
+				channel->on_exec(channel, now_msec);
 			);
 			if (o->m_valid)
 				continue;
@@ -260,7 +260,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	for (cur = invalidfreelist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
-		o->detach(o);
+		o->on_detach(o);
 	}
 }
 
@@ -325,7 +325,7 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 		connfd != INVALID_FD_HANDLE;
 		connfd = nioAcceptNext(o->fd, &saddr.st))
 	{
-		channel->ack_halfconn(channel, connfd, &saddr, timestamp_msec);
+		channel->on_ack_halfconn(channel, connfd, &saddr, timestamp_msec);
 	}
 }
 
@@ -442,7 +442,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	}
 	else {
 		o->stream.m_connected = 1;
-		streamChannel(o)->syn_ack(streamChannel(o), timestamp_msec);
+		streamChannel(o)->on_syn_ack(streamChannel(o), timestamp_msec);
 		return 1;
 	}
 }
@@ -465,7 +465,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					reactor->cmd_free(&packet->cmd);
 				continue;
 			}
-			if (channel->pre_send && !channel->pre_send(channel, packet, timestamp_msec))
+			if (channel->on_pre_send && !channel->on_pre_send(channel, packet, timestamp_msec))
 				continue;
 			if (SOCK_STREAM == o->socktype) {
 				StreamTransportCtx_t* ctx = &channel->stream_ctx;
@@ -546,18 +546,18 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 				o->m_has_inserted = 1;
 			}
-			if (o->reg)
-				o->reg(o, timestamp_msec);
+			if (o->on_reg)
+				o->on_reg(o, timestamp_msec);
 			allChannelDoAction(o, ChannelBase_t* channel,
-				if (channel->reg)
-					channel->reg(channel, timestamp_msec);
+				if (channel->on_reg)
+					channel->on_reg(channel, timestamp_msec);
 			);
 			if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
 				continue;
 			else {
 				ChannelBase_t* channel = streamChannel(o);
-				if (channel->syn_ack)
-					channel->syn_ack(channel, timestamp_msec);
+				if (channel->on_syn_ack)
+					channel->on_syn_ack(channel, timestamp_msec);
 			}
 			continue;
 		}
@@ -749,8 +749,8 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 							o->detach_error = REACTOR_CONNECT_ERR;
 						}
 					}
-					else if (o->writeev)
-						o->writeev(o, timestamp_msec);
+					else if (o->on_writeev)
+						o->on_writeev(o, timestamp_msec);
 					break;
 				default:
 					o->m_valid = 0;
@@ -855,9 +855,9 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->regcmd.type = REACTOR_OBJECT_REG_CMD;
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 	listInit(&o->channel_list);
-	o->reg = NULL;
-	o->writeev = NULL;
-	o->detach = NULL;
+	o->on_reg = NULL;
+	o->on_writeev = NULL;
+	o->on_detach = NULL;
 
 	o->m_hashnode.key = &o->fd;
 	o->m_reghaspost = 0;
@@ -904,7 +904,7 @@ void __channel_detach_handler__(ChannelBase_t* channel, int error, long long tim
 	listRemoveNode(&o->channel_list, &channel->regcmd._);
 	if (!o->channel_list.head)
 		o->m_valid = 0;
-	channel->detach(channel);
+	channel->on_detach(channel);
 }
 
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
