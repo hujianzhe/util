@@ -520,7 +520,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 	}
 }
 
-static void channel_exec_channel(ChannelBase_t* base, long long timestamp_msec, long long ev_msec) {
+static void channel_exec_channel(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (timestamp_msec < channel->m_event_msec) {
 		__reactor_set_event_timestamp__(base->o->reactor, channel->m_event_msec);

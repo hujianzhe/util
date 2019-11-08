@@ -233,7 +233,7 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 		next = hashtableNextNode(cur);
 		if (o->m_valid) {
 			allChannelDoAction(o, ChannelBase_t* channel,
-				channel->exec(channel, now_msec, ev_msec);
+				channel->exec(channel, now_msec);
 			);
 			if (o->m_valid)
 				continue;
