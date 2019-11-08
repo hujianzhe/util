@@ -24,8 +24,10 @@ extern "C" {
 
 /*******************************************************************************/
 
-extern void __channel_detach_handler__(ChannelBase_t* channel, int error, long long timestamp_msec);
-extern void __reactor_set_event_timestamp__(Reactor_t* reactor, long long timestamp_msec);
+static void channel_invalid(ChannelBase_t* base, int detach_error) {
+	base->valid = 0;
+	base->detach_error = detach_error;
+}
 
 static void free_halfconn(DgramHalfConn_t* halfconn) {
 	if (INVALID_FD_HANDLE != halfconn->sockfd)
@@ -36,9 +38,8 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) {
 	if (timestamp_msec <= 0)
 		return;
-	if (channel->m_event_msec <= 0 || channel->m_event_msec > timestamp_msec)
-		channel->m_event_msec = timestamp_msec;
-	__reactor_set_event_timestamp__(channel->_.o->reactor, timestamp_msec);
+	if (channel->_.event_msec <= 0 || channel->_.event_msec > timestamp_msec)
+		channel->_.event_msec = timestamp_msec;
 }
 
 static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
@@ -359,28 +360,28 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	return 1;
 }
 
-static int channel_on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
+static int on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->flag) {
 		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
 		if (off < 0)
-			__channel_detach_handler__(base, REACTOR_ONREAD_ERR, timestamp_msec);
+			channel_invalid(base, REACTOR_ONREAD_ERR);
 		else if (base->has_recvfin && base->has_sendfin)
-			__channel_detach_handler__(base, 0, timestamp_msec);
+			channel_invalid(base, 0);
 		return off;
 	}
 	else {
 		if (channel->flag & CHANNEL_FLAG_LISTEN)
 			channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
 		else if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr))
-			__channel_detach_handler__(base, REACTOR_ONREAD_ERR, timestamp_msec);
+			channel_invalid(base, REACTOR_ONREAD_ERR);
 		else if (base->has_recvfin && base->has_sendfin)
-			__channel_detach_handler__(base, 0, timestamp_msec);
+			channel_invalid(base, 0);
 		return 1;
 	}
 }
 
-static int channel_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
+static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->flag) {
 		if (channel->flag & CHANNEL_FLAG_RELIABLE)
@@ -411,7 +412,8 @@ static int channel_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long l
 	}
 }
 
-void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
+static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
 /* heartbeat */
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->m_heartbeat_msec > 0 &&
@@ -429,7 +431,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 				else if (channel->on_heartbeat(channel, channel->m_heartbeat_times))
 					channel->m_heartbeat_times = 0;
 				else {
-					__channel_detach_handler__(&channel->_, REACTOR_ZOMBIE_ERR, timestamp_msec);
+					channel_invalid(base, REACTOR_ZOMBIE_ERR);
 					return;
 				}
 				channel->m_heartbeat_msec = timestamp_msec;
@@ -445,7 +447,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		ts *= 1000;
 		ts += channel->m_heartbeat_msec;
 		if (ts <= timestamp_msec) {
-			__channel_detach_handler__(&channel->_, REACTOR_ZOMBIE_ERR, timestamp_msec);
+			channel_invalid(base, REACTOR_ZOMBIE_ERR);
 			return;
 		}
 		channel_set_timestamp(channel, ts);
@@ -485,7 +487,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 		else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
 			free(channel->dgram.m_synpacket);
 			channel->dgram.m_synpacket = NULL;
-			__channel_detach_handler__(&channel->_, REACTOR_CONNECT_ERR, timestamp_msec);
+			channel_invalid(base, REACTOR_CONNECT_ERR);
 			return;
 		}
 		else {
@@ -508,7 +510,7 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			}
 			if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
 				int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
-				__channel_detach_handler__(&channel->_, err, timestamp_msec);
+				channel_invalid(base, err);
 				return;
 			}
 			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
@@ -518,16 +520,6 @@ void channel_event_handler(Channel_t* channel, long long timestamp_msec) {
 			channel_set_timestamp(channel, packet->_.resend_msec);
 		}
 	}
-}
-
-static void channel_exec_channel(ChannelBase_t* base, long long timestamp_msec) {
-	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	if (timestamp_msec < channel->m_event_msec) {
-		__reactor_set_event_timestamp__(base->o->reactor, channel->m_event_msec);
-		return;
-	}
-	channel->m_event_msec = 0;
-	channel_event_handler(channel, timestamp_msec);
 }
 
 static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
@@ -640,9 +632,9 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, int flag, unsigned int i
 	}
 	channel->flag = flag;
 	channel->m_initseq = initseq;
-	channel->_.on_exec = channel_exec_channel;
-	channel->_.on_read = channel_on_read;
-	channel->_.on_pre_send = channel_pre_send;
+	channel->_.on_exec = on_exec;
+	channel->_.on_read = on_read;
+	channel->_.on_pre_send = on_pre_send;
 	return channel;
 }
 
@@ -664,7 +656,7 @@ Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 		if (!packet) {
-			__channel_detach_handler__(&channel->_, REACTOR_CONNECT_ERR, timestamp_msec);
+			channel_invalid(&channel->_, REACTOR_CONNECT_ERR);
 			return NULL;
 		}
 		memset(packet, 0, sizeof(*packet));

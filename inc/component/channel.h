@@ -61,7 +61,6 @@ typedef struct Channel_t {
 	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*on_encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
 /* private */
-	long long m_event_msec;
 	long long m_heartbeat_msec;
 	unsigned int m_initseq;
 	unsigned int m_heartbeat_times;

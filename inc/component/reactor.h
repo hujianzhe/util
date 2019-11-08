@@ -115,7 +115,9 @@ typedef struct ChannelBase_t {
 	};
 	char has_recvfin;
 	char has_sendfin;
+	char valid;
 	int detach_error;
+	long long event_msec;
 
 	void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
 	void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* listener use */
@@ -125,7 +127,6 @@ typedef struct ChannelBase_t {
 	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
 	void(*on_detach)(struct ChannelBase_t* self);
 /* private */
-	char m_valid;
 	char m_has_detached;
 } ChannelBase_t;
 
