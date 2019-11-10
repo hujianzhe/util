@@ -32,7 +32,6 @@
 #include "sysapi/statistics.h"
 #include "sysapi/terminal.h"
 #include "sysapi/time.h"
-#include "sysapi/uuid.h"
 #include "component/channel.h"
 #include "component/cJSON.h"
 #include "component/collision_detection.h"
