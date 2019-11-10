@@ -54,7 +54,6 @@
 					statistics		一些杂项统计接口  
 					terminal		提供获取终端名字,统一的kbhit/getch接口  
 					time			提供统一的线程安全的时间接口  
-					uuid			提供统一的UUID获取接口(类unix平台需要基于uuid库)  
 			c++/  
 				cpp_compiler_define	判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
 				exception			包含文件名称,行号,出错语句的异常  

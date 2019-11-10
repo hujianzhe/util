@@ -12,7 +12,7 @@ COMPILE_OPTION="-Wno-deprecated -Wno-parentheses"
 DEFAULT_LINK="-lpthread -lm -ldl"
 TARGET="libutil_dynamic.so"
 if [ `uname` = "Linux" ];then
-	DEFAULT_LINK=$DEFAULT_LINK" -lrt -lcrypto -luuid"
+	DEFAULT_LINK=$DEFAULT_LINK" -lrt"
 fi
 
 rm $TARGET 2>/dev/null
