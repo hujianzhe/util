@@ -308,32 +308,6 @@ List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx) {
 	return freelist;
 }
 
-List_t streamtransportctxRemoveAckAndResetSendPacket(StreamTransportCtx_t* ctx) {
-	int break_flag = 0;
-	ListNode_t* cur, *next;
-	List_t freelist;
-	listInit(&freelist);
-	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		next = cur->next;
-		if (NETPACKET_ACK != packet->type) {
-			if (packet->off) {
-				if (packet->off < packet->hdrlen + packet->bodylen)
-					break_flag = 1;
-				packet->off = 0;
-			}
-			else if (break_flag)
-				break;
-		}
-		else {
-			listRemoveNode(&ctx->sendpacketlist, cur);
-			listInsertNodeBack(&freelist, freelist.tail, cur);
-			packet->cached = 0;
-		}
-	}
-	return freelist;
-}
-
 #ifdef	__cplusplus
 }
 #endif

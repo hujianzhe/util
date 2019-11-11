@@ -89,7 +89,6 @@ __declspec_dll unsigned int streamtransportctxNextSendSeq(StreamTransportCtx_t* 
 __declspec_dll int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int streamtransportctxAckSendPacket(StreamTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket);
 __declspec_dll List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx);
-__declspec_dll List_t streamtransportctxRemoveAckAndResetSendPacket(StreamTransportCtx_t* ctx);
 
 #ifdef	__cplusplus
 }
