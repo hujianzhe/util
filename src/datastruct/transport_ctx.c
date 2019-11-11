@@ -133,6 +133,7 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 		{
 			ctx->sendpacket_all_acked = 1;
 		}
+		packet->cached = 0;
 		return packet;
 	}
 	return (NetPacket_t*)0;
