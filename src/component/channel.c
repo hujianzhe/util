@@ -400,10 +400,14 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 					return 0;
 				if (NETPACKET_FIN == packet->_.type)
 					channel->_.has_sendfin = 1;
-				packet->_.wait_ack = 1;
-				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-				channel_set_timestamp(channel, packet->_.resend_msec);
 			}
+			else if (NETPACKET_SYN == packet->_.type) {
+				channel->dgram.m_synpacket = packet;
+				packet->_.cached = 1;
+			}
+			packet->_.wait_ack = 1;
+			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, packet->_.resend_msec);
 		}
 		else if (packet->_.hdrlen) {
 			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
@@ -646,9 +650,6 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 }
 
 Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
-	Thread_t t = channel->_.o->reactor->m_runthread;
-	if (!threadEqual(t, threadSelf()))
-		return channel;
 	if ((channel->flag & CHANNEL_FLAG_CLIENT) &&
 		(channel->flag & CHANNEL_FLAG_DGRAM) &&
 		(channel->flag & CHANNEL_FLAG_RELIABLE))
@@ -656,7 +657,7 @@ Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
 		if (!packet) {
-			channel_invalid(&channel->_, REACTOR_CONNECT_ERR);
+			/*channel_invalid(&channel->_, REACTOR_CONNECT_ERR);*/
 			return NULL;
 		}
 		memset(packet, 0, sizeof(*packet));
@@ -664,15 +665,7 @@ Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
 		packet->_.type = NETPACKET_SYN;
 		packet->_.hdrlen = hdrsize;
 		packet->_.bodylen = 0;
-		channel->dgram.m_synpacket = packet;
-
-		if (packet->_.hdrlen)
-			channel->on_encode(channel, packet->_.buf, 0, NETPACKET_SYN, 0);
-		packet->_.wait_ack = 1;
-		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-		channel_set_timestamp(channel, packet->_.resend_msec);
-		socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-			&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
+		channelbaseSendPacket(&channel->_, packet);
 	}
 	return channel;
 }
