@@ -496,7 +496,7 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 		}
 		else {
 			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->_.connect_addr, sockaddrLength(&channel->_.connect_addr));
+				&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 			channel_set_timestamp(channel, packet->_.resend_msec);
