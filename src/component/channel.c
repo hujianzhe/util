@@ -80,7 +80,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, long long timestamp_msec, ChannelInbufDecodeResult_t* decode_result) {
+static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, ChannelInbufDecodeResult_t* decode_result) {
 	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
 	if (NETPACKET_FIN == packet->_.type) {
 		ListNode_t* cur, *next;
@@ -93,7 +93,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 		channel->_.has_recvfin = 1;
 		if (channel->_.has_sendfin)
 			return 1;
-		channelSendFin(channel, timestamp_msec);
+		channelSendFin(channel);
 	}
 	else {
 		decode_result->bodyptr = merge_packet(packetlist, &decode_result->bodylen);
@@ -135,7 +135,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (streamtransportctxCacheRecvPacket(ctx, &packet->_)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
-						if (!channel_merge_packet_handler(channel, &list, timestamp_msec, &decode_result))
+						if (!channel_merge_packet_handler(channel, &list, &decode_result))
 							return -1;
 					}
 				}
@@ -312,7 +312,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, &packet->_)) {
 				List_t list;
 				while (dgramtransportctxMergeRecvPacket(&channel->dgram.ctx, &list)) {
-					if (!channel_merge_packet_handler(channel, &list, timestamp_msec, &decode_result))
+					if (!channel_merge_packet_handler(channel, &list, &decode_result))
 						return 0;
 				}
 			}
@@ -384,36 +384,34 @@ static int on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, un
 static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->flag) {
-		if (channel->flag & CHANNEL_FLAG_RELIABLE)
+		if (CHANNEL_FLAG_RELIABLE & channel->flag)
 			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
 		if (packet->_.hdrlen)
 			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		return 1;
 	}
-	else {
-		if (channel->flag & CHANNEL_FLAG_RELIABLE) {
-			packet->_.seq = dgramtransportctxNextSendSeq(&channel->dgram.ctx, packet->_.type);
-			if (packet->_.hdrlen)
-				channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
-			if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, &packet->_)) {
-				if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
-					return 0;
-				if (NETPACKET_FIN == packet->_.type)
-					channel->_.has_sendfin = 1;
-			}
-			else if (NETPACKET_SYN == packet->_.type) {
-				channel->dgram.m_synpacket = packet;
-				packet->_.cached = 1;
-			}
-			packet->_.wait_ack = 1;
-			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-			channel_set_timestamp(channel, packet->_.resend_msec);
-		}
-		else if (packet->_.hdrlen) {
+	else if (CHANNEL_FLAG_RELIABLE & channel->flag) {
+		packet->_.seq = dgramtransportctxNextSendSeq(&channel->dgram.ctx, packet->_.type);
+		if (packet->_.hdrlen)
 			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		if (dgramtransportctxCacheSendPacket(&channel->dgram.ctx, &packet->_)) {
+			if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))
+				return 0;
+			if (NETPACKET_FIN == packet->_.type)
+				channel->_.has_sendfin = 1;
 		}
-		return 1;
+		else if (NETPACKET_SYN == packet->_.type) {
+			channel->dgram.m_synpacket = packet;
+			packet->_.cached = 1;
+		}
+		packet->_.wait_ack = 1;
+		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+		channel_set_timestamp(channel, packet->_.resend_msec);
 	}
+	else if (packet->_.hdrlen) {
+		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+	}
+	return 1;
 }
 
 static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
@@ -607,10 +605,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 
 static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	if (!base->has_sendfin)
-		channelSendFin(pod_container_of(base, Channel_t, _), timestamp_msec);
-	if (channel->flag & CHANNEL_FLAG_RELIABLE)
-		base->has_sendfin = 1;
+	channelSendFin(channel);
 }
 
 /*******************************************************************************/
@@ -649,9 +644,10 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 	return channel;
 }
 
-Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
-	if ((channel->flag & CHANNEL_FLAG_CLIENT) &&
-		(channel->flag & CHANNEL_FLAG_DGRAM) &&
+Channel_t* channelSendSyn(Channel_t* channel) {
+	if (!(channel->flag & CHANNEL_FLAG_CLIENT))
+		return channel;
+	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
 		(channel->flag & CHANNEL_FLAG_RELIABLE))
 	{
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
@@ -670,7 +666,7 @@ Channel_t* channelSendSyn(Channel_t* channel, long long timestamp_msec) {
 	return channel;
 }
 
-void channelSendFin(Channel_t* channel, long long timestamp_msec) {
+void channelSendFin(Channel_t* channel) {
 	if (_xchg8(&channel->m_ban_send, 1))
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
