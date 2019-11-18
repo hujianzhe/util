@@ -426,13 +426,15 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 			ts *= 1000;
 			ts += channel->m_heartbeat_msec;
 			if (ts <= timestamp_msec) {
+				int ok = 0;
 				if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
-					channel->on_heartbeat(channel, channel->m_heartbeat_times);
-					channel->m_heartbeat_times++;
+					ok = channel->on_heartbeat(channel, channel->m_heartbeat_times++);
 				}
-				else if (channel->on_heartbeat(channel, channel->m_heartbeat_times))
+				else if (channel->on_heartbeat(channel, channel->m_heartbeat_times)) {
+					ok = 1;
 					channel->m_heartbeat_times = 0;
-				else {
+				}
+				if (!ok) {
 					channel_invalid(base, REACTOR_ZOMBIE_ERR);
 					return;
 				}
