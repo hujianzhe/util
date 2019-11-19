@@ -597,7 +597,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				continue;
 			else {
 				ChannelBase_t* channel = streamChannel(o);
-				if (channel->on_syn_ack) {
+				if (channel && channel->on_syn_ack) {
 					channel->on_syn_ack(channel, timestamp_msec);
 					after_call_channel_interface(o->reactor, channel);
 				}
