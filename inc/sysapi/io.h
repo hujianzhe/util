@@ -67,6 +67,7 @@ typedef struct Nio_t {
 } Nio_t;
 __declspec_dll BOOL nioCreate(Nio_t* nio);
 __declspec_dll BOOL nioReg(Nio_t* nio, FD_t fd);
+__declspec_dll BOOL nioUnReg(Nio_t* nio, FD_t fd);
 __declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void nioFreeOverlapped(void* ol);
 __declspec_dll int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);

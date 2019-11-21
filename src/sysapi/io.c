@@ -194,8 +194,30 @@ BOOL nioReg(Nio_t* nio, FD_t fd) {
 #endif
 	return TRUE;
 }
+
+BOOL nioUnReg(Nio_t* nio, FD_t fd) {
+#if defined(_WIN32) || defined(_WIN64)
+	/* note: IOCP isn't support fd unreg */
+	return FALSE;
+#elif __linux__
+	struct epoll_event e = { 0 };
+	if (epoll_ctl(nio->__hNio, EPOLL_CTL_DEL, fd, &e) && ENOENT != errno) {
+		return FALSE;
+	}
+	if (epoll_ctl(nio->__epfd, EPOLL_CTL_DEL, fd, &e) && ENOENT != errno) {
+		return FALSE;
+	}
+	return TRUE;
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+	struct kevent e[2];
+	EV_SET(&e[0], (uintptr_t)fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
+	EV_SET(&e[1], (uintptr_t)fd, EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
+	return kevent(nio->__hNio, e, 2, NULL, 0, NULL) == 0;
+#endif
+}
+
 /*
-BOOL reactorCancel(Nio_t* nio, FD_t fd) {
+BOOL nioCancel(Nio_t* nio, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (CancelIoEx((HANDLE)fd, NULL)) {
 		// use GetOverlappedResult wait until all overlapped is completed ???
