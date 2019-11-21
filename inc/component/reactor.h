@@ -74,13 +74,12 @@ typedef struct ReactorObject_t {
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	/* channel objcet list */
-	List_t channel_list;
 	/* interface */
 	void(*on_reg)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*on_writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*on_detach)(struct ReactorObject_t* self);
 /* private */
+	List_t m_channel_list;
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	Atom8_t m_reghaspost;

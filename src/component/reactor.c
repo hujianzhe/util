@@ -10,7 +10,7 @@
 #define	allChannelDoAction(o, var_name, do_action)\
 do {\
 	ListNode_t* cur, *next;\
-	for (cur = (o)->channel_list.head; cur; cur = next) {\
+	for (cur = (o)->m_channel_list.head; cur; cur = next) {\
 		var_name = pod_container_of(cur, ChannelBase_t, regcmd._);\
 		next = cur->next;\
 		do {\
@@ -19,7 +19,7 @@ do {\
 	}\
 } while (0)
 #define	streamChannel(o)\
-(o->channel_list.head ? pod_container_of(o->channel_list.head, ChannelBase_t, regcmd._) : NULL)
+(o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
 #ifdef	__cplusplus
 extern "C" {
@@ -39,8 +39,8 @@ static void channel_detach_handler(ChannelBase_t* channel, int error, long long 
 	channel->m_has_detached = 1;
 	channel->detach_error = error;
 	o = channel->o;
-	listRemoveNode(&o->channel_list, &channel->regcmd._);
-	if (!o->channel_list.head)
+	listRemoveNode(&o->m_channel_list, &channel->regcmd._);
+	if (!o->m_channel_list.head)
 		o->m_valid = 0;
 	channel->on_detach(channel);
 }
@@ -106,7 +106,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 		channel->valid = 0;
 		channel->on_detach(channel);
 	);
-	listInit(&o->channel_list);
+	listInit(&o->m_channel_list);
 
 	if (o->detach_timeout_msec <= 0) {
 		if (SOCK_STREAM != o->socktype)
@@ -897,11 +897,11 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	}
 	o->regcmd.type = REACTOR_OBJECT_REG_CMD;
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
-	listInit(&o->channel_list);
 	o->on_reg = NULL;
 	o->on_writeev = NULL;
 	o->on_detach = NULL;
 
+	listInit(&o->m_channel_list);
 	o->m_hashnode.key = &o->fd;
 	o->m_reghaspost = 0;
 	o->m_valid = 1;
@@ -933,7 +933,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->listen_addr, addr, sockaddrLength(addr));
 	channel->valid = 1;
-	listPushNodeBack(&o->channel_list, &channel->regcmd._);
+	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
 }
 
