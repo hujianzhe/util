@@ -21,6 +21,15 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
+typedef struct ReconnectReactorCmd_t {
+	ReactorCmd_t _;
+	ReactorObject_t* src_o;
+	ReactorObject_t* dst_o;
+	Reactor_t* dst_r;
+	unsigned int recvseq;
+	unsigned int cwdnseq;
+} ReconnectReactorCmd_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -120,6 +129,13 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
+static void reconnectcmd_failure_handler(ReconnectReactorCmd_t* cmd) {
+	ReactorObject_t* o = cmd->src_o;
+	free(cmd);
+	o->m_valid = 0;
+	reactorobject_invalid_inner_handler(o, 0);
+}
+
 static int reactorobject_request_read(ReactorObject_t* o) {
 	Sockaddr_t saddr;
 	int opcode;
@@ -212,6 +228,17 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 		if (!reactorobject_request_read(o))
 			return 0;
 	}
+	return 1;
+}
+
+static int reactor_unreg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
+	if (!nioUnReg(&reactor->m_nio, o->fd)) {
+		return 0;
+	}
+	o->m_has_inserted = 0;
+	hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
+	o->m_readol_has_commit = 0;
+	o->m_writeol_has_commit = 0;
 	return 1;
 }
 
@@ -554,6 +581,49 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			if (reactor->cmd_free)
 				reactor->cmd_free(&packet->cmd);
+			continue;
+		}
+		else if (REACTOR_STREAM_RECONNECT_CMD == cmd->type) {
+			ReconnectReactorCmd_t* cmdex = pod_container_of(cmd, ReconnectReactorCmd_t, _);
+			ReactorObject_t* src_o = cmdex->src_o;
+			if (!src_o->m_valid) {
+				free(cmdex);
+				continue;
+			}
+			else if (cmdex->dst_r != reactor) {
+				if (!reactor_unreg_object_check(reactor, cmdex->src_o)) {
+					reconnectcmd_failure_handler(cmdex);
+					continue;
+				}
+				// TODO notify source thread unreg ok ......
+			}
+			else {
+				ReactorObject_t* dst_o = cmdex->dst_o;
+				ChannelBase_t* dst_c;
+				if (!dst_o->m_valid) {
+					reconnectcmd_failure_handler(cmdex);
+					continue;
+				}
+				dst_c = streamChannel(dst_o);
+				if (dst_c->stream_ctx.m_recvseq < cmdex->cwdnseq ||
+					dst_c->stream_ctx.m_cwndseq > cmdex->recvseq)
+				{
+					reconnectcmd_failure_handler(cmdex);
+					continue;
+				}
+				if (!src_o->m_has_inserted) {
+					src_o->m_has_inserted = 1;
+					hashtableInsertNode(&reactor->m_objht, &src_o->m_hashnode);
+					if (!reactorobject_request_read(src_o)) {
+						reconnectcmd_failure_handler(cmdex);
+						continue;
+					}
+				}
+				listRemoveNode(&dst_o->m_channel_list, &dst_c->regcmd._);
+				listPushNodeBack(&src_o->m_channel_list, &dst_c->regcmd._);
+				dst_c->o = src_o;
+				// resend again and reactorobject_request_write
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
