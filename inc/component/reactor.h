@@ -23,9 +23,9 @@ enum {
 	REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD,
 	REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD,
 
-	REACTOR_INNER_CMD,
-
 	REACTOR_SEND_PACKET_CMD,
+
+	REACTOR_INNER_CMD,
 	REACTOR_USER_CMD
 };
 enum {
@@ -149,8 +149,10 @@ __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long lo
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
-__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
+__declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
+__declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 
+__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
 __declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
 __declspec_dll int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr);

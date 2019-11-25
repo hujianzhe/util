@@ -359,10 +359,8 @@ static void reactor_stream_writeev(ReactorObject_t* o) {
 	}
 	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
 	for (cur = finishedlist.head; cur; cur = next) {
-		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 		next = cur->next;
-		if (o->reactor->cmd_free)
-			o->reactor->cmd_free(&packet->cmd);
+		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
 	if (busy)
 		return;
@@ -535,8 +533,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ChannelBase_t* channel = packet->channel;
 			ReactorObject_t* o = channel->o;
 			if (!channel->valid || !o->m_valid) {
-				if (reactor->cmd_free)
-					reactor->cmd_free(&packet->cmd);
+				reactorpacketFree(packet);
 				continue;
 			}
 			if (channel->on_pre_send) {
@@ -591,8 +588,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				if (packet->_.cached)
 					continue;
 			}
-			if (reactor->cmd_free)
-				reactor->cmd_free(&packet->cmd);
+			reactorpacketFree(packet);
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
@@ -917,6 +913,9 @@ void reactorDestroy(Reactor_t* reactor) {
 				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
 				free(channel);
 			}
+			else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
+				reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
+			}
 			else if (REACTOR_INNER_CMD > cmd->type)
 				continue;
 			else if (reactor->cmd_free)
@@ -1002,6 +1001,24 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
 	return o;
+}
+
+ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
+	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
+	if (pkg) {
+		pkg->cmd.type = REACTOR_SEND_PACKET_CMD;
+		pkg->channel = NULL;
+		pkg->_.type = pktype;
+		pkg->_.wait_ack = 0;
+		pkg->_.cached = 0;
+		pkg->_.hdrlen = hdrlen;
+		pkg->_.bodylen = bodylen;
+	}
+	return pkg;
+}
+
+void reactorpacketFree(ReactorPacket_t* pkg) {
+	free(pkg);
 }
 
 ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) {
