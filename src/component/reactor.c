@@ -632,7 +632,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
-				// TODO notify source thread unreg ok ......
+				// TODO: notify source thread unreg ok ......
 			}
 			else {
 				ReactorObject_t* dst_o = cmdex->dst_o;
@@ -662,6 +662,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 
 				listPushNodeBack(&src_o->m_channel_list, &dst_c->regcmd._);
 				dst_c->o = src_o;
+				// TODO: new reconnect reply packet and insert sendpacketlist head
 				reactor_stream_resend_packet(src_o);
 			}
 			continue;
