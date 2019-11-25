@@ -101,8 +101,8 @@ typedef struct ReactorObject_t {
 struct ReactorPacket_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
-	ReactorObject_t* o;
 	ReactorCmd_t freecmd;
+	ReactorObject_t* o;
 	Sockaddr_t to_addr;
 	union {
 		Sockaddr_t listen_addr;
