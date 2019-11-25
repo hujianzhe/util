@@ -21,14 +21,14 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
-typedef struct ReconnectReactorCmd_t {
+typedef struct StreamServerSideReconnectCmd_t {
 	ReactorCmd_t _;
 	ReactorObject_t* src_o;
 	ReactorObject_t* dst_o;
 	Reactor_t* dst_r;
 	unsigned int recvseq;
 	unsigned int cwdnseq;
-} ReconnectReactorCmd_t;
+} StreamServerSideReconnectCmd_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -129,7 +129,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
-static void reconnectcmd_failure_handler(ReconnectReactorCmd_t* cmd) {
+static void stream_server_side_reconnectcmd_failure_handler(StreamServerSideReconnectCmd_t* cmd) {
 	ReactorObject_t* o = cmd->src_o;
 	free(cmd);
 	o->m_valid = 0;
@@ -320,7 +320,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	}
 }
 
-static void reactor_stream_writeev(ReactorObject_t* o, long long timestamp_msec) {
+static void reactor_stream_writeev(ReactorObject_t* o) {
 	int busy = 0;
 	List_t finishedlist;
 	ListNode_t* cur, *next;
@@ -446,7 +446,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			if (!channel->stream_sendfinwait)
 				return;
 			if (channel->stream_ctx.sendpacket_all_acked)
-				reactor_stream_writeev(o, timestamp_msec);
+				reactor_stream_writeev(o);
 		}
 	}
 	else {
@@ -507,6 +507,18 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		after_call_channel_interface(o->reactor, channel);
 		return 1;
 	}
+}
+
+static void reactor_stream_resend_packet(ReactorObject_t* o) {
+	ChannelBase_t* channel = streamChannel(o);
+	ListNode_t* cur;
+	for (cur = channel->stream_ctx.sendpacketlist.head; cur; cur = cur->next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		if (0 == packet->off)
+			break;
+		packet->off = 0;
+	}
+	reactor_stream_writeev(o);
 }
 
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
@@ -583,8 +595,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reactor->cmd_free(&packet->cmd);
 			continue;
 		}
-		else if (REACTOR_STREAM_RECONNECT_CMD == cmd->type) {
-			ReconnectReactorCmd_t* cmdex = pod_container_of(cmd, ReconnectReactorCmd_t, _);
+		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
+			StreamServerSideReconnectCmd_t* cmdex = pod_container_of(cmd, StreamServerSideReconnectCmd_t, _);
 			ReactorObject_t* src_o = cmdex->src_o;
 			if (!src_o->m_valid) {
 				free(cmdex);
@@ -592,7 +604,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			else if (cmdex->dst_r != reactor) {
 				if (!reactor_unreg_object_check(reactor, cmdex->src_o)) {
-					reconnectcmd_failure_handler(cmdex);
+					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
 				// TODO notify source thread unreg ok ......
@@ -601,28 +613,31 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				ReactorObject_t* dst_o = cmdex->dst_o;
 				ChannelBase_t* dst_c;
 				if (!dst_o->m_valid) {
-					reconnectcmd_failure_handler(cmdex);
+					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
 				dst_c = streamChannel(dst_o);
 				if (dst_c->stream_ctx.m_recvseq < cmdex->cwdnseq ||
 					dst_c->stream_ctx.m_cwndseq > cmdex->recvseq)
 				{
-					reconnectcmd_failure_handler(cmdex);
+					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
 				if (!src_o->m_has_inserted) {
 					src_o->m_has_inserted = 1;
 					hashtableInsertNode(&reactor->m_objht, &src_o->m_hashnode);
 					if (!reactorobject_request_read(src_o)) {
-						reconnectcmd_failure_handler(cmdex);
+						stream_server_side_reconnectcmd_failure_handler(cmdex);
 						continue;
 					}
 				}
 				listRemoveNode(&dst_o->m_channel_list, &dst_c->regcmd._);
+				dst_o->m_valid = 0;
+				reactorobject_invalid_inner_handler(dst_o, timestamp_msec);
+
 				listPushNodeBack(&src_o->m_channel_list, &dst_c->regcmd._);
 				dst_c->o = src_o;
-				// resend again and reactorobject_request_write
+				reactor_stream_resend_packet(src_o);
 			}
 			continue;
 		}
@@ -856,7 +871,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
 						if (o->stream.m_connected)
-							reactor_stream_writeev(o, timestamp_msec);
+							reactor_stream_writeev(o);
 						else if (!reactor_stream_connect(o, timestamp_msec)) {
 							o->m_valid = 0;
 							o->detach_error = REACTOR_CONNECT_ERR;
