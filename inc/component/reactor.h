@@ -69,6 +69,8 @@ typedef struct ReactorObject_t {
 	unsigned int write_fragment_size;
 	struct {
 		Sockaddr_t connect_addr;
+		ReactorCmd_t client_reconnectcmd;
+		Atom8_t m_client_reconnectcmdhaspost;
 		ReactorCmd_t sendfincmd;
 		Atom8_t m_sendfincmdhaspost;
 		char m_connected;

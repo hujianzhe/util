@@ -170,13 +170,26 @@ static int reactorobject_request_write(ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (nioCommit(&o->reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol,
-		&saddr.sa, sockaddrLength(&saddr)))
-	{
-		o->m_writeol_has_commit = 1;
-		return 1;
+	if (!nioCommit(&o->reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol, &saddr.sa, sockaddrLength(&saddr)))
+		return 0;
+	o->m_writeol_has_commit = 1;
+	return 1;
+}
+
+static int reactorobject_request_connect(ReactorObject_t* o) {
+	o->stream.m_connected = 0;
+	if (!o->m_writeol) {
+		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
+		if (!o->m_writeol)
+			return 0;
 	}
-	return 0;
+	if (!nioCommit(&o->reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
+		&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
+	{
+		return 0;
+	}
+	o->m_writeol_has_commit = 1;
+	return 1;
 }
 
 static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
@@ -199,19 +212,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 			if (!reactorobject_request_read(o))
 				return 0;
 		}
-		else {
-			o->stream.m_connected = 0;
-			if (!o->m_writeol) {
-				o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
-				if (!o->m_writeol)
-					return 0;
-			}
-			if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
-				&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
-			{
-				return 0;
-			}
-			o->m_writeol_has_commit = 1;
+		else if (!reactorobject_request_connect(o)) {
+			return 0;
 		}
 	}
 	else {
@@ -501,6 +503,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	else {
 		ChannelBase_t* channel = streamChannel(o);
 		o->stream.m_connected = 1;
+		_xchg8(&o->stream.m_client_reconnectcmdhaspost, 0);
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
 		return 1;
@@ -589,6 +592,29 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					continue;
 			}
 			reactorpacketFree(packet);
+			continue;
+		}
+		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
+			FD_t sockfd;
+			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.client_reconnectcmd);
+			if (!o->m_valid) {
+				continue;
+			}
+			sockfd = socket(o->domain, o->socktype, o->protocol);
+			if (INVALID_FD_HANDLE == sockfd) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+				continue;
+			}
+			free_io_resource(o);
+			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
+			o->fd = sockfd;
+			hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
+			if (!reactorobject_request_connect(o)) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+				continue;
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
@@ -778,6 +804,11 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (_xchg8(&o->m_reghaspost, 1))
 			return;
 		o->reactor = reactor;
+	}
+	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type) {
+		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.client_reconnectcmd);
+		if (SOCK_STREAM != o->socktype || _xchg8(&o->stream.m_client_reconnectcmdhaspost, 1))
+			return;
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.sendfincmd);
@@ -973,6 +1004,7 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
+		o->stream.client_reconnectcmd.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
 		o->stream.sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		o->read_fragment_size = 1460;
 	}
