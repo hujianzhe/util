@@ -114,6 +114,7 @@ typedef struct ChannelBase_t {
 	};
 	struct {
 		StreamTransportCtx_t stream_ctx;
+		StreamTransportCtx_t stream_ctx_bak;
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		char stream_sendfinwait;
 	};

@@ -503,7 +503,6 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	else {
 		ChannelBase_t* channel = streamChannel(o);
 		o->stream.m_connected = 1;
-		_xchg8(&o->stream.m_client_reconnectcmdhaspost, 0);
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
 		return 1;
@@ -596,6 +595,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
 			FD_t sockfd;
+			ChannelBase_t* channel;
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.client_reconnectcmd);
 			if (!o->m_valid) {
 				continue;
@@ -610,6 +610,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 			o->fd = sockfd;
 			hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
+			channel = streamChannel(o);
+			channel->stream_ctx_bak = channel->stream_ctx;
+			streamtransportctxInit(&channel->stream_ctx, 0);
 			if (!reactorobject_request_connect(o)) {
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
@@ -1062,6 +1065,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 	if (SOCK_STREAM == o->socktype) {
 		memcpy(&o->stream.connect_addr, addr, sockaddrLength(addr));
 		streamtransportctxInit(&channel->stream_ctx, 0);
+		streamtransportctxInit(&channel->stream_ctx_bak, 0);
 	}
 	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
