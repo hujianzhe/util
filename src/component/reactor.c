@@ -21,6 +21,12 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
+typedef struct StreamClientSideReconnectCmd_t {
+	ReactorCmd_t _;
+	ReactorObject_t* src_o;
+	ReactorObject_t* dst_o;
+} StreamClientSideReconnectCmd_t;
+
 typedef struct StreamServerSideReconnectCmd_t {
 	ReactorCmd_t _;
 	ReactorObject_t* src_o;
@@ -594,6 +600,22 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
+			StreamClientSideReconnectCmd_t* cmdex = pod_container_of(cmd, StreamClientSideReconnectCmd_t, _);
+			ReactorObject_t* src_o = cmdex->src_o;
+			ReactorObject_t* dst_o = cmdex->dst_o;
+			ChannelBase_t* src_channel = streamChannel(src_o);
+			ChannelBase_t* dst_channel = streamChannel(dst_o);
+			free(cmdex);
+			if (!src_o->m_valid || !dst_o->m_valid) {
+				continue;
+			}
+			listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+			listRemoveNode(&dst_o->m_channel_list, &dst_channel->regcmd._);
+			listPushNodeBack(&dst_o->m_channel_list, &src_channel->regcmd._);
+			listPushNodeBack(&src_o->m_channel_list, &dst_channel->regcmd._);
+			src_channel->o = dst_o;
+			src_o->m_valid = 0;
+			reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
