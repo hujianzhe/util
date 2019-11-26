@@ -716,8 +716,6 @@ void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
 		channel_free_packetlist(&channel->_.stream_ctx.recvpacketlist);
 		channel_free_packetlist(&channel->_.stream_ctx.sendpacketlist);
-		channel_free_packetlist(&channel->_.stream_ctx_bak.recvpacketlist);
-		channel_free_packetlist(&channel->_.stream_ctx_bak.sendpacketlist);
 	}
 	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		ListNode_t* cur, *next;

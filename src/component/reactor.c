@@ -594,30 +594,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
-			FD_t sockfd;
-			ChannelBase_t* channel;
-			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, stream.client_reconnectcmd);
-			if (!o->m_valid) {
-				continue;
-			}
-			sockfd = socket(o->domain, o->socktype, o->protocol);
-			if (INVALID_FD_HANDLE == sockfd) {
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(o, timestamp_msec);
-				continue;
-			}
-			free_io_resource(o);
-			hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
-			o->fd = sockfd;
-			hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
-			channel = streamChannel(o);
-			channel->stream_ctx_bak = channel->stream_ctx;
-			streamtransportctxInit(&channel->stream_ctx, 0);
-			if (!reactorobject_request_connect(o)) {
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(o, timestamp_msec);
-				continue;
-			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
@@ -808,11 +784,6 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (_xchg8(&o->m_reghaspost, 1))
 			return;
 		o->reactor = reactor;
-	}
-	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type) {
-		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.client_reconnectcmd);
-		if (SOCK_STREAM != o->socktype || _xchg8(&o->stream.m_client_reconnectcmdhaspost, 1))
-			return;
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.sendfincmd);
@@ -1008,7 +979,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
-		o->stream.client_reconnectcmd.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
 		o->stream.sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		o->read_fragment_size = 1460;
 	}
@@ -1066,7 +1036,6 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 	if (SOCK_STREAM == o->socktype) {
 		memcpy(&o->stream.connect_addr, addr, sockaddrLength(addr));
 		streamtransportctxInit(&channel->stream_ctx, 0);
-		streamtransportctxInit(&channel->stream_ctx_bak, 0);
 	}
 	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
