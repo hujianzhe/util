@@ -105,6 +105,7 @@ typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
 	ReactorObject_t* o;
+	Reactor_t* reactor;
 	Sockaddr_t to_addr;
 	union {
 		Sockaddr_t listen_addr;

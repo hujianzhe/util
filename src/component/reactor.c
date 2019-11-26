@@ -701,6 +701,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (o->on_reg)
 				o->on_reg(o, timestamp_msec);
 			allChannelDoAction(o, ChannelBase_t* channel,
+				channel->reactor = reactor;
 				if (channel->on_reg) {
 					channel->on_reg(channel, timestamp_msec);
 					after_call_channel_interface(o->reactor, channel);
@@ -1079,7 +1080,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) 
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
 	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 	packet->channel = channel;
-	reactorCommitCmd(channel->o->reactor, &packet->cmd);
+	reactorCommitCmd(channel->reactor, &packet->cmd);
 }
 
 void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
@@ -1091,7 +1092,7 @@ void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 		packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 		packet->channel = channel;
 	}
-	reactor_commit_cmdlist(channel->o->reactor, packetlist);
+	reactor_commit_cmdlist(channel->reactor, packetlist);
 }
 
 int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr) {
