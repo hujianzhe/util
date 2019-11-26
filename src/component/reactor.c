@@ -1094,19 +1094,6 @@ void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 	reactor_commit_cmdlist(channel->o->reactor, packetlist);
 }
 
-static ReactorPacket_t* make_packet(const void* buf, unsigned int len, int off, int pktype) {
-	ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + len);
-	if (packet) {
-		memset(packet, 0, sizeof(*packet));
-		memcpy(packet->_.buf, buf, len);
-		packet->_.hdrlen = 0;
-		packet->_.bodylen = len;
-		packet->_.off = off;
-		packet->_.type = pktype;
-	}
-	return packet;
-}
-
 int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr) {
 	ReactorObject_t* o = channel->o;
 	if (SOCK_STREAM == o->socktype) {
@@ -1132,9 +1119,11 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 					return res;
 				}
 			}
-			packet = make_packet(buf, len, res, pktype);
+			packet = reactorpacketMake(pktype, 0, len);
 			if (!packet)
 				return -1;
+			packet->_.off = res;
+			memcpy(packet->_.buf, buf, len);
 			streamtransportctxCacheSendPacket(&channel->stream_ctx, &packet->_);
 			if (!reactorobject_request_write(o)) {
 				o->m_valid = 0;
@@ -1145,9 +1134,10 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 			return res;
 		}
 		else {
-			packet = make_packet(buf, len, 0, pktype);
+			packet = reactorpacketMake(pktype, 0, len);
 			if (!packet)
 				return -1;
+			memcpy(packet->_.buf, buf, len);
 			channelbaseSendPacket(channel, packet);
 			return 0;
 		}
