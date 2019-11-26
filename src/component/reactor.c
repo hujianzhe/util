@@ -615,6 +615,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			src_channel->o = dst_o;
 			src_o->m_valid = 0;
 			reactorobject_invalid_inner_handler(src_o, timestamp_msec);
+			stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
+			reactor_stream_writeev(dst_o);
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
