@@ -1038,6 +1038,55 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	return o;
 }
 
+ReactorObject_t* reactorobjectDup(ReactorObject_t* o) {
+	ReactorObject_t* dup_o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
+	if (!dup_o)
+		return NULL;
+	dup_o->fd = socket(o->domain, o->socktype, o->protocol);
+	if (INVALID_FD_HANDLE == dup_o->fd) {
+		free(dup_o);
+		return NULL;
+	}
+	if (!socketNonBlock(dup_o->fd, TRUE)) {
+		socketClose(dup_o->fd);
+		free(dup_o);
+		return NULL;
+	}
+	dup_o->domain = o->domain;
+	dup_o->socktype = o->socktype;
+	dup_o->protocol = o->protocol;
+	dup_o->reactor = NULL;
+	dup_o->detach_error = 0;
+	dup_o->detach_timeout_msec = o->detach_timeout_msec;
+	dup_o->write_fragment_size = o->write_fragment_size;
+	dup_o->read_fragment_size = o->read_fragment_size;
+	if (SOCK_STREAM == dup_o->socktype) {
+		memset(&dup_o->stream, 0, sizeof(dup_o->stream));
+	}
+	dup_o->regcmd.type = REACTOR_OBJECT_REG_CMD;
+	dup_o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
+	dup_o->on_reg = o->on_reg;
+	dup_o->on_writeev = o->on_writeev;
+	dup_o->on_detach = o->on_detach;
+
+	listInit(&dup_o->m_channel_list);
+	dup_o->m_hashnode.key = &dup_o->fd;
+	dup_o->m_reghaspost = 0;
+	dup_o->m_valid = 1;
+	dup_o->m_has_inserted = 0;
+	dup_o->m_has_detached = 0;
+	dup_o->m_readol_has_commit = 0;
+	dup_o->m_writeol_has_commit = 0;
+	dup_o->m_readol = NULL;
+	dup_o->m_writeol = NULL;
+	dup_o->m_invalid_msec = 0;
+	dup_o->m_inbuf = NULL;
+	dup_o->m_inbuflen = 0;
+	dup_o->m_inbufoff = 0;
+	dup_o->m_inbufsize = 0;
+	return dup_o;
+}
+
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
 	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
 	if (pkg) {
