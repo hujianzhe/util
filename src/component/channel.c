@@ -640,7 +640,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, int flag, unsigned int i
 }
 
 Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
-	Thread_t t = channel->_.o->reactor->m_runthread;
+	Thread_t t = channel->_.reactor->m_runthread;
 	if (threadEqual(t, threadSelf()))
 		channel_set_heartbeat_timestamp(channel, now_msec);
 	return channel;
