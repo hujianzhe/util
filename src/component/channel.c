@@ -683,8 +683,7 @@ void channelSendFin(Channel_t* channel) {
 		channelbaseSendPacket(&channel->_, packet);
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
-		ReactorObject_t* o = channel->_.o;
-		reactorCommitCmd(o->reactor, &o->stream.sendfincmd);
+		reactorCommitCmd(channel->_.reactor, &channel->_.stream_sendfincmd);
 	}
 }
 
