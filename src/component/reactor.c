@@ -811,6 +811,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		if (_xchg8(&o->m_reghaspost, 1))
 			return;
 		o->reactor = reactor;
+		allChannelDoAction(o, ChannelBase_t* channel, channel->reactor = reactor;);
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, stream.sendfincmd);
