@@ -34,6 +34,7 @@ typedef struct StreamServerSideReconnectCmd_t {
 	Reactor_t* dst_r;
 	unsigned int recvseq;
 	unsigned int cwdnseq;
+	ReactorPacket_t* replypacket;
 } StreamServerSideReconnectCmd_t;
 
 #ifdef	__cplusplus
@@ -515,16 +516,14 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	}
 }
 
-static void reactor_stream_resend_packet(ReactorObject_t* o) {
-	ChannelBase_t* channel = streamChannel(o);
+static void stream_reset_packet_off(List_t* sendpacketlist) {
 	ListNode_t* cur;
-	for (cur = channel->stream_ctx.sendpacketlist.head; cur; cur = cur->next) {
+	for (cur = sendpacketlist->head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		if (0 == packet->off)
 			break;
 		packet->off = 0;
 	}
-	reactor_stream_writeev(o);
 }
 
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
@@ -660,8 +659,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 
 				listPushNodeBack(&src_o->m_channel_list, &dst_c->regcmd._);
 				dst_c->o = src_o;
-				// TODO: new reconnect reply packet and insert sendpacketlist head
-				reactor_stream_resend_packet(src_o);
+				stream_reset_packet_off(&dst_c->stream_ctx.sendpacketlist);
+				if (cmdex->replypacket)
+					listPushNodeFront(&dst_c->stream_ctx.sendpacketlist, &cmdex->replypacket->_.node);
+				free(cmdex);
+				reactor_stream_writeev(src_o);
 			}
 			continue;
 		}
@@ -1041,6 +1043,11 @@ ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int
 		pkg->_.cached = 0;
 		pkg->_.hdrlen = hdrlen;
 		pkg->_.bodylen = bodylen;
+		pkg->_.seq = 0;
+		pkg->_.off = 0;
+		pkg->_.resend_msec = 0;
+		pkg->_.resend_times = 0;
+		pkg->_.buf[0] = 0;
 	}
 	return pkg;
 }
