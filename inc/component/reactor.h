@@ -158,6 +158,7 @@ __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrle
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 
 __declspec_dll ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg);
+__declspec_dll ReactorCmd_t* channelbaseStreamServerReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
