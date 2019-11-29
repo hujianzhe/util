@@ -1108,6 +1108,17 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
+ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, int processing_stage) {
+	StreamClientSideReconnectCmd_t* cmd = (StreamClientSideReconnectCmd_t*)malloc(sizeof(StreamClientSideReconnectCmd_t));
+	if (!cmd)
+		return NULL;
+	cmd->_.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
+	cmd->src_channel = channel;
+	cmd->reconnect_channel = reconnect_channel;
+	cmd->processing_stage = processing_stage;
+	return &cmd->_;
+}
+
 ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) {
 	ChannelBase_t* channel = (ChannelBase_t*)calloc(1, sz);
 	if (!channel)
