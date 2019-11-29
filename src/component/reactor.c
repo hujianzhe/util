@@ -36,6 +36,7 @@ typedef struct StreamServerSideReconnectCmd_t {
 	Reactor_t* dst_reactor;
 	unsigned int recvseq;
 	unsigned int cwdnseq;
+	int recovery_send;
 } StreamServerSideReconnectCmd_t;
 
 #ifdef	__cplusplus
