@@ -25,7 +25,7 @@ typedef struct StreamClientSideReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	ChannelBase_t* reconnect_channel;
-	int processing_stage;
+	ReactorPacket_t* ackpkg;
 } StreamClientSideReconnectCmd_t;
 
 typedef struct StreamServerSideReconnectCmd_t {
@@ -605,16 +605,12 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 			ReactorObject_t* src_o = src_channel->o;
 			ReactorObject_t* reconnect_o = reconnect_channel->o;
-			int processing_stage = cmdex->processing_stage;
+			ReactorPacket_t* ackpkg = cmdex->ackpkg;
 			free(cmdex);
 			if (!src_o->m_valid || !reconnect_o->m_valid) {
 				continue;
 			}
-			else if (1 == processing_stage) {
-				reconnect_channel->stream_client_reconnect_cwdnseq = src_channel->stream_ctx.m_cwndseq;
-				reconnect_channel->stream_client_reconnect_recvseq = src_channel->stream_ctx.m_recvseq;
-			}
-			else if (2 == processing_stage) {
+			else if (ackpkg) {
 				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
 				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
 				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
@@ -623,7 +619,12 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				src_o->m_valid = 0;
 				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
+				listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &ackpkg->_.node);
 				reactor_stream_writeev(reconnect_o);
+			}
+			else {
+				reconnect_channel->stream_client_reconnect_cwdnseq = src_channel->stream_ctx.m_cwndseq;
+				reconnect_channel->stream_client_reconnect_recvseq = src_channel->stream_ctx.m_recvseq;
 			}
 			continue;
 		}
@@ -1108,14 +1109,14 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, int processing_stage) {
+ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg) {
 	StreamClientSideReconnectCmd_t* cmd = (StreamClientSideReconnectCmd_t*)malloc(sizeof(StreamClientSideReconnectCmd_t));
 	if (!cmd)
 		return NULL;
 	cmd->_.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
 	cmd->src_channel = channel;
 	cmd->reconnect_channel = reconnect_channel;
-	cmd->processing_stage = processing_stage;
+	cmd->ackpkg = ackpkg;
 	return &cmd->_;
 }
 
