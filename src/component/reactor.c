@@ -23,8 +23,9 @@ do {\
 
 typedef struct StreamClientSideReconnectCmd_t {
 	ReactorCmd_t _;
-	ReactorObject_t* src_o;
-	ReactorObject_t* dst_o;
+	ChannelBase_t* src_channel;
+	ChannelBase_t* reconnect_channel;
+	int processing_stage;
 } StreamClientSideReconnectCmd_t;
 
 typedef struct StreamServerSideReconnectCmd_t {
@@ -600,23 +601,30 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
 			StreamClientSideReconnectCmd_t* cmdex = pod_container_of(cmd, StreamClientSideReconnectCmd_t, _);
-			ReactorObject_t* src_o = cmdex->src_o;
-			ReactorObject_t* dst_o = cmdex->dst_o;
-			ChannelBase_t* src_channel = streamChannel(src_o);
-			ChannelBase_t* dst_channel = streamChannel(dst_o);
+			ChannelBase_t* src_channel = cmdex->src_channel;
+			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
+			ReactorObject_t* src_o = src_channel->o;
+			ReactorObject_t* reconnect_o = reconnect_channel->o;
+			int processing_stage = cmdex->processing_stage;
 			free(cmdex);
-			if (!src_o->m_valid || !dst_o->m_valid) {
+			if (!src_o->m_valid || !reconnect_o->m_valid) {
 				continue;
 			}
-			listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
-			listRemoveNode(&dst_o->m_channel_list, &dst_channel->regcmd._);
-			listPushNodeBack(&dst_o->m_channel_list, &src_channel->regcmd._);
-			listPushNodeBack(&src_o->m_channel_list, &dst_channel->regcmd._);
-			src_channel->o = dst_o;
-			src_o->m_valid = 0;
-			reactorobject_invalid_inner_handler(src_o, timestamp_msec);
-			stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
-			reactor_stream_writeev(dst_o);
+			else if (1 == processing_stage) {
+				reconnect_channel->stream_client_reconnect_cwdnseq = src_channel->stream_ctx.m_cwndseq;
+				reconnect_channel->stream_client_reconnect_recvseq = src_channel->stream_ctx.m_recvseq;
+			}
+			else if (2 == processing_stage) {
+				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
+				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
+				listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
+				src_channel->o = reconnect_o;
+				src_o->m_valid = 0;
+				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
+				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
+				reactor_stream_writeev(reconnect_o);
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
@@ -941,7 +949,11 @@ void reactorDestroy(Reactor_t* reactor) {
 		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
 			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
 			next = cur->next;
-			if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
+			if (REACTOR_OBJECT_REG_CMD == cmd->type) {
+				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
+				free(o);
+			}
+			else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
 				ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, freecmd);
 				reactorobject_free(o);
 			}
@@ -952,8 +964,9 @@ void reactorDestroy(Reactor_t* reactor) {
 			else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 				reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
 			}
-			else if (REACTOR_INNER_CMD > cmd->type)
+			else if (cmd->type <= REACTOR_INNER_CMD) {
 				continue;
+			}
 			else if (reactor->cmd_free)
 				reactor->cmd_free(cmd);
 		}

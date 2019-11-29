@@ -115,6 +115,8 @@ typedef struct ChannelBase_t {
 		ReactorCmd_t stream_sendfincmd;
 		Atom8_t m_stream_sendfincmdhaspost;
 		char stream_sendfinwait;
+		unsigned int stream_client_reconnect_recvseq;
+		unsigned int stream_client_reconnect_cwdnseq;
 	};
 	char has_recvfin;
 	char has_sendfin;
