@@ -1119,10 +1119,13 @@ ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBa
 	cmd->src_channel = channel;
 	cmd->reconnect_channel = reconnect_channel;
 	cmd->ackpkg = ackpkg;
+	reactorCommitCmd(channel->reactor, &cmd->_);
 	return &cmd->_;
 }
 
-ReactorCmd_t* channelbaseStreamServerReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg) {
+ReactorCmd_t* channelbaseStreamServerReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel,
+	ReactorPacket_t* ackpkg, unsigned int recvseq, unsigned int cwndseq)
+{
 	StreamServerSideReconnectCmd_t* cmd = (StreamServerSideReconnectCmd_t*)malloc(sizeof(StreamServerSideReconnectCmd_t));
 	if (!cmd)
 		return NULL;
@@ -1131,6 +1134,9 @@ ReactorCmd_t* channelbaseStreamServerReconnect(ChannelBase_t* channel, ChannelBa
 	cmd->reconnect_channel = reconnect_channel;
 	cmd->ackpkg = ackpkg;
 	cmd->dst_reactor = channel->reactor;
+	cmd->recvseq = recvseq;
+	cmd->cwdnseq = cwndseq;
+	reactorCommitCmd(reconnect_channel->reactor, &cmd->_);
 	return &cmd->_;
 }
 
