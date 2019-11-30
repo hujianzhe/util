@@ -115,8 +115,6 @@ typedef struct ChannelBase_t {
 		ReactorCmd_t stream_sendfincmd;
 		Atom8_t m_stream_sendfincmdhaspost;
 		char stream_sendfinwait;
-		unsigned int stream_client_reconnect_recvseq;
-		unsigned int stream_client_reconnect_cwdnseq;
 	};
 	char has_recvfin;
 	char has_sendfin;
@@ -156,10 +154,6 @@ __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
-
-__declspec_dll ReactorCmd_t* channelbaseStreamClientReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg);
-__declspec_dll ReactorCmd_t* channelbaseStreamServerReconnect(ChannelBase_t* channel, ChannelBase_t* reconnect_channel, ReactorPacket_t* ackpkg,
-	unsigned int recvseq, unsigned int cwndseq);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
