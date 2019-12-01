@@ -21,7 +21,7 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
-typedef struct StreamReconnectCmd_t {
+typedef struct ReactorStreamReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	ChannelBase_t* reconnect_channel;
@@ -29,7 +29,7 @@ typedef struct StreamReconnectCmd_t {
 	unsigned int recvseq;
 	unsigned int cwdnseq;
 	int processing_stage;
-} StreamReconnectCmd_t;
+} ReactorStreamReconnectCmd_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -130,7 +130,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
-static void stream_server_side_reconnectcmd_failure_handler(StreamReconnectCmd_t* cmd) {
+static void stream_server_side_reconnectcmd_failure_handler(ReactorStreamReconnectCmd_t* cmd) {
 	ReactorObject_t* o = cmd->reconnect_channel->o;
 	free(cmd);
 	o->m_valid = 0;
@@ -596,7 +596,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
-			StreamReconnectCmd_t* cmdex = pod_container_of(cmd, StreamReconnectCmd_t, _);
+			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
 			ChannelBase_t* src_channel = cmdex->src_channel;
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 			ReactorObject_t* src_o = src_channel->o;
@@ -628,7 +628,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
-			StreamReconnectCmd_t* cmdex = pod_container_of(cmd, StreamReconnectCmd_t, _);
+			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
 			ChannelBase_t* src_channel = cmdex->src_channel;
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 			ReactorPacket_t* ackpkg = cmdex->ackpkg;
