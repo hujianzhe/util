@@ -148,6 +148,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
+			else if (NETPACKET_SYN_ACK == pktype) {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+			}
 			else
 				return -1;
 		}
