@@ -837,6 +837,17 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 	}
+	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type ||
+			 REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmdnode->type)
+	{
+		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
+		if (1 == cmd->processing_stage)
+			reactor = cmd->reconnect_channel->reactor;
+		else if (2 == cmd->processing_stage)
+			reactor = cmd->src_channel->reactor;
+		else
+			return;
+	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
