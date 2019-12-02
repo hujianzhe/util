@@ -1110,6 +1110,14 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
+ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(void) {
+	ReactorStreamReconnectCmd_t* cmd = (ReactorStreamReconnectCmd_t*)calloc(1, sizeof(ReactorStreamReconnectCmd_t));
+	if (cmd) {
+		cmd->processing_stage = 1;
+	}
+	return cmd;
+}
+
 ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) {
 	ChannelBase_t* channel = (ChannelBase_t*)calloc(1, sz);
 	if (!channel)
