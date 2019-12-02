@@ -99,6 +99,7 @@ typedef struct ReactorObject_t {
 } ReactorObject_t;
 
 struct ReactorPacket_t;
+struct ReactorStreamReconnectCmd_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -114,6 +115,7 @@ typedef struct ChannelBase_t {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		ReactorCmd_t stream_sendfincmd;
 		Atom8_t m_stream_sendfincmdhaspost;
+		struct ReactorStreamReconnectCmd_t* stream_reconnect_cmd;
 		char stream_sendfinwait;
 	};
 	char has_recvfin;
@@ -138,6 +140,16 @@ typedef struct ReactorPacket_t {
 	ChannelBase_t* channel;
 	NetPacket_t _;
 } ReactorPacket_t;
+
+typedef struct ReactorStreamReconnectCmd_t {
+	ReactorCmd_t _;
+	ChannelBase_t* src_channel;
+	ChannelBase_t* reconnect_channel;
+	ReactorPacket_t* ackpkg;
+	unsigned int recvseq;
+	unsigned int cwdnseq;
+	int processing_stage;
+} ReactorStreamReconnectCmd_t;
 
 #ifdef	__cplusplus
 extern "C" {

@@ -21,16 +21,6 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
-typedef struct ReactorStreamReconnectCmd_t {
-	ReactorCmd_t _;
-	ChannelBase_t* src_channel;
-	ChannelBase_t* reconnect_channel;
-	ReactorPacket_t* ackpkg;
-	unsigned int recvseq;
-	unsigned int cwdnseq;
-	int processing_stage;
-} ReactorStreamReconnectCmd_t;
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -610,9 +600,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				cmdex->cwdnseq = src_channel->stream_ctx.m_cwndseq;
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
-				// TODO: reactorobject save cmdex
+				reconnect_channel->stream_reconnect_cmd = cmdex;
 			}
 			else if (2 == cmdex->processing_stage) {
+				reconnect_channel->stream_reconnect_cmd = NULL;
 				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
 				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
 				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
@@ -638,7 +629,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				continue;
 			}
 			else if (1 == cmdex->processing_stage) {
-				// TODO: reactorobject save cmdex
 				if (src_channel->reactor != reconnect_channel->reactor) {
 					if (!reactor_unreg_object_check(reconnect_channel->reactor, reconnect_o)) {
 						stream_server_side_reconnectcmd_failure_handler(cmdex);
@@ -674,15 +664,17 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 					channel_detach_handler(reconnect_channel, 0, timestamp_msec);
 					src_channel->o = reconnect_o;
+					src_channel->stream_reconnect_cmd = cmdex;
 					cmdex->ackpkg->_.type = NETPACKET_SYN_ACK;
+					cmdex->processing_stage = 2;
 					listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &cmdex->ackpkg->_.node);
 					reactor_stream_writeev(src_channel->o);
-					cmdex->processing_stage = 2;
 				}
 			}
 			else if (2 == cmdex->processing_stage) {
 				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
 				reactor_stream_writeev(src_channel->o);
+				src_channel->stream_reconnect_cmd = NULL;
 				free(cmdex);
 			}
 			continue;
