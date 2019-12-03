@@ -594,6 +594,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorPacket_t* ackpkg = cmdex->ackpkg;
 			if (!src_o->m_valid || !reconnect_o->m_valid) {
 				free(cmdex);
+				if (src_channel->do_reconnecting) {
+					src_channel->do_reconnecting = 0;
+				}
 				continue;
 			}
 			else if (1 == cmdex->processing_stage) {
@@ -601,6 +604,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
 				reconnect_channel->stream_reconnect_cmd = cmdex;
+				src_channel->do_reconnecting = 1;
 			}
 			else if (2 == cmdex->processing_stage) {
 				reconnect_channel->stream_reconnect_cmd = NULL;
@@ -614,6 +618,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
 				listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &ackpkg->_.node);
 				free(cmdex);
+				src_channel->do_reconnecting = 0;
 				reactor_stream_writeev(reconnect_o);
 			}
 			continue;
@@ -638,8 +643,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					// TODO: notify source thread unreg ok ......
 				}
 				else {
-					ReactorObject_t* dst_o = src_channel->o;
-					if (!dst_o->m_valid) {
+					ReactorObject_t* src_o = src_channel->o;
+					if (!src_o->m_valid) {
 						stream_server_side_reconnectcmd_failure_handler(cmdex);
 						continue;
 					}
@@ -657,14 +662,15 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 							continue;
 						}
 					}
-					listRemoveNode(&dst_o->m_channel_list, &src_channel->regcmd._);
-					dst_o->m_valid = 0;
-					reactorobject_invalid_inner_handler(dst_o, timestamp_msec);
+					listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+					src_o->m_valid = 0;
+					reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 
 					listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 					channel_detach_handler(reconnect_channel, 0, timestamp_msec);
 					src_channel->o = reconnect_o;
 					src_channel->stream_reconnect_cmd = cmdex;
+					src_channel->do_reconnecting = 1;
 					cmdex->ackpkg->_.type = NETPACKET_SYN_ACK;
 					cmdex->processing_stage = 2;
 					listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &cmdex->ackpkg->_.node);
@@ -672,10 +678,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 			}
 			else if (2 == cmdex->processing_stage) {
-				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
-				reactor_stream_writeev(src_channel->o);
+				src_channel->do_reconnecting = 0;
 				src_channel->stream_reconnect_cmd = NULL;
 				free(cmdex);
+				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
+				reactor_stream_writeev(src_channel->o);
 			}
 			continue;
 		}
