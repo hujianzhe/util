@@ -113,13 +113,14 @@ typedef struct ChannelBase_t {
 	struct {
 		StreamTransportCtx_t stream_ctx;
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
+		struct ReactorStreamReconnectCmd_t* stream_reconnect_cmd;
 		ReactorCmd_t stream_sendfincmd;
 		Atom8_t m_stream_sendfincmdhaspost;
-		struct ReactorStreamReconnectCmd_t* stream_reconnect_cmd;
 		char stream_sendfinwait;
 	};
 	char has_recvfin;
 	char has_sendfin;
+	char do_reconnecting;
 	char valid;
 	int detach_error;
 	long long event_msec;
