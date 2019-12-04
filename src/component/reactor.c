@@ -550,24 +550,31 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					continue;
 				}
 				if (!streamtransportctxSendCheckBusy(ctx)) {
-					int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
-					if (res < 0) {
-						if (errnoGet() != EWOULDBLOCK) {
-							o->m_valid = 0;
-							reactorobject_invalid_inner_handler(o, timestamp_msec);
-							continue;
-						}
-						res = 0;
+					if (channel->do_reconnecting) {
+						packet->_.off = 0;
 					}
-					packet->_.off = res;
+					else {
+						int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
+						if (res < 0) {
+							if (errnoGet() != EWOULDBLOCK) {
+								o->m_valid = 0;
+								reactorobject_invalid_inner_handler(o, timestamp_msec);
+								continue;
+							}
+							res = 0;
+						}
+						packet->_.off = res;
+					}
 				}
 				if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-					if (packet->_.off < packet->_.hdrlen + packet->_.bodylen) {
-						if (!reactorobject_request_write(o)) {
-							o->m_valid = 0;
-							o->detach_error = REACTOR_IO_ERR;
-							reactorobject_invalid_inner_handler(o, timestamp_msec);
-						}
+					if (channel->do_reconnecting)
+						continue;
+					if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen)
+						continue;
+					if (!reactorobject_request_write(o)) {
+						o->m_valid = 0;
+						o->detach_error = REACTOR_IO_ERR;
+						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 					continue;
 				}
