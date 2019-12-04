@@ -484,23 +484,26 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 }
 
 static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) {
+	ChannelBase_t* channel = streamChannel(o);
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
 	}
-	if (!nioConnectCheckSuccess(o->fd)) {
-		return 0;
-	}
-	else if (!reactorobject_request_read(o)) {
-		return 0;
-	}
-	else {
-		ChannelBase_t* channel = streamChannel(o);
+	do {
+		if (!nioConnectCheckSuccess(o->fd))
+			break;
+		if (!reactorobject_request_read(o))
+			break;
 		o->stream.m_connected = 1;
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
 		return 1;
+	} while (0);
+	if (channel->stream_reconnect_cmd) {
+		free(channel->stream_reconnect_cmd);
+		channel->stream_reconnect_cmd = NULL;
 	}
+	return 0;
 }
 
 static void stream_reset_packet_off(List_t* sendpacketlist) {
