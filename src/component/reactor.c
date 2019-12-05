@@ -224,6 +224,42 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
+static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+	if (reactor_reg_object_check(reactor, o)) {
+		HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
+		if (htnode != &o->m_hashnode) {
+			ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
+			hashtableReplaceNode(htnode, &o->m_hashnode);
+			exist_o->m_valid = 0;
+			exist_o->m_has_inserted = 0;
+			reactorobject_invalid_inner_handler(exist_o, timestamp_msec);
+		}
+		o->m_has_inserted = 1;
+		return 1;
+	}
+	return 0;
+}
+
+static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+	ChannelBase_t* channel;
+	if (o->on_reg)
+		o->on_reg(o, timestamp_msec);
+	allChannelDoAction(o, channel,
+		channel->reactor = reactor;
+		if (channel->on_reg) {
+			channel->on_reg(channel, timestamp_msec);
+			after_call_channel_interface(o->reactor, channel);
+		}
+	);
+	if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
+		return;
+	channel = streamChannel(o);
+	if (channel && channel->on_syn_ack) {
+		channel->on_syn_ack(channel, timestamp_msec);
+		after_call_channel_interface(o->reactor, channel);
+	}
+}
+
 static int reactor_unreg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 	if (!nioUnReg(&reactor->m_nio, o->fd)) {
 		return 0;
@@ -601,22 +637,33 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 			ReactorObject_t* src_o = src_channel->o;
 			ReactorObject_t* reconnect_o = reconnect_channel->o;
-			ReactorPacket_t* ackpkg = cmdex->ackpkg;
+			int processing_stage = cmdex->processing_stage;
 			if (!src_o->m_valid || !reconnect_o->m_valid) {
+				free(cmdex->ackpkg);
 				free(cmdex);
-				if (src_channel->do_reconnecting) {
-					src_channel->do_reconnecting = 0;
+				reconnect_channel->stream_reconnect_cmd = NULL;
+				src_channel->do_reconnecting = 0;
+				if (1 == processing_stage) {
+					reconnect_o->m_valid = 0;
+					reactorobject_invalid_inner_handler(reconnect_o, timestamp_msec);
 				}
 				continue;
 			}
-			else if (1 == cmdex->processing_stage) {
+			else if (1 == processing_stage) {
 				cmdex->cwdnseq = src_channel->stream_ctx.m_cwndseq;
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
-				reconnect_channel->stream_reconnect_cmd = cmdex;
+				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
+					reconnect_o->m_valid = 0;
+					reconnect_o->detach_error = REACTOR_REG_ERR;
+					reactorobject_invalid_inner_handler(reconnect_o, timestamp_msec);
+					continue;
+				}
 				src_channel->do_reconnecting = 1;
+				reconnect_channel->stream_reconnect_cmd = cmdex;
+				reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
 			}
-			else if (2 == cmdex->processing_stage) {
+			else if (2 == processing_stage) {
 				reconnect_channel->stream_reconnect_cmd = NULL;
 				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
 				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
@@ -626,7 +673,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				src_o->m_valid = 0;
 				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 				stream_reset_packet_off(&src_channel->stream_ctx.sendpacketlist);
-				listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &ackpkg->_.node);
+				listPushNodeFront(&src_channel->stream_ctx.sendpacketlist, &cmdex->ackpkg->_.node);
 				free(cmdex);
 				src_channel->do_reconnecting = 0;
 				reactor_stream_writeev(reconnect_o);
@@ -710,41 +757,13 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_OBJECT_REG_CMD == cmd->type) {
 			ReactorObject_t* o = pod_container_of(cmd, ReactorObject_t, regcmd);
-			if (!reactor_reg_object_check(reactor, o)) {
+			if (!reactor_reg_object(reactor, o, timestamp_msec)) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_REG_ERR;
 				reactorobject_invalid_inner_handler(o, timestamp_msec);
 				continue;
 			}
-			else {
-				HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
-				if (htnode != &o->m_hashnode) {
-					ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
-					hashtableReplaceNode(htnode, &o->m_hashnode);
-					exist_o->m_valid = 0;
-					exist_o->m_has_inserted = 0;
-					reactorobject_invalid_inner_handler(exist_o, timestamp_msec);
-				}
-				o->m_has_inserted = 1;
-			}
-			if (o->on_reg)
-				o->on_reg(o, timestamp_msec);
-			allChannelDoAction(o, ChannelBase_t* channel,
-				channel->reactor = reactor;
-				if (channel->on_reg) {
-					channel->on_reg(channel, timestamp_msec);
-					after_call_channel_interface(o->reactor, channel);
-				}
-			);
-			if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
-				continue;
-			else {
-				ChannelBase_t* channel = streamChannel(o);
-				if (channel && channel->on_syn_ack) {
-					channel->on_syn_ack(channel, timestamp_msec);
-					after_call_channel_interface(o->reactor, channel);
-				}
-			}
+			reactor_exec_object_reg_callback(reactor, o, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
@@ -854,9 +873,18 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 	}
-	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type ||
-			 REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmdnode->type)
-	{
+	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type) {
+		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
+		ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
+		if (_xchg8(&reconnect_o->m_reghaspost, 1)) {
+			free(cmd);
+			return;
+		}
+		reactor = cmd->src_channel->reactor;
+		reconnect_o->reactor = reactor;
+		cmd->reconnect_channel->reactor = reactor;
+	}
+	else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmdnode->type) {
 		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
 		if (1 == cmd->processing_stage)
 			reactor = cmd->reconnect_channel->reactor;
