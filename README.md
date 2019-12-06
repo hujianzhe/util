@@ -22,7 +22,7 @@
 				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
-				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,对使用者屏蔽TCP发送,TCP断线重连重发缓存包等细节问题  
+				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 			datastruct/  
