@@ -13,6 +13,7 @@ typedef struct MemHeapBlock_t {
 
 #define	memheapblock_ptr(block)	((unsigned char*)((block) + 1))
 #define	ptr_memheapblock(ptr)	((MemHeapBlock_t*)(((unsigned char*)(ptr)) - sizeof(MemHeapBlock_t)))
+#define	PTR_VALUE_MAX			((ptrlen_t)(~0))
 
 typedef struct MemHeap_t {
 	ListNode_t node;
@@ -42,14 +43,14 @@ MemHeap_t* memheapSetup(void* addr, ptrlen_t len) {
 }
 
 void* memheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
-	ptrlen_t realbytes = nbytes + sizeof(MemHeapBlock_t);
-	ListNode_t* cur, *prev;
-	if (realbytes < nbytes) {
+	ptrlen_t realbytes;
+	ListNode_t* cur;
+	if (PTR_VALUE_MAX - sizeof(MemHeapBlock_t) < nbytes) {
 		return (void*)0;
 	}
-	for (cur = memheap->blocklist.tail; cur; cur = prev) {
+	realbytes = nbytes + sizeof(MemHeapBlock_t);
+	for (cur = memheap->blocklist.tail; cur; cur = cur->prev) {
 		MemHeapBlock_t* block = (MemHeapBlock_t*)cur;
-		prev = cur->prev;
 		if (block->leftlen >= realbytes) {
 			MemHeapBlock_t* new_block = (MemHeapBlock_t*)(memheapblock_ptr(block) + block->uselen);
 			new_block->uselen = nbytes;
@@ -62,15 +63,44 @@ void* memheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
 	return (void*)0;
 }
 
-void memheapFree(MemHeap_t* memheap, void* addr) {
-	MemHeapBlock_t* block, *prev_block;
-	if ((ptrlen_t)addr < ((ptrlen_t)memheap) + sizeof(MemHeap_t) + sizeof(MemHeapBlock_t)) {
-		return;
+void* memheapAlignAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes, ptrlen_t alignment) {
+	ListNode_t* cur;
+	if (PTR_VALUE_MAX - sizeof(MemHeapBlock_t) < nbytes) {
+		return (void*)0;
 	}
-	block = ptr_memheapblock(addr);
-	prev_block = (MemHeapBlock_t*)(block->node.prev);
-	prev_block->leftlen += sizeof(*block) + block->uselen + block->leftlen;
-	listRemoveNode(&memheap->blocklist, &block->node);
+	alignment -= 1;
+	for (cur = memheap->blocklist.tail; cur; cur = cur->prev) {
+		MemHeapBlock_t* block = (MemHeapBlock_t*)cur;
+		ptrlen_t block_useptr = (ptrlen_t)(memheapblock_ptr(block));
+		ptrlen_t block_useptr_end = block_useptr + block->uselen + block->leftlen;
+		ptrlen_t new_useptr;
+		if (block->leftlen < nbytes + sizeof(MemHeapBlock_t)) {
+			continue;
+		}
+		new_useptr = block_useptr + block->uselen + sizeof(MemHeapBlock_t);
+		if (block_useptr_end - new_useptr < alignment) {
+			continue;
+		}
+		new_useptr = (new_useptr + alignment) & (~alignment);
+		if (nbytes <= block_useptr_end - new_useptr) {
+			MemHeapBlock_t* new_block = ptr_memheapblock(new_useptr);
+			new_block->uselen = nbytes;
+			new_block->leftlen = block_useptr_end - new_useptr - nbytes;
+			listInsertNodeBack(&memheap->blocklist, cur, &new_block->node);
+			block->leftlen = ((ptrlen_t)new_block) - block_useptr - block->uselen;
+			return (void*)new_useptr;
+		}
+	}
+	return (void*)0;
+}
+
+void memheapFree(MemHeap_t* memheap, void* addr) {
+	if (addr) {
+		MemHeapBlock_t* block = ptr_memheapblock(addr);
+		MemHeapBlock_t* prev_block = (MemHeapBlock_t*)(block->node.prev);
+		prev_block->leftlen += sizeof(MemHeapBlock_t) + block->uselen + block->leftlen;
+		listRemoveNode(&memheap->blocklist, &block->node);
+	}
 }
 
 #ifdef	__cplusplus
