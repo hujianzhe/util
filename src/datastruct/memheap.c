@@ -6,7 +6,13 @@
 #include "../../inc/datastruct/list.h"
 
 typedef struct MemHeapBlock_t {
-	ListNode_t node;
+	union {
+		ListNode_t node;
+		struct {
+			ptrlen_t prevoff;
+			ptrlen_t nextoff;
+		};
+	};
 	ptrlen_t uselen;
 	ptrlen_t leftlen;
 } MemHeapBlock_t;
@@ -20,13 +26,18 @@ typedef struct MemHeap_t {
 	void* addr;
 	ptrlen_t len;
 	void(*fn_lock_or_unlock)(int do_lock);
-	List_t blocklist;
+	union {
+		List_t blocklist;
+		ptrlen_t tailoff;
+	};
 	MemHeapBlock_t guard_block;
 } MemHeap_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
+static void __def_fn_lock_or_unlock(int do_lock) {}
 
 MemHeap_t* memheapSetup(void* addr, ptrlen_t len, void(*fn_lock_or_unlock)(int)) {
 	MemHeap_t* memheap;
@@ -36,7 +47,7 @@ MemHeap_t* memheapSetup(void* addr, ptrlen_t len, void(*fn_lock_or_unlock)(int))
 	memheap = (MemHeap_t*)addr;
 	memheap->addr = addr;
 	memheap->len = len;
-	memheap->fn_lock_or_unlock = fn_lock_or_unlock;
+	memheap->fn_lock_or_unlock = fn_lock_or_unlock ? fn_lock_or_unlock : __def_fn_lock_or_unlock;
 	listInit(&memheap->blocklist);
 	listPushNodeBack(&memheap->blocklist, &memheap->guard_block.node);
 	memheap->guard_block.uselen = 0;
@@ -109,6 +120,80 @@ void memheapFree(MemHeap_t* memheap, void* addr) {
 		prev_block = (MemHeapBlock_t*)(block->node.prev);
 		prev_block->leftlen += sizeof(MemHeapBlock_t) + block->uselen + block->leftlen;
 		listRemoveNode(&memheap->blocklist, &block->node);
+		memheap->fn_lock_or_unlock(0);
+	}
+}
+
+static void __insertback(MemHeap_t* memheap, MemHeapBlock_t* node, MemHeapBlock_t* new_node) {
+	ptrlen_t base = (ptrlen_t)memheap;
+	new_node->prevoff = (ptrlen_t)node - base;
+	new_node->nextoff = node->nextoff;
+	if (node->nextoff)
+		((MemHeapBlock_t*)(base + node->nextoff))->prevoff = (ptrlen_t)new_node - base;
+	node->nextoff = (ptrlen_t)new_node - base;
+	if (memheap->tailoff == new_node->prevoff)
+		memheap->tailoff = (ptrlen_t)new_node - base;
+}
+
+static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) {
+	ptrlen_t base = (ptrlen_t)memheap;
+	if (node->prevoff)
+		((MemHeapBlock_t*)(base + node->prevoff))->nextoff = node->nextoff;
+	if (node->nextoff)
+		((MemHeapBlock_t*)(base + node->nextoff))->prevoff = node->prevoff;
+	if (memheap->tailoff + base == (ptrlen_t)node)
+		memheap->tailoff = node->prevoff;
+}
+
+MemHeap_t* shmheapSetup(void* addr, ptrlen_t len, void(*fn_lock_or_unlock)(int)) {
+	MemHeap_t* memheap;
+	if (len < sizeof(MemHeap_t)) {
+		return (MemHeap_t*)0;
+	}
+	memheap = (MemHeap_t*)addr;
+	memheap->addr = addr;
+	memheap->len = len;
+	memheap->fn_lock_or_unlock = fn_lock_or_unlock ? fn_lock_or_unlock : __def_fn_lock_or_unlock;
+	memheap->tailoff = (ptrlen_t)&memheap->guard_block - (ptrlen_t)memheap;
+	memheap->guard_block.prevoff = 0;
+	memheap->guard_block.nextoff = 0;
+	memheap->guard_block.uselen = 0;
+	memheap->guard_block.leftlen = len - sizeof(MemHeap_t);
+	return memheap;
+}
+
+void* shmheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
+	ptrlen_t realbytes, curoff, prevoff;
+	if (PTR_VALUE_MAX - sizeof(MemHeapBlock_t) < nbytes) {
+		return (void*)0;
+	}
+	realbytes = nbytes + sizeof(MemHeapBlock_t);
+	memheap->fn_lock_or_unlock(1);
+	for (curoff = memheap->tailoff; curoff; curoff = prevoff) {
+		MemHeapBlock_t* block = (MemHeapBlock_t*)(curoff + (ptrlen_t)memheap);
+		prevoff = block->prevoff;
+		if (block->leftlen >= realbytes) {
+			ptrlen_t newoff = curoff + sizeof(MemHeapBlock_t) + block->uselen;
+			MemHeapBlock_t* newblock = (MemHeapBlock_t*)(newoff + (ptrlen_t)memheap);
+			newblock->uselen = nbytes;
+			newblock->leftlen = block->leftlen - realbytes;
+			__insertback(memheap, block, newblock);
+			block->leftlen = 0;
+			memheap->fn_lock_or_unlock(0);
+			return memheapblock_ptr(newblock);
+		}
+	}
+	memheap->fn_lock_or_unlock(0);
+	return (void*)0;
+}
+
+void shmheapFree(MemHeap_t* memheap, void* addr) {
+	if (addr) {
+		MemHeapBlock_t* block = ptr_memheapblock(addr), *prev_block;
+		memheap->fn_lock_or_unlock(1);
+		prev_block = (MemHeapBlock_t*)(block->prevoff + (ptrlen_t)memheap);
+		prev_block->leftlen += sizeof(MemHeapBlock_t) + block->uselen + block->leftlen;
+		__remove(memheap, block);
 		memheap->fn_lock_or_unlock(0);
 	}
 }
