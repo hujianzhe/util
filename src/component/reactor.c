@@ -1157,7 +1157,7 @@ ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int
 		pkg->_.off = 0;
 		pkg->_.resend_msec = 0;
 		pkg->_.resend_times = 0;
-		pkg->_.buf[0] = 0;
+		pkg->_.buf[hdrlen + bodylen] = 0;
 	}
 	return pkg;
 }

@@ -74,7 +74,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 			next = cur->next;
 			memcpy(ptr + off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 			off += packet->_.bodylen;
-			free(packet);
+			reactorpacketFree(packet);
 		}
 	}
 	return ptr;
@@ -86,7 +86,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 		ListNode_t* cur, *next;
 		for (cur = packetlist->head; cur; cur = next) {
 			next = cur->next;
-			free(pod_container_of(cur, ReactorPacket_t, _.node));
+			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
 		if (channel->_.has_recvfin)
 			return 1;
@@ -123,14 +123,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				ReactorPacket_t* packet;
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
-				packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + decode_result.bodylen);
+				packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 				if (!packet)
 					return -1;
-				memset(packet, 0, sizeof(*packet));
-				packet->_.type = pktype;
 				packet->_.seq = pkseq;
-				packet->_.bodylen = decode_result.bodylen;
-				memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
+				memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
 				packet->_.buf[packet->_.bodylen] = 0;
 				if (streamtransportctxCacheRecvPacket(ctx, &packet->_)) {
 					List_t list;
@@ -144,7 +141,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				NetPacket_t* ackpk = NULL;
 				if (!streamtransportctxAckSendPacket(ctx, pkseq, &ackpk))
 					return -1;
-				free(pod_container_of(ackpk, ReactorPacket_t, _));
+				reactorpacketFree(pod_container_of(ackpk, ReactorPacket_t, _));
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
@@ -316,7 +313,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				unsigned short port = *(unsigned short*)decode_result.bodyptr;
 				port = ntohs(port);
 				sockaddrSetPort(&channel->_.to_addr.st, port);
-				free(channel->dgram.m_synpacket);
+				reactorpacketFree(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
 				channel->_.on_syn_ack(&channel->_, timestamp_msec);
 			}
@@ -325,13 +322,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->on_reply_ack(channel, pkseq, from_saddr);
-			packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + decode_result.bodylen);
+			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 			if (!packet)
 				return 0;
-			memset(packet, 0, sizeof(*packet));
-			packet->_.type = pktype;
 			packet->_.seq = pkseq;
-			packet->_.bodylen = decode_result.bodylen;
 			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
 			packet->_.buf[packet->_.bodylen] = 0;
 			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, &packet->_)) {
@@ -348,7 +342,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			NetPacket_t* packetbase = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
 			if (!packetbase)
 				return 1;
-			free(pod_container_of(packetbase, ReactorPacket_t, _));
+			reactorpacketFree(pod_container_of(packetbase, ReactorPacket_t, _));
 			if (cwndskip) {
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
 					packet = pod_container_of(cur, ReactorPacket_t, _.node);
@@ -517,7 +511,7 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 		if (packet->_.resend_msec > timestamp_msec)
 			channel_set_timestamp(channel, packet->_.resend_msec);
 		else if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
-			free(channel->dgram.m_synpacket);
+			reactorpacketFree(channel->dgram.m_synpacket);
 			channel->dgram.m_synpacket = NULL;
 			channel_invalid(base, REACTOR_CONNECT_ERR);
 			return;
@@ -573,14 +567,9 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
 			unsigned int hdrsize = channel->on_hdrsize(channel, memsz);
-			packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize + memsz);
+			packet = reactorpacketMake(no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT, hdrsize, memsz);
 			if (!packet)
 				break;
-			memset(packet, 0, sizeof(*packet));
-			packet->channel = &channel->_;
-			packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT;
-			packet->_.hdrlen = hdrsize;
-			packet->_.bodylen = memsz;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
 		}
@@ -591,7 +580,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 			ListNode_t *next;
 			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
-				free(pod_container_of(cur, ReactorPacket_t, cmd._));
+				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
 			}
 			listInit(packetlist);
 			return 0;
@@ -621,13 +610,9 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->flag))
 			return 1;
-		packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
+		packet = reactorpacketMake(no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF, hdrsize, 0);
 		if (!packet)
 			return 0;
-		memset(packet, 0, sizeof(*packet));
-		packet->channel = &channel->_;
-		packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
-		packet->_.hdrlen = hdrsize;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 	}
 	return 1;
@@ -681,16 +666,10 @@ Channel_t* channelSendSyn(Channel_t* channel) {
 		(channel->flag & CHANNEL_FLAG_RELIABLE))
 	{
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
+		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, 0);
 		if (!packet) {
-			/*channel_invalid(&channel->_, REACTOR_CONNECT_ERR);*/
 			return NULL;
 		}
-		memset(packet, 0, sizeof(*packet));
-		packet->channel = &channel->_;
-		packet->_.type = NETPACKET_SYN;
-		packet->_.hdrlen = hdrsize;
-		packet->_.bodylen = 0;
 		channelbaseSendPacket(&channel->_, packet);
 	}
 	return channel;
@@ -701,13 +680,9 @@ void channelSendFin(Channel_t* channel) {
 		return;
 	else if (channel->flag & CHANNEL_FLAG_RELIABLE) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrsize);
+		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
 		if (!packet)
 			return;
-		memset(packet, 0, sizeof(*packet));
-		packet->_.hdrlen = hdrsize;
-		packet->_.type = NETPACKET_FIN;
-		packet->_.bodylen = 0;
 		channelbaseSendPacket(&channel->_, packet);
 	}
 	else if (channel->flag & CHANNEL_FLAG_STREAM) {
@@ -734,7 +709,7 @@ static void channel_free_packetlist(List_t* list) {
 	ListNode_t* cur, *next;
 	for (cur = list->head; cur; cur = next) {
 		next = cur->next;
-		free(pod_container_of(cur, ReactorPacket_t, _.node));
+		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
 	listInit(list);
 }
@@ -754,7 +729,7 @@ void channelDestroy(Channel_t* channel) {
 		channel->dgram.m_halfconn_curwaitcnt = channel->dgram.halfconn_maxwaitcnt = 0;
 	}
 	else {
-		free(channel->dgram.m_synpacket);
+		reactorpacketFree(channel->dgram.m_synpacket);
 		channel->dgram.m_synpacket = NULL;
 		channel_free_packetlist(&channel->dgram.ctx.recvpacketlist);
 		channel_free_packetlist(&channel->dgram.ctx.sendpacketlist);
