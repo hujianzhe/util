@@ -23,7 +23,6 @@ typedef struct MemHeapBlock_t {
 
 typedef struct MemHeap_t {
 	ListNode_t node;
-	void* addr;
 	ptrlen_t len;
 	union {
 		List_t blocklist;
@@ -42,7 +41,6 @@ MemHeap_t* memheapSetup(void* addr, ptrlen_t len) {
 		return (MemHeap_t*)0;
 	}
 	memheap = (MemHeap_t*)addr;
-	memheap->addr = addr;
 	memheap->len = len;
 	listInit(&memheap->blocklist);
 	listPushNodeBack(&memheap->blocklist, &memheap->guard_block.node);
@@ -139,7 +137,6 @@ MemHeap_t* shmheapSetup(void* addr, ptrlen_t len) {
 		return (MemHeap_t*)0;
 	}
 	memheap = (MemHeap_t*)addr;
-	memheap->addr = addr;
 	memheap->len = len;
 	memheap->tailoff = (ptrlen_t)&memheap->guard_block - (ptrlen_t)memheap;
 	memheap->guard_block.prevoff = 0;
