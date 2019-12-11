@@ -73,7 +73,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		return NULL;
 	strcpy(name_ext, name);
 	strcat(name_ext, "init");
-	if (!semaphoreCreate(&memheap->seminit, name_ext, 1)) {
+	if (!semaphoreOpen(&memheap->seminit, name_ext)) {
 		free(name_ext);
 		return NULL;
 	}
@@ -81,7 +81,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 	do {
 		ok = 0;
 		name_ext[namelen] = 0;
-		if (!semaphoreCreate(&memheap->semlock, strcat(name_ext, "lock"), 1))
+		if (!semaphoreOpen(&memheap->semlock, strcat(name_ext, "lock")))
 			break;
 		ok = 1;
 		name_ext[namelen] = 0;
