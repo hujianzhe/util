@@ -415,7 +415,10 @@ Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short 
 	/* max init value at last SEM_VALUE_MAX(32767) */
 	/* mac os x has deprecated sem_init */
 	/* sem_t* semid = sem_open(name, O_CREAT | O_EXCL, 0666, val); */
-	sem_t* semid = sem_open(name, O_CREAT, 0666, val);
+	sem_t* semid;
+	if (sem_unlink(name) && ENOENT != errno)
+		return NULL;
+	semid = sem_open(name, O_CREAT, 0666, val);
 	if (SEM_FAILED == semid)
 		return NULL;
 	*sem = semid;
