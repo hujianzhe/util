@@ -422,7 +422,7 @@ Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short 
 	return sem;
 #endif
 }
-
+/*
 Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, FALSE, name);
@@ -439,7 +439,7 @@ Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name) {
 	return sem;
 #endif
 }
-
+*/
 BOOL semaphoreTryWait(Semaphore_t* sem) {
 #if defined(_WIN32) || defined(_WIN64)
 	return WaitForSingleObject(*sem, 0) == WAIT_OBJECT_0;

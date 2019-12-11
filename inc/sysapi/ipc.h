@@ -79,7 +79,7 @@ __declspec_dll void rwlockUnlock(RWLock_t* rwlock);
 __declspec_dll void rwlockClose(RWLock_t* rwlock);
 /* semaphore */
 __declspec_dll Semaphore_t* semaphoreCreate(Semaphore_t* sem, const char* name, unsigned short val);
-__declspec_dll Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name);
+/*__declspec_dll Semaphore_t* semaphoreOpen(Semaphore_t* sem, const char* name);*/
 __declspec_dll BOOL semaphoreTryWait(Semaphore_t* sem);
 __declspec_dll void semaphoreWait(Semaphore_t* sem);
 __declspec_dll void semaphorePost(Semaphore_t* sem);
