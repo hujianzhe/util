@@ -133,6 +133,14 @@ BOOL memoryUndoMapping(void* addr, size_t nbytes) {
 #endif
 }
 
+BOOL memoryUnlinkMapping(const char* name) {
+#if defined(_WIN32) || defined(_WIN64)
+	return TRUE;
+#else
+	return unlink(name) == 0 || ENOENT == errno;;
+#endif
+}
+
 #ifdef	__cplusplus
 }
 #endif

@@ -35,6 +35,7 @@ __declspec_dll BOOL memoryCloseMapping(MemoryMapping_t* mm);
 __declspec_dll void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes);
 __declspec_dll BOOL memorySyncMapping(void* addr, size_t nbytes);
 __declspec_dll BOOL memoryUndoMapping(void* addr, size_t nbytes);
+__declspec_dll BOOL memoryUnlinkMapping(const char* name);
 
 #ifdef	__cplusplus
 }

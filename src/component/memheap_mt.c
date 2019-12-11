@@ -43,7 +43,6 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 	} while (0);
 	semaphorePost(&memheap->seminit);
 	if (ok < 3) {
-		free(name_ext);
 		semaphoreClose(&memheap->seminit);
 		semaphoreUnlink(strcat(strcpy(name_ext, name), "init"));
 		if (ok > 0) {
@@ -52,7 +51,9 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		}
 		if (ok > 1) {
 			memoryCloseMapping(&memheap->mm);
+			memoryUnlinkMapping(strcat(strcpy(name_ext, name), "mem"));
 		}
+		free(name_ext);
 		return NULL;
 	}
 	memheap->len = len;
@@ -72,7 +73,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		return NULL;
 	strcpy(name_ext, name);
 	strcat(name_ext, "init");
-	if (!semaphoreCreate(&memheap->seminit, name_ext, 1)) {
+	if (!semaphoreOpen(&memheap->seminit, name_ext)) {
 		free(name_ext);
 		return NULL;
 	}
@@ -80,7 +81,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 	do {
 		ok = 0;
 		name_ext[namelen] = 0;
-		if (!semaphoreCreate(&memheap->semlock, strcat(name_ext, "lock"), 1))
+		if (!semaphoreOpen(&memheap->semlock, strcat(name_ext, "lock")))
 			break;
 		ok = 1;
 		name_ext[namelen] = 0;
@@ -129,6 +130,8 @@ void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 void memheapmtClose(MemHeapMt_t* memheap) {
 	if (memheap->initok) {
 		memheap->initok = 0;
+		memoryUndoMapping(memheap->ptr, memheap->len);
+		memoryCloseMapping(&memheap->mm);
 		semaphoreClose(&memheap->semlock);
 		if (!memheap->is_open) {
 			semaphoreClose(&memheap->seminit);
@@ -137,10 +140,10 @@ void memheapmtClose(MemHeapMt_t* memheap) {
 			semaphoreUnlink(strcat(memheap->name_ext, "init"));
 			memheap->name_ext[memheap->namelen] = 0;
 			semaphoreUnlink(strcat(memheap->name_ext, "lock"));
+			memheap->name_ext[memheap->namelen] = 0;
+			memoryUnlinkMapping(strcat(memheap->name_ext, "mem"));
 		}
 		free(memheap->name_ext);
-		memoryUndoMapping(memheap->ptr, memheap->len);
-		memoryCloseMapping(&memheap->mm);
 	}
 }
 
