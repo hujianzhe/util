@@ -34,7 +34,6 @@ typedef struct Channel_t {
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
-	unsigned int connected_times; /* client use */
 	struct {
 		union {
 			/* listener use */

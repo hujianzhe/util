@@ -120,6 +120,7 @@ typedef struct ChannelBase_t {
 	};
 	char has_recvfin;
 	char has_sendfin;
+	unsigned int connected_times; /* client use */
 	char do_reconnecting;
 	char valid;
 	int detach_error;
