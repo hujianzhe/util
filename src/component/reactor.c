@@ -122,6 +122,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 
 static void stream_server_side_reconnectcmd_failure_handler(ReactorStreamReconnectCmd_t* cmd) {
 	ReactorObject_t* o = cmd->reconnect_channel->o;
+	reactorpacketFree(cmd->ackpkg);
 	free(cmd);
 	o->m_valid = 0;
 	reactorobject_invalid_inner_handler(o, 0);
@@ -656,6 +657,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
 				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
+					reactorpacketFree(cmdex->ackpkg);
 					free(cmdex);
 					reconnect_o->m_valid = 0;
 					reconnect_o->detach_error = REACTOR_REG_ERR;
@@ -776,6 +778,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
 			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
+			free(channel->stream_reconnect_cmd);
 			free(channel);
 			continue;
 		}
