@@ -656,6 +656,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
 				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
+					free(cmdex);
 					reconnect_o->m_valid = 0;
 					reconnect_o->detach_error = REACTOR_REG_ERR;
 					reactorobject_invalid_inner_handler(reconnect_o, timestamp_msec);
