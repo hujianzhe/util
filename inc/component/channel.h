@@ -72,7 +72,7 @@ extern "C" {
 
 __declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int initseq, const void* saddr);
 __declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
-__declspec_dll Channel_t* channelSendSyn(Channel_t* channel);
+__declspec_dll Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len);
 __declspec_dll void channelSendFin(Channel_t* channel);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack);

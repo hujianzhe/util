@@ -128,7 +128,6 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 					return -1;
 				packet->_.seq = pkseq;
 				memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
-				packet->_.buf[packet->_.bodylen] = 0;
 				if (streamtransportctxCacheRecvPacket(ctx, &packet->_)) {
 					List_t list;
 					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
@@ -328,7 +327,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				return 0;
 			packet->_.seq = pkseq;
 			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
-			packet->_.buf[packet->_.bodylen] = 0;
 			if (dgramtransportctxCacheRecvPacket(&channel->dgram.ctx, &packet->_)) {
 				List_t list;
 				while (dgramtransportctxMergeRecvPacket(&channel->dgram.ctx, &list)) {
@@ -660,17 +658,19 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 	return channel;
 }
 
-Channel_t* channelSendSyn(Channel_t* channel) {
+Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len) {
 	if (!(channel->flag & CHANNEL_FLAG_CLIENT))
 		return channel;
-	if ((channel->flag & CHANNEL_FLAG_DGRAM) &&
-		(channel->flag & CHANNEL_FLAG_RELIABLE))
+	if (((channel->flag & CHANNEL_FLAG_DGRAM) &&
+		(channel->flag & CHANNEL_FLAG_RELIABLE)) ||
+		channel->_.connected_times)
 	{
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, 0);
+		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, len);
 		if (!packet) {
 			return NULL;
 		}
+		memcpy(packet->_.buf + hdrsize, data, len);
 		channelbaseSendPacket(&channel->_, packet);
 	}
 	return channel;
