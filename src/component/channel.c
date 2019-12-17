@@ -303,22 +303,27 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			socketWrite(channel->_.o->fd, buf, len, 0, from_saddr, sockaddrLength(from_saddr));
 			channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
 		}
-		else if (from_listen) {
-			if (NETPACKET_SYN_ACK != pktype)
-				return 1;
-			if (decode_result.bodylen < sizeof(unsigned short))
-				return 1;
-			if (channel->dgram.m_synpacket) {
-				unsigned short port = *(unsigned short*)decode_result.bodyptr;
-				port = ntohs(port);
-				sockaddrSetPort(&channel->_.to_addr.st, port);
-				reactorpacketFree(channel->dgram.m_synpacket);
-				channel->dgram.m_synpacket = NULL;
-				++channel->_.connected_times;
-				channel->_.on_syn_ack(&channel->_, timestamp_msec);
+		else if (NETPACKET_SYN_ACK == pktype) {
+			if (from_listen) {
+				if (decode_result.bodylen < sizeof(unsigned short))
+					return 1;
+				if (channel->dgram.m_synpacket) {
+					unsigned short port = *(unsigned short*)decode_result.bodyptr;
+					port = ntohs(port);
+					sockaddrSetPort(&channel->_.to_addr.st, port);
+					reactorpacketFree(channel->dgram.m_synpacket);
+					channel->dgram.m_synpacket = NULL;
+					++channel->_.connected_times;
+					channel->_.on_syn_ack(&channel->_, timestamp_msec);
+				}
+				channel->on_reply_ack(channel, 0, from_saddr);
+				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
-			channel->on_reply_ack(channel, 0, from_saddr);
-			socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
+			else if (channel->flag & CHANNEL_FLAG_CLIENT) {
+				channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
+			}
+			else
+				return 1;
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->on_reply_ack(channel, pkseq, from_saddr);
@@ -363,9 +368,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			channel->on_recv(channel, from_saddr, &decode_result);
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ)
 			channel->on_reply_ack(channel, pkseq, from_saddr);
-		else if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_CLIENT)) {
-			channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
-		}
 	}
 	else {
 		memset(&decode_result, 0, sizeof(decode_result));
