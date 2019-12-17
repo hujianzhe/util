@@ -255,7 +255,9 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
 		return;
 	channel = streamChannel(o);
-	++channel->connected_times;
+	if (~0 != channel->connected_times) {
+		++channel->connected_times;
+	}
 	if (channel && channel->on_syn_ack) {
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
@@ -533,7 +535,9 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 		if (!reactorobject_request_read(o))
 			break;
 		o->stream.m_connected = 1;
-		++channel->connected_times;
+		if (~0 != channel->connected_times) {
+			++channel->connected_times;
+		}
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
 		return 1;

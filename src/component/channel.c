@@ -313,7 +313,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					sockaddrSetPort(&channel->_.to_addr.st, port);
 					reactorpacketFree(channel->dgram.m_synpacket);
 					channel->dgram.m_synpacket = NULL;
-					++channel->_.connected_times;
+					if (~0 != channel->_.connected_times) {
+						++channel->_.connected_times;
+					}
 					channel->_.on_syn_ack(&channel->_, timestamp_msec);
 				}
 				channel->on_reply_ack(channel, 0, from_saddr);
