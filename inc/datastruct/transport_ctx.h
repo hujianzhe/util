@@ -8,8 +8,8 @@
 #include "list.h"
 
 enum {
-	NETPACKET_SYN = 1,				/* reliable UDP client connect use */
-	NETPACKET_SYN_ACK,				/* reliable UDP listener use */
+	NETPACKET_SYN = 1,				/* [reliable UDP client connect] or [client reconnect] use */
+	NETPACKET_SYN_ACK,				/* [reliable UDP listener] or [reconnect ack] use */
 	NETPACKET_ACK,
 	NETPACKET_NO_ACK_FRAGMENT,		/* only tcp use */
 	NETPACKET_NO_ACK_FRAGMENT_EOF,
