@@ -147,7 +147,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			else if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_SERVER)) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
-			else if (NETPACKET_SYN_ACK == pktype && (channel->flag & CHANNEL_FLAG_CLIENT)) {
+			else if (NETPACKET_SYN_ACK == pktype) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
 			else
@@ -158,7 +158,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_SERVER)) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
-			else if (NETPACKET_SYN_ACK == pktype && (channel->flag & CHANNEL_FLAG_CLIENT)) {
+			else if (NETPACKET_SYN_ACK == pktype) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
 			else {
@@ -334,11 +334,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				channel->on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
-			else if (channel->flag & CHANNEL_FLAG_CLIENT) {
+			else {
 				channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
 			}
-			else
-				return 1;
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
 			channel->on_reply_ack(channel, pkseq, from_saddr);
