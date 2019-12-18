@@ -312,8 +312,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		if (!from_peer && !from_listen) {
 			if (NETPACKET_SYN != pktype || !(channel->flag & CHANNEL_FLAG_SERVER))
 				return 1;
+			channel->on_recv(channel, from_saddr, &decode_result);
+			if (!decode_result.renew_syn_ok)
+				return 1;
 			memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
-			socketWrite(channel->_.o->fd, buf, len, 0, from_saddr, sockaddrLength(from_saddr));
 			channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
