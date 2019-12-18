@@ -144,14 +144,27 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
-			else if (NETPACKET_SYN_ACK == pktype) {
+			else if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_SERVER)) {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+			}
+			else if (NETPACKET_SYN_ACK == pktype && (channel->flag & CHANNEL_FLAG_CLIENT)) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
 			else
 				return -1;
 		}
-		else
-			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+		else {
+			unsigned char pktype = decode_result.pktype;
+			if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_SERVER)) {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+			}
+			else if (NETPACKET_SYN_ACK == pktype && (channel->flag & CHANNEL_FLAG_CLIENT)) {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+			}
+			else {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+			}
+		}
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
