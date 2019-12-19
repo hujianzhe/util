@@ -146,6 +146,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
 			else if (NETPACKET_SYN == pktype && (channel->flag & CHANNEL_FLAG_SERVER)) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+				if (!decode_result.renew_syn_ok) {
+					return -1;
+				}
 			}
 			else if (NETPACKET_SYN_ACK == pktype) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
