@@ -195,6 +195,15 @@ BOOL nioReg(Nio_t* nio, FD_t fd) {
 	return TRUE;
 }
 
+BOOL nioUnRegIsSupported(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	/* note: IOCP isn't support fd unreg */
+	return FALSE;
+#else
+	return TRUE;
+#endif
+}
+
 BOOL nioUnReg(Nio_t* nio, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	/* note: IOCP isn't support fd unreg */
