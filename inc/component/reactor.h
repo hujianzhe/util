@@ -125,9 +125,15 @@ typedef struct ChannelBase_t {
 	char valid;
 	int detach_error;
 	long long event_msec;
+	union {
+		const char* id_str;
+		long long id_num;
+	};
 
-	void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
-	void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
+	union {
+		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
+		void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
+	};
 	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec);
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
