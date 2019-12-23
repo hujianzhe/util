@@ -27,35 +27,35 @@
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 			datastruct/  
-					base64			提供base64编解码接口  
-					bstree			类型无关的二叉搜索树  
-					hash			提供一些常用的hash算法  
-					hashtable		类型无关的哈希表  
-					rbtree			类型无关的红黑树(内部基于linux内核红黑树代码)  
-					list			类型无关的双向链表,顺带支持栈/队列的PUSH/POP操作  
-					memheap			简单内存堆分配与释放  
-					random			随机数算法,提供rand48与MT19937算法  
-					strings			一些安全的字符串操作接口  
-					transport_ctx	提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
-					tree			类型无关的普通树  
-					sort			合并有序数组,topN统计接口  
-					url				URL解析与编解码接口  
-					sha1			SHA1编解码,来源于Redis源码  
+				base64				提供base64编解码接口  
+				bstree				类型无关的二叉搜索树  
+				hash				提供一些常用的hash算法  
+				hashtable			类型无关的哈希表  
+				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
+				list				类型无关的双向链表,顺带支持栈/队列的PUSH/POP操作  
+				memheap				简单内存堆分配与释放  
+				random				随机数算法,提供rand48与MT19937算法  
+				strings				一些安全的字符串操作接口  
+				transport_ctx		提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
+				tree				类型无关的普通树  
+				sort				合并有序数组,topN统计接口  
+				url					URL解析与编解码接口  
+				sha1				SHA1编解码,来源于Redis源码  
 			sysapi/  
-					alloca			提供统一的内存对齐的分配释放接口  
-					assert			提供一个相对于assert的高级断言  
-					atomic			提供统一的原子操作接口  
-					error			提供统一的系统错误码接口  
-					file			提供统一的文件与目录操作接口  
-					io				提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
-					ipc				提供统一的同步接口  
-					math			一些实用的数学运算接口  
-					mmap			提供统一的文件内存映射与共享内存接口  
-					process			提供统一的进程/线程/协程接口  
-					socket			提供统一的socket接口  
-					statistics		一些杂项统计接口  
-					terminal		提供获取终端名字,统一的kbhit/getch接口  
-					time			提供统一的线程安全的时间接口  
+				alloca				提供统一的内存对齐的分配释放接口  
+				assert				提供一个相对于assert的高级断言  
+				atomic				提供统一的原子操作接口  
+				error				提供统一的系统错误码接口  
+				file				提供统一的文件与目录操作接口  
+				io					提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
+				ipc					提供统一的同步接口  
+				math				一些实用的数学运算接口  
+				mmap				提供统一的文件内存映射与共享内存接口  
+				process				提供统一的进程/线程/协程接口  
+				socket				提供统一的socket接口  
+				statistics			一些杂项统计接口  
+				terminal			提供获取终端名字,统一的kbhit/getch接口  
+				time				提供统一的线程安全的时间接口  
 			c++/  
 				cpp_compiler_define	判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
 				exception			包含文件名称,行号,出错语句的异常  
