@@ -359,13 +359,13 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			}
 		}
 		else if (NETPACKET_ACK == pktype) {
-			ListNode_t* cur;
-			int cwndskip;
-			NetPacket_t* packetbase = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &cwndskip);
-			if (!packetbase)
+			NetPacket_t* ackpkg;
+			int cwndskip = dgramtransportctxAckSendPacket(&channel->dgram.ctx, pkseq, &ackpkg);
+			if (!ackpkg)
 				return 1;
-			reactorpacketFree(pod_container_of(packetbase, ReactorPacket_t, _));
+			reactorpacketFree(pod_container_of(ackpkg, ReactorPacket_t, _));
 			if (cwndskip) {
+				ListNode_t* cur;
 				for (cur = channel->dgram.ctx.sendpacketlist.head; cur; cur = cur->next) {
 					packet = pod_container_of(cur, ReactorPacket_t, _.node);
 					if (!dgramtransportctxSendWindowHasPacket(&channel->dgram.ctx, &packet->_))

@@ -104,11 +104,12 @@ int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 	return 1;
 }
 
-NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, int* cwndskip) {
+int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) {
 	ListNode_t* cur, *next;
-	*cwndskip = 0;
+	int cwndskip = 0;
+	*ackpacket = (NetPacket_t*)0;
 	if (seq1_before_seq2(ackseq, ctx->m_cwndseq))
-		return (NetPacket_t*)0;
+		return cwndskip;
 	for (cur = ctx->sendpacketlist.head; cur; cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
@@ -123,7 +124,7 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 			if (next) {
 				NetPacket_t* next_packet = pod_container_of(next, NetPacket_t, node);
 				ctx->m_cwndseq = next_packet->seq;
-				*cwndskip = 1;
+				cwndskip = 1;
 			}
 			else
 				ctx->m_cwndseq = ctx->m_ackseq + 1;
@@ -134,9 +135,10 @@ NetPacket_t* dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned i
 			ctx->sendpacket_all_acked = 1;
 		}
 		packet->cached = 0;
-		return packet;
+		*ackpacket = packet;
+		return cwndskip;
 	}
-	return (NetPacket_t*)0;
+	return cwndskip;
 }
 
 int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
