@@ -122,7 +122,7 @@ void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes) {
 void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 	if (addr) {
 		semaphoreWait(&memheap->semlock);
-		shmheapFree(memheap->ptr, addr);
+		shmheapFree(addr);
 		semaphorePost(&memheap->semlock);
 	}
 }

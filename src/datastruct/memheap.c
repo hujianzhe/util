@@ -7,6 +7,10 @@
 
 typedef struct MemHeapBlock_t {
 	union {
+		struct MemHeap_t* heap;
+		ptrlen_t heapoff;
+	};
+	union {
 		ListNode_t node;
 		struct {
 			ptrlen_t prevoff;
@@ -44,6 +48,7 @@ MemHeap_t* memheapSetup(void* addr, ptrlen_t len) {
 	memheap->len = len;
 	listInit(&memheap->blocklist);
 	listPushNodeBack(&memheap->blocklist, &memheap->guard_block.node);
+	memheap->guard_block.heap = memheap;
 	memheap->guard_block.uselen = 0;
 	memheap->guard_block.leftlen = len - sizeof(MemHeap_t);
 	return memheap;
@@ -60,6 +65,7 @@ void* memheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
 		MemHeapBlock_t* block = (MemHeapBlock_t*)cur;
 		if (block->leftlen >= realbytes) {
 			MemHeapBlock_t* new_block = (MemHeapBlock_t*)(memheapblock_ptr(block) + block->uselen);
+			new_block->heap = memheap;
 			new_block->uselen = nbytes;
 			new_block->leftlen = block->leftlen - realbytes;
 			listInsertNodeBack(&memheap->blocklist, cur, &new_block->node);
@@ -91,6 +97,7 @@ void* memheapAlignAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes, ptrlen_t ali
 		new_useptr = (new_useptr + alignment) & (~alignment);
 		if (nbytes <= block_useptr_end - new_useptr) {
 			MemHeapBlock_t* new_block = ptr_memheapblock(new_useptr);
+			new_block->heap = memheap;
 			new_block->uselen = nbytes;
 			new_block->leftlen = block_useptr_end - new_useptr - nbytes;
 			listInsertNodeBack(&memheap->blocklist, cur, &new_block->node);
@@ -101,9 +108,10 @@ void* memheapAlignAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes, ptrlen_t ali
 	return (void*)0;
 }
 
-void memheapFree(MemHeap_t* memheap, void* addr) {
+void memheapFree(void* addr) {
 	if (addr) {
 		MemHeapBlock_t* block = ptr_memheapblock(addr), *prev_block;
+		MemHeap_t* memheap = block->heap;
 		prev_block = (MemHeapBlock_t*)(block->node.prev);
 		prev_block->leftlen += sizeof(MemHeapBlock_t) + block->uselen + block->leftlen;
 		listRemoveNode(&memheap->blocklist, &block->node);
@@ -139,6 +147,7 @@ MemHeap_t* shmheapSetup(void* addr, ptrlen_t len) {
 	memheap = (MemHeap_t*)addr;
 	memheap->len = len;
 	memheap->tailoff = (ptrlen_t)&memheap->guard_block - (ptrlen_t)memheap;
+	memheap->guard_block.heapoff = memheap->tailoff;
 	memheap->guard_block.prevoff = 0;
 	memheap->guard_block.nextoff = 0;
 	memheap->guard_block.uselen = 0;
@@ -158,6 +167,7 @@ void* shmheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
 		if (block->leftlen >= realbytes) {
 			ptrlen_t newoff = curoff + sizeof(MemHeapBlock_t) + block->uselen;
 			MemHeapBlock_t* newblock = (MemHeapBlock_t*)(newoff + (ptrlen_t)memheap);
+			newblock->heapoff = newoff;
 			newblock->uselen = nbytes;
 			newblock->leftlen = block->leftlen - realbytes;
 			__insertback(memheap, block, newblock);
@@ -168,9 +178,10 @@ void* shmheapAlloc(MemHeap_t* memheap, ptrlen_t nbytes) {
 	return (void*)0;
 }
 
-void shmheapFree(MemHeap_t* memheap, void* addr) {
+void shmheapFree(void* addr) {
 	if (addr) {
 		MemHeapBlock_t* block = ptr_memheapblock(addr), *prev_block;
+		MemHeap_t* memheap = (MemHeap_t*)((ptrlen_t)block - block->heapoff);
 		prev_block = (MemHeapBlock_t*)(block->prevoff + (ptrlen_t)memheap);
 		prev_block->leftlen += sizeof(MemHeapBlock_t) + block->uselen + block->leftlen;
 		__remove(memheap, block);
