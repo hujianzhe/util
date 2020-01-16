@@ -122,7 +122,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 
 static void stream_server_side_reconnectcmd_failure_handler(ReactorStreamReconnectCmd_t* cmd) {
 	ReactorObject_t* o = cmd->reconnect_channel->o;
-	reactorpacketFree(cmd->ackpkg);
+	reactorpacketFree(cmd->synack_pkg);
 	free(cmd);
 	o->m_valid = 0;
 	reactorobject_invalid_inner_handler(o, 0);
@@ -549,14 +549,13 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	return 0;
 }
 
-static void stream_reset_packet_off(List_t* sendpacketlist) {
-	ListNode_t* cur;
-	for (cur = sendpacketlist->head; cur; cur = cur->next) {
-		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (0 == packet->off)
-			break;
-		packet->off = 0;
+static void packetlist_free_packet(List_t* packetlist) {
+	ListNode_t* cur, *next;
+	for (cur = packetlist->head; cur; cur = next) {
+		next = cur->next;
+		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
+	listInit(packetlist);
 }
 
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
@@ -646,7 +645,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorObject_t* reconnect_o = reconnect_channel->o;
 			int processing_stage = cmdex->processing_stage;
 			if (!src_o->m_valid || !reconnect_o->m_valid) {
-				free(cmdex->ackpkg);
+				free(cmdex->synack_pkg);
 				free(cmdex);
 				reconnect_channel->stream_reconnect_cmd = NULL;
 				src_channel->do_reconnecting = 0;
@@ -661,7 +660,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
 				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
-					reactorpacketFree(cmdex->ackpkg);
+					reactorpacketFree(cmdex->synack_pkg);
 					free(cmdex);
 					reconnect_o->m_valid = 0;
 					reconnect_o->detach_error = REACTOR_REG_ERR;
@@ -681,8 +680,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				src_channel->o = reconnect_o;
 				src_o->m_valid = 0;
 				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
-				stream_reset_packet_off(&src_channel->stream_ctx.sendlist);
-				listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->ackpkg->_.node);
+				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
+				cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
+				listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->synack_pkg->_.node);
 				free(cmdex);
 				src_channel->do_reconnecting = 0;
 				reactor_stream_writeev(reconnect_o);
@@ -693,7 +693,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
 			ChannelBase_t* src_channel = cmdex->src_channel;
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
-			ReactorPacket_t* ackpkg = cmdex->ackpkg;
 			ReactorObject_t* reconnect_o = reconnect_channel->o;
 			if (!reconnect_o->m_valid) {
 				free(cmdex);
@@ -737,9 +736,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					src_channel->o = reconnect_o;
 					src_channel->stream_reconnect_cmd = cmdex;
 					src_channel->do_reconnecting = 1;
-					cmdex->ackpkg->_.type = NETPACKET_SYN_ACK;
 					cmdex->processing_stage = 2;
-					listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->ackpkg->_.node);
+					packetlist_free_packet(&src_channel->stream_ctx.sendlist);
+					cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
+					listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->synack_pkg->_.node);
 					reactor_stream_writeev(src_channel->o);
 				}
 			}
@@ -747,8 +747,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				src_channel->do_reconnecting = 0;
 				src_channel->stream_reconnect_cmd = NULL;
 				free(cmdex);
-				stream_reset_packet_off(&src_channel->stream_ctx.sendlist);
-				reactor_stream_writeev(src_channel->o);
+				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 			}
 			continue;
 		}
