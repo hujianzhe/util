@@ -675,13 +675,14 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reconnect_channel->stream_reconnect_cmd = NULL;
 				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
 				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
-				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 				listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
+				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 				src_o->m_valid = 0;
 				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 
 				src_channel->o = reconnect_o;
 				src_channel->do_reconnecting = 0;
+
 				packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 				cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
@@ -729,33 +730,30 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 							continue;
 						}
 					}
+					cmdex->processing_stage = 2;
 					listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+					listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
+					listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
+					listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 					src_o->m_valid = 0;
 					reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 
-					listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
-					channel_detach_handler(reconnect_channel, 0, timestamp_msec);
 					src_channel->o = reconnect_o;
-					/*
-					src_channel->stream_reconnect_cmd = cmdex;
 					src_channel->do_reconnecting = 1;
-					cmdex->processing_stage = 2;
-					*/
+					src_channel->stream_reconnect_cmd = cmdex;
+
 					packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 					packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 					cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
 					listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->synack_pkg->_.node);
-					free(cmdex);
 					reactor_stream_writeev(src_channel->o);
 				}
 			}
-			/*
 			else if (2 == cmdex->processing_stage) {
 				src_channel->do_reconnecting = 0;
 				src_channel->stream_reconnect_cmd = NULL;
 				free(cmdex);
 			}
-			*/
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
