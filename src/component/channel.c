@@ -270,21 +270,13 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 	return 1;
 }
 
-static void channel_reliable_dgram_reset_sendpacketlist(Channel_t* channel, long long timestamp_msec) {
-	int has_packet = 0;
-	ListNode_t* cur;
-	for (cur = channel->dgram.ctx.sendlist.head; cur; cur = cur->next) {
-		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
-		if (!packet->_.wait_ack)
-			break;
-		packet->_.resend_times = 0;
-		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-		socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-			&channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
-		has_packet = 1;
+static void packetlist_free_packet(List_t* packetlist) {
+	ListNode_t* cur, *next;
+	for (cur = packetlist->head; cur; cur = next) {
+		next = cur->next;
+		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
-	if (has_packet)
-		channel_set_timestamp(channel, timestamp_msec + channel->dgram.rto);
+	listInit(packetlist);
 }
 
 static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr) {
@@ -319,7 +311,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			if (!decode_result.renew_syn_ok)
 				return 1;
 			memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
-			channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
+			packetlist_free_packet(&channel->dgram.ctx.recvlist);
+			packetlist_free_packet(&channel->dgram.ctx.sendlist);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
 			if (from_listen) {
@@ -340,7 +333,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
 			else {
-				channel_reliable_dgram_reset_sendpacketlist(channel, timestamp_msec);
+				packetlist_free_packet(&channel->dgram.ctx.recvlist);
+				packetlist_free_packet(&channel->dgram.ctx.sendlist);
 			}
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
@@ -726,19 +720,10 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 	return channel;
 }
 
-static void channel_free_packetlist(List_t* list) {
-	ListNode_t* cur, *next;
-	for (cur = list->head; cur; cur = next) {
-		next = cur->next;
-		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
-	}
-	listInit(list);
-}
-
 void channelDestroy(Channel_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		channel_free_packetlist(&channel->_.stream_ctx.recvlist);
-		channel_free_packetlist(&channel->_.stream_ctx.sendlist);
+		packetlist_free_packet(&channel->_.stream_ctx.recvlist);
+		packetlist_free_packet(&channel->_.stream_ctx.sendlist);
 	}
 	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		ListNode_t* cur, *next;
@@ -752,8 +737,8 @@ void channelDestroy(Channel_t* channel) {
 	else {
 		reactorpacketFree(channel->dgram.m_synpacket);
 		channel->dgram.m_synpacket = NULL;
-		channel_free_packetlist(&channel->dgram.ctx.recvlist);
-		channel_free_packetlist(&channel->dgram.ctx.sendlist);
+		packetlist_free_packet(&channel->dgram.ctx.recvlist);
+		packetlist_free_packet(&channel->dgram.ctx.sendlist);
 	}
 }
 
