@@ -313,6 +313,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
 			packetlist_free_packet(&channel->dgram.ctx.recvlist);
 			packetlist_free_packet(&channel->dgram.ctx.sendlist);
+			dgramtransportctxInit(&channel->dgram.ctx, 0);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
 			if (from_listen) {
@@ -335,6 +336,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			else {
 				packetlist_free_packet(&channel->dgram.ctx.recvlist);
 				packetlist_free_packet(&channel->dgram.ctx.sendlist);
+				dgramtransportctxInit(&channel->dgram.ctx, 0);
 			}
 		}
 		else if (dgramtransportctxRecvCheck(&channel->dgram.ctx, pkseq, pktype)) {
