@@ -149,9 +149,6 @@ typedef struct ReactorStreamReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	ChannelBase_t* reconnect_channel;
-	ReactorPacket_t* synack_pkg;
-	unsigned int recvseq;
-	unsigned int cwdnseq;
 	int processing_stage;
 } ReactorStreamReconnectCmd_t;
 

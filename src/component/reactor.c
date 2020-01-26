@@ -121,11 +121,10 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 }
 
 static void stream_server_side_reconnectcmd_failure_handler(ReactorStreamReconnectCmd_t* cmd) {
-	ReactorObject_t* o = cmd->reconnect_channel->o;
-	reactorpacketFree(cmd->synack_pkg);
+	ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
 	free(cmd);
-	o->m_valid = 0;
-	reactorobject_invalid_inner_handler(o, 0);
+	reconnect_o->m_valid = 0;
+	reactorobject_invalid_inner_handler(reconnect_o, 0);
 }
 
 static int reactorobject_request_read(ReactorObject_t* o) {
@@ -649,15 +648,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
-				cmdex->cwdnseq = src_channel->stream_ctx.m_cwndseq;
-				cmdex->recvseq = src_channel->stream_ctx.m_recvseq;
 				cmdex->processing_stage = 2;
 				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
-					reactorpacketFree(cmdex->synack_pkg);
-					free(cmdex);
-					reconnect_o->m_valid = 0;
-					reconnect_o->detach_error = REACTOR_REG_ERR;
-					reactorobject_invalid_inner_handler(reconnect_o, timestamp_msec);
+					stream_server_side_reconnectcmd_failure_handler(cmdex);
 					continue;
 				}
 				src_channel->do_reconnecting = 1;
@@ -684,10 +677,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 				streamtransportctxInit(&src_channel->stream_ctx, 0);
-				cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
-				listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->synack_pkg->_.node);
 				free(cmdex);
-				reactor_stream_writeev(src_channel->o);
 			}
 			continue;
 		}
@@ -701,7 +691,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					free(cmdex);
 					continue;
 				}
-				if (src_channel->reactor != reconnect_channel->reactor) {
+				else if (src_channel->reactor != reconnect_channel->reactor) {
 					if (!reactor_unreg_object_check(reconnect_channel->reactor, reconnect_o)) {
 						stream_server_side_reconnectcmd_failure_handler(cmdex);
 						continue;
@@ -712,12 +702,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				else {
 					ReactorObject_t* src_o = src_channel->o;
 					if (!src_o->m_valid) {
-						stream_server_side_reconnectcmd_failure_handler(cmdex);
-						continue;
-					}
-					if (src_channel->stream_ctx.m_recvseq < cmdex->cwdnseq ||
-						src_channel->stream_ctx.m_cwndseq > cmdex->recvseq)
-					{
 						stream_server_side_reconnectcmd_failure_handler(cmdex);
 						continue;
 					}
@@ -744,9 +728,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 					packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 					streamtransportctxInit(&src_channel->stream_ctx, 0);
-					cmdex->synack_pkg->_.type = NETPACKET_SYN_ACK;
-					listPushNodeFront(&src_channel->stream_ctx.sendlist, &cmdex->synack_pkg->_.node);
-					reactor_stream_writeev(src_channel->o);
 				}
 			}
 			else if (2 == cmdex->processing_stage) {
