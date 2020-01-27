@@ -85,6 +85,22 @@ static void reactorobject_free(ReactorObject_t* o) {
 	free(o);
 }
 
+static void packetlist_free_packet(List_t* packetlist) {
+	ListNode_t* cur, *next;
+	for (cur = packetlist->head; cur; cur = next) {
+		next = cur->next;
+		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
+	}
+	listInit(packetlist);
+}
+
+static void channelobject_free(ChannelBase_t* channel) {
+	packetlist_free_packet(&channel->stream_ctx.recvlist);
+	packetlist_free_packet(&channel->stream_ctx.sendlist);
+	free(channel->stream_reconnect_cmd);
+	free(channel);
+}
+
 static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long now_msec) {
 	if (o->m_has_detached)
 		return;
@@ -548,15 +564,6 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	return 0;
 }
 
-static void packetlist_free_packet(List_t* packetlist) {
-	ListNode_t* cur, *next;
-	for (cur = packetlist->head; cur; cur = next) {
-		next = cur->next;
-		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
-	}
-	listInit(packetlist);
-}
-
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -767,8 +774,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
 			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
-			free(channel->stream_reconnect_cmd);
-			free(channel);
+			channelobject_free(channel);
 			continue;
 		}
 

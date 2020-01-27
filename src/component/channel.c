@@ -723,24 +723,22 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 }
 
 void channelDestroy(Channel_t* channel) {
-	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		packetlist_free_packet(&channel->_.stream_ctx.recvlist);
-		packetlist_free_packet(&channel->_.stream_ctx.sendlist);
-	}
-	else if (channel->flag & CHANNEL_FLAG_LISTEN) {
-		ListNode_t* cur, *next;
-		for (cur = channel->dgram.ctx.recvlist.head; cur; cur = next) {
-			next = cur->next;
-			free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
+	if (channel->flag & CHANNEL_FLAG_DGRAM) {
+		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+			ListNode_t* cur, *next;
+			for (cur = channel->dgram.ctx.recvlist.head; cur; cur = next) {
+				next = cur->next;
+				free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
+			}
+			listInit(&channel->dgram.ctx.recvlist);
+			channel->dgram.m_halfconn_curwaitcnt = channel->dgram.halfconn_maxwaitcnt = 0;
 		}
-		listInit(&channel->dgram.ctx.recvlist);
-		channel->dgram.m_halfconn_curwaitcnt = channel->dgram.halfconn_maxwaitcnt = 0;
-	}
-	else {
-		reactorpacketFree(channel->dgram.m_synpacket);
-		channel->dgram.m_synpacket = NULL;
-		packetlist_free_packet(&channel->dgram.ctx.recvlist);
-		packetlist_free_packet(&channel->dgram.ctx.sendlist);
+		else {
+			reactorpacketFree(channel->dgram.m_synpacket);
+			channel->dgram.m_synpacket = NULL;
+			packetlist_free_packet(&channel->dgram.ctx.recvlist);
+			packetlist_free_packet(&channel->dgram.ctx.sendlist);
+		}
 	}
 }
 
