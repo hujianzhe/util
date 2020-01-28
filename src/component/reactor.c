@@ -645,11 +645,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
 			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
+			int processing_stage = cmdex->processing_stage;
 			ChannelBase_t* src_channel = cmdex->src_channel;
 			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 			ReactorObject_t* src_o = src_channel->o;
 			ReactorObject_t* reconnect_o = reconnect_channel->o;
-			int processing_stage = cmdex->processing_stage;
 			if (1 == processing_stage) {
 				if (!src_o->m_valid) {
 					stream_server_side_reconnectcmd_failure_handler(cmdex);
@@ -690,8 +690,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
 			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
+			int processing_stage = cmdex->processing_stage;
 			ChannelBase_t* src_channel = cmdex->src_channel;
-			if (1 == cmdex->processing_stage) {
+			if (1 == processing_stage) {
 				ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
 				ReactorObject_t* reconnect_o = reconnect_channel->o;
 				if (!reconnect_o->m_valid) {
@@ -737,10 +738,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					streamtransportctxInit(&src_channel->stream_ctx, 0);
 				}
 			}
-			else if (2 == cmdex->processing_stage) {
+			else if (2 == processing_stage) {
+				free(cmdex);
 				src_channel->do_reconnecting = 0;
 				src_channel->stream_reconnect_cmd = NULL;
-				free(cmdex);
 			}
 			continue;
 		}
