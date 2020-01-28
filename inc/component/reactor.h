@@ -162,7 +162,7 @@ __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
-__declspec_dll ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(void);
+__declspec_dll ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);

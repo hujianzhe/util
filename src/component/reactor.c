@@ -1167,9 +1167,15 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(void) {
+ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
 	ReactorStreamReconnectCmd_t* cmd = (ReactorStreamReconnectCmd_t*)calloc(1, sizeof(ReactorStreamReconnectCmd_t));
 	if (cmd) {
+		if (src_channel->on_syn_ack)
+			cmd->_.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
+		else
+			cmd->_.type = REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD;
+		cmd->src_channel = src_channel;
+		cmd->reconnect_channel = reconnect_channel;
 		cmd->processing_stage = 1;
 	}
 	return cmd;
