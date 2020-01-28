@@ -643,7 +643,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorpacketFree(packet);
 			continue;
 		}
-		else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmd->type) {
+		else if (REACTOR_STREAM_CLIENT_RECONNECT_CMD == cmd->type) {
 			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
 			int processing_stage = cmdex->processing_stage;
 			ChannelBase_t* src_channel = cmdex->src_channel;
@@ -688,7 +688,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			continue;
 		}
-		else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmd->type) {
+		else if (REACTOR_STREAM_SERVER_RECONNECT_CMD == cmd->type) {
 			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
 			int processing_stage = cmdex->processing_stage;
 			ChannelBase_t* src_channel = cmdex->src_channel;
@@ -875,7 +875,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 	}
-	else if (REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD == cmdnode->type) {
+	else if (REACTOR_STREAM_CLIENT_RECONNECT_CMD == cmdnode->type) {
 		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
 		ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
 		if (_xchg8(&reconnect_o->m_reghaspost, 1)) {
@@ -886,7 +886,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		reconnect_o->reactor = reactor;
 		cmd->reconnect_channel->reactor = reactor;
 	}
-	else if (REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD == cmdnode->type) {
+	else if (REACTOR_STREAM_SERVER_RECONNECT_CMD == cmdnode->type) {
 		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
 		if (1 == cmd->processing_stage)
 			reactor = cmd->reconnect_channel->reactor;
@@ -1172,9 +1172,9 @@ ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_cha
 	ReactorStreamReconnectCmd_t* cmd = (ReactorStreamReconnectCmd_t*)calloc(1, sizeof(ReactorStreamReconnectCmd_t));
 	if (cmd) {
 		if (src_channel->on_syn_ack)
-			cmd->_.type = REACTOR_STREAM_CLIENT_SIDE_RECONNECT_CMD;
+			cmd->_.type = REACTOR_STREAM_CLIENT_RECONNECT_CMD;
 		else
-			cmd->_.type = REACTOR_STREAM_SERVER_SIDE_RECONNECT_CMD;
+			cmd->_.type = REACTOR_STREAM_SERVER_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
 		cmd->reconnect_channel = reconnect_channel;
 		cmd->processing_stage = 1;
