@@ -95,8 +95,14 @@ static void packetlist_free_packet(List_t* packetlist) {
 }
 
 static void channelobject_free(ChannelBase_t* channel) {
-	packetlist_free_packet(&channel->stream_ctx.recvlist);
-	packetlist_free_packet(&channel->stream_ctx.sendlist);
+	if (channel->flag & CHANNEL_FLAG_STREAM) {
+		packetlist_free_packet(&channel->stream_ctx.recvlist);
+		packetlist_free_packet(&channel->stream_ctx.sendlist);
+	}
+	else {
+		packetlist_free_packet(&channel->dgram_ctx.recvlist);
+		packetlist_free_packet(&channel->dgram_ctx.sendlist);
+	}
 	free(channel->stream_reconnect_cmd);
 	free(channel);
 }
@@ -273,7 +279,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	if (~0 != channel->connected_times) {
 		++channel->connected_times;
 	}
-	if (channel && channel->on_syn_ack) {
+	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(o->reactor, channel);
 	}
@@ -1171,7 +1177,7 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
 	ReactorStreamReconnectCmd_t* cmd = (ReactorStreamReconnectCmd_t*)calloc(1, sizeof(ReactorStreamReconnectCmd_t));
 	if (cmd) {
-		if (src_channel->on_syn_ack)
+		if (src_channel->flag & CHANNEL_FLAG_CLIENT)
 			cmd->_.type = REACTOR_STREAM_CLIENT_RECONNECT_CMD;
 		else
 			cmd->_.type = REACTOR_STREAM_SERVER_RECONNECT_CMD;
@@ -1182,16 +1188,47 @@ ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_cha
 	return cmd;
 }
 
-ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr) {
-	ChannelBase_t* channel = (ChannelBase_t*)calloc(1, sz);
+ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr) {
+	ChannelBase_t* channel;
+	if (SOCK_STREAM == o->socktype) {
+		if (flag & CHANNEL_FLAG_DGRAM)
+			return NULL;
+		if (!(flag & CHANNEL_FLAG_CLIENT) &&
+			!(flag & CHANNEL_FLAG_SERVER) &&
+			!(flag & CHANNEL_FLAG_LISTEN))
+		{
+			return NULL;
+		}
+		flag |= CHANNEL_FLAG_STREAM;
+	}
+	else {
+		if (flag & CHANNEL_FLAG_STREAM)
+			return NULL;
+		flag |= CHANNEL_FLAG_DGRAM;
+		if (flag & CHANNEL_FLAG_LISTEN)
+			flag |= CHANNEL_FLAG_RELIABLE;
+		else if (flag & CHANNEL_FLAG_RELIABLE) {
+			if (!(flag & CHANNEL_FLAG_CLIENT) &&
+				!(flag & CHANNEL_FLAG_SERVER))
+			{
+				return NULL;
+			}
+		}
+	}
+
+	channel = (ChannelBase_t*)calloc(1, sz);
 	if (!channel)
 		return NULL;
+	channel->flag = flag;
 	channel->o = o;
 	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
-	if (SOCK_STREAM == o->socktype) {
+	if (flag & CHANNEL_FLAG_STREAM) {
 		memcpy(&o->stream.connect_addr, addr, sockaddrLength(addr));
 		streamtransportctxInit(&channel->stream_ctx, 0);
 		channel->stream_sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
+	}
+	else {
+		dgramtransportctxInit(&channel->dgram_ctx, 0);
 	}
 	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));

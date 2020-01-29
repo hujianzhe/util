@@ -7,15 +7,6 @@
 
 #include "../component/reactor.h"
 
-enum {
-	CHANNEL_FLAG_CLIENT = 1 << 0,
-	CHANNEL_FLAG_SERVER = 1 << 1,
-	CHANNEL_FLAG_LISTEN = 1 << 2,
-	CHANNEL_FLAG_STREAM = 1 << 3,
-	CHANNEL_FLAG_DGRAM = 1 << 4,
-	CHANNEL_FLAG_RELIABLE = 1 << 5
-};
-
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
 	char incomplete;
@@ -31,7 +22,6 @@ typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
 	void* userdata;
-	int flag;
 	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
@@ -50,7 +40,6 @@ typedef struct Channel_t {
 		struct {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
-			DgramTransportCtx_t ctx;
 		};
 	} dgram;
 	/* interface */
@@ -71,7 +60,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, int flag, unsigned int initseq, const void* saddr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int initseq, const void* saddr);
 __declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
 __declspec_dll Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len);
 __declspec_dll void channelSendFin(Channel_t* channel);

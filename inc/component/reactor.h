@@ -35,6 +35,14 @@ enum {
 	REACTOR_ZOMBIE_ERR,
 	REACTOR_ONREAD_ERR
 };
+enum {
+	CHANNEL_FLAG_CLIENT = 1 << 0,
+	CHANNEL_FLAG_SERVER = 1 << 1,
+	CHANNEL_FLAG_LISTEN = 1 << 2,
+	CHANNEL_FLAG_STREAM = 1 << 3,
+	CHANNEL_FLAG_DGRAM = 1 << 4,
+	CHANNEL_FLAG_RELIABLE = 1 << 5
+};
 typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
 
 typedef struct Reactor_t {
@@ -110,8 +118,11 @@ typedef struct ChannelBase_t {
 		Sockaddr_t listen_addr;
 		Sockaddr_t connect_addr;
 	};
-	struct {
+	union {
 		StreamTransportCtx_t stream_ctx;
+		DgramTransportCtx_t dgram_ctx;
+	};
+	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		struct ReactorStreamReconnectCmd_t* stream_reconnect_cmd;
 		ReactorCmd_t stream_sendfincmd;
@@ -123,6 +134,7 @@ typedef struct ChannelBase_t {
 	unsigned int connected_times; /* client use */
 	char do_reconnecting;
 	char valid;
+	unsigned short flag;
 	int detach_error;
 	long long event_msec;
 
@@ -170,7 +182,7 @@ __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, ReactorObject_t* o, const void* addr);
+__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
 __declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
 __declspec_dll int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr);
