@@ -690,7 +690,7 @@ Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len
 }
 
 void channelSendFin(Channel_t* channel) {
-	if (_xchg8(&channel->m_ban_send, 1))
+	if (_xchg8(&channel->_.disable_send, 1))
 		return;
 	else if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
@@ -711,7 +711,7 @@ Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, i
 
 Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack) {
 	List_t packetlist;
-	if (channel->m_ban_send)
+	if (channel->_.disable_send)
 		return NULL;
 	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
 		return NULL;

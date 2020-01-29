@@ -311,7 +311,7 @@ static int reactorobject_recvfin_handler(ReactorObject_t* o, long long timestamp
 
 static int reactorobject_sendfin_direct_handler(ReactorObject_t* o) {
 	ChannelBase_t* channel = streamChannel(o);
-	channel->stream_sendfinwait = 0;
+	channel->m_stream_sendfinwait = 0;
 	if (!channel->has_sendfin) {
 		channel->has_sendfin = 1;
 	}
@@ -323,7 +323,7 @@ static int reactorobject_sendfin_check(ReactorObject_t* o) {
 	if (channel->has_sendfin)
 		return channel->has_recvfin;
 	if (streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
-		channel->stream_sendfinwait = 1;
+		channel->m_stream_sendfinwait = 1;
 		return 0;
 	}
 	socketShutdown(o->fd, SHUT_WR);
@@ -421,7 +421,7 @@ static void reactor_stream_writeev(ReactorObject_t* o) {
 	}
 	if (busy)
 		return;
-	if (!channel->stream_sendfinwait)
+	if (!channel->m_stream_sendfinwait)
 		return;
 	socketShutdown(o->fd, SHUT_WR);
 	if (reactorobject_sendfin_direct_handler(o))
@@ -498,7 +498,7 @@ static void reactor_readev(ReactorObject_t* o, long long timestamp_msec) {
 			if (!channel)
 				return;
 			after_call_channel_interface(o->reactor, channel);
-			if (!channel->stream_sendfinwait)
+			if (!channel->m_stream_sendfinwait)
 				return;
 			if (channel->stream_ctx.send_all_acked)
 				reactor_stream_writeev(o);
@@ -601,7 +601,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 						reactorobject_invalid_inner_handler(o, timestamp_msec);
 					}
 					else {
-						channel->stream_sendfinwait = 1;
+						channel->m_stream_sendfinwait = 1;
 						streamtransportctxCacheSendPacket(ctx, &packet->_);
 					}
 					continue;
@@ -871,7 +871,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, stream_sendfincmd);
-		if (_xchg8(&channel->m_stream_sendfincmdhaspost, 1))
+		if (_xchg8(&channel->disable_send, 1))
 			return;
 	}
 	else if (REACTOR_OBJECT_FREE_CMD == cmdnode->type) {
