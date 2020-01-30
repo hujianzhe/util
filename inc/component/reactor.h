@@ -20,8 +20,7 @@ enum {
 	REACTOR_CHANNEL_FREE_CMD,
 
 	REACTOR_STREAM_SENDFIN_CMD,
-	REACTOR_STREAM_CLIENT_RECONNECT_CMD,
-	REACTOR_STREAM_SERVER_RECONNECT_CMD,
+	REACTOR_RECONNECT_CMD,
 
 	REACTOR_SEND_PACKET_CMD,
 
@@ -124,7 +123,7 @@ typedef struct ChannelBase_t {
 	};
 	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
-		struct ReactorStreamReconnectCmd_t* stream_reconnect_cmd;
+		struct ReactorReconnectCmd_t* stream_reconnect_cmd;
 		ReactorCmd_t stream_sendfincmd;
 		char m_stream_sendfinwait;
 	};
@@ -157,12 +156,13 @@ typedef struct ReactorPacket_t {
 	NetPacket_t _;
 } ReactorPacket_t;
 
-typedef struct ReactorStreamReconnectCmd_t {
+typedef struct ReactorReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	ChannelBase_t* reconnect_channel;
-	int processing_stage;
-} ReactorStreamReconnectCmd_t;
+	unsigned short processing_stage;
+	unsigned short channel_flag;
+} ReactorReconnectCmd_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -174,7 +174,7 @@ __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
-__declspec_dll ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel);
+__declspec_dll ReactorReconnectCmd_t* reactorNewReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);

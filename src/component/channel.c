@@ -108,6 +108,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec) {
 	ChannelInbufDecodeResult_t decode_result;
 	while (off < len) {
+		unsigned char pktype;
 		memset(&decode_result, 0, sizeof(decode_result));
 		channel->on_decode(channel, buf + off, len - off, &decode_result);
 		if (decode_result.err)
@@ -115,8 +116,22 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		else if (decode_result.incomplete)
 			return off;
 		off += decode_result.decodelen;
-		if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
-			unsigned char pktype = decode_result.pktype;
+		pktype = decode_result.pktype;
+		if (NETPACKET_SYN == pktype) {
+			if (channel->_.flag & CHANNEL_FLAG_SERVER) {
+				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+				if (!decode_result.server_reconnect_valid) {
+					return -1;
+				}
+			}
+			else {
+				continue;
+			}
+		}
+		else if (NETPACKET_SYN_ACK == pktype) {
+			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+		}
+		else if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
@@ -144,29 +159,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
-			else if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
-				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-				if (!decode_result.renew_syn_ok) {
-					return -1;
-				}
-			}
-			else if (NETPACKET_SYN_ACK == pktype) {
-				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-			}
 			else
 				return -1;
 		}
 		else {
-			unsigned char pktype = decode_result.pktype;
-			if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
-				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-			}
-			else if (NETPACKET_SYN_ACK == pktype) {
-				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-			}
-			else {
-				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-			}
+			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 		}
 	}
 	channel->m_heartbeat_times = 0;
@@ -305,15 +302,15 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		pktype = decode_result.pktype;
 		pkseq = decode_result.pkseq;
 		if (!from_peer && !from_listen) {
-			if (NETPACKET_SYN != pktype || !(channel->_.flag & CHANNEL_FLAG_SERVER))
+			if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
+				channel->on_recv(channel, from_saddr, &decode_result);
+				if (!decode_result.server_reconnect_valid)
+					return 1;
+				memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
+			}
+			else {
 				return 1;
-			channel->on_recv(channel, from_saddr, &decode_result);
-			if (!decode_result.renew_syn_ok)
-				return 1;
-			memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
-			packetlist_free_packet(&channel->_.dgram_ctx.recvlist);
-			packetlist_free_packet(&channel->_.dgram_ctx.sendlist);
-			dgramtransportctxInit(&channel->_.dgram_ctx, 0);
+			}
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
 			if (from_listen) {
@@ -332,11 +329,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				}
 				channel->on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
-			}
-			else {
-				packetlist_free_packet(&channel->_.dgram_ctx.recvlist);
-				packetlist_free_packet(&channel->_.dgram_ctx.sendlist);
-				dgramtransportctxInit(&channel->_.dgram_ctx, 0);
 			}
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {

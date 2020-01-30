@@ -11,7 +11,7 @@ typedef struct ChannelInbufDecodeResult_t {
 	char err;
 	char incomplete;
 	char pktype;
-	char renew_syn_ok;
+	char server_reconnect_valid;
 	unsigned int pkseq;
 	unsigned int decodelen;
 	unsigned int bodylen;

@@ -98,12 +98,12 @@ static void channelobject_free(ChannelBase_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
 		packetlist_free_packet(&channel->stream_ctx.recvlist);
 		packetlist_free_packet(&channel->stream_ctx.sendlist);
+		free(channel->stream_reconnect_cmd);
 	}
 	else {
 		packetlist_free_packet(&channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&channel->dgram_ctx.sendlist);
 	}
-	free(channel->stream_reconnect_cmd);
 	free(channel);
 }
 
@@ -142,7 +142,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
-static void stream_server_side_reconnectcmd_failure_handler(ReactorStreamReconnectCmd_t* cmd) {
+static void reconnectcmd_failure_handler(ReactorReconnectCmd_t* cmd) {
 	ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
 	free(cmd);
 	reconnect_o->m_valid = 0;
@@ -570,6 +570,116 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	return 0;
 }
 
+static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReactorReconnectCmd_t* cmdex, long long timestamp_msec) {
+	unsigned short processing_stage = cmdex->processing_stage;
+	unsigned short channel_flag = cmdex->channel_flag;
+	ChannelBase_t* src_channel = cmdex->src_channel;
+	if (channel_flag & CHANNEL_FLAG_CLIENT) {
+		ReactorObject_t* src_o = src_channel->o;
+		ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
+		ReactorObject_t* reconnect_o = reconnect_channel->o;
+		if (1 == processing_stage) {
+			if (!src_o->m_valid) {
+				reconnectcmd_failure_handler(cmdex);
+				return;
+			}
+			cmdex->processing_stage = 2;
+			if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
+				reconnectcmd_failure_handler(cmdex);
+				return;
+			}
+			src_channel->do_reconnecting = 1;
+			reconnect_channel->stream_reconnect_cmd = cmdex;
+			reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
+		}
+		else if (2 == processing_stage) {
+			reconnect_channel->stream_reconnect_cmd = NULL;
+			src_channel->do_reconnecting = 0;
+			if (!src_o->m_valid || !reconnect_o->m_valid) {
+				reconnectcmd_failure_handler(cmdex);
+				return;
+			}
+			listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+			listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
+			listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
+			listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
+			src_o->m_valid = 0;
+			reactorobject_invalid_inner_handler(src_o, timestamp_msec);
+
+			src_channel->o = reconnect_o;
+			src_channel->do_reconnecting = 0;
+
+			packetlist_free_packet(&src_channel->stream_ctx.recvlist);
+			packetlist_free_packet(&src_channel->stream_ctx.sendlist);
+			streamtransportctxInit(&src_channel->stream_ctx, 0);
+			free(cmdex);
+		}
+	}
+	else if (channel_flag & CHANNEL_FLAG_SERVER) {
+		if (1 == processing_stage) {
+			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
+			ReactorObject_t* reconnect_o = reconnect_channel->o;
+			if (!reconnect_o->m_valid) {
+				free(cmdex);
+				return;
+			}
+			else if (src_channel->reactor != reconnect_channel->reactor) {
+				if (!reactor_unreg_object_check(reconnect_channel->reactor, reconnect_o)) {
+					reconnectcmd_failure_handler(cmdex);
+					return;
+				}
+				reconnect_channel->reactor = src_channel->reactor;
+				// TODO: notify source thread unreg ok ......
+			}
+			else {
+				ReactorObject_t* src_o = src_channel->o;
+				if (!src_o->m_valid) {
+					reconnectcmd_failure_handler(cmdex);
+					return;
+				}
+				if (!reconnect_o->m_has_inserted) {
+					reconnect_o->m_has_inserted = 1;
+					hashtableInsertNode(&reactor->m_objht, &reconnect_o->m_hashnode);
+					if (!reactorobject_request_read(reconnect_o)) {
+						reconnectcmd_failure_handler(cmdex);
+						return;
+					}
+				}
+				cmdex->processing_stage = 2;
+				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
+				listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
+				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
+				src_o->m_valid = 0;
+				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
+
+				src_channel->o = reconnect_o;
+				src_channel->do_reconnecting = 1;
+				src_channel->stream_reconnect_cmd = cmdex;
+
+				packetlist_free_packet(&src_channel->stream_ctx.recvlist);
+				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
+				streamtransportctxInit(&src_channel->stream_ctx, 0);
+			}
+		}
+		else if (2 == processing_stage) {
+			free(cmdex);
+			src_channel->do_reconnecting = 0;
+			src_channel->stream_reconnect_cmd = NULL;
+		}
+	}
+}
+
+static void reactor_dgram_reconnect_proc(ReactorReconnectCmd_t* cmdex) {
+	ChannelBase_t* src_channel = cmdex->src_channel;
+	if (src_channel->valid) {
+		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
+		packetlist_free_packet(&src_channel->dgram_ctx.sendlist);
+		dgramtransportctxInit(&src_channel->dgram_ctx, 0);
+	}
+	free(cmdex);
+}
+
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -649,106 +759,12 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactorpacketFree(packet);
 			continue;
 		}
-		else if (REACTOR_STREAM_CLIENT_RECONNECT_CMD == cmd->type) {
-			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
-			int processing_stage = cmdex->processing_stage;
-			ChannelBase_t* src_channel = cmdex->src_channel;
-			ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
-			ReactorObject_t* src_o = src_channel->o;
-			ReactorObject_t* reconnect_o = reconnect_channel->o;
-			if (1 == processing_stage) {
-				if (!src_o->m_valid) {
-					stream_server_side_reconnectcmd_failure_handler(cmdex);
-					continue;
-				}
-				cmdex->processing_stage = 2;
-				if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
-					stream_server_side_reconnectcmd_failure_handler(cmdex);
-					continue;
-				}
-				src_channel->do_reconnecting = 1;
-				reconnect_channel->stream_reconnect_cmd = cmdex;
-				reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
-			}
-			else if (2 == processing_stage) {
-				reconnect_channel->stream_reconnect_cmd = NULL;
-				src_channel->do_reconnecting = 0;
-				if (!src_o->m_valid || !reconnect_o->m_valid) {
-					stream_server_side_reconnectcmd_failure_handler(cmdex);
-					continue;
-				}
-				listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
-				listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
-				listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
-				listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
-				src_o->m_valid = 0;
-				reactorobject_invalid_inner_handler(src_o, timestamp_msec);
-
-				src_channel->o = reconnect_o;
-				src_channel->do_reconnecting = 0;
-
-				packetlist_free_packet(&src_channel->stream_ctx.recvlist);
-				packetlist_free_packet(&src_channel->stream_ctx.sendlist);
-				streamtransportctxInit(&src_channel->stream_ctx, 0);
-				free(cmdex);
-			}
-			continue;
-		}
-		else if (REACTOR_STREAM_SERVER_RECONNECT_CMD == cmd->type) {
-			ReactorStreamReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorStreamReconnectCmd_t, _);
-			int processing_stage = cmdex->processing_stage;
-			ChannelBase_t* src_channel = cmdex->src_channel;
-			if (1 == processing_stage) {
-				ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
-				ReactorObject_t* reconnect_o = reconnect_channel->o;
-				if (!reconnect_o->m_valid) {
-					free(cmdex);
-					continue;
-				}
-				else if (src_channel->reactor != reconnect_channel->reactor) {
-					if (!reactor_unreg_object_check(reconnect_channel->reactor, reconnect_o)) {
-						stream_server_side_reconnectcmd_failure_handler(cmdex);
-						continue;
-					}
-					reconnect_channel->reactor = src_channel->reactor;
-					// TODO: notify source thread unreg ok ......
-				}
-				else {
-					ReactorObject_t* src_o = src_channel->o;
-					if (!src_o->m_valid) {
-						stream_server_side_reconnectcmd_failure_handler(cmdex);
-						continue;
-					}
-					if (!reconnect_o->m_has_inserted) {
-						reconnect_o->m_has_inserted = 1;
-						hashtableInsertNode(&reactor->m_objht, &reconnect_o->m_hashnode);
-						if (!reactorobject_request_read(reconnect_o)) {
-							stream_server_side_reconnectcmd_failure_handler(cmdex);
-							continue;
-						}
-					}
-					cmdex->processing_stage = 2;
-					listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
-					listRemoveNode(&reconnect_o->m_channel_list, &reconnect_channel->regcmd._);
-					listPushNodeBack(&src_o->m_channel_list, &reconnect_channel->regcmd._);
-					listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
-					src_o->m_valid = 0;
-					reactorobject_invalid_inner_handler(src_o, timestamp_msec);
-
-					src_channel->o = reconnect_o;
-					src_channel->do_reconnecting = 1;
-					src_channel->stream_reconnect_cmd = cmdex;
-
-					packetlist_free_packet(&src_channel->stream_ctx.recvlist);
-					packetlist_free_packet(&src_channel->stream_ctx.sendlist);
-					streamtransportctxInit(&src_channel->stream_ctx, 0);
-				}
-			}
-			else if (2 == processing_stage) {
-				free(cmdex);
-				src_channel->do_reconnecting = 0;
-				src_channel->stream_reconnect_cmd = NULL;
-			}
+		else if (REACTOR_RECONNECT_CMD == cmd->type) {
+			ReactorReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorReconnectCmd_t, _);
+			if (cmdex->channel_flag & CHANNEL_FLAG_STREAM)
+				reactor_stream_reconnect_proc(reactor, cmdex, timestamp_msec);
+			else
+				reactor_dgram_reconnect_proc(cmdex);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
@@ -881,25 +897,26 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 	}
-	else if (REACTOR_STREAM_CLIENT_RECONNECT_CMD == cmdnode->type) {
-		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
-		ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
-		if (_xchg8(&reconnect_o->m_reghaspost, 1)) {
-			free(cmd);
-			return;
-		}
-		reactor = cmd->src_channel->reactor;
-		reconnect_o->reactor = reactor;
-		cmd->reconnect_channel->reactor = reactor;
-	}
-	else if (REACTOR_STREAM_SERVER_RECONNECT_CMD == cmdnode->type) {
-		ReactorStreamReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorStreamReconnectCmd_t, _);
-		if (1 == cmd->processing_stage)
-			reactor = cmd->reconnect_channel->reactor;
-		else if (2 == cmd->processing_stage)
+	else if (REACTOR_RECONNECT_CMD == cmdnode->type) {
+		ReactorReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorReconnectCmd_t, _);
+		if (cmd->channel_flag & CHANNEL_FLAG_CLIENT) {
+			ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
+			if (_xchg8(&reconnect_o->m_reghaspost, 1)) {
+				free(cmd);
+				return;
+			}
+			reconnect_o->reactor = reactor;
+			cmd->reconnect_channel->reactor = reactor;
 			reactor = cmd->src_channel->reactor;
-		else
-			return;
+		}
+		else {
+			if (1 == cmd->processing_stage)
+				reactor = cmd->reconnect_channel->reactor;
+			else if (2 == cmd->processing_stage)
+				reactor = cmd->src_channel->reactor;
+			else
+				return;
+		}
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
@@ -1174,16 +1191,14 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ReactorStreamReconnectCmd_t* reactorNewStreamReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
-	ReactorStreamReconnectCmd_t* cmd = (ReactorStreamReconnectCmd_t*)calloc(1, sizeof(ReactorStreamReconnectCmd_t));
+ReactorReconnectCmd_t* reactorNewReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
+	ReactorReconnectCmd_t* cmd = (ReactorReconnectCmd_t*)calloc(1, sizeof(ReactorReconnectCmd_t));
 	if (cmd) {
-		if (src_channel->flag & CHANNEL_FLAG_CLIENT)
-			cmd->_.type = REACTOR_STREAM_CLIENT_RECONNECT_CMD;
-		else
-			cmd->_.type = REACTOR_STREAM_SERVER_RECONNECT_CMD;
+		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
 		cmd->reconnect_channel = reconnect_channel;
 		cmd->processing_stage = 1;
+		cmd->channel_flag = src_channel->flag;
 	}
 	return cmd;
 }
