@@ -1272,11 +1272,13 @@ void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 }
 
 int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr) {
-	ReactorObject_t* o = channel->o;
-	if (SOCK_STREAM == o->socktype) {
+	if (channel->flag & CHANNEL_FLAG_STREAM) {
 		ReactorPacket_t* packet;
-		if (threadEqual(o->reactor->m_runthread, threadSelf())) {
-			int res = 0;
+		if (threadEqual(channel->reactor->m_runthread, threadSelf())) {
+			int res;
+			ReactorObject_t* o = channel->o;
+			if (!o->m_valid)
+				return -1;
 			if (!streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
 				res = socketWrite(o->fd, buf, len, 0, NULL, 0);
 				if (res < 0) {
@@ -1295,6 +1297,9 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 					}
 					return res;
 				}
+			}
+			else {
+				res = 0;
 			}
 			packet = reactorpacketMake(pktype, 0, len);
 			if (!packet)
@@ -1320,6 +1325,7 @@ int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigne
 		}
 	}
 	else {
+		ReactorObject_t* o = channel->o;
 		return socketWrite(o->fd, buf, len, 0, addr, sockaddrLength(addr));
 	}
 }
