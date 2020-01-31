@@ -123,7 +123,6 @@ typedef struct ChannelBase_t {
 	};
 	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
-		struct ReactorReconnectCmd_t* stream_reconnect_cmd;
 		ReactorCmd_t stream_sendfincmd;
 		char m_stream_sendfinwait;
 	};
@@ -131,7 +130,6 @@ typedef struct ChannelBase_t {
 	char has_sendfin;
 	Atom8_t disable_send;
 	unsigned int connected_times; /* client use */
-	char do_reconnecting;
 	char valid;
 	unsigned short flag;
 	int detach_error;
@@ -159,7 +157,10 @@ typedef struct ReactorPacket_t {
 typedef struct ReactorReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
-	ChannelBase_t* reconnect_channel;
+	union {
+		ChannelBase_t* reconnect_channel; /* server side use */
+		ReactorObject_t* reconnect_object; /* tcp client side use */
+	};
 	unsigned short processing_stage;
 	unsigned short channel_flag;
 } ReactorReconnectCmd_t;
@@ -174,7 +175,8 @@ __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
-__declspec_dll ReactorReconnectCmd_t* reactorNewReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel);
+__declspec_dll ReactorReconnectCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel);
+__declspec_dll ReactorReconnectCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 __declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);

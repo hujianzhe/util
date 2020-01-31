@@ -267,15 +267,6 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 	return 1;
 }
 
-static void packetlist_free_packet(List_t* packetlist) {
-	ListNode_t* cur, *next;
-	for (cur = packetlist->head; cur; cur = next) {
-		next = cur->next;
-		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
-	}
-	listInit(packetlist);
-}
-
 static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr) {
 	ChannelInbufDecodeResult_t decode_result;
 	if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
@@ -682,7 +673,7 @@ Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len
 }
 
 void channelSendFin(Channel_t* channel) {
-	if (_xchg8(&channel->_.disable_send, 1))
+	if (channel->_.disable_send)
 		return;
 	else if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
