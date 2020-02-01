@@ -161,7 +161,6 @@ typedef struct ReactorReconnectCmd_t {
 		ChannelBase_t* reconnect_channel; /* server side use */
 		ReactorObject_t* reconnect_object; /* tcp client side use */
 	};
-	unsigned short processing_stage;
 	unsigned short channel_flag;
 } ReactorReconnectCmd_t;
 

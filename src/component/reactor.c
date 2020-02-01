@@ -566,7 +566,6 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 }
 
 static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReactorReconnectCmd_t* cmdex, long long timestamp_msec) {
-	unsigned short processing_stage = cmdex->processing_stage;
 	unsigned short channel_flag = cmdex->channel_flag;
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (channel_flag & CHANNEL_FLAG_CLIENT) {
@@ -1169,7 +1168,6 @@ ReactorReconnectCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) 
 		}
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
-		cmd->processing_stage = 1;
 		cmd->channel_flag = src_channel->flag;
 	}
 	return cmd;
@@ -1181,7 +1179,6 @@ ReactorReconnectCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, 
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
 		cmd->reconnect_channel = reconnect_channel;
-		cmd->processing_stage = 1;
 		cmd->channel_flag = src_channel->flag;
 	}
 	return cmd;
