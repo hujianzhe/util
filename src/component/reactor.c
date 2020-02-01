@@ -25,7 +25,8 @@ typedef struct ReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	union {
-		ChannelBase_t* reconnect_channel; /* server side use */
+		ChannelBase_t* reconnect_channel;/* tcp server side use */
+		Sockaddr_t dgram_toaddr; /* udp server use */
 		ReactorObject_t* reconnect_object; /* tcp client side use */
 	};
 	unsigned short channel_flag;
@@ -33,7 +34,6 @@ typedef struct ReconnectCmd_t {
 
 typedef struct ReconnectFinishCmd_t {
 	ReactorCmd_t _;
-	Sockaddr_t new_toaddr;
 	ChannelBase_t* channel;
 } ReconnectFinishCmd_t;
 
@@ -657,6 +657,7 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex) {
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (src_channel->valid) {
+		memcpy(&src_channel->to_addr, &cmdex->dgram_toaddr, sockaddrLength(&cmdex->dgram_toaddr));
 		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&src_channel->dgram_ctx.sendlist);
 		dgramtransportctxInit(&src_channel->dgram_ctx, 0);
@@ -749,17 +750,15 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ReconnectFinishCmd_t* cmdex = pod_container_of(cmd, ReconnectFinishCmd_t, _);
 			ChannelBase_t* channel = cmdex->channel;
 			ReactorObject_t* o = channel->o;
+			free(cmdex);
 			if (!channel->valid || !o->m_valid) {
-				free(cmdex);
 				continue;
 			}
 			if (channel->flag & CHANNEL_FLAG_STREAM) {
-				free(cmdex);
 				reactor_stream_writeev(channel->o);
 			}
 			else {
-				memcpy(&channel->to_addr, &cmdex->new_toaddr, sockaddrLength(&cmdex->new_toaddr));
-				free(cmdex);
+				// TODO
 			}
 			continue;
 		}
@@ -1208,13 +1207,18 @@ ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
 	return NULL;
 }
 
-ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
+ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel, const void* to_addr) {
 	ReconnectCmd_t* cmd = (ReconnectCmd_t*)calloc(1, sizeof(ReconnectCmd_t));
 	if (cmd) {
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
-		cmd->reconnect_channel = reconnect_channel;
 		cmd->channel_flag = src_channel->flag;
+		if (src_channel->flag & CHANNEL_FLAG_STREAM) {
+			cmd->reconnect_channel = reconnect_channel;
+		}
+		else {
+			memcpy(&cmd->dgram_toaddr, to_addr, sockaddrLength(to_addr));
+		}
 		return &cmd->_;
 	}
 	return NULL;
