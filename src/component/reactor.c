@@ -21,6 +21,16 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
+typedef struct ReactorReconnectCmd_t {
+	ReactorCmd_t _;
+	ChannelBase_t* src_channel;
+	union {
+		ChannelBase_t* reconnect_channel; /* server side use */
+		ReactorObject_t* reconnect_object; /* tcp client side use */
+	};
+	unsigned short channel_flag;
+} ReactorReconnectCmd_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -1147,7 +1157,7 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ReactorReconnectCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
+ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
 	ReactorReconnectCmd_t* cmd = (ReactorReconnectCmd_t*)calloc(1, sizeof(ReactorReconnectCmd_t));
 	if (cmd) {
 		if (src_channel->flag & CHANNEL_FLAG_STREAM) {
@@ -1169,19 +1179,21 @@ ReactorReconnectCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) 
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
 		cmd->channel_flag = src_channel->flag;
+		return &cmd->_;
 	}
-	return cmd;
+	return NULL;
 }
 
-ReactorReconnectCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
+ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
 	ReactorReconnectCmd_t* cmd = (ReactorReconnectCmd_t*)calloc(1, sizeof(ReactorReconnectCmd_t));
 	if (cmd) {
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;
 		cmd->reconnect_channel = reconnect_channel;
 		cmd->channel_flag = src_channel->flag;
+		return &cmd->_;
 	}
-	return cmd;
+	return NULL;
 }
 
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr) {
