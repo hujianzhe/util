@@ -1258,6 +1258,16 @@ ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBa
 	return NULL;
 }
 
+ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel) {
+	ReconnectFinishCmd_t* cmd = (ReconnectFinishCmd_t*)calloc(1, sizeof(ReconnectFinishCmd_t));
+	if (cmd) {
+		cmd->_.type = REACTOR_RECONNECT_FINISH_CMD;
+		cmd->channel = src_channel;
+		return &cmd->_;
+	}
+	return NULL;
+}
+
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr) {
 	ChannelBase_t* channel;
 	if (SOCK_STREAM == o->socktype) {
