@@ -596,6 +596,7 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 			return;
 		}
 
+		src_channel->disable_send = 1;
 		packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 		packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 		streamtransportctxInit(&src_channel->stream_ctx, 0);
@@ -646,6 +647,7 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 			src_o->m_valid = 0;
 			reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 
+			src_channel->disable_send = 1;
 			packetlist_free_packet(&src_channel->stream_ctx.recvlist);
 			packetlist_free_packet(&src_channel->stream_ctx.sendlist);
 			streamtransportctxInit(&src_channel->stream_ctx, 0);
@@ -658,6 +660,7 @@ static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex) {
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (src_channel->valid) {
 		memcpy(&src_channel->to_addr, &cmdex->dgram_toaddr, sockaddrLength(&cmdex->dgram_toaddr));
+		src_channel->disable_send = 1;
 		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&src_channel->dgram_ctx.sendlist);
 		dgramtransportctxInit(&src_channel->dgram_ctx, 0);
@@ -702,7 +705,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					continue;
 				}
 				packet->_.off = 0;
-				if (!streamtransportctxSendCheckBusy(ctx)) {
+				if (!streamtransportctxSendCheckBusy(ctx) && !channel->disable_send) {
 					int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
 					if (res < 0) {
 						if (errnoGet() != EWOULDBLOCK) {
@@ -715,6 +718,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					packet->_.off = res;
 				}
 				if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
+					if (channel->disable_send)
+						continue;
 					if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen)
 						continue;
 					if (!reactorobject_request_write(o)) {
@@ -730,8 +735,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 			}
 			else {
-				socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-					&channel->to_addr, sockaddrLength(&channel->to_addr));
+				if (!channel->disable_send) {
+					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+						&channel->to_addr, sockaddrLength(&channel->to_addr));
+				}
 				if (packet->_.cached)
 					continue;
 			}
@@ -754,6 +761,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (!channel->valid || !o->m_valid) {
 				continue;
 			}
+			channel->disable_send = 0;
 			if (channel->flag & CHANNEL_FLAG_STREAM) {
 				reactor_stream_writeev(channel->o);
 			}
