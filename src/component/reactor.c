@@ -21,7 +21,7 @@ do {\
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
-typedef struct ReactorReconnectCmd_t {
+typedef struct ReconnectCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* src_channel;
 	union {
@@ -29,7 +29,13 @@ typedef struct ReactorReconnectCmd_t {
 		ReactorObject_t* reconnect_object; /* tcp client side use */
 	};
 	unsigned short channel_flag;
-} ReactorReconnectCmd_t;
+} ReconnectCmd_t;
+
+typedef struct ReconnectFinishCmd_t {
+	ReactorCmd_t _;
+	Sockaddr_t new_toaddr;
+	ChannelBase_t* channel;
+} ReconnectFinishCmd_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -151,7 +157,7 @@ static void reactorobject_invalid_inner_handler(ReactorObject_t* o, long long no
 	}
 }
 
-static void reconnectcmd_failure_handler(ReactorReconnectCmd_t* cmd) {
+static void reconnectcmd_failure_handler(ReconnectCmd_t* cmd) {
 	ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
 	free(cmd);
 	reconnect_o->m_valid = 0;
@@ -575,7 +581,7 @@ static int reactor_stream_connect(ReactorObject_t* o, long long timestamp_msec) 
 	return 0;
 }
 
-static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReactorReconnectCmd_t* cmdex, long long timestamp_msec) {
+static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cmdex, long long timestamp_msec) {
 	unsigned short channel_flag = cmdex->channel_flag;
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (channel_flag & CHANNEL_FLAG_CLIENT) {
@@ -648,7 +654,7 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReactorReconnectCm
 	}
 }
 
-static void reactor_dgram_reconnect_proc(ReactorReconnectCmd_t* cmdex) {
+static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex) {
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (src_channel->valid) {
 		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
@@ -732,11 +738,29 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_RECONNECT_CMD == cmd->type) {
-			ReactorReconnectCmd_t* cmdex = pod_container_of(cmd, ReactorReconnectCmd_t, _);
+			ReconnectCmd_t* cmdex = pod_container_of(cmd, ReconnectCmd_t, _);
 			if (cmdex->channel_flag & CHANNEL_FLAG_STREAM)
 				reactor_stream_reconnect_proc(reactor, cmdex, timestamp_msec);
 			else
 				reactor_dgram_reconnect_proc(cmdex);
+			continue;
+		}
+		else if (REACTOR_RECONNECT_FINISH_CMD == cmd->type) {
+			ReconnectFinishCmd_t* cmdex = pod_container_of(cmd, ReconnectFinishCmd_t, _);
+			ChannelBase_t* channel = cmdex->channel;
+			ReactorObject_t* o = channel->o;
+			if (!channel->valid || !o->m_valid) {
+				free(cmdex);
+				continue;
+			}
+			if (channel->flag & CHANNEL_FLAG_STREAM) {
+				free(cmdex);
+				reactor_stream_writeev(channel->o);
+			}
+			else {
+				memcpy(&channel->to_addr, &cmdex->new_toaddr, sockaddrLength(&cmdex->new_toaddr));
+				free(cmdex);
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
@@ -870,7 +894,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		}
 	}
 	else if (REACTOR_RECONNECT_CMD == cmdnode->type) {
-		ReactorReconnectCmd_t* cmd = pod_container_of(cmdnode, ReactorReconnectCmd_t, _);
+		ReconnectCmd_t* cmd = pod_container_of(cmdnode, ReconnectCmd_t, _);
 		if (cmd->channel_flag & CHANNEL_FLAG_CLIENT) {
 			ReactorObject_t* reconnect_o = cmd->reconnect_object;
 			if (_xchg8(&reconnect_o->m_reghaspost, 1)) {
@@ -1158,7 +1182,7 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 }
 
 ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
-	ReactorReconnectCmd_t* cmd = (ReactorReconnectCmd_t*)calloc(1, sizeof(ReactorReconnectCmd_t));
+	ReconnectCmd_t* cmd = (ReconnectCmd_t*)calloc(1, sizeof(ReconnectCmd_t));
 	if (cmd) {
 		if (src_channel->flag & CHANNEL_FLAG_STREAM) {
 			ReactorObject_t* reconnect_o;
@@ -1185,7 +1209,7 @@ ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
 }
 
 ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel) {
-	ReactorReconnectCmd_t* cmd = (ReactorReconnectCmd_t*)calloc(1, sizeof(ReactorReconnectCmd_t));
+	ReconnectCmd_t* cmd = (ReconnectCmd_t*)calloc(1, sizeof(ReconnectCmd_t));
 	if (cmd) {
 		cmd->_.type = REACTOR_RECONNECT_CMD;
 		cmd->src_channel = src_channel;

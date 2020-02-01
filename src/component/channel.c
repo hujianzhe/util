@@ -321,6 +321,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				channel->on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
+			else {
+				channel->on_recv(channel, from_saddr, &decode_result);
+			}
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
 			channel->on_reply_ack(channel, pkseq, from_saddr);
