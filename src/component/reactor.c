@@ -882,7 +882,7 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, stream_sendfincmd);
-		if (_xchg8(&channel->disable_send, 1))
+		if (_xchg8(&channel->m_stream_has_sendfincmd, 1))
 			return;
 	}
 	else if (REACTOR_OBJECT_FREE_CMD == cmdnode->type) {

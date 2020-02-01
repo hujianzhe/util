@@ -125,12 +125,13 @@ typedef struct ChannelBase_t {
 	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		ReactorCmd_t stream_sendfincmd;
+		Atom8_t m_stream_has_sendfincmd;
 		char m_stream_sendfinwait;
 	};
 	char has_recvfin;
 	char has_sendfin;
-	Atom8_t disable_send;
 	unsigned int connected_times; /* client use */
+	char disable_send;
 	char valid;
 	unsigned short flag;
 	int detach_error;
