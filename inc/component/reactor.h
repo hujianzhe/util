@@ -120,7 +120,10 @@ typedef struct ChannelBase_t {
 	};
 	union {
 		StreamTransportCtx_t stream_ctx;
-		DgramTransportCtx_t dgram_ctx;
+		struct {
+			DgramTransportCtx_t dgram_ctx;
+			List_t m_dgram_cache_packet_list;
+		};
 	};
 	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);

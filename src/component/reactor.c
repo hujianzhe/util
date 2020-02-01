@@ -685,11 +685,17 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reactorpacketFree(packet);
 				continue;
 			}
-			if (channel->on_pre_send) {
-				int ok = channel->on_pre_send(channel, packet, timestamp_msec);
-				after_call_channel_interface(o->reactor, channel);
-				if (!ok)
-					continue;
+			if (SOCK_STREAM == o->socktype || !channel->disable_send) {
+				if (channel->on_pre_send) {
+					int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+					after_call_channel_interface(channel->reactor, channel);
+					if (!channel->valid) {
+						reactorpacketFree(packet);
+						continue;
+					}
+					if (!continue_send)
+						continue;
+				}
 			}
 			if (SOCK_STREAM == o->socktype) {
 				StreamTransportCtx_t* ctx = &channel->stream_ctx;
@@ -735,7 +741,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				}
 			}
 			else {
-				if (!channel->disable_send) {
+				if (channel->disable_send) {
+					listPushNodeBack(&channel->m_dgram_cache_packet_list, &packet->_.node);
+					continue;
+				}
+				else {
 					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
 						&channel->to_addr, sockaddrLength(&channel->to_addr));
 				}
@@ -766,7 +776,23 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				reactor_stream_writeev(channel->o);
 			}
 			else {
-				// TODO
+				ListNode_t* cur, *next;
+				for (cur = channel->m_dgram_cache_packet_list.head; cur; cur = next) {
+					int continue_send;
+					ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+					next = cur->next;
+					listRemoveNode(&channel->m_dgram_cache_packet_list, cur);
+					continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+					if (!continue_send)
+						continue;
+					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+						&channel->to_addr, sockaddrLength(&channel->to_addr));
+					if (packet->_.cached)
+						continue;
+					reactorpacketFree(packet);
+				}
+				listInit(&channel->m_dgram_cache_packet_list);
+				after_call_channel_interface(channel->reactor, channel);
 			}
 			continue;
 		}
@@ -1273,6 +1299,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
+		listInit(&channel->m_dgram_cache_packet_list);
 	}
 	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
 	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
