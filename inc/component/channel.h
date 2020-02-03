@@ -53,6 +53,7 @@ typedef struct Channel_t {
 	long long m_heartbeat_msec;
 	unsigned int m_initseq;
 	unsigned int m_heartbeat_times;
+	Atom32_t m_has_sendfin;
 } Channel_t;
 
 #ifdef	__cplusplus
