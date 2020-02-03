@@ -25,7 +25,6 @@ enum {
 
 	REACTOR_SEND_PACKET_CMD,
 
-	REACTOR_INNER_CMD,
 	REACTOR_USER_CMD
 };
 enum {
@@ -43,12 +42,8 @@ enum {
 	CHANNEL_FLAG_DGRAM = 1 << 4,
 	CHANNEL_FLAG_RELIABLE = 1 << 5
 };
-typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
 
 typedef struct Reactor_t {
-	/* public */
-	void(*cmd_exec)(ReactorCmd_t* cmdnode);
-	void(*cmd_free)(ReactorCmd_t* cmdnode);
 	/* private */
 	unsigned char m_runthreadhasbind;
 	long long m_event_msec;
@@ -64,6 +59,7 @@ typedef struct Reactor_t {
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
+typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
 typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
@@ -107,7 +103,6 @@ typedef struct ReactorObject_t {
 } ReactorObject_t;
 
 struct ReactorPacket_t;
-struct ReactorStreamReconnectCmd_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -174,7 +169,6 @@ __declspec_dll ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_cha
 __declspec_dll ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
-__declspec_dll ReactorObject_t* reactorobjectDup(ReactorObject_t* o);
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
