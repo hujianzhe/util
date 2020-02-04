@@ -586,12 +586,8 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 	unsigned short channel_flag = cmdex->channel_flag;
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (channel_flag & CHANNEL_FLAG_CLIENT) {
-		ReactorObject_t* src_o = src_channel->o;
+		ReactorObject_t* src_o;
 		ReactorObject_t* reconnect_o = cmdex->reconnect_object;
-		if (!src_o->m_valid) {
-			reconnectcmd_failure_handler(cmdex);
-			return;
-		}
 		if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
 			reconnectcmd_failure_handler(cmdex);
 			return;
@@ -603,12 +599,15 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 		streamtransportctxInit(&src_channel->stream_ctx, 0);
 		free(cmdex);
 
-		listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
+		src_o = src_channel->o;
+		if (!src_channel->m_has_detached)
+			listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
 		listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
 		src_channel->o = reconnect_o;
 		src_o->m_valid = 0;
 		reactorobject_invalid_inner_handler(src_o, timestamp_msec);
 
+		src_channel->valid = 1;
 		reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
 	}
 	else if (channel_flag & CHANNEL_FLAG_SERVER) {
