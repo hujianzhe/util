@@ -609,6 +609,10 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 
 		src_channel->valid = 1;
 		reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
+		if (!reconnect_o->m_valid) {
+			reactorobject_invalid_inner_handler(reconnect_o, timestamp_msec);
+			return;
+		}
 	}
 	else if (channel_flag & CHANNEL_FLAG_SERVER) {
 		ChannelBase_t* reconnect_channel = cmdex->reconnect_channel;
@@ -691,6 +695,8 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 					after_call_channel_interface(channel->reactor, channel);
 					if (!channel->valid) {
 						reactorpacketFree(packet);
+						o->m_valid = 0;
+						reactorobject_invalid_inner_handler(o, timestamp_msec);
 						continue;
 					}
 					if (!continue_send)
@@ -794,6 +800,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				listInit(&channel->m_dgram_cache_packet_list);
 				after_call_channel_interface(channel->reactor, channel);
 			}
+			if (!o->m_valid) {
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+				continue;
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
@@ -817,6 +827,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				continue;
 			}
 			reactor_exec_object_reg_callback(reactor, o, timestamp_msec);
+			if (!o->m_valid) {
+				reactorobject_invalid_inner_handler(o, timestamp_msec);
+				continue;
+			}
 			continue;
 		}
 		else if (REACTOR_OBJECT_FREE_CMD == cmd->type) {
