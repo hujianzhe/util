@@ -120,9 +120,6 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (NETPACKET_SYN == pktype) {
 			if (channel->_.flag & CHANNEL_FLAG_SERVER) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
-				if (!decode_result.server_reconnect_valid) {
-					return -1;
-				}
 			}
 			else {
 				continue;
@@ -292,9 +289,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		if (!from_peer && !from_listen) {
 			if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
 				channel->on_recv(channel, from_saddr, &decode_result);
-				if (!decode_result.server_reconnect_valid)
-					return 1;
-				memcpy(&channel->_.to_addr, from_saddr, sockaddrLength(from_saddr));
 			}
 			else {
 				return 1;

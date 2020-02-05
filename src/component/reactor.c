@@ -663,7 +663,9 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex) {
 	ChannelBase_t* src_channel = cmdex->src_channel;
 	if (src_channel->valid) {
-		memcpy(&src_channel->to_addr, &cmdex->dgram_toaddr, sockaddrLength(&cmdex->dgram_toaddr));
+		if (src_channel->flag & CHANNEL_FLAG_SERVER) {
+			memcpy(&src_channel->to_addr, &cmdex->dgram_toaddr, sockaddrLength(&cmdex->dgram_toaddr));
+		}
 		src_channel->disable_send = 1;
 		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&src_channel->dgram_ctx.sendlist);
