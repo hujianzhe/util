@@ -80,8 +80,6 @@ typedef struct ReactorObject_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
 	/* interface */
-	void(*on_reg)(struct ReactorObject_t* self, long long timestamp_msec);
-	void(*on_writeev)(struct ReactorObject_t* self, long long timestamp_msec);
 	void(*on_detach)(struct ReactorObject_t* self);
 /* private */
 	List_t m_channel_list;

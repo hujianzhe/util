@@ -279,8 +279,6 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long 
 
 static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	ChannelBase_t* channel;
-	if (o->on_reg)
-		o->on_reg(o, timestamp_msec);
 	allChannelDoAction(o, channel,
 		channel->reactor = reactor;
 		if (channel->on_reg) {
@@ -1031,8 +1029,6 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 							o->detach_error = REACTOR_CONNECT_ERR;
 						}
 					}
-					else if (o->on_writeev)
-						o->on_writeev(o, timestamp_msec);
 					break;
 				default:
 					o->m_valid = 0;
@@ -1146,8 +1142,6 @@ static ReactorObject_t* reactorobject_dup(ReactorObject_t* o) {
 	if (SOCK_STREAM == dup_o->socktype) {
 		memset(&dup_o->stream, 0, sizeof(dup_o->stream));
 	}
-	dup_o->on_reg = o->on_reg;
-	dup_o->on_writeev = o->on_writeev;
 	dup_o->on_detach = o->on_detach;
 	reactorobject_init_comm(dup_o);
 	return dup_o;
@@ -1187,8 +1181,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	else {
 		o->read_fragment_size = 1464;
 	}
-	o->on_reg = NULL;
-	o->on_writeev = NULL;
 	o->on_detach = NULL;
 	reactorobject_init_comm(o);
 	return o;
