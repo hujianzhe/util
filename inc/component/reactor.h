@@ -66,7 +66,6 @@ typedef struct ReactorObject_t {
 	int domain;
 	int socktype;
 	int protocol;
-	Reactor_t* reactor;
 	int detach_error;
 	int detach_timeout_msec;
 	unsigned int read_fragment_size;
