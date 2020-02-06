@@ -158,13 +158,6 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 	}
 }
 
-static void reconnectcmd_failure_handler(Reactor_t* reactor, ReconnectCmd_t* cmd) {
-	ReactorObject_t* reconnect_o = cmd->reconnect_channel->o;
-	free(cmd);
-	reconnect_o->m_valid = 0;
-	reactorobject_invalid_inner_handler(reactor, reconnect_o, 0);
-}
-
 static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	Sockaddr_t saddr;
 	int opcode;
@@ -586,7 +579,8 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 		ReactorObject_t* src_o;
 		ReactorObject_t* reconnect_o = cmdex->reconnect_object;
 		if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
-			reconnectcmd_failure_handler(reactor, cmdex);
+			reactorobject_free(reconnect_o);
+			free(cmdex);
 			return;
 		}
 
@@ -619,8 +613,9 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 			return;
 		}
 		else if (src_channel->reactor != reconnect_channel->reactor) {
-			if (!reactor_unreg_object_check(reconnect_channel->reactor, reconnect_o)) {
-				reconnectcmd_failure_handler(reactor, cmdex);
+			if (!reactor_unreg_object_check(reactor, reconnect_o)) {
+				free(cmdex);
+				reactorobject_invalid_inner_handler(reactor, reconnect_o, timestamp_msec);
 				return;
 			}
 			reconnect_channel->reactor = src_channel->reactor;
@@ -629,14 +624,17 @@ static void reactor_stream_reconnect_proc(Reactor_t* reactor, ReconnectCmd_t* cm
 		else {
 			ReactorObject_t* src_o = src_channel->o;
 			if (!src_o->m_valid) {
-				reconnectcmd_failure_handler(reactor, cmdex);
+				free(cmdex);
+				reactorobject_invalid_inner_handler(reactor, reconnect_o, timestamp_msec);
 				return;
 			}
 			if (!reconnect_o->m_has_inserted) {
 				reconnect_o->m_has_inserted = 1;
 				hashtableInsertNode(&reactor->m_objht, &reconnect_o->m_hashnode);
 				if (!reactorobject_request_read(reactor, reconnect_o)) {
-					reconnectcmd_failure_handler(reactor, cmdex);
+					free(cmdex);
+					reconnect_o->m_valid = 0;
+					reactorobject_invalid_inner_handler(reactor, reconnect_o, timestamp_msec);
 					return;
 				}
 			}
