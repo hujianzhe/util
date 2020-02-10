@@ -150,7 +150,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 	if (o->detach_timeout_msec <= 0) {
 		if (SOCK_STREAM != o->socktype)
 			free_io_resource(o);
-		o->on_detach(o);
+		reactorobject_free(o);
 	}
 	else {
 		listInsertNodeBack(&reactor->m_invalidlist, reactor->m_invalidlist.tail, &o->m_invalidnode);
@@ -376,7 +376,7 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	for (cur = invalidfreelist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
-		o->on_detach(o);
+		reactorobject_free(o);
 	}
 }
 
@@ -1143,7 +1143,6 @@ static ReactorObject_t* reactorobject_dup(ReactorObject_t* o) {
 	if (SOCK_STREAM == dup_o->socktype) {
 		memset(&dup_o->stream, 0, sizeof(dup_o->stream));
 	}
-	dup_o->on_detach = o->on_detach;
 	reactorobject_init_comm(dup_o);
 	return dup_o;
 }
@@ -1182,7 +1181,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	else {
 		o->read_fragment_size = 1464;
 	}
-	o->on_detach = NULL;
 	reactorobject_init_comm(o);
 	return o;
 }
