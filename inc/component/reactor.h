@@ -71,7 +71,7 @@ typedef struct ReactorObject_t {
 	unsigned int read_fragment_size;
 	unsigned int write_fragment_size;
 	struct {
-		Sockaddr_t connect_addr;
+		Sockaddr_t m_connect_addr;
 		char m_connected;
 		char m_listened;
 		char m_sys_has_recvfin;

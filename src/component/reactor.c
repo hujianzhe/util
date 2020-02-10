@@ -206,7 +206,7 @@ static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o)
 			return 0;
 	}
 	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
-		&o->stream.connect_addr.sa, sockaddrLength(&o->stream.connect_addr)))
+		&o->stream.m_connect_addr.sa, sockaddrLength(&o->stream.m_connect_addr)))
 	{
 		return 0;
 	}
@@ -1214,7 +1214,7 @@ ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
 		if (src_channel->flag & CHANNEL_FLAG_STREAM) {
 			ReactorObject_t* reconnect_o;
 			ReactorObject_t* src_o = src_channel->o;
-			int sockaddrlen = sockaddrLength(&src_o->stream.connect_addr);
+			int sockaddrlen = sockaddrLength(&src_o->stream.m_connect_addr);
 			if (sockaddrlen <= 0) {
 				free(cmd);
 				return NULL;
@@ -1224,7 +1224,7 @@ ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel) {
 				free(cmd);
 				return NULL;
 			}
-			memcpy(&reconnect_o->stream.connect_addr, &src_o->stream.connect_addr, sockaddrlen);
+			memcpy(&reconnect_o->stream.m_connect_addr, &src_o->stream.m_connect_addr, sockaddrlen);
 			cmd->reconnect_object = reconnect_o;
 		}
 		cmd->_.type = REACTOR_RECONNECT_CMD;
@@ -1297,7 +1297,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	channel->o = o;
 	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	if (flag & CHANNEL_FLAG_STREAM) {
-		memcpy(&o->stream.connect_addr, addr, sockaddrLength(addr));
+		memcpy(&o->stream.m_connect_addr, addr, sockaddrLength(addr));
 		streamtransportctxInit(&channel->stream_ctx, 0);
 		channel->stream_sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 	}
