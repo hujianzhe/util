@@ -39,8 +39,7 @@ enum {
 	CHANNEL_FLAG_SERVER = 1 << 1,
 	CHANNEL_FLAG_LISTEN = 1 << 2,
 	CHANNEL_FLAG_STREAM = 1 << 3,
-	CHANNEL_FLAG_DGRAM = 1 << 4,
-	CHANNEL_FLAG_RELIABLE = 1 << 5
+	CHANNEL_FLAG_DGRAM	= 1 << 4
 };
 
 typedef struct Reactor_t {

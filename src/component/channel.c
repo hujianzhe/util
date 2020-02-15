@@ -117,7 +117,10 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			return off;
 		off += decode_result.decodelen;
 		pktype = decode_result.pktype;
-		if (NETPACKET_SYN == pktype) {
+		if (0 == pktype) {
+			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
+		}
+		else if (NETPACKET_SYN == pktype) {
 			if (channel->_.flag & CHANNEL_FLAG_SERVER) {
 				channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 			}
@@ -263,13 +266,24 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 }
 
 static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const void* from_saddr) {
+	ReactorPacket_t* packet;
+	unsigned char pktype;
+	unsigned int pkseq;
+	int from_listen, from_peer;
 	ChannelInbufDecodeResult_t decode_result;
-	if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
-		ReactorPacket_t* packet;
-		unsigned char pktype;
-		unsigned int pkseq;
 
-		int from_listen, from_peer;
+	memset(&decode_result, 0, sizeof(decode_result));
+	channel->on_decode(channel, buf, len, &decode_result);
+	if (decode_result.err)
+		return 1;
+	else if (decode_result.incomplete)
+		return 1;
+	pktype = decode_result.pktype;
+	if (0 == pktype) {
+		channel->on_recv(channel, from_saddr, &decode_result);
+	}
+	else {
+		pkseq = decode_result.pkseq;
 		if (channel->_.flag & CHANNEL_FLAG_CLIENT)
 			from_listen = sockaddrIsEqual(&channel->_.connect_addr, from_saddr);
 		else
@@ -279,14 +293,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else
 			from_peer = sockaddrIsEqual(&channel->_.to_addr, from_saddr);
 
-		memset(&decode_result, 0, sizeof(decode_result));
-		channel->on_decode(channel, buf, len, &decode_result);
-		if (decode_result.err)
-			return 1;
-		else if (decode_result.incomplete)
-			return 1;
-		pktype = decode_result.pktype;
-		pkseq = decode_result.pkseq;
 		if (!from_peer && !from_listen) {
 			if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
 				channel->on_recv(channel, from_saddr, &decode_result);
@@ -358,15 +364,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ)
 			channel->on_reply_ack(channel, pkseq, from_saddr);
 	}
-	else {
-		memset(&decode_result, 0, sizeof(decode_result));
-		channel->on_decode(channel, buf, len, &decode_result);
-		if (decode_result.err)
-			return 0;
-		else if (decode_result.incomplete)
-			return 1;
-		channel->on_recv(channel, from_saddr, &decode_result);
-	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return 1;
@@ -396,13 +393,12 @@ static int on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, un
 static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
-		if (CHANNEL_FLAG_RELIABLE & channel->_.flag)
-			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
+		packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
 		if (packet->_.hdrlen)
 			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		return 1;
 	}
-	else if (CHANNEL_FLAG_RELIABLE & channel->_.flag) {
+	else {
 		packet->_.seq = dgramtransportctxNextSendSeq(&channel->_.dgram_ctx, packet->_.type);
 		if (packet->_.hdrlen)
 			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
@@ -415,13 +411,15 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 		else if (NETPACKET_SYN == packet->_.type) {
 			channel->dgram.m_synpacket = packet;
 			packet->_.cached = 1;
+			packet->_.wait_ack = 1;
+			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, packet->_.resend_msec);
 		}
-		packet->_.wait_ack = 1;
-		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-		channel_set_timestamp(channel, packet->_.resend_msec);
-	}
-	else if (packet->_.hdrlen) {
-		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		if (packet->_.type >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
+			packet->_.wait_ack = 1;
+			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+			channel_set_timestamp(channel, packet->_.resend_msec);
+		}
 	}
 	return 1;
 }
@@ -469,8 +467,7 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 		channel_set_timestamp(channel, ts);
 	}
 /* reliable dgram resend packet */
-	if (!(channel->_.flag & CHANNEL_FLAG_DGRAM) ||
-		!(channel->_.flag & CHANNEL_FLAG_RELIABLE))
+	if (!(channel->_.flag & CHANNEL_FLAG_DGRAM))
 	{
 		return;
 	}
@@ -544,7 +541,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
-	if ((channel->_.flag & CHANNEL_FLAG_STREAM) || !(channel->_.flag & CHANNEL_FLAG_RELIABLE))
+	if (channel->_.flag & CHANNEL_FLAG_STREAM)
 		no_ack = 1;
 	if (nbytes) {
 		ListNode_t* cur;
@@ -649,10 +646,7 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len) {
 	if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
 		return channel;
-	if (((channel->_.flag & CHANNEL_FLAG_DGRAM) &&
-		(channel->_.flag & CHANNEL_FLAG_RELIABLE)) ||
-		channel->_.connected_times)
-	{
+	if ((channel->_.flag & CHANNEL_FLAG_DGRAM) || channel->_.connected_times) {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, len);
 		if (!packet) {
@@ -667,15 +661,12 @@ Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len
 void channelSendFin(Channel_t* channel) {
 	if (_xchg32(&channel->m_has_sendfin, 1))
 		return;
-	else if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
+	else {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
 		if (!packet)
 			return;
 		channelbaseSendPacket(&channel->_, packet);
-	}
-	else if (channel->_.flag & CHANNEL_FLAG_STREAM) {
-		reactorCommitCmd(channel->_.reactor, &channel->_.stream_sendfincmd);
 	}
 }
 

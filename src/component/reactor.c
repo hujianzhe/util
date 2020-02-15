@@ -1266,6 +1266,7 @@ ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel) {
 
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr) {
 	ChannelBase_t* channel;
+	int sockaddrlen;
 	if (SOCK_STREAM == o->socktype) {
 		if (flag & CHANNEL_FLAG_DGRAM)
 			return NULL;
@@ -1281,17 +1282,11 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 		if (flag & CHANNEL_FLAG_STREAM)
 			return NULL;
 		flag |= CHANNEL_FLAG_DGRAM;
-		if (flag & CHANNEL_FLAG_LISTEN)
-			flag |= CHANNEL_FLAG_RELIABLE;
-		else if (flag & CHANNEL_FLAG_RELIABLE) {
-			if (!(flag & CHANNEL_FLAG_CLIENT) &&
-				!(flag & CHANNEL_FLAG_SERVER))
-			{
-				return NULL;
-			}
-		}
 	}
-
+	sockaddrlen = sockaddrLength(addr);
+	if (sockaddrlen <= 0) {
+		return NULL;
+	}
 	channel = (ChannelBase_t*)calloc(1, sz);
 	if (!channel)
 		return NULL;
@@ -1299,7 +1294,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	channel->o = o;
 	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	if (flag & CHANNEL_FLAG_STREAM) {
-		memcpy(&o->stream.m_connect_addr, addr, sockaddrLength(addr));
+		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);
 		streamtransportctxInit(&channel->stream_ctx, 0);
 		channel->stream_sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 	}
@@ -1307,9 +1302,9 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		listInit(&channel->m_dgram_cache_packet_list);
 	}
-	memcpy(&channel->to_addr, addr, sockaddrLength(addr));
-	memcpy(&channel->connect_addr, addr, sockaddrLength(addr));
-	memcpy(&channel->listen_addr, addr, sockaddrLength(addr));
+	memcpy(&channel->to_addr, addr, sockaddrlen);
+	memcpy(&channel->connect_addr, addr, sockaddrlen);
+	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
