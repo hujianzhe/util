@@ -125,13 +125,15 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				continue;
 			}
 		}
-		else if (channel->_.flag & CHANNEL_FLAG_RELIABLE) {
+		else {
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
 				ReactorPacket_t* packet;
+				/*
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
+				*/
 				packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 				if (!packet)
 					return -1;
@@ -145,6 +147,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 					}
 				}
 			}
+			/*
 			else if (NETPACKET_ACK == pktype) {
 				NetPacket_t* ackpk = NULL;
 				if (!streamtransportctxAckSendPacket(ctx, pkseq, &ackpk))
@@ -153,11 +156,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			}
 			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
+			*/
 			else
 				return -1;
-		}
-		else {
-			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 		}
 	}
 	channel->m_heartbeat_times = 0;
@@ -543,7 +544,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
-	if (!(channel->_.flag & CHANNEL_FLAG_RELIABLE))
+	if ((channel->_.flag & CHANNEL_FLAG_STREAM) || !(channel->_.flag & CHANNEL_FLAG_RELIABLE))
 		no_ack = 1;
 	if (nbytes) {
 		ListNode_t* cur;
