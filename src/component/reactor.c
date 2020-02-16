@@ -692,6 +692,86 @@ static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex, long long timest
 	free(cmdex);
 }
 
+static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet, long long timestamp_msec) {
+	ChannelBase_t* channel = packet->channel;
+	ReactorObject_t* o;
+	if (!channel->valid) {
+		reactorpacketFree(packet);
+		return;
+	}
+	o = channel->o;
+	if (SOCK_STREAM == o->socktype || !channel->disable_send) {
+		if (channel->on_pre_send) {
+			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+			after_call_channel_interface(channel);
+			if (!channel->valid) {
+				reactorpacketFree(packet);
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+				return;
+			}
+			if (!continue_send)
+				return;
+		}
+	}
+	if (SOCK_STREAM == o->socktype) {
+		StreamTransportCtx_t* ctx = &channel->stream_ctx;
+		if (NETPACKET_FIN == packet->_.type && !ctx->send_all_acked) {
+			if (o->stream.m_sys_has_recvfin) {
+				o->m_valid = 0;
+				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			}
+			else {
+				channel->m_stream_sendfinwait = 1;
+				streamtransportctxCacheSendPacket(ctx, &packet->_);
+			}
+			return;
+		}
+		packet->_.off = 0;
+		if (!streamtransportctxSendCheckBusy(ctx) && !channel->disable_send) {
+			int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK) {
+					o->m_valid = 0;
+					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+					return;
+				}
+				res = 0;
+			}
+			packet->_.off = res;
+		}
+		if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
+			if (channel->disable_send)
+				return;
+			if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen)
+				return;
+			if (!reactorobject_request_write(reactor, o)) {
+				o->m_valid = 0;
+				o->detach_error = REACTOR_IO_ERR;
+				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			}
+			return;
+		}
+		if (NETPACKET_FIN == packet->_.type && reactorobject_sendfin_direct_handler(o)) {
+			o->m_valid = 0;
+			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+		}
+	}
+	else {
+		if (channel->disable_send) {
+			listPushNodeBack(&channel->m_dgram_cache_packet_list, &packet->_.node);
+			return;
+		}
+		else {
+			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+				&channel->to_addr, sockaddrLength(&channel->to_addr));
+		}
+		if (packet->_.cached)
+			return;
+	}
+	reactorpacketFree(packet);
+}
+
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -703,83 +783,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		next = cur->next;
 		if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 			ReactorPacket_t* packet = pod_container_of(cmd, ReactorPacket_t, cmd);
-			ChannelBase_t* channel = packet->channel;
-			ReactorObject_t* o;
-			if (!channel->valid) {
-				reactorpacketFree(packet);
-				continue;
-			}
-			o = channel->o;
-			if (SOCK_STREAM == o->socktype || !channel->disable_send) {
-				if (channel->on_pre_send) {
-					int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
-					after_call_channel_interface(channel);
-					if (!channel->valid) {
-						reactorpacketFree(packet);
-						o->m_valid = 0;
-						reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-						continue;
-					}
-					if (!continue_send)
-						continue;
-				}
-			}
-			if (SOCK_STREAM == o->socktype) {
-				StreamTransportCtx_t* ctx = &channel->stream_ctx;
-				if (NETPACKET_FIN == packet->_.type && !ctx->send_all_acked) {
-					if (o->stream.m_sys_has_recvfin) {
-						o->m_valid = 0;
-						reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-					}
-					else {
-						channel->m_stream_sendfinwait = 1;
-						streamtransportctxCacheSendPacket(ctx, &packet->_);
-					}
-					continue;
-				}
-				packet->_.off = 0;
-				if (!streamtransportctxSendCheckBusy(ctx) && !channel->disable_send) {
-					int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
-					if (res < 0) {
-						if (errnoGet() != EWOULDBLOCK) {
-							o->m_valid = 0;
-							reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-							continue;
-						}
-						res = 0;
-					}
-					packet->_.off = res;
-				}
-				if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-					if (channel->disable_send)
-						continue;
-					if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen)
-						continue;
-					if (!reactorobject_request_write(reactor, o)) {
-						o->m_valid = 0;
-						o->detach_error = REACTOR_IO_ERR;
-						reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-					}
-					continue;
-				}
-				if (NETPACKET_FIN == packet->_.type && reactorobject_sendfin_direct_handler(o)) {
-					o->m_valid = 0;
-					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-				}
-			}
-			else {
-				if (channel->disable_send) {
-					listPushNodeBack(&channel->m_dgram_cache_packet_list, &packet->_.node);
-					continue;
-				}
-				else {
-					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-						&channel->to_addr, sockaddrLength(&channel->to_addr));
-				}
-				if (packet->_.cached)
-					continue;
-			}
-			reactorpacketFree(packet);
+			reactor_packet_send_proc(reactor, packet, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_RECONNECT_CMD == cmd->type) {
