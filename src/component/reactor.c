@@ -1306,6 +1306,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	memcpy(&channel->connect_addr, addr, sockaddrlen);
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
+	channel->write_fragment_size = o->write_fragment_size;
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
 }
@@ -1326,65 +1327,6 @@ void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 		packet->channel = channel;
 	}
 	reactor_commit_cmdlist(channel->reactor, packetlist);
-}
-
-int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr) {
-	if (channel->flag & CHANNEL_FLAG_STREAM) {
-		ReactorPacket_t* packet;
-		if (threadEqual(channel->reactor->m_runthread, threadSelf())) {
-			int res;
-			ReactorObject_t* o = channel->o;
-			if (!o->m_valid)
-				return -1;
-			if (!streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
-				res = socketWrite(o->fd, buf, len, 0, NULL, 0);
-				if (res < 0) {
-					if (errnoGet() != EWOULDBLOCK) {
-						o->m_valid = 0;
-						o->detach_error = REACTOR_IO_ERR;
-						reactor_set_event_timestamp(channel->reactor, gmtimeMillisecond());
-						return -1;
-					}
-					res = 0;
-				}
-				if (res >= len) {
-					if (NETPACKET_FIN == pktype && reactorobject_sendfin_direct_handler(o)) {
-						o->m_valid = 0;
-						reactor_set_event_timestamp(channel->reactor, gmtimeMillisecond());
-					}
-					return res;
-				}
-			}
-			else {
-				res = 0;
-			}
-			packet = reactorpacketMake(pktype, 0, len);
-			if (!packet)
-				return -1;
-			packet->_.off = res;
-			memcpy(packet->_.buf, buf, len);
-			streamtransportctxCacheSendPacket(&channel->stream_ctx, &packet->_);
-			if (!reactorobject_request_write(channel->reactor, o)) {
-				o->m_valid = 0;
-				o->detach_error = REACTOR_IO_ERR;
-				reactor_set_event_timestamp(channel->reactor, gmtimeMillisecond());
-				return -1;
-			}
-			return res;
-		}
-		else {
-			packet = reactorpacketMake(pktype, 0, len);
-			if (!packet)
-				return -1;
-			memcpy(packet->_.buf, buf, len);
-			channelbaseSendPacket(channel, packet);
-			return 0;
-		}
-	}
-	else {
-		ReactorObject_t* o = channel->o;
-		return socketWrite(o->fd, buf, len, 0, addr, sockaddrLength(addr));
-	}
 }
 
 #ifdef	__cplusplus

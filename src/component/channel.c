@@ -546,7 +546,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	if (nbytes) {
 		ListNode_t* cur;
 		unsigned int off, iov_i, iov_off;
-		unsigned int sharedsize = channel->_.o->write_fragment_size - channel->maxhdrsize;
+		unsigned int sharedsize = channel->_.write_fragment_size - channel->maxhdrsize;
 		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
 		if (sharedcnt > 1 && no_ack && (CHANNEL_FLAG_DGRAM & channel->_.flag))
 			return 0;

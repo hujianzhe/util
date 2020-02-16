@@ -128,6 +128,7 @@ typedef struct ChannelBase_t {
 	unsigned short flag;
 	int detach_error;
 	long long event_msec;
+	unsigned int write_fragment_size;
 
 	union {
 		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
@@ -170,7 +171,6 @@ __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
 __declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
-__declspec_dll int channelbaseSend(ChannelBase_t* channel, int pktype, const void* buf, unsigned int len, const void* addr);
 
 #ifdef	__cplusplus
 }
