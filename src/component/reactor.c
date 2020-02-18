@@ -693,14 +693,16 @@ static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex, long long timest
 }
 
 static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet, long long timestamp_msec) {
+	int packet_always_send;
 	ChannelBase_t* channel = packet->channel;
 	ReactorObject_t* o;
 	if (!channel->valid) {
 		reactorpacketFree(packet);
 		return;
 	}
+	packet_always_send = (NETPACKET_SYN == packet->_.type || NETPACKET_SYN_ACK == packet->_.type);
 	o = channel->o;
-	if (SOCK_STREAM == o->socktype || !channel->disable_send) {
+	if (SOCK_STREAM == o->socktype || !channel->disable_send || packet_always_send) {
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
 			after_call_channel_interface(channel);
@@ -728,7 +730,9 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 			return;
 		}
 		packet->_.off = 0;
-		if (!streamtransportctxSendCheckBusy(ctx) && !channel->disable_send) {
+		if (!streamtransportctxSendCheckBusy(ctx) &&
+			(!channel->disable_send || packet_always_send))
+		{
 			int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
@@ -758,7 +762,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 		}
 	}
 	else {
-		if (channel->disable_send) {
+		if (channel->disable_send && !packet_always_send) {
 			listPushNodeBack(&channel->m_dgram_cache_packet_list, &packet->_.node);
 			return;
 		}
