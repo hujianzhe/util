@@ -805,6 +805,9 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (!channel->valid) {
 				continue;
 			}
+			if (!channel->disable_send) {
+				continue;
+			}
 			o = channel->o;
 			channel->disable_send = 0;
 			for (cur = channel->m_cache_packet_list.head; cur; cur = next) {
