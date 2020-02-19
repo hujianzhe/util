@@ -109,10 +109,7 @@ typedef struct ChannelBase_t {
 	};
 	union {
 		StreamTransportCtx_t stream_ctx;
-		struct {
-			DgramTransportCtx_t dgram_ctx;
-			List_t m_dgram_cache_packet_list;
-		};
+		DgramTransportCtx_t dgram_ctx;
 	};
 	struct {
 		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
@@ -141,6 +138,7 @@ typedef struct ChannelBase_t {
 	void(*on_detach)(struct ChannelBase_t* self);
 /* private */
 	char m_has_detached;
+	List_t m_cache_packet_list;
 } ChannelBase_t;
 
 typedef struct ReactorPacket_t {

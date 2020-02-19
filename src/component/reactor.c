@@ -702,7 +702,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 	}
 	packet_always_send = (NETPACKET_SYN == packet->_.type || NETPACKET_SYN_ACK == packet->_.type);
 	o = channel->o;
-	if (SOCK_STREAM == o->socktype || !channel->disable_send || packet_always_send) {
+	if (!channel->disable_send || packet_always_send) {
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
 			after_call_channel_interface(channel);
@@ -730,9 +730,11 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 			return;
 		}
 		packet->_.off = 0;
-		if (!streamtransportctxSendCheckBusy(ctx) &&
-			(!channel->disable_send || packet_always_send))
-		{
+		if (channel->disable_send && !packet_always_send) {
+			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
+			return;
+		}
+		if (!streamtransportctxSendCheckBusy(ctx)) {
 			int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
@@ -745,8 +747,6 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 			packet->_.off = res;
 		}
 		if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-			if (channel->disable_send)
-				return;
 			if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen)
 				return;
 			if (!reactorobject_request_write(reactor, o)) {
@@ -763,13 +763,11 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 	}
 	else {
 		if (channel->disable_send && !packet_always_send) {
-			listPushNodeBack(&channel->m_dgram_cache_packet_list, &packet->_.node);
+			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
 			return;
 		}
-		else {
-			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->to_addr, sockaddrLength(&channel->to_addr));
-		}
+		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+			&channel->to_addr, sockaddrLength(&channel->to_addr));
 		if (packet->_.cached)
 			return;
 	}
@@ -799,6 +797,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_RECONNECT_FINISH_CMD == cmd->type) {
+			ListNode_t* cur, *next;
 			ReconnectFinishCmd_t* cmdex = pod_container_of(cmd, ReconnectFinishCmd_t, _);
 			ChannelBase_t* channel = cmdex->channel;
 			ReactorObject_t* o;
@@ -808,32 +807,12 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			}
 			o = channel->o;
 			channel->disable_send = 0;
-			if (channel->flag & CHANNEL_FLAG_STREAM) {
-				reactor_stream_writeev(reactor, o);
+			for (cur = channel->m_cache_packet_list.head; cur; cur = next) {
+				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+				next = cur->next;
+				reactor_packet_send_proc(reactor, packet, timestamp_msec);
 			}
-			else {
-				ListNode_t* cur, *next;
-				for (cur = channel->m_dgram_cache_packet_list.head; cur; cur = next) {
-					int continue_send;
-					ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
-					next = cur->next;
-					listRemoveNode(&channel->m_dgram_cache_packet_list, cur);
-					continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
-					if (!continue_send)
-						continue;
-					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-						&channel->to_addr, sockaddrLength(&channel->to_addr));
-					if (packet->_.cached)
-						continue;
-					reactorpacketFree(packet);
-				}
-				listInit(&channel->m_dgram_cache_packet_list);
-				after_call_channel_interface(channel);
-			}
-			if (!o->m_valid) {
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-				continue;
-			}
+			listInit(&channel->m_cache_packet_list);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
@@ -1308,13 +1287,13 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
-		listInit(&channel->m_dgram_cache_packet_list);
 	}
 	memcpy(&channel->to_addr, addr, sockaddrlen);
 	memcpy(&channel->connect_addr, addr, sockaddrlen);
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
 	channel->write_fragment_size = o->write_fragment_size;
+	listInit(&channel->m_cache_packet_list);
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
 }
