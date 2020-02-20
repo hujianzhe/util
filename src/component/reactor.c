@@ -34,6 +34,7 @@ typedef struct ReconnectCmd_t {
 typedef struct ReconnectFinishCmd_t {
 	ReactorCmd_t _;
 	ChannelBase_t* channel;
+	ReactorPacket_t* retpkg;
 } ReconnectFinishCmd_t;
 
 #ifdef	__cplusplus
@@ -800,16 +801,22 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			ListNode_t* cur, *next;
 			ReconnectFinishCmd_t* cmdex = pod_container_of(cmd, ReconnectFinishCmd_t, _);
 			ChannelBase_t* channel = cmdex->channel;
+			ReactorPacket_t* retpkg = cmdex->retpkg;
 			ReactorObject_t* o;
 			free(cmdex);
 			if (!channel->valid) {
+				reactorpacketFree(retpkg);
 				continue;
 			}
 			if (!channel->disable_send) {
+				reactorpacketFree(retpkg);
 				continue;
 			}
 			o = channel->o;
 			channel->disable_send = 0;
+			if (retpkg) {
+				reactor_packet_send_proc(reactor, retpkg, timestamp_msec);
+			}
 			for (cur = channel->m_cache_packet_list.head; cur; cur = next) {
 				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 				next = cur->next;
