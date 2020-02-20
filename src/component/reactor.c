@@ -62,12 +62,14 @@ static void channel_detach_handler(ChannelBase_t* channel, int error, long long 
 	channel->on_detach(channel);
 }
 
-static void after_call_channel_interface(ChannelBase_t* channel) {
+static int after_call_channel_interface(ChannelBase_t* channel) {
 	if (channel->valid) {
 		reactor_set_event_timestamp(channel->reactor, channel->event_msec);
+		return 1;
 	}
 	else {
 		channel_detach_handler(channel, channel->detach_error, 0);
+		return 0;
 	}
 }
 
@@ -286,6 +288,8 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		++channel->connected_times;
 	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		if (channel->connected_times != 1)
+			return;
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(channel);
 	}
@@ -503,7 +507,8 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			channel = streamChannel(o);
 			if (!channel)
 				return;
-			after_call_channel_interface(channel);
+			if (!after_call_channel_interface(channel))
+				return;
 			if (!channel->m_stream_sendfinwait)
 				return;
 			if (channel->stream_ctx.send_all_acked)
@@ -565,6 +570,8 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 		if (~0 != channel->connected_times) {
 			++channel->connected_times;
 		}
+		if (channel->connected_times != 1)
+			return 1;
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(channel);
 		return 1;
@@ -682,11 +689,7 @@ static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex, long long timest
 		packetlist_free_packet(&src_channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&src_channel->dgram_ctx.sendlist);
 		dgramtransportctxInit(&src_channel->dgram_ctx, 0);
-		if (channel_flag & CHANNEL_FLAG_CLIENT) {
-			src_channel->on_syn_ack(src_channel, timestamp_msec);
-			after_call_channel_interface(src_channel);
-		}
-		else if (channel_flag & CHANNEL_FLAG_SERVER) {
+		if (channel_flag & CHANNEL_FLAG_SERVER) {
 			memcpy(&src_channel->to_addr, &cmdex->dgram_toaddr, sockaddrLength(&cmdex->dgram_toaddr));
 		}
 	}
