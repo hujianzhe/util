@@ -1251,11 +1251,12 @@ ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBa
 	return NULL;
 }
 
-ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel) {
+ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel, ReactorPacket_t* retpkg) {
 	ReconnectFinishCmd_t* cmd = (ReconnectFinishCmd_t*)calloc(1, sizeof(ReconnectFinishCmd_t));
 	if (cmd) {
 		cmd->_.type = REACTOR_RECONNECT_FINISH_CMD;
 		cmd->channel = src_channel;
+		cmd->retpkg = retpkg;
 		return &cmd->_;
 	}
 	return NULL;

@@ -159,7 +159,7 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
 __declspec_dll ReactorCmd_t* reactorNewClientReconnectCmd(ChannelBase_t* src_channel);
 __declspec_dll ReactorCmd_t* reactorNewServerReconnectCmd(ChannelBase_t* src_channel, ChannelBase_t* reconnect_channel, const void* to_addr);
-__declspec_dll ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel);
+__declspec_dll ReactorCmd_t* reactorNewReconnectFinishCmd(ChannelBase_t* src_channel, ReactorPacket_t* retpkg);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 
