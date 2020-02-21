@@ -288,8 +288,6 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		++channel->connected_times;
 	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->connected_times != 1)
-			return;
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(channel);
 	}
@@ -570,8 +568,6 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 		if (~0 != channel->connected_times) {
 			++channel->connected_times;
 		}
-		if (channel->connected_times != 1)
-			return 1;
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(channel);
 		return 1;

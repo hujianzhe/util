@@ -322,8 +322,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					if (~0 != channel->_.connected_times) {
 						++channel->_.connected_times;
 					}
-					if (channel->_.connected_times != 1)
-						return 1;
 					channel->_.on_syn_ack(&channel->_, timestamp_msec);
 				}
 				channel->on_reply_ack(channel, 0, from_saddr);
