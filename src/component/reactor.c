@@ -494,7 +494,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			o->m_inbuflen += res;
 			channel = streamChannel(o);
 			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
-			if (res < 0 || !o->m_valid) {
+			if (!after_call_channel_interface(channel)) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_ONREAD_ERR;
 				return;
@@ -502,8 +502,6 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
-			if (!after_call_channel_interface(channel))
-				return;
 			if (!channel->m_stream_sendfinwait)
 				return;
 			if (channel->stream_ctx.send_all_acked)
@@ -702,11 +700,10 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 	if (!channel->disable_send || packet_always_send) {
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
-			after_call_channel_interface(channel);
-			if (!channel->valid) {
+			if (!after_call_channel_interface(channel)) {
 				reactorpacketFree(packet);
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+				if (!o->m_valid)
+					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 				return;
 			}
 			if (!continue_send)
