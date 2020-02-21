@@ -689,16 +689,27 @@ static void reactor_dgram_reconnect_proc(ReconnectCmd_t* cmdex, long long timest
 }
 
 static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet, long long timestamp_msec) {
-	int packet_always_send;
+	int packet_allow_send;
 	ChannelBase_t* channel = packet->channel;
 	ReactorObject_t* o;
 	if (!channel->valid) {
 		reactorpacketFree(packet);
 		return;
 	}
-	packet_always_send = (NETPACKET_SYN == packet->_.type || NETPACKET_SYN_ACK == packet->_.type);
 	o = channel->o;
-	if (!channel->disable_send || packet_always_send) {
+	if (SOCK_STREAM == o->socktype && !o->stream.m_connected) {
+		packet_allow_send = 0;
+	}
+	else if (!channel->disable_send ||
+		NETPACKET_SYN == packet->_.type || NETPACKET_SYN_ACK == packet->_.type)
+	{
+		packet_allow_send = 1;
+	}
+	else {
+		packet_allow_send = 0;
+	}
+
+	if (packet_allow_send) {
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
 			if (!after_call_channel_interface(channel)) {
@@ -725,7 +736,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 			return;
 		}
 		packet->_.off = 0;
-		if (channel->disable_send && !packet_always_send) {
+		if (!packet_allow_send) {
 			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
 			return;
 		}
@@ -757,7 +768,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 		}
 	}
 	else {
-		if (channel->disable_send && !packet_always_send) {
+		if (!packet_allow_send) {
 			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
 			return;
 		}
@@ -792,6 +803,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_RECONNECT_FINISH_CMD == cmd->type) {
+			List_t cache_list;
 			ListNode_t* cur, *next;
 			ReconnectFinishCmd_t* cmdex = pod_container_of(cmd, ReconnectFinishCmd_t, _);
 			ChannelBase_t* channel = cmdex->channel;
@@ -811,12 +823,13 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (retpkg) {
 				reactor_packet_send_proc(reactor, retpkg, timestamp_msec);
 			}
-			for (cur = channel->m_cache_packet_list.head; cur; cur = next) {
+			cache_list = channel->m_cache_packet_list;
+			listInit(&channel->m_cache_packet_list);
+			for (cur = cache_list.head; cur; cur = next) {
 				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 				next = cur->next;
 				reactor_packet_send_proc(reactor, packet, timestamp_msec);
 			}
-			listInit(&channel->m_cache_packet_list);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
