@@ -502,9 +502,6 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			o->m_inbufoff = res;
 			if (o->m_inbufoff >= o->m_inbuflen)
 				free_inbuf(o);
-			channel = streamChannel(o);
-			if (!channel)
-				return;
 			if (!after_call_channel_interface(channel))
 				return;
 			if (!channel->m_stream_sendfinwait)
