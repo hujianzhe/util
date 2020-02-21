@@ -122,6 +122,7 @@ static void channelobject_free(ChannelBase_t* channel) {
 		packetlist_free_packet(&channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&channel->dgram_ctx.sendlist);
 	}
+	packetlist_free_packet(&channel->m_cache_packet_list);
 	free(channel);
 }
 
