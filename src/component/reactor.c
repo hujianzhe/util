@@ -1181,7 +1181,13 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 
 ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const void* to_addr) {
 	ReuseCmd_t* cmd;
-	int sockaddrlen = sockaddrLength(to_addr);
+	int sockaddrlen;
+	if ((channel->flag & CHANNEL_FLAG_SERVER) &&
+		(channel->flag & CHANNEL_FLAG_STREAM))
+	{
+		return NULL;
+	}
+	sockaddrlen = sockaddrLength(to_addr);
 	if (sockaddrlen < 0)
 		return NULL;
 	cmd = (ReuseCmd_t*)calloc(1, sizeof(ReuseCmd_t));
