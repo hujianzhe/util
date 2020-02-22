@@ -1179,7 +1179,7 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ReactorCmd_t* reactorNewChannelReuseCmd(ChannelBase_t* channel, const void* to_addr) {
+ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const void* to_addr) {
 	ReuseCmd_t* cmd;
 	int sockaddrlen = sockaddrLength(to_addr);
 	if (sockaddrlen < 0)
