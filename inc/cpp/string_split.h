@@ -5,6 +5,9 @@
 #ifndef UTIL_CPP_STRING_SPLIT_H
 #define	UTIL_CPP_STRING_SPLIT_H
 
+#ifdef __cplusplus
+
+#include "cpp_compiler_define.h"
 #include <string>
 #include <vector>
 
@@ -24,5 +27,7 @@ void string_split(const char* str, const char* delim, std::vector<std::string>& 
 		v.push_back(std::string(p, str - p));
 }
 }
+
+#endif
 
 #endif // !UTIL_CPP_STRING_SPLIT_H

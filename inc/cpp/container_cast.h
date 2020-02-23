@@ -5,6 +5,9 @@
 #ifndef UTIL_CPP_CONTAINER_CAST_H
 #define	UTIL_CPP_CONTAINER_CAST_H
 
+#ifdef __cplusplus
+
+#include "cpp_compiler_define.h"
 #include <vector>
 #include <list>
 #include <set>
@@ -97,5 +100,7 @@ std::set<std::pair<T, E> >& map_shift_set(const std::map<K, V>& m, std::set<std:
 	return s;
 }
 }
+
+#endif
 
 #endif // !UTIL_CPP_CONTAINER_CAST_H
