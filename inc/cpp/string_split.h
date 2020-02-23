@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace util {
-void str_split(const char* str, const char* delim, std::vector<std::string>& v) {
+void string_split(const char* str, const char* delim, std::vector<std::string>& v) {
 	const char* p, *dp;
 	for (p = str; *str; ++str) {
 		for (dp = delim; *dp; ++dp) {
