@@ -45,7 +45,7 @@ std::vector<E>& list_shift_vector(const std::list<T>& l, std::vector<E>& v) {
 }
 
 template <typename T, typename E>
-std::set<E>& list_shift_set(const std::list<T>& s, std::set<E>& s) {
+std::set<E>& list_shift_set(const std::list<T>& l, std::set<E>& s) {
 	for (typename std::list<T>::const_iterator it = l.begin(); it != l.end(); ++it)
 		s.insert(*it);
 	return s;
