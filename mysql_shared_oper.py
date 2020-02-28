@@ -57,13 +57,13 @@ try:
 		elif pair[0] == '--config_path':
 			conn_shared_config_path = pair[1]
 
-	if not conn_shared_key:
+	if conn_shared_key == None:
 		print '未指定连接分片,--conn_shared'
 		exit(1)
-	elif not db_name:
+	elif db_name == None:
 		print '未指定db名,--db_name'
 		exit(1)
-	elif not table_name:
+	elif table_name == None:
 		print '未指定table名,--table_name'
 		exit(1)
 	elif db_shared_key != None and db_shared_cnt == None:
