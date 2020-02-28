@@ -40,11 +40,11 @@ typedef struct Channel_t {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
 		};
+		void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	} dgram;
 	/* interface */
 	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
 	void(*on_recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
-	void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
 	int(*on_heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*on_encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);

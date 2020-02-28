@@ -324,7 +324,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					}
 					channel->_.on_syn_ack(&channel->_, timestamp_msec);
 				}
-				channel->on_reply_ack(channel, 0, from_saddr);
+				channel->dgram.on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
 			else if (channel->dgram.m_synpacket) {
@@ -339,7 +339,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			}
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
-			channel->on_reply_ack(channel, pkseq, from_saddr);
+			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 			if (!packet)
 				return 0;
@@ -380,7 +380,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else if (NETPACKET_NO_ACK_FRAGMENT_EOF == pktype)
 			channel->on_recv(channel, from_saddr, &decode_result);
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ)
-			channel->on_reply_ack(channel, pkseq, from_saddr);
+			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
