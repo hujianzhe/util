@@ -23,7 +23,7 @@ sql_field = None
 sql_where = None
 
 opt_array = ["conn_shared=", "db_name=", "db_shared=", "db_shared_cnt=", "table_name=", "table_shared=", "table_shared_cnt=",
-"operator=", "field=", "where=", "config_path="]
+"select=", "update=", "insert=", "delete", "where=", "config_path="]
 try:
 	opts, args = getopt.getopt(sys.argv[1:], "", opt_array)
 	for pair in opts:
@@ -41,10 +41,17 @@ try:
 			table_shared_key = int(pair[1])
 		elif pair[0] == '--table_shared_cnt':
 			table_shared_cnt = int(pair[1])
-		elif pair[0] == '--operator':
-			sql_operator = pair[1]
-		elif pair[0] == '--field':
+		elif pair[0] == '--select':
+			sql_operator = 'select'
 			sql_field = pair[1]
+		elif pair[0] == '--update':
+			sql_operator = 'update'
+			sql_field = pair[1]
+		elif pair[0] == '--insert':
+			sql_operator = 'insert'
+			sql_field[0] = pair[1]
+		elif pair[0] == '--delete':
+			sql_operator = 'delete'
 		elif pair[0] == '--where':
 			sql_where = pair[1]
 		elif pair[0] == '--config_path':
@@ -72,7 +79,7 @@ try:
 		print '未指定table分片,--table_shared'
 		exit(1)
 	elif sql_operator == None:
-		print '未指定SQL操作,--operator'
+		print '未指定SQL操作,--select/--insert/--update/--delete'
 		exit(1)
 
 except getopt.GetoptError:
@@ -115,7 +122,7 @@ sql_is_select = False
 if sql_operator.lower() == 'select':
 	sql_is_select = True
 	if sql_field == None:
-		print '未指定查询字段,--field'
+		print '未指定查询字段,--select'
 		exit(1)
 	if sql_where == None:
 		print '未指定查询条件,--where'
@@ -125,14 +132,14 @@ if sql_operator.lower() == 'select':
 
 elif sql_operator.lower() == 'insert':
 	if sql_field == None:
-		print '未指定插入字段,--field'
+		print '未指定插入字段,--insert'
 		exit(1)
 
 	sql = 'insert into ' + table_name + ' ' + sql_field
 
 elif sql_operator.lower() == 'update':
 	if sql_field == None:
-		print '未指定更新字段,--field'
+		print '未指定更新字段,--update'
 		exit(1)
 	if sql_where == None:
 		print '未指定更新条件,--where'
