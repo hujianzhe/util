@@ -93,7 +93,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 		channel->_.has_recvfin = 1;
 		if (channel->_.has_sendfin)
 			return 1;
-		channelSendFin(channel);
+		channelSendv(channel, NULL, 0, NETPACKET_FIN);
 	}
 	else {
 		decode_result->bodyptr = merge_packet(packetlist, &decode_result->bodylen);
@@ -556,37 +556,28 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 	}
 }
 
-static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack, List_t* packetlist) {
+static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
-	if (channel->_.flag & CHANNEL_FLAG_STREAM)
-		no_ack = 1;
-	else if (!(channel->_.flag & CHANNEL_FLAG_CLIENT) && !(channel->_.flag & CHANNEL_FLAG_SERVER))
-		no_ack = 1;
 	if (nbytes) {
 		ListNode_t* cur;
 		unsigned int off, iov_i, iov_off;
 		unsigned int sharedsize = channel->_.write_fragment_size - channel->maxhdrsize;
 		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
-		if (sharedcnt > 1 && no_ack && (CHANNEL_FLAG_DGRAM & channel->_.flag))
-			return 0;
 		packet = NULL;
 		for (off = i = 0; i < sharedcnt; ++i) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
 			unsigned int hdrsize = channel->on_hdrsize(channel, memsz);
-			packet = reactorpacketMake(no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT, hdrsize, memsz);
+			packet = reactorpacketMake(0, hdrsize, memsz);
 			if (!packet)
 				break;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
 		}
-		if (packet) {
-			packet->_.type = no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF;
-		}
-		else {
+		if (!packet) {
 			ListNode_t *next;
 			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
@@ -620,7 +611,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->_.flag))
 			return 1;
-		packet = reactorpacketMake(no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF, hdrsize, 0);
+		packet = reactorpacketMake(0, hdrsize, 0);
 		if (!packet)
 			return 0;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
@@ -630,7 +621,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 
 static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	channelSendFin(channel);
+	channelSendv(channel, NULL, 0, NETPACKET_FIN);
 }
 
 /*******************************************************************************/
@@ -666,44 +657,68 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 	return channel;
 }
 
-Channel_t* channelSendSyn(Channel_t* channel, const void* data, unsigned int len) {
-	if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
-		return channel;
-	if ((channel->_.flag & CHANNEL_FLAG_DGRAM) || channel->_.connected_times) {
-		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, len);
-		if (!packet) {
-			return NULL;
-		}
-		memcpy(packet->_.buf + hdrsize, data, len);
-		channelbaseSendPacket(&channel->_, packet);
-	}
-	return channel;
-}
-
-void channelSendFin(Channel_t* channel) {
-	if (_xchg32(&channel->m_has_sendfin, 1))
-		return;
-	else {
-		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
-		if (!packet)
-			return;
-		channelbaseSendPacket(&channel->_, packet);
-	}
-}
-
-Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int no_ack) {
+Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
 	Iobuf_t iov = iobufStaticInit(data, len);
-	return channelSendv(channel, &iov, 1, no_ack);
+	return channelSendv(channel, &iov, 1, pktype);
 }
 
-Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int no_ack) {
+Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+	ListNode_t* cur;
 	List_t packetlist;
-	if (channel->m_has_sendfin)
+	if (NETPACKET_SYN == pktype) {
+		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
+			return channel;
+		if (!(channel->_.flag & CHANNEL_FLAG_DGRAM) && 0 == channel->_.connected_times)
+			return channel;
+	}
+	else if (NETPACKET_FIN == pktype) {
+		if (_xchg32(&channel->m_has_sendfin, 1))
+			return channel;
+	}
+	else if (channel->m_has_sendfin)
+		return channel;
+
+	if (!channel_shared_data(channel, iov, iovcnt, &packetlist))
 		return NULL;
-	if (!channel_shared_data(channel, iov, iovcnt, no_ack, &packetlist))
-		return NULL;
+	switch (pktype) {
+		case NETPACKET_SYN:
+		case NETPACKET_SYN_ACK:
+		case NETPACKET_FIN:
+		case NETPACKET_ACK:
+		{
+			size_t cnt = 0;
+			for (cur = packetlist.head; cur; cur = cur->next) {
+				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
+				if (++cnt > 1) {
+					ListNode_t *next;
+					for (cur = packetlist.head; cur; cur = next) {
+						next = cur->next;
+						reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
+					}
+					return NULL;
+				}
+				packet->_.type = pktype;
+			}
+			break;
+		}
+		default:
+		{
+			ReactorPacket_t* packet = NULL;
+			int no_ack;
+			if (channel->_.flag & CHANNEL_FLAG_STREAM)
+				no_ack = 1;
+			else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER))
+				no_ack = 0;
+			else
+				no_ack = 1;
+			for (cur = packetlist.head; cur; cur = cur->next) {
+				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
+				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
+			}
+			if (packet)
+				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF);
+		}
+	}
 	channelbaseSendPacketList(&channel->_, &packetlist);
 	return channel;
 }
