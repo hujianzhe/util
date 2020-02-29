@@ -290,7 +290,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	if (0 == pktype) {
 		channel->on_recv(channel, from_saddr, &decode_result);
 	}
-	else {
+	else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER)) {
 		pkseq = decode_result.pkseq;
 		if (channel->_.flag & CHANNEL_FLAG_CLIENT)
 			from_listen = sockaddrIsEqual(&channel->_.connect_addr, from_saddr);
@@ -381,6 +381,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			channel->on_recv(channel, from_saddr, &decode_result);
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ)
 			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
+	}
+	else {
+		channel->on_recv(channel, from_saddr, &decode_result);
 	}
 	channel->m_heartbeat_times = 0;
 	channel_set_heartbeat_timestamp(channel, timestamp_msec);
