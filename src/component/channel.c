@@ -564,6 +564,8 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	listInit(packetlist);
 	if (channel->_.flag & CHANNEL_FLAG_STREAM)
 		no_ack = 1;
+	else if (!(channel->_.flag & CHANNEL_FLAG_CLIENT) && !(channel->_.flag & CHANNEL_FLAG_SERVER))
+		no_ack = 1;
 	if (nbytes) {
 		ListNode_t* cur;
 		unsigned int off, iov_i, iov_off;
