@@ -150,7 +150,11 @@ FD_t fdOpen(const char* path, int obit) {
 		dwDesiredAccess |= FILE_GENERIC_READ;
 	if (obit & FILE_WRITE_BIT) {
 		if (obit & FILE_APPEND_BIT)
-			dwDesiredAccess |= FILE_APPEND_DATA | SYNCHRONIZE;
+			dwDesiredAccess |=	STANDARD_RIGHTS_WRITE |
+								FILE_WRITE_ATTRIBUTES |
+								FILE_WRITE_EA |
+								FILE_APPEND_DATA |
+								SYNCHRONIZE;
 		else
 			dwDesiredAccess |= FILE_GENERIC_WRITE;
 	}
