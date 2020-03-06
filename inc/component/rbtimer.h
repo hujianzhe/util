@@ -18,6 +18,7 @@ typedef struct RBTimerEvent_t {
 
 typedef struct RBTimer_t {
 	char m_initok;
+	char m_uselock;
 	CriticalSection_t m_lock;
 	RBTree_t m_rbtree;
 } RBTimer_t;
@@ -26,7 +27,7 @@ typedef struct RBTimer_t {
 extern "C" {
 #endif
 
-__declspec_dll RBTimer_t* rbtimerInit(RBTimer_t* timer);
+__declspec_dll RBTimer_t* rbtimerInit(RBTimer_t* timer, BOOL uselock);
 __declspec_dll long long rbtimerMiniumTimestamp(RBTimer_t* timer);
 __declspec_dll int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e);
 __declspec_dll void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTimerEvent_t*));
