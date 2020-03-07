@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_DATASTRUCT_STRINGS_H
-#define	UTIL_C_DATASTRUCT_STRINGS_H
+#ifndef UTIL_C_DATASTRUCT_MEMFUNC_H
+#define	UTIL_C_DATASTRUCT_MEMFUNC_H
 
 #include "../compiler_define.h"
 
@@ -28,4 +28,4 @@ __declspec_dll int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n);
 }
 #endif
 
-#endif // !UTIL_C_DATASTRUCT_STRINGS_H
+#endif // !UTIL_C_DATASTRUCT_MEMFUNC_H

@@ -3,7 +3,7 @@
 //
 
 #include "../../inc/datastruct/hash.h"
-#include "../../inc/datastruct/strings.h"
+#include "../../inc/datastruct/memfunc.h"
 #include "../../inc/component/httpframe.h"
 #include <ctype.h>
 #include <stdio.h>

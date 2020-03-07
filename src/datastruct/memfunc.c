@@ -2,7 +2,7 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/datastruct/strings.h"
+#include "../../inc/datastruct/memfunc.h"
 
 #ifdef	__cplusplus
 extern "C" {

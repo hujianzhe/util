@@ -7,7 +7,7 @@
 #include "../../inc/component/websocketframe.h"
 #include "../../inc/datastruct/base64.h"
 #include "../../inc/datastruct/sha1.h"
-#include "../../inc/datastruct/strings.h"
+#include "../../inc/datastruct/memfunc.h"
 
 #ifdef __cplusplus
 extern "C" {
