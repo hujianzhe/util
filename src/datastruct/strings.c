@@ -18,10 +18,14 @@ void memSwap(void* p1, void* p2, ptrlen_t n) {
 	}
 }
 
-unsigned char* memByteFind(const void* p, ptrlen_t n, unsigned char b) {
+unsigned char* memSkipByte(const void* p, ptrlen_t n, const char* delim, ptrlen_t dn) {
 	const unsigned char* ptr = (const unsigned char*)p;
 	while (n--) {
-		if (*ptr == b)
+		ptrlen_t i = 0;
+		for (i = 0; i < dn; ++i)
+			if (*ptr == delim[i])
+				break;
+		if (i == dn)
 			return (unsigned char*)ptr;
 		++ptr;
 	}
