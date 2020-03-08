@@ -18,6 +18,21 @@ void memSwap(void* p1, void* p2, ptrlen_t n) {
 	}
 }
 
+void* memCopy(void* dst, const void* src, ptrlen_t n) {
+	if (n && dst != src) {
+		if (dst < src) {
+			ptrlen_t i;
+			for (i = 0; i < n; ++i)
+				((unsigned char*)dst)[i] = ((unsigned char*)src)[i];
+		}
+		else {
+			for (; n; --n)
+				((unsigned char*)dst)[n - 1] = ((unsigned char*)src)[n - 1];
+		}
+	}
+	return dst;
+}
+
 unsigned char* memSkipByte(const void* p, ptrlen_t n, const char* delim, ptrlen_t dn) {
 	const unsigned char* ptr = (const unsigned char*)p;
 	while (n--) {

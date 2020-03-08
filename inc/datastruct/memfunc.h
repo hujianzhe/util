@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 __declspec_dll void memSwap(void* p1, void* p2, ptrlen_t n);
+__declspec_dll void* memCopy(void* dst, const void* src, ptrlen_t n);
 __declspec_dll unsigned char* memSkipByte(const void* p, ptrlen_t n, const char* delim, ptrlen_t dn);
 __declspec_dll void* memZero(void* p, ptrlen_t n);
 __declspec_dll void* memReverse(void* s, ptrlen_t len);
