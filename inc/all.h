@@ -33,6 +33,7 @@
 #include "sysapi/mmap.h"
 #include "sysapi/process.h"
 #include "sysapi/socket.h"
+#include "sysapi/sprintf.h"
 #include "sysapi/statistics.h"
 #include "sysapi/terminal.h"
 #include "sysapi/time.h"

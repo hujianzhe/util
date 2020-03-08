@@ -22,7 +22,7 @@ __declspec_dll char* strSkipByte(const char* s, const char* delim);
 __declspec_dll char* strStr(const char* s1, ptrlen_t s1len, const char* s2, ptrlen_t s2len);
 __declspec_dll char* strSplit(char** s, const char* delim);
 __declspec_dll ptrlen_t strLenUtf8(const char* s, ptrlen_t s_bytelen);
-__declspec_dll int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n);
+__declspec_dll int strCmpNoCase(const char* s1, const char* s2, ptrlen_t n);
 
 #ifdef	__cplusplus
 }

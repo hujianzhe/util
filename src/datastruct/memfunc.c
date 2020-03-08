@@ -145,7 +145,7 @@ ptrlen_t strLenUtf8(const char* s, ptrlen_t s_bytelen) {
 	return u8_len;
 }
 
-static int alphabet_ignore_case_delta(const char c) {
+static int alphabet_no_case_delta(const char c) {
 	if (c >= 'a' && c <= 'z')
 		return c - 'a';
 	else if (c >= 'A' && c <= 'Z')
@@ -154,12 +154,12 @@ static int alphabet_ignore_case_delta(const char c) {
 		return c - 'a';
 }
 
-int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n) {
+int strCmpNoCase(const char* s1, const char* s2, ptrlen_t n) {
 	if (!n || !s1 || !s2)
 		return 0;
 	if (-1 != n) {
 		while (n-- && *s1) {
-			if (*s1 != *s2 && alphabet_ignore_case_delta(*s1) != alphabet_ignore_case_delta(*s2))
+			if (*s1 != *s2 && alphabet_no_case_delta(*s1) != alphabet_no_case_delta(*s2))
 				return *s1 - *s2;
 			++s1;
 			++s2;
@@ -167,7 +167,7 @@ int strCmpIgnoreCase(const char* s1, const char* s2, ptrlen_t n) {
 	}
 	else {
 		while (*s1) {
-			if (*s1 != *s2 && alphabet_ignore_case_delta(*s1) != alphabet_ignore_case_delta(*s2))
+			if (*s1 != *s2 && alphabet_no_case_delta(*s1) != alphabet_no_case_delta(*s2))
 				return *s1 - *s2;
 			++s1;
 			++s2;
