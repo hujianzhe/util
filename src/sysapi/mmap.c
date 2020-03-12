@@ -56,37 +56,37 @@ unsigned long long memorySize(void) {
 #endif
 }
 
-BOOL memoryCreateMapping(MemoryMapping_t* mm, FD_t fd, const char* name, size_t nbytes) {
-	if (fd != INVALID_FD_HANDLE) {
+BOOL memoryCreateFileMapping(MemoryMapping_t* mm, FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-		mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
-		return mm->__handle != NULL;
+	mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
+	return mm->__handle != NULL;
 #else
-		mm->__isref = 1;
-		mm->__fd = fd;
+	mm->__isref = 1;
+	mm->__fd = fd;
+	return TRUE;
 #endif
-	}
-	else {
+}
+
+BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
-		HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
-		if (GetLastError() == ERROR_ALREADY_EXISTS) {
-			assertTRUE(CloseHandle(handle));
-			return FALSE;
-		}
-		mm->__handle = handle;
-#else
-		int fd = open(name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-		if (-1 == fd) {
-			return FALSE;
-		}
-		if (ftruncate(fd, nbytes)) {
-			assertTRUE(close(fd) == 0);
-			return FALSE;
-		}
-		mm->__isref = 0;
-		mm->__fd = fd;
-#endif
+	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
+	if (GetLastError() == ERROR_ALREADY_EXISTS) {
+		assertTRUE(CloseHandle(handle));
+		return FALSE;
 	}
+	mm->__handle = handle;
+#else
+	int fd = open(name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+	if (-1 == fd) {
+		return FALSE;
+	}
+	if (ftruncate(fd, nbytes)) {
+		assertTRUE(close(fd) == 0);
+		return FALSE;
+	}
+	mm->__isref = 0;
+	mm->__fd = fd;
+#endif
 	return TRUE;
 }
 
@@ -137,7 +137,7 @@ BOOL memoryUnlinkMapping(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TRUE;
 #else
-	return unlink(name) == 0 || ENOENT == errno;;
+	return unlink(name) == 0 || ENOENT == errno;
 #endif
 }
 

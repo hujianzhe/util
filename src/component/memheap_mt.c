@@ -32,7 +32,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 			break;
 		ok = 1;
 		name_ext[namelen] = 0;
-		if (!memoryCreateMapping(&memheap->mm, INVALID_FD_HANDLE, strcat(name_ext, "mem"), len))
+		if (!memoryCreateMapping(&memheap->mm, strcat(name_ext, "mem"), len))
 			break;
 		ok = 2;
 		memheap->ptr = (struct MemHeap_t*)memoryDoMapping(&memheap->mm, NULL, 0, len);
