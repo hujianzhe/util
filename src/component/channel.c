@@ -543,8 +543,16 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 				continue;
 			}
 			if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
-				int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
-				channel_invalid(base, err);
+				if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
+					if (channel->on_heartbeat(channel, channel->heartbeat_maxtimes)) {
+						channel->m_heartbeat_times = 0;
+						channel_set_heartbeat_timestamp(channel, timestamp_msec);
+					}
+					else {
+						int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
+						channel_invalid(base, err);
+					}
+				}
 				return;
 			}
 			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
