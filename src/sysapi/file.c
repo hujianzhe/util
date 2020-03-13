@@ -226,6 +226,8 @@ FD_t fdOpen(const char* path, int obit) {
 		memcpy(new_path + pathlen, "XXXXXX", 6);
 		new_path[pathlen + 6] = 0;
 		fd = mkostemp(new_path, oflag);
+		if (fd >= 0)
+			unlink(new_path);
 		free(new_path);
 		return fd;
 	}
