@@ -217,7 +217,7 @@ FD_t fdOpen(const char* path, int obit) {
 		oflag |= O_ASYNC;
 #endif
 	if (obit & FILE_TEMP_BIT)
-		return mkostemp(path, oflag);
+		return mkostemp((char*)path, oflag);
 	else
 		return mode ? open(path, oflag, mode) : open(path, oflag);
 #endif
