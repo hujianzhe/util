@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/sysapi/file.h"
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -172,11 +173,15 @@ FD_t fdOpen(const char* path, int obit) {
 	else
 		dwCreationDisposition = OPEN_EXISTING;
 	//
-	if (obit & FILE_DSYNC_BIT)
-		dwFlagsAndAttributes |= FILE_FLAG_WRITE_THROUGH;
-	if (obit & FILE_ASYNC_BIT)
-		dwFlagsAndAttributes |= FILE_FLAG_OVERLAPPED;
-	dwFlagsAndAttributes |= FILE_ATTRIBUTE_NORMAL;
+	if (obit & FILE_TEMP_BIT)
+		dwFlagsAndAttributes |= FILE_FLAG_DELETE_ON_CLOSE | FILE_ATTRIBUTE_TEMPORARY;
+	else {
+		dwFlagsAndAttributes |= FILE_ATTRIBUTE_NORMAL;
+		if (obit & FILE_DSYNC_BIT)
+			dwFlagsAndAttributes |= FILE_FLAG_WRITE_THROUGH;
+		if (obit & FILE_ASYNC_BIT)
+			dwFlagsAndAttributes |= FILE_FLAG_OVERLAPPED;
+	}
 	//
 	return (FD_t)CreateFileA(
 		__win32_path(strcpy(szFullPath, path)), dwDesiredAccess,
@@ -211,8 +216,10 @@ FD_t fdOpen(const char* path, int obit) {
 	if (obit & FILE_ASYNC_BIT)
 		oflag |= O_ASYNC;
 #endif
-	//
-	return mode ? open(path, oflag, mode) : open(path, oflag);
+	if (obit & FILE_TEMP_BIT)
+		return mkostemp(path, oflag);
+	else
+		return mode ? open(path, oflag, mode) : open(path, oflag);
 #endif
 }
 

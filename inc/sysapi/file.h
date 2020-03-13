@@ -27,7 +27,8 @@ enum {
 	FILE_EXCL_BIT = 0x10,
 	FILE_TRUNC_BIT = 0x20,
 	FILE_DSYNC_BIT = 0x40,
-	FILE_ASYNC_BIT = 0x80
+	FILE_ASYNC_BIT = 0x80,
+	FILE_TEMP_BIT = 0x100
 };
 
 enum FDtype_t {
