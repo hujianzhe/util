@@ -775,6 +775,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			o = channel->o;
 			channel->disable_send = 0;
 			if (retpkg) {
+				retpkg->channel = channel;
 				reactor_packet_send_proc(reactor, retpkg, timestamp_msec);
 			}
 			cache_list = channel->m_cache_packet_list;
@@ -918,6 +919,10 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_REUSE_CMD == cmdnode->type) {
 		ReuseCmd_t* cmd = pod_container_of(cmdnode, ReuseCmd_t, _);
+		reactor = cmd->channel->reactor;
+	}
+	else if (REACTOR_REUSE_FINISH_CMD == cmdnode->type) {
+		ReuseFinishCmd_t* cmd = pod_container_of(cmdnode, ReuseFinishCmd_t, _);
 		reactor = cmd->channel->reactor;
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
