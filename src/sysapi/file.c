@@ -216,8 +216,19 @@ FD_t fdOpen(const char* path, int obit) {
 	if (obit & FILE_ASYNC_BIT)
 		oflag |= O_ASYNC;
 #endif
-	if (obit & FILE_TEMP_BIT)
-		return mkostemp((char*)path, oflag);
+	if (obit & FILE_TEMP_BIT) {
+		int fd;
+		size_t pathlen = strlen(path);
+		char* new_path = (char*)malloc(pathlen + 7);
+		if (!new_path)
+			return -1;
+		memcpy(new_path, path, pathlen);
+		memcpy(new_path + pathlen, "XXXXXX", 6);
+		new_path[pathlen + 6] = 0;
+		fd = mkostemp(new_path, oflag);
+		free(new_path);
+		return fd;
+	}
 	else
 		return mode ? open(path, oflag, mode) : open(path, oflag);
 #endif
