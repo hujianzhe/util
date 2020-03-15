@@ -627,6 +627,9 @@ static void reactor_dgram_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmdex, long
 
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		ReactorObject_t* o = channel->o;
+		if (~0 != channel->connected_times) {
+			++channel->connected_times;
+		}
 		channel->on_syn_ack(channel, timestamp_msec);
 		after_call_channel_interface(channel);
 		if (!o->m_valid) {

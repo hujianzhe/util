@@ -301,13 +301,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else
 			from_peer = sockaddrIsEqual(&channel->_.to_addr, from_saddr);
 
-		if (!from_peer && !from_listen) {
-			if (NETPACKET_SYN == pktype && (channel->_.flag & CHANNEL_FLAG_SERVER)) {
-				channel->on_recv(channel, from_saddr, &decode_result);
-			}
-			else {
+		if (NETPACKET_SYN == pktype) {
+			if (!(channel->_.flag & CHANNEL_FLAG_SERVER) || from_listen)
 				return 1;
-			}
+			channel->on_recv(channel, from_saddr, &decode_result);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
 			if (from_listen) {
@@ -327,7 +324,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				channel->dgram.on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr, sockaddrLength(&channel->_.to_addr));
 			}
-			else if (channel->dgram.m_synpacket) {
+			else if (from_peer && channel->dgram.m_synpacket) {
 				reactorpacketFree(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
 				if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
@@ -337,6 +334,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					return 1;
 				}
 			}
+		}
+		else if (!from_peer || from_listen) {
+			return 1;
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
 			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
