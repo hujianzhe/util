@@ -716,7 +716,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 			if (channel->_.flag & CHANNEL_FLAG_STREAM)
 				no_ack = 1;
 			else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER))
-				no_ack = 0;
+				no_ack = (pktype != NETPACKET_FRAGMENT && pktype != NETPACKET_FRAGMENT_EOF);
 			else
 				no_ack = 1;
 			for (cur = packetlist.head; cur; cur = cur->next) {
