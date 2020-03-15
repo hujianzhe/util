@@ -671,7 +671,7 @@ Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, i
 }
 
 Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
-	ListNode_t* cur;
+	ListNode_t* cur, *next;
 	List_t packetlist;
 	if (NETPACKET_SYN == pktype) {
 		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
@@ -698,7 +698,6 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 			for (cur = packetlist.head; cur; cur = cur->next) {
 				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				if (++cnt > 1) {
-					ListNode_t *next;
 					for (cur = packetlist.head; cur; cur = next) {
 						next = cur->next;
 						reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
@@ -709,7 +708,8 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 			}
 			break;
 		}
-		default:
+		case NETPACKET_NO_ACK_FRAGMENT:
+		case NETPACKET_FRAGMENT:
 		{
 			ReactorPacket_t* packet = NULL;
 			int no_ack;
@@ -725,6 +725,15 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 			}
 			if (packet)
 				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF);
+			break;
+		}
+		default:
+		{
+			for (cur = packetlist.head; cur; cur = next) {
+				next = cur->next;
+				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
+			}
+			return NULL;
 		}
 	}
 	channelbaseSendPacketList(&channel->_, &packetlist);
