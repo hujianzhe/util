@@ -572,16 +572,14 @@ static void reactor_stream_client_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmd
 	ChannelBase_t* src_channel;
 	ReactorObject_t* src_o;
 	ReactorObject_t* reconnect_o;
-	int sockaddrlen = sockaddrLength(&cmdex->toaddr);
-	if (sockaddrlen <= 0) {
-		return;
-	}
+	int sockaddrlen;
 	src_channel = cmdex->channel;
 	src_o = src_channel->o;
 	reconnect_o = reactorobject_dup(src_o);
 	if (!reconnect_o) {
 		return;
 	}
+	sockaddrlen = sockaddrLength(&cmdex->toaddr);
 	if (sockaddrlen > 0) {
 		memcpy(&src_channel->to_addr, &cmdex->toaddr, sockaddrlen);
 		memcpy(&reconnect_o->stream.m_connect_addr, &cmdex->toaddr, sockaddrlen);
