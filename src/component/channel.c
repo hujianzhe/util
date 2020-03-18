@@ -564,7 +564,7 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 	}
 }
 
-static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
@@ -592,7 +592,7 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
 			}
 			listInit(packetlist);
-			return 0;
+			return NULL;
 		}
 		iov_i = iov_off = 0;
 		for (cur = packetlist->head; cur; cur = cur->next) {
@@ -618,13 +618,13 @@ static int channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned
 	else {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
 		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->_.flag))
-			return 1;
+			return packetlist;
 		packet = reactorpacketMake(0, hdrsize, 0);
 		if (!packet)
-			return 0;
+			return NULL;
 		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 	}
-	return 1;
+	return packetlist;
 }
 
 static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
@@ -670,23 +670,9 @@ Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, i
 	return channelSendv(channel, &iov, 1, pktype);
 }
 
-Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
 	ListNode_t* cur, *next;
-	List_t packetlist;
-	if (NETPACKET_SYN == pktype) {
-		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
-			return channel;
-		if (!(channel->_.flag & CHANNEL_FLAG_DGRAM) && 0 == channel->_.connected_times)
-			return channel;
-	}
-	else if (NETPACKET_FIN == pktype) {
-		if (_xchg32(&channel->m_has_sendfin, 1))
-			return channel;
-	}
-	else if (channel->m_has_sendfin)
-		return channel;
-
-	if (!channel_shared_data(channel, iov, iovcnt, &packetlist))
+	if (!channel_shared_data(channel, iov, iovcnt, packetlist))
 		return NULL;
 	switch (pktype) {
 		case NETPACKET_SYN:
@@ -695,10 +681,10 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		case NETPACKET_ACK:
 		{
 			size_t cnt = 0;
-			for (cur = packetlist.head; cur; cur = cur->next) {
+			for (cur = packetlist->head; cur; cur = cur->next) {
 				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				if (++cnt > 1) {
-					for (cur = packetlist.head; cur; cur = next) {
+					for (cur = packetlist->head; cur; cur = next) {
 						next = cur->next;
 						reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
 					}
@@ -719,7 +705,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 				no_ack = (pktype != NETPACKET_FRAGMENT && pktype != NETPACKET_FRAGMENT_EOF);
 			else
 				no_ack = 1;
-			for (cur = packetlist.head; cur; cur = cur->next) {
+			for (cur = packetlist->head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
 			}
@@ -729,13 +715,33 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		}
 		default:
 		{
-			for (cur = packetlist.head; cur; cur = next) {
+			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
 				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
 			}
 			return NULL;
 		}
 	}
+	return packetlist;
+}
+
+Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+	List_t packetlist;
+	if (NETPACKET_SYN == pktype) {
+		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
+			return channel;
+		if (!(channel->_.flag & CHANNEL_FLAG_DGRAM) && 0 == channel->_.connected_times)
+			return channel;
+	}
+	else if (NETPACKET_FIN == pktype) {
+		if (_xchg32(&channel->m_has_sendfin, 1))
+			return channel;
+	}
+	else if (channel->m_has_sendfin)
+		return channel;
+
+	if (!channelSharedData(channel, iov, iovcnt, pktype, &packetlist))
+		return NULL;
 	channelbaseSendPacketList(&channel->_, &packetlist);
 	return channel;
 }
