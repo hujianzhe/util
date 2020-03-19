@@ -415,14 +415,12 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
 		packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
-		if (packet->_.hdrlen)
-			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		return 1;
 	}
 	else {
 		packet->_.seq = dgramtransportctxNextSendSeq(&channel->_.dgram_ctx, packet->_.type);
-		if (packet->_.hdrlen)
-			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
 		if (dgramtransportctxCacheSendPacket(&channel->_.dgram_ctx, &packet->_)) {
 			if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_))
 				return 0;
