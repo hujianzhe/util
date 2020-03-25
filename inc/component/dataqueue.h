@@ -25,8 +25,8 @@ __declspec_dll void dataqueuePush(DataQueue_t* dq, ListNode_t* data);
 __declspec_dll void dataqueuePushList(DataQueue_t* dq, List_t* list);
 __declspec_dll ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt);
 __declspec_dll void dataqueueWake(DataQueue_t* dq);
-__declspec_dll void dataqueueClean(DataQueue_t* dq, void(*deleter)(ListNode_t*));
-__declspec_dll void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(ListNode_t*));
+__declspec_dll ListNode_t* dataqueueClean(DataQueue_t* dq);
+__declspec_dll ListNode_t* dataqueueDestroy(DataQueue_t* dq);
 
 #ifdef __cplusplus
 }

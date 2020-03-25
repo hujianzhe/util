@@ -89,8 +89,7 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	return ok;
 }
 
-void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTimerEvent_t*)) {
-	ListNode_t *lcur, *lnext;
+ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec) {
 	RBTreeNode_t *rbcur, *rbnext;
 	List_t list;
 	listInit(&list);
@@ -111,17 +110,10 @@ void rbtimerCall(RBTimer_t* timer, long long timestamp_msec, void(*deleter)(RBTi
 	if (timer->m_uselock)
 		criticalsectionLeave(&timer->m_lock);
 
-	for (lcur = list.head; lcur; lcur = lnext) {
-		RBTimerEvent_t* e = pod_container_of(lcur, RBTimerEvent_t, m_listnode);
-		lnext = lcur->next;
-		if (e->callback(e, e->arg))
-			rbtimerAddEvent(timer, e);
-		else if (deleter)
-			deleter(e);
-	}
+	return list.head;
 }
 
-void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*)) {
+ListNode_t* rbtimerClean(RBTimer_t* timer) {
 	RBTreeNode_t *rbcur, *rbnext;
 	List_t list;
 	listInit(&list);
@@ -140,21 +132,17 @@ void rbtimerClean(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*)) {
 	if (timer->m_uselock)
 		criticalsectionLeave(&timer->m_lock);
 
-	if (deleter) {
-		ListNode_t *cur, *next;
-		for (cur = list.head; cur; cur = next) {
-			next = cur->next;
-			deleter(pod_container_of(cur, RBTimerEvent_t, m_listnode));
-		}
-	}
+	return list.head;
 }
 
-void rbtimerDestroy(RBTimer_t* timer, void(*deleter)(RBTimerEvent_t*)) {
+ListNode_t* rbtimerDestroy(RBTimer_t* timer) {
 	if (timer && timer->m_initok) {
-		rbtimerClean(timer, deleter);
+		ListNode_t* head = rbtimerClean(timer);
 		if (timer->m_uselock)
 			criticalsectionClose(&timer->m_lock);
+		return head;
 	}
+	return NULL;
 }
 
 #ifdef __cplusplus

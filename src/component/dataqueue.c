@@ -99,28 +99,28 @@ void dataqueueWake(DataQueue_t* dq) {
 	conditionvariableSignal(&dq->m_condition);
 }
 
-void dataqueueClean(DataQueue_t* dq, void(*deleter)(ListNode_t*)) {
+ListNode_t* dataqueueClean(DataQueue_t* dq) {
+	List_t list;
+	listInit(&list);
+
 	criticalsectionEnter(&dq->m_cslock);
 
-	if (deleter) {
-		ListNode_t* cur;
-		for (cur = dq->m_datalist.head; cur; ) {
-			ListNode_t* next = cur->next;
-			deleter(cur);
-			cur = next;
-		}
-	}
+	list = dq->m_datalist;
 	listInit(&dq->m_datalist);
 
 	criticalsectionLeave(&dq->m_cslock);
+
+	return list.head;
 }
 
-void dataqueueDestroy(DataQueue_t* dq, void(*deleter)(ListNode_t*)) {
+ListNode_t* dataqueueDestroy(DataQueue_t* dq) {
 	if (dq && dq->m_initok) {
-		dataqueueClean(dq, deleter);
+		ListNode_t* head = dataqueueClean(dq);
 		criticalsectionClose(&dq->m_cslock);
 		conditionvariableClose(&dq->m_condition);
+		return head;
 	}
+	return NULL;
 }
 
 #ifdef __cplusplus
