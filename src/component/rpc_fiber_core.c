@@ -4,6 +4,7 @@
 
 #include "../../inc/component/rpc_fiber_core.h"
 #include "../../inc/sysapi/time.h"
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
