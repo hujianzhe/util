@@ -26,6 +26,7 @@
 				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
+				rpc_fiber_core		一组协程调度的消息处理接口  
 			datastruct/  
 				base64				提供base64编解码接口  
 				bstree				类型无关的二叉搜索树  
