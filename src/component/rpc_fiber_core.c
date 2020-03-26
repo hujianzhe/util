@@ -81,7 +81,7 @@ void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	}
 }
 
-RpcItem_t* rpcFiberCoreWaitReturn(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec) {
+RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec) {
 	RpcItem_t* rpc_item = rpc_reg_item(rpc, rpcid, timeout_msec);
 	if (rpc_item) {
 		fiberSwitch(rpc->fiber, rpc->sche_fiber);

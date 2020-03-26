@@ -35,9 +35,9 @@ void RpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid);
 void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 
-RpcItem_t* rpcFiberCoreWaitReturn(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec);
-
+RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec);
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
+
 void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg);
 void rpcFiberCoreDisconnectHandleSwitch(RpcFiberCore_t* rpc, void* disconnect_cmd);
 
