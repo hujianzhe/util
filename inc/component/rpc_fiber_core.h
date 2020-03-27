@@ -30,7 +30,7 @@ extern "C" {
 #endif
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
-void RpcFiberCoreDestroy(RpcFiberCore_t* rpc);
+void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 
 RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid);
 void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item);

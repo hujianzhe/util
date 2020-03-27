@@ -65,7 +65,7 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	return rpc;
 }
 
-void RpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
+void rpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
 	fiberFree(rpc->fiber);
 }
 
