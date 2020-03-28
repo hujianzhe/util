@@ -13,7 +13,8 @@ typedef struct RpcItem_t {
 	int id;
 	long long timestamp_msec;
 	long long timeout_msec;
-	void* req_ctx;
+	void* async_req_arg;
+	void(*async_callback)(struct RpcItem_t*);
 	void* ret_msg;
 } RpcItem_t;
 
@@ -36,9 +37,10 @@ extern "C" {
 
 RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_ctx);
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
 RpcItem_t* rpcAsyncCoreExistItem(RpcAsyncCore_t* rpc, int rpcid);
 void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
+RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg);
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
 void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);

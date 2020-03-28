@@ -23,7 +23,8 @@ static RpcItem_t* rpc_reg_item(RBTree_t* rpc_reg_tree, int rpcid, long long time
 		item->id = rpcid;
 		item->timestamp_msec = gmtimeMillisecond();
 		item->timeout_msec = timeout_msec;
-		item->req_ctx = NULL;
+		item->async_req_arg = NULL;
+		item->async_callback = NULL;
 		item->ret_msg = NULL;
 	}
 	return item;
@@ -44,10 +45,11 @@ void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc) {
 	// TODO
 }
 
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_ctx) {
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_arg, void(*callback)(RpcItem_t*)) {
 	RpcItem_t* rpc_item = rpc_reg_item(&rpc->reg_tree, rpcid, timeout_msec);
 	if (rpc_item) {
-		rpc_item->req_ctx = req_ctx;
+		rpc_item->async_req_arg = req_arg;
+		rpc_item->async_callback = callback;
 	}
 	return rpc_item;
 }
@@ -59,9 +61,19 @@ RpcItem_t* rpcAsyncCoreExistItem(RpcAsyncCore_t* rpc, int rpcid) {
 
 void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 	if (item) {
-		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
+		// TODO
 		free(item);
 	}
+}
+
+RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
+	RpcItem_t* item = rpcAsyncCoreExistItem(rpc, rpcid);
+	if (item) {
+		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
+		item->ret_msg = ret_msg;
+		item->async_callback(item);
+	}
+	return item;
 }
 
 /*****************************************************************************************/
