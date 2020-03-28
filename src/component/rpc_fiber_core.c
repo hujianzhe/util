@@ -122,7 +122,7 @@ RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid) {
 
 void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item) {
-		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
+		// TODO 
 		free(item);
 	}
 }
@@ -147,6 +147,7 @@ RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long time
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpcFiberCoreExistItem(rpc, rpcid);
 	if (item) {
+		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
 		item->ret_msg = ret_msg;
 		fiberSwitch(rpc->sche_fiber, rpc->fiber);
 		return 1;
