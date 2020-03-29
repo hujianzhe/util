@@ -42,6 +42,15 @@ static int __keycmp(const void* node_key, const void* key) {
 
 /*****************************************************************************************/
 
+RpcItem_t* rpcAsyncItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*)) {
+	item->id = rpcid;
+	item->timeout_msec = timeout_msec;
+	item->async_req_arg = req_arg;
+	item->async_callback = ret_callback;
+	item->ret_msg = NULL;
+	return item;
+}
+
 RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc) {
 	rbtreeInit(&rpc->reg_tree, __keycmp);
 	return rpc;
@@ -107,6 +116,15 @@ static void RpcFiberProcEntry(Fiber_t* fiber) {
 		fiberSwitch(fiber, rpc->sche_fiber);
 	}
 	fiberSwitch(fiber, rpc->sche_fiber);
+}
+
+RpcItem_t* rpcFiberItemSet(RpcItem_t* item, int rpcid, long long timeout_msec) {
+	item->id = rpcid;
+	item->timeout_msec = timeout_msec;
+	item->async_req_arg = NULL;
+	item->async_callback = NULL;
+	item->ret_msg = NULL;
+	return item;
 }
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size) {

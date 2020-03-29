@@ -36,6 +36,9 @@ typedef struct RpcAsyncCore_t {
 extern "C" {
 #endif
 
+RpcItem_t* rpcAsyncItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
+RpcItem_t* rpcFiberItemSet(RpcItem_t* item, int rpcid, long long timeout_msec);
+
 RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
 RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
