@@ -10,6 +10,7 @@
 
 typedef struct RpcItem_t {
 	RBTreeNode_t m_treenode;
+	char m_has_reg;
 	int id;
 	long long timestamp_msec;
 	long long timeout_msec;
@@ -39,12 +40,14 @@ RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
 RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
 RpcItem_t* rpcAsyncCoreExistItem(RpcAsyncCore_t* rpc, int rpcid);
+RpcItem_t* rpcAsyncCoreRemoveItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
 void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg);
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
 void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid);
+RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec);
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);

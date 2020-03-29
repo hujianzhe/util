@@ -20,6 +20,7 @@ static RpcItem_t* rpc_reg_item(RBTree_t* rpc_reg_tree, int rpcid, long long time
 			free(item);
 			return NULL;
 		}
+		item->m_has_reg = 1;
 		item->id = rpcid;
 		item->timestamp_msec = gmtimeMillisecond();
 		item->timeout_msec = timeout_msec;
@@ -28,6 +29,11 @@ static RpcItem_t* rpc_reg_item(RBTree_t* rpc_reg_tree, int rpcid, long long time
 		item->ret_msg = NULL;
 	}
 	return item;
+}
+
+static void rpc_remove_node(RBTree_t* rpc_reg_tree, RpcItem_t* item) {
+	rbtreeRemoveNode(rpc_reg_tree, &item->m_treenode);
+	item->m_has_reg = 0;
 }
 
 static int __keycmp(const void* node_key, const void* key) {
@@ -59,9 +65,16 @@ RpcItem_t* rpcAsyncCoreExistItem(RpcAsyncCore_t* rpc, int rpcid) {
 	return node ? pod_container_of(node, RpcItem_t, m_treenode) : NULL;
 }
 
+RpcItem_t* rpcAsyncCoreRemoveItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
+	if (item->m_has_reg) {
+		rpc_remove_node(&rpc->reg_tree, item);
+	}
+	return item;
+}
+
 void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 	if (item) {
-		// TODO
+		rpcAsyncCoreRemoveItem(rpc, item);
 		free(item);
 	}
 }
@@ -69,7 +82,7 @@ void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpcAsyncCoreExistItem(rpc, rpcid);
 	if (item) {
-		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
+		rpc_remove_node(&rpc->reg_tree, item);
 		item->ret_msg = ret_msg;
 		item->async_callback(item);
 	}
@@ -120,9 +133,16 @@ RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid) {
 	return node ? pod_container_of(node, RpcItem_t, m_treenode) : NULL;
 }
 
+RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
+	if (item->m_has_reg) {
+		rpc_remove_node(&rpc->reg_tree, item);
+	}
+	return item;
+}
+
 void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item) {
-		// TODO 
+		rpcFiberCoreRemoveItem(rpc, item);
 		free(item);
 	}
 }
@@ -147,7 +167,7 @@ RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long time
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpcFiberCoreExistItem(rpc, rpcid);
 	if (item) {
-		rbtreeRemoveNode(&rpc->reg_tree, &item->m_treenode);
+		rpc_remove_node(&rpc->reg_tree, item);
 		item->ret_msg = ret_msg;
 		fiberSwitch(rpc->sche_fiber, rpc->fiber);
 		return 1;
