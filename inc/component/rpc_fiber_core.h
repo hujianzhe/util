@@ -36,23 +36,19 @@ typedef struct RpcAsyncCore_t {
 extern "C" {
 #endif
 
-RpcItem_t* rpcAsyncItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
-RpcItem_t* rpcFiberItemSet(RpcItem_t* item, int rpcid, long long timeout_msec);
+RpcItem_t* rpcItemInit(RpcItem_t* item, int rpcid);
 
 RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, int rpcid, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
-RpcItem_t* rpcAsyncCoreExistItem(RpcAsyncCore_t* rpc, int rpcid);
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*));
 RpcItem_t* rpcAsyncCoreRemoveItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
-void rpcAsyncCoreFreeItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg);
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
 void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
-RpcItem_t* rpcFiberCoreExistItem(RpcFiberCore_t* rpc, int rpcid);
+RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, long long timeout_msec);
 RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item);
-void rpcFiberCoreFreeItem(RpcFiberCore_t* rpc, RpcItem_t* item);
-RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, int rpcid, long long timeout_msec);
+RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, RpcItem_t* item);
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
 void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg);
 void rpcFiberCoreDisconnectHandleSwitch(RpcFiberCore_t* rpc, void* disconnect_cmd);
