@@ -49,7 +49,7 @@
 #include "component/memheap_mt.h"
 #include "component/rbtimer.h"
 #include "component/reactor.h"
-#include "component/rpc_fiber_core.h"
+#include "component/rpc_core.h"
 #include "component/websocketframe.h"
 
 #endif

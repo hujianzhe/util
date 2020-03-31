@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_COMPONENT_RPC_FIBER_CORE_H
-#define	UTIL_C_COMPONENT_RPC_FIBER_CORE_H
+#ifndef UTIL_C_COMPONENT_RPC_CORE_H
+#define	UTIL_C_COMPONENT_RPC_CORE_H
 
 #include "../datastruct/rbtree.h"
 #include "../sysapi/process.h"
@@ -57,4 +57,4 @@ void rpcFiberCoreDisconnectHandleSwitch(RpcFiberCore_t* rpc, void* disconnect_cm
 }
 #endif
 
-#endif // !UTIL_C_COMPONENT_RPC_FIBER_CORE_H
+#endif // !UTIL_C_COMPONENT_RPC_CORE_H
