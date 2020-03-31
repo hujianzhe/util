@@ -30,6 +30,7 @@ extern "C" {
 __declspec_dll RBTimer_t* rbtimerInit(RBTimer_t* timer, BOOL uselock);
 __declspec_dll long long rbtimerMiniumTimestamp(RBTimer_t* timer);
 __declspec_dll int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e);
+__declspec_dll void rbtimerDelEvent(RBTimer_t* timer, RBTimerEvent_t* e);
 __declspec_dll ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec);
 __declspec_dll ListNode_t* rbtimerClean(RBTimer_t* timer);
 __declspec_dll ListNode_t* rbtimerDestroy(RBTimer_t* timer);

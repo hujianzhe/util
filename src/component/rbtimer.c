@@ -89,6 +89,35 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	return ok;
 }
 
+void rbtimerDelEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
+	int need_free;
+	RBTimerEvList* evlist;
+	RBTreeNode_t* exist_node;
+
+	if (timer->m_uselock)
+		criticalsectionEnter(&timer->m_lock);
+
+	exist_node = rbtreeSearchKey(&timer->m_rbtree, &e->timestamp_msec);
+	if (exist_node) {
+		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
+		listRemoveNode(&evlist->m_list, &e->m_listnode);
+		if (evlist->m_list.head)
+			need_free = 0;
+		else {
+			rbtreeRemoveNode(&timer->m_rbtree, exist_node);
+			need_free = 1;
+		}
+	}
+	else
+		need_free = 0;
+
+	if (timer->m_uselock)
+		criticalsectionLeave(&timer->m_lock);
+
+	if (need_free)
+		free(evlist);
+}
+
 ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec) {
 	RBTreeNode_t *rbcur, *rbnext;
 	List_t list;
