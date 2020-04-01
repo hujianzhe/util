@@ -75,6 +75,7 @@ ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 		assertTRUE(errnoGet() == ETIMEDOUT);
 		break;
 	}
+	dq->m_forcewakeup = 1;
 
 	res = dq->m_datalist.head;
 	if (~0 == expect_cnt) {
