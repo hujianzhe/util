@@ -6,13 +6,14 @@
 #define	UTIL_C_COMPONENT_DATAQUEUE_H
 
 #include "../datastruct/list.h"
+#include "../sysapi/atomic.h"
 #include "../sysapi/ipc.h"
 
 typedef struct DataQueue_t {
 	CriticalSection_t m_cslock;
 	ConditionVariable_t m_condition;
 	List_t m_datalist;
-	volatile char m_forcewakeup;
+	Atom8_t m_forcewakeup;
 	char m_initok;
 } DataQueue_t;
 
