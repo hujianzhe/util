@@ -23,7 +23,7 @@ extern "C" {
 __declspec_dll DataQueue_t* dataqueueInit(DataQueue_t* dq);
 __declspec_dll void dataqueuePush(DataQueue_t* dq, ListNode_t* data);
 __declspec_dll void dataqueuePushList(DataQueue_t* dq, List_t* list);
-__declspec_dll ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt);
+__declspec_dll ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt);
 __declspec_dll void dataqueueWake(DataQueue_t* dq);
 __declspec_dll ListNode_t* dataqueueClean(DataQueue_t* dq);
 __declspec_dll ListNode_t* dataqueueDestroy(DataQueue_t* dq);

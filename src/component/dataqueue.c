@@ -59,7 +59,7 @@ void dataqueuePushList(DataQueue_t* dq, List_t* list) {
 	criticalsectionLeave(&dq->m_cslock);
 }
 
-ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
+ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 	ListNode_t* res;
 	if (0 == expect_cnt) {
 		return NULL;
@@ -95,8 +95,11 @@ ListNode_t* dataqueuePop(DataQueue_t* dq, int msec, size_t expect_cnt) {
 }
 
 void dataqueueWake(DataQueue_t* dq) {
-	dq->m_forcewakeup = 1;
-	conditionvariableSignal(&dq->m_condition);
+	if (criticalsectionTryEnter(&dq->m_cslock)) {
+		dq->m_forcewakeup = 1;
+		conditionvariableSignal(&dq->m_condition);
+		criticalsectionLeave(&dq->m_cslock);
+	}
 }
 
 ListNode_t* dataqueueClean(DataQueue_t* dq) {
