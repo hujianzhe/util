@@ -44,6 +44,8 @@ __declspec_dll struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node);
 __declspec_dll struct RBTreeNode_t* rbtreeFirstNode(const struct RBTree_t* root);
 __declspec_dll struct RBTreeNode_t* rbtreeLastNode(const struct RBTree_t* root);
 
+__declspec_dll void rbtreeSwap(struct RBTree_t* root1, struct RBTree_t* root2);
+
 #ifdef	__cplusplus
 }
 #endif

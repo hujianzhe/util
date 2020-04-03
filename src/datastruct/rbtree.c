@@ -493,6 +493,20 @@ struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node)
 	return parent;
 }
 
+void rbtreeSwap(struct RBTree_t* root1, struct RBTree_t* root2)
+{
+	struct RBTree_t temp_root1 = *root1;
+	struct RBTreeNode_t *cur;
+	for (cur = rbtreeFirstNode(root1); cur; cur = rbtreeNextNode(cur)) {
+		cur->rb_tree = root2;
+	}
+	for (cur = rbtreeFirstNode(root2); cur; cur = rbtreeNextNode(cur)) {
+		cur->rb_tree = root1;
+	}
+	*root1 = *root2;
+	*root2 = temp_root1;
+}
+
 #ifdef	__cplusplus
 }
 #endif
