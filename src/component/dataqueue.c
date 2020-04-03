@@ -20,7 +20,7 @@ DataQueue_t* dataqueueInit(DataQueue_t* dq) {
 		return NULL;
 	}
 	listInit(&dq->m_datalist);
-	dq->m_forcewakeup = 0;
+	dq->m_wakeup = 0;
 	dq->m_initok = 1;
 	return dq;
 }
@@ -67,14 +67,13 @@ ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 
 	criticalsectionEnter(&dq->m_cslock);
 
-	while (!dq->m_datalist.head && !dq->m_forcewakeup) {
+	while (!dq->m_datalist.head && !_xchg8(&dq->m_wakeup, 0)) {
 		if (conditionvariableWait(&dq->m_condition, &dq->m_cslock, msec)) {
 			continue;
 		}
 		assertTRUE(errnoGet() == ETIMEDOUT);
 		break;
 	}
-	dq->m_forcewakeup = 0;
 
 	res = dq->m_datalist.head;
 	if (~0 == expect_cnt) {
@@ -95,8 +94,9 @@ ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 }
 
 void dataqueueWake(DataQueue_t* dq) {
+	if (_xchg8(&dq->m_wakeup, 1))
+		return;
 	criticalsectionEnter(&dq->m_cslock);
-	dq->m_forcewakeup = 1;
 	conditionvariableSignal(&dq->m_condition);
 	criticalsectionLeave(&dq->m_cslock);
 }

@@ -13,7 +13,7 @@ typedef struct DataQueue_t {
 	CriticalSection_t m_cslock;
 	ConditionVariable_t m_condition;
 	List_t m_datalist;
-	Atom8_t m_forcewakeup;
+	Atom8_t m_wakeup;
 	char m_initok;
 } DataQueue_t;
 
