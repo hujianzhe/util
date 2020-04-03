@@ -89,11 +89,6 @@ static void RpcFiberProcEntry(Fiber_t* fiber) {
 			rpc->new_msg = NULL;
 			rpc->msg_handler(rpc, msg);
 		}
-		if (rpc->disconnect_cmd) {
-			void* msg = rpc->disconnect_cmd;
-			rpc->disconnect_cmd = NULL;
-			rpc->msg_handler(rpc, msg);
-		}
 		fiberSwitch(fiber, rpc->sche_fiber);
 	}
 	fiberSwitch(fiber, rpc->sche_fiber);
@@ -108,7 +103,6 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	rpc->fiber->arg = rpc;
 	rpc->sche_fiber = sche_fiber;
 	rpc->new_msg = NULL;
-	rpc->disconnect_cmd = NULL;
 	rpc->msg_handler = NULL;
 	rbtreeInit(&rpc->reg_tree, __keycmp);
 	return rpc;
@@ -139,9 +133,6 @@ RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, RpcItem_t* item) {
 		void* msg = rpc->new_msg;
 		rpc->new_msg = NULL;
 		rpc->msg_handler(rpc, msg);
-		if (rpc->disconnect_cmd) {
-			break;
-		}
 		fiberSwitch(rpc->fiber, rpc->sche_fiber);
 	}
 	return item;
@@ -160,11 +151,6 @@ int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 
 void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg) {
 	rpc->new_msg = new_msg;
-	fiberSwitch(rpc->sche_fiber, rpc->fiber);
-}
-
-void rpcFiberCoreDisconnectHandleSwitch(RpcFiberCore_t* rpc, void* disconnect_cmd) {
-	rpc->disconnect_cmd = disconnect_cmd;
 	fiberSwitch(rpc->sche_fiber, rpc->fiber);
 }
 

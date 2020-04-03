@@ -24,7 +24,6 @@ typedef struct RpcFiberCore_t {
 	Fiber_t* sche_fiber;
 	RBTree_t reg_tree;
 	void* new_msg;
-	void* disconnect_cmd;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
 } RpcFiberCore_t;
 
@@ -51,7 +50,6 @@ RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, RpcItem_t* item);
 int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
 void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg);
-void rpcFiberCoreDisconnectHandleSwitch(RpcFiberCore_t* rpc, void* disconnect_cmd);
 
 #ifdef __cplusplus
 }
