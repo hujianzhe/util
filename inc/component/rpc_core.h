@@ -24,6 +24,7 @@ typedef struct RpcFiberCore_t {
 	Fiber_t* msg_fiber;
 	Fiber_t* cur_fiber;
 	Fiber_t* sche_fiber;
+	int ret_flag;
 	RBTree_t reg_tree;
 	size_t stack_size;
 	void* new_msg;
@@ -51,7 +52,7 @@ void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, long long timeout_msec);
 RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, RpcItem_t* item);
-int rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
+RpcItem_t* rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
 void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg);
 
 #ifdef __cplusplus
