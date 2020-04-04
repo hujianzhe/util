@@ -16,13 +16,16 @@ typedef struct RpcItem_t {
 	long long timeout_msec;
 	void* async_req_arg;
 	void(*async_callback)(struct RpcItem_t*);
+	Fiber_t* fiber;
 	void* ret_msg;
 } RpcItem_t;
 
 typedef struct RpcFiberCore_t {
-	Fiber_t* fiber;
+	Fiber_t* msg_fiber;
+	Fiber_t* cur_fiber;
 	Fiber_t* sche_fiber;
 	RBTree_t reg_tree;
+	size_t stack_size;
 	void* new_msg;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
 } RpcFiberCore_t;
