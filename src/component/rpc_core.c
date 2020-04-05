@@ -33,9 +33,10 @@ static int __keycmp(const void* node_key, const void* key) {
 	return ((int)(size_t)node_key) - (int)((size_t)key);
 }
 
-RpcItem_t* rpcItemInit(RpcItem_t* item, int rpcid) {
+RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec) {
 	item->m_treenode.key = (const void*)(size_t)rpcid;
 	item->m_has_reg = 0;
+	item->timeout_msec = timeout_msec;
 	item->id = rpcid;
 	item->ret_msg = NULL;
 	item->fiber = NULL;
@@ -53,9 +54,8 @@ void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc) {
 	// TODO
 }
 
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, long long timeout_msec, void* req_arg, void(*ret_callback)(RpcItem_t*)) {
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcItem_t*)) {
 	if (rpc_reg_item(&rpc->reg_tree, item)) {
-		item->timeout_msec = timeout_msec;
 		item->async_req_arg = req_arg;
 		item->async_callback = ret_callback;
 		return item;
@@ -118,13 +118,11 @@ void rpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
 	fiberFree(rpc->msg_fiber);
 }
 
-RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, long long timeout_msec) {
+RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (rpc->cur_fiber == rpc->sche_fiber)
 		return NULL;
-	if (rpc_reg_item(&rpc->reg_tree, item)) {
-		item->timeout_msec = timeout_msec;
+	if (rpc_reg_item(&rpc->reg_tree, item))
 		return item;
-	}
 	return NULL;
 }
 
