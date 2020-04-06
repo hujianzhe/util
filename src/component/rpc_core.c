@@ -109,6 +109,7 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	rpc->ret_flag = 0;
 	rpc->stack_size = stack_size;
 	rpc->new_msg = NULL;
+	rpc->reply_item = NULL;
 	rpc->msg_handler = NULL;
 	rbtreeInit(&rpc->reg_tree, __keycmp);
 	return rpc;
@@ -121,9 +122,19 @@ void rpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
 RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (rpc->cur_fiber == rpc->sche_fiber)
 		return NULL;
-	if (rpc_reg_item(&rpc->reg_tree, item))
-		return item;
-	return NULL;
+	if (!rpc_reg_item(&rpc->reg_tree, item))
+		return NULL;
+	if (rpc->cur_fiber == rpc->msg_fiber) {
+		Fiber_t* new_fiber = fiberCreate(rpc->sche_fiber, rpc->stack_size, RpcFiberProcEntry);
+		if (!new_fiber) {
+			rpc_remove_node(&rpc->reg_tree, item);
+			return NULL;
+		}
+		new_fiber->arg = rpc;
+		rpc->msg_fiber = new_fiber;
+	}
+	item->fiber = rpc->cur_fiber;
+	return item;
 }
 
 RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
@@ -135,30 +146,24 @@ RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	return item;
 }
 
-RpcItem_t* rpcFiberCoreReturnWait(RpcFiberCore_t* rpc, RpcItem_t* item) {
-	if (rpc->msg_fiber == rpc->cur_fiber) {
-		Fiber_t* new_fiber = fiberCreate(rpc->sche_fiber, rpc->stack_size, RpcFiberProcEntry);
-		if (!new_fiber)
-			return NULL;
-		new_fiber->arg = rpc;
-		item->fiber = rpc->msg_fiber;
-		rpc->msg_fiber = new_fiber;
-	}
-	else {
-		item->fiber = rpc->cur_fiber;
-	}
-	fiberSwitch(item->fiber, rpc->sche_fiber);
-	rpc->cur_fiber = item->fiber;
-	return item;
+RpcItem_t* rpcFiberCoreYield(RpcFiberCore_t* rpc) {
+	fiberSwitch(rpc->cur_fiber, rpc->sche_fiber);
+	if (rpc->reply_item)
+		rpc->cur_fiber = rpc->reply_item->fiber;
+	else
+		rpc->cur_fiber = rpc->msg_fiber;
+	return rpc->reply_item;
 }
 
-RpcItem_t* rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
+RpcItem_t* rpcFiberCoreResume(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpc_get_item(&rpc->reg_tree, rpcid);
 	if (item) {
 		rpc_remove_node(&rpc->reg_tree, item);
 		item->ret_msg = ret_msg;
+		rpc->reply_item = item;
 		fiberSwitch(rpc->sche_fiber, item->fiber);
 		rpc->cur_fiber = rpc->sche_fiber;
+		rpc->reply_item = NULL;
 		if (rpc->ret_flag) {
 			fiberFree(item->fiber);
 			item->fiber = NULL;
@@ -168,7 +173,7 @@ RpcItem_t* rpcFiberCoreReturnSwitch(RpcFiberCore_t* rpc, int rpcid, void* ret_ms
 	return item;
 }
 
-void rpcFiberCoreMessageHandleSwitch(RpcFiberCore_t* rpc, void* new_msg) {
+void rpcFiberCoreResumeMsg(RpcFiberCore_t* rpc, void* new_msg) {
 	rpc->new_msg = new_msg;
 	fiberSwitch(rpc->sche_fiber, rpc->msg_fiber);
 	rpc->cur_fiber = rpc->sche_fiber;
