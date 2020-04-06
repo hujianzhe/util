@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/component/rpc_core.h"
+#include "../../inc/sysapi/atomic.h"
 #include "../../inc/sysapi/time.h"
 #include <stdlib.h>
 
@@ -31,6 +32,14 @@ static void rpc_remove_node(RBTree_t* rpc_reg_tree, RpcItem_t* item) {
 
 static int __keycmp(const void* node_key, const void* key) {
 	return ((int)(size_t)node_key) - (int)((size_t)key);
+}
+
+/*****************************************************************************************/
+static Atom32_t RPCID = 0;
+int rpcGenId(void) {
+	int id;
+	while (0 == (id = _xadd32(&RPCID, 1) + 1));
+	return id;
 }
 
 RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec) {
