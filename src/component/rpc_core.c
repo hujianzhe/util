@@ -35,6 +35,7 @@ static int __keycmp(const void* node_key, const void* key) {
 }
 
 /*****************************************************************************************/
+
 static Atom32_t RPCID = 0;
 int rpcGenId(void) {
 	int id;
@@ -146,6 +147,7 @@ RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	return item;
 }
 
+/*
 RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
 		rpc_remove_node(&rpc->reg_tree, item);
@@ -154,6 +156,7 @@ RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	}
 	return item;
 }
+*/
 
 RpcItem_t* rpcFiberCoreYield(RpcFiberCore_t* rpc) {
 	fiberSwitch(rpc->cur_fiber, rpc->sche_fiber);

@@ -52,7 +52,6 @@ __declspec_dll RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, v
 __declspec_dll RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
 __declspec_dll void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 __declspec_dll RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item);
-__declspec_dll RpcItem_t* rpcFiberCoreRemoveItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 __declspec_dll RpcItem_t* rpcFiberCoreYield(RpcFiberCore_t* rpc);
 __declspec_dll RpcItem_t* rpcFiberCoreResume(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
 __declspec_dll void rpcFiberCoreResumeMsg(RpcFiberCore_t* rpc, void* new_msg);
