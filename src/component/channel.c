@@ -562,28 +562,6 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 	}
 }
 
-static unsigned int iovSplit(const Iobuf_t iov[], unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, const void* split_buf, unsigned int split_sz) {
-	unsigned int off = 0;
-	unsigned char* buf = (unsigned char*)split_buf;
-	while (*iov_i < iovcnt) {
-		unsigned int leftsize = split_sz - off;
-		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
-		unsigned int iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
-		if (iovleftsize > leftsize) {
-			memcpy(buf + off, iovptr, leftsize);
-			*iov_off += leftsize;
-			break;
-		}
-		else {
-			memcpy(buf + off, iovptr, iovleftsize);
-			*iov_off = 0;
-			(*iov_i)++;
-			off += iovleftsize;
-		}
-	}
-	return off;
-}
-
 static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;

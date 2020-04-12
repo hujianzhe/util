@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef	UTIL_C_SYSLIB_ALLOCA_H
-#define UTIL_C_SYSLIB_ALLOCA_H
+#ifndef	UTIL_C_SYSLIB_MISC_H
+#define UTIL_C_SYSLIB_MISC_H
 
 #include "../platform_define.h"
 
@@ -29,6 +29,8 @@ extern "C" {
 
 __declspec_dll void* alignMalloc(size_t nbytes, size_t alignment);
 __declspec_dll void alignFree(const void* p);
+__declspec_dll char* strFormat(const char* format, ...);
+__declspec_dll unsigned int iobufSharedCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n);
 
 #ifdef	__cplusplus
 }

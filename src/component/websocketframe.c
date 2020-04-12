@@ -2,7 +2,7 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#include "../../inc/sysapi/alloca.h"
+#include "../../inc/sysapi/misc.h"
 #include "../../inc/sysapi/socket.h"
 #include "../../inc/component/websocketframe.h"
 #include "../../inc/datastruct/base64.h"
