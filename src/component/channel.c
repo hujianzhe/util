@@ -4,6 +4,7 @@
 
 #include "../../inc/component/channel.h"
 #include "../../inc/sysapi/error.h"
+#include "../../inc/sysapi/misc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -569,12 +570,10 @@ static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsi
 		nbytes += iobufLen(iov + i);
 	listInit(packetlist);
 	if (nbytes) {
-		ListNode_t* cur;
-		unsigned int off, iov_i, iov_off;
+		unsigned int off = 0, iov_i = 0, iov_off = 0;
 		unsigned int sharedsize = channel->_.write_fragment_size - channel->maxhdrsize;
-		unsigned int sharedcnt = nbytes / sharedsize + (nbytes % sharedsize != 0);
 		packet = NULL;
-		for (off = i = 0; i < sharedcnt; ++i) {
+		while (off < nbytes) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
 			unsigned int hdrsize = channel->on_hdrsize(channel, memsz);
 			packet = reactorpacketMake(0, hdrsize, memsz);
@@ -582,35 +581,16 @@ static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsi
 				break;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
+			iobufSharedCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 		}
 		if (!packet) {
-			ListNode_t *next;
+			ListNode_t *cur, *next;
 			for (cur = packetlist->head; cur; cur = next) {
 				next = cur->next;
 				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
 			}
 			listInit(packetlist);
 			return NULL;
-		}
-		iov_i = iov_off = 0;
-		for (cur = packetlist->head; cur; cur = cur->next) {
-			packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-			off = 0;
-			while (iov_i < iovcnt) {
-				unsigned int pkleftsize = packet->_.bodylen - off;
-				unsigned int iovleftsize = iobufLen(iov + iov_i) - iov_off;
-				if (iovleftsize > pkleftsize) {
-					memcpy(packet->_.buf + packet->_.hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, pkleftsize);
-					iov_off += pkleftsize;
-					break;
-				}
-				else {
-					memcpy(packet->_.buf + packet->_.hdrlen + off, ((char*)iobufPtr(iov + iov_i)) + iov_off, iovleftsize);
-					iov_off = 0;
-					iov_i++;
-					off += iovleftsize;
-				}
-			}
 		}
 	}
 	else {
