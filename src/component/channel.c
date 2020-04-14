@@ -81,6 +81,15 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
+static void channel_recv_fin_haneler(Channel_t* channel) {
+	if (channel->_.has_recvfin)
+		return;
+	channel->_.has_recvfin = 1;
+	if (channel->_.has_sendfin)
+		return;
+	channelSendv(channel, NULL, 0, NETPACKET_FIN);
+}
+
 static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, ChannelInbufDecodeResult_t* decode_result) {
 	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
 	if (NETPACKET_FIN == packet->_.type) {
@@ -89,12 +98,13 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
-		if (channel->_.has_recvfin)
-			return 1;
-		channel->_.has_recvfin = 1;
-		if (channel->_.has_sendfin)
-			return 1;
-		channelSendv(channel, NULL, 0, NETPACKET_FIN);
+		channel_recv_fin_haneler(channel);
+	}
+	else if (packetlist->head == packetlist->tail) {
+		decode_result->bodyptr = packet->_.buf;
+		decode_result->bodylen = packet->_.bodylen;
+		channel->on_recv(channel, &channel->_.to_addr, decode_result);
+		reactorpacketFree(packet);
 	}
 	else {
 		decode_result->bodyptr = merge_packet(packetlist, &decode_result->bodylen);
@@ -141,22 +151,28 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
-				ReactorPacket_t* packet;
 				/*
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr);
 				*/
-				packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
-				if (!packet)
-					return -1;
-				packet->_.seq = pkseq;
-				memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
-				if (streamtransportctxCacheRecvPacket(ctx, &packet->_)) {
+				if (ctx->recvlist.head || NETPACKET_NO_ACK_FRAGMENT == pktype || NETPACKET_FRAGMENT == pktype) {
 					List_t list;
+					ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+					if (!packet)
+						return -1;
+					packet->_.seq = pkseq;
+					memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
+					streamtransportctxCacheRecvPacket(ctx, &packet->_);
 					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
 						if (!channel_merge_packet_handler(channel, &list, &decode_result))
 							return -1;
 					}
+				}
+				else if (NETPACKET_FIN == pktype) {
+					channel_recv_fin_haneler(channel);
+				}
+				else {
+					channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 				}
 			}
 			/*

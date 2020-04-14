@@ -169,26 +169,11 @@ int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int
 	return 0;
 }
 
-int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
-	if (NETPACKET_NO_ACK_FRAGMENT <= packet->type && packet->type <= NETPACKET_FIN) {
-		listInsertNodeBack(&ctx->recvlist, ctx->recvlist.tail, &packet->node);
-		packet->cached = 1;
-		return 1;
-	}
-	else if (seq1_before_seq2(packet->seq, ctx->m_recvseq)) {
-		packet->cached = 0;
-		return 0;
-	}
-	else if (packet->seq != ctx->m_recvseq) {
-		packet->cached = 0;
-		return 0;
-	}
-	else {
-		listInsertNodeBack(&ctx->recvlist, ctx->recvlist.tail, &packet->node);
+void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
+	listInsertNodeBack(&ctx->recvlist, ctx->recvlist.tail, &packet->node);
+	packet->cached = 1;
+	if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ)
 		ctx->m_recvseq++;
-		packet->cached = 1;
-		return 1;
-	}
 }
 
 int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {

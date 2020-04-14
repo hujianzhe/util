@@ -82,7 +82,7 @@ __declspec_dll int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx
 
 __declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq);
 __declspec_dll int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int pktype);
-__declspec_dll int streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
+__declspec_dll void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
 __declspec_dll int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list);
 __declspec_dll int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx);
 __declspec_dll unsigned int streamtransportctxNextSendSeq(StreamTransportCtx_t* ctx, int pktype);
