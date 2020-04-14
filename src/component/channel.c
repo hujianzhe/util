@@ -356,18 +356,17 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			return 1;
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
+			List_t list;
 			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 			if (!packet)
 				return 0;
 			packet->_.seq = pkseq;
 			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
-			if (dgramtransportctxCacheRecvPacket(&channel->_.dgram_ctx, &packet->_)) {
-				List_t list;
-				while (dgramtransportctxMergeRecvPacket(&channel->_.dgram_ctx, &list)) {
-					if (!channel_merge_packet_handler(channel, &list, &decode_result))
-						return 0;
-				}
+			dgramtransportctxCacheRecvPacket(&channel->_.dgram_ctx, &packet->_);
+			while (dgramtransportctxMergeRecvPacket(&channel->_.dgram_ctx, &list)) {
+				if (!channel_merge_packet_handler(channel, &list, &decode_result))
+					return 0;
 			}
 		}
 		else if (NETPACKET_ACK == pktype) {

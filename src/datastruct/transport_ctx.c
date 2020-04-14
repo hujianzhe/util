@@ -40,16 +40,12 @@ int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int p
 	}
 }
 
-int dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
 	ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvlist.head;
 	for (; cur; cur = cur->next) {
 		NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
 		if (seq1_before_seq2(packet->seq, pk->seq))
 			break;
-		else if (packet->seq == pk->seq) {
-			packet->cached = 0;
-			return 0;
-		}
 	}
 	if (cur)
 		listInsertNodeFront(&ctx->recvlist, cur, &packet->node);
@@ -66,7 +62,6 @@ int dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 		cur = cur->next;
 	}
 	packet->cached = 1;
-	return 1;
 }
 
 int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
