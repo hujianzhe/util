@@ -776,7 +776,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			channel->disable_send = 0;
 			if (retpkg) {
 				retpkg->channel = channel;
-				reactor_packet_send_proc(reactor, retpkg, timestamp_msec);
+				listPushNodeFront(&channel->m_cache_packet_list, &retpkg->_.node);
 			}
 			cache_list = channel->m_cache_packet_list;
 			listInit(&channel->m_cache_packet_list);
