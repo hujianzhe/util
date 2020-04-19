@@ -21,7 +21,6 @@ typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
 	void* userdata;
-	unsigned int maxhdrsize;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
 	struct {

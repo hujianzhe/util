@@ -586,7 +586,8 @@ static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsi
 	listInit(packetlist);
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
-		unsigned int sharedsize = channel->_.write_fragment_size - channel->maxhdrsize;
+		unsigned int sharedsize = channel->_.write_fragment_size;
+		sharedsize -= channel->on_hdrsize(channel, sharedsize);
 		packet = NULL;
 		while (off < nbytes) {
 			unsigned int memsz = nbytes - off > sharedsize ? sharedsize : nbytes - off;
