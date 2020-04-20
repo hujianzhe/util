@@ -621,10 +621,12 @@ static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsi
 	return packetlist;
 }
 
+/*
 static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	channelSendv(channel, NULL, 0, NETPACKET_FIN);
 }
+*/
 
 /*******************************************************************************/
 
@@ -643,7 +645,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 	}
 	else {
 		streamtransportctxInit(&channel->_.stream_ctx, initseq);
-		channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
+		//channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
 	}
 	channel->m_initseq = initseq;
 	channel->_.on_exec = on_exec;
