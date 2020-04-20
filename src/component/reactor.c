@@ -1158,13 +1158,14 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->socktype = socktype;
 	o->protocol = protocol;
 	o->detach_timeout_msec = 0;
-	o->write_fragment_size = (SOCK_STREAM == o->socktype) ? ~0 : 548;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		o->read_fragment_size = 1460;
+		o->write_fragment_size = ~0;
 	}
 	else {
 		o->read_fragment_size = 1464;
+		o->write_fragment_size = 548;
 	}
 	reactorobject_init_comm(o);
 	return o;

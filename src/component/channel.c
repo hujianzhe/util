@@ -592,13 +592,15 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 		nbytes += iobufLen(iov + i);
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
-		unsigned int shardsize = channel->_.write_fragment_size;
-		shardsize -= channel->on_hdrsize(channel, shardsize);
+		unsigned int shardsz = channel->_.write_fragment_size;
+		shardsz -= channel->on_hdrsize(channel, shardsz);
 		packet = NULL;
 		while (off < nbytes) {
-			unsigned int memsz = nbytes - off > shardsize ? shardsize : nbytes - off;
-			unsigned int hdrsize = channel->on_hdrsize(channel, memsz);
-			packet = reactorpacketMake(0, hdrsize, memsz);
+			unsigned int hdrsz, memsz = nbytes - off;
+			if (memsz > shardsz)
+				memsz = shardsz;
+			hdrsz = channel->on_hdrsize(channel, memsz);
+			packet = reactorpacketMake(0, hdrsz, memsz);
 			if (!packet)
 				break;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
