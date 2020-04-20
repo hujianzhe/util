@@ -674,10 +674,9 @@ List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int 
 		case NETPACKET_FIN:
 		case NETPACKET_ACK:
 		{
-			size_t cnt = 0;
 			for (cur = packetlist->head; cur; cur = cur->next) {
 				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-				if (++cnt > 1) {
+				if (cur != packetlist->head) {
 					for (cur = packetlist->head; cur; cur = next) {
 						next = cur->next;
 						reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
