@@ -661,7 +661,7 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 	return channel;
 }
 
-List_t* channelShardData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
+List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
 	ListNode_t* cur, *next;
 	if (!channel_shard_data(channel, iov, iovcnt, packetlist))
 		return NULL;
@@ -732,7 +732,7 @@ Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned i
 	else if (channel->m_has_sendfin)
 		return channel;
 
-	if (!channelShardData(channel, iov, iovcnt, pktype, &packetlist))
+	if (!channelShard(channel, iov, iovcnt, pktype, &packetlist))
 		return NULL;
 	channelbaseSendPacketList(&channel->_, &packetlist);
 	return channel;
