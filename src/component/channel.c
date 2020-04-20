@@ -661,11 +661,6 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 	return channel;
 }
 
-Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
-	Iobuf_t iov = iobufStaticInit(data, len);
-	return channelSendv(channel, &iov, 1, pktype);
-}
-
 List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
 	ListNode_t* cur, *next;
 	if (!channel_shared_data(channel, iov, iovcnt, packetlist))
@@ -722,7 +717,7 @@ List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int 
 	return packetlist;
 }
 
-Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+Channel_t* channelSharedSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
 	List_t packetlist;
 	if (NETPACKET_SYN == pktype) {
 		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
@@ -741,6 +736,11 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		return NULL;
 	channelbaseSendPacketList(&channel->_, &packetlist);
 	return channel;
+}
+
+Channel_t* channelSharedSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
+	Iobuf_t iov = iobufStaticInit(data, len);
+	return channelSharedSendv(channel, &iov, 1, pktype);
 }
 
 void channelDestroy(Channel_t* channel) {
