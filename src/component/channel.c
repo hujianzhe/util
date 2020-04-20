@@ -87,7 +87,14 @@ static void channel_recv_fin_haneler(Channel_t* channel) {
 	channel->_.has_recvfin = 1;
 	if (channel->_.has_sendfin)
 		return;
-	channelSendv(channel, NULL, 0, NETPACKET_FIN);
+	if (_xchg32(&channel->m_has_sendfin, 1))
+		return;
+	else {
+		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, channel->on_hdrsize(channel, 0), 0);
+		if (fin_packet) {
+			channelbaseSendPacket(&channel->_, fin_packet);
+		}
+	}
 }
 
 static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, ChannelInbufDecodeResult_t* decode_result) {
@@ -620,13 +627,6 @@ static List_t* channel_shared_data(Channel_t* channel, const Iobuf_t iov[], unsi
 	}
 	return packetlist;
 }
-
-/*
-static void channel_stream_on_sys_recvfin(ChannelBase_t* base, long long timestamp_msec) {
-	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	channelSendv(channel, NULL, 0, NETPACKET_FIN);
-}
-*/
 
 /*******************************************************************************/
 
