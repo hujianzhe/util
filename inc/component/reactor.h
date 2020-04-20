@@ -164,6 +164,7 @@ __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int sockt
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
+__declspec_dll void reactorpacketFreeList(List_t* pkglist);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);

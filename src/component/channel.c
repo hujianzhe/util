@@ -607,11 +607,7 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 			iobufSharedCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 		}
 		if (!packet) {
-			ListNode_t *cur, *next;
-			for (cur = packetlist->head; cur; cur = next) {
-				next = cur->next;
-				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
-			}
+			reactorpacketFreeList(packetlist);
 			listInit(packetlist);
 			return NULL;
 		}
@@ -662,7 +658,7 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 }
 
 List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
-	ListNode_t* cur, *next;
+	ListNode_t* cur;
 	if (!channel_shard_data(channel, iov, iovcnt, packetlist))
 		return NULL;
 	switch (pktype) {
@@ -673,10 +669,7 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 		{
 			for (cur = packetlist->head; cur; cur = cur->next) {
 				if (cur != packetlist->head) {
-					for (cur = packetlist->head; cur; cur = next) {
-						next = cur->next;
-						reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
-					}
+					reactorpacketFreeList(packetlist);
 					return NULL;
 				}
 				else {
@@ -707,10 +700,7 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 		}
 		default:
 		{
-			for (cur = packetlist->head; cur; cur = next) {
-				next = cur->next;
-				reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
-			}
+			reactorpacketFreeList(packetlist);
 			return NULL;
 		}
 	}

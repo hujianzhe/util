@@ -1193,6 +1193,17 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
+void reactorpacketFreeList(List_t* pkglist) {
+	if (pkglist) {
+		ListNode_t* cur, *next;
+		for (cur = pkglist->head; cur; cur = next) {
+			next = cur->next;
+			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
+		}
+		listInit(pkglist);
+	}
+}
+
 ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const void* to_addr) {
 	ReuseCmd_t* cmd;
 	int sockaddrlen;
