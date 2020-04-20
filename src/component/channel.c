@@ -590,7 +590,6 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 	ReactorPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i)
 		nbytes += iobufLen(iov + i);
-	listInit(packetlist);
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
 		unsigned int shardsize = channel->_.write_fragment_size;
@@ -659,7 +658,9 @@ Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
 
 List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
 	ListNode_t* cur;
-	if (!channel_shard_data(channel, iov, iovcnt, packetlist))
+	List_t pklist;
+	listInit(&pklist);
+	if (!channel_shard_data(channel, iov, iovcnt, &pklist))
 		return NULL;
 	switch (pktype) {
 		case NETPACKET_SYN:
@@ -667,9 +668,9 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 		case NETPACKET_FIN:
 		case NETPACKET_ACK:
 		{
-			for (cur = packetlist->head; cur; cur = cur->next) {
-				if (cur != packetlist->head) {
-					reactorpacketFreeList(packetlist);
+			for (cur = pklist.head; cur; cur = cur->next) {
+				if (cur != pklist.head) {
+					reactorpacketFreeList(&pklist);
 					return NULL;
 				}
 				else {
@@ -690,7 +691,7 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 				no_ack = (pktype != NETPACKET_FRAGMENT && pktype != NETPACKET_FRAGMENT_EOF);
 			else
 				no_ack = 1;
-			for (cur = packetlist->head; cur; cur = cur->next) {
+			for (cur = pklist.head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
 			}
@@ -700,15 +701,15 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 		}
 		default:
 		{
-			reactorpacketFreeList(packetlist);
+			reactorpacketFreeList(&pklist);
 			return NULL;
 		}
 	}
+	listAppend(packetlist, &pklist);
 	return packetlist;
 }
 
 Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
-	List_t packetlist;
 	if (NETPACKET_SYN == pktype) {
 		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
 			return channel;
@@ -721,10 +722,13 @@ Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned i
 	}
 	else if (channel->m_has_sendfin)
 		return channel;
-
-	if (!channelShard(channel, iov, iovcnt, pktype, &packetlist))
-		return NULL;
-	channelbaseSendPacketList(&channel->_, &packetlist);
+	else {
+		List_t pklist;
+		listInit(&pklist);
+		if (!channelShard(channel, iov, iovcnt, pktype, &pklist))
+			return NULL;
+		channelbaseSendPacketList(&channel->_, &pklist);
+	}
 	return channel;
 }
 
