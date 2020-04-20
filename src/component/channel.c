@@ -712,6 +712,7 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 }
 
 Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+	List_t pklist;
 	if (NETPACKET_SYN == pktype) {
 		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
 			return channel;
@@ -724,13 +725,11 @@ Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned i
 	}
 	else if (channel->m_has_sendfin)
 		return channel;
-	else {
-		List_t pklist;
-		listInit(&pklist);
-		if (!channelShard(channel, iov, iovcnt, pktype, &pklist))
-			return NULL;
-		channelbaseSendPacketList(&channel->_, &pklist);
-	}
+
+	listInit(&pklist);
+	if (!channelShard(channel, iov, iovcnt, pktype, &pklist))
+		return NULL;
+	channelbaseSendPacketList(&channel->_, &pklist);
 	return channel;
 }
 
