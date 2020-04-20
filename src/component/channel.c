@@ -675,7 +675,6 @@ List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int 
 		case NETPACKET_ACK:
 		{
 			for (cur = packetlist->head; cur; cur = cur->next) {
-				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				if (cur != packetlist->head) {
 					for (cur = packetlist->head; cur; cur = next) {
 						next = cur->next;
@@ -683,7 +682,10 @@ List_t* channelSharedData(Channel_t* channel, const Iobuf_t iov[], unsigned int 
 					}
 					return NULL;
 				}
-				packet->_.type = pktype;
+				else {
+					ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
+					packet->_.type = pktype;
+				}
 			}
 			break;
 		}
