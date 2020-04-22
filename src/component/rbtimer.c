@@ -153,6 +153,7 @@ ListNode_t* rbtimerClean(RBTimer_t* timer) {
 	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
 		rbnext = rbtreeNextNode(rbcur);
+		rbtreeRemoveNode(&timer->m_rbtree, rbcur);
 		listAppend(&list, &evlist->m_list);
 		free(evlist);
 	}
