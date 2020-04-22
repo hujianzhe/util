@@ -73,21 +73,46 @@ RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_a
 	return NULL;
 }
 
+/*
 RpcItem_t* rpcAsyncCoreRemoveItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
 		rpc_remove_node(&rpc->reg_tree, item);
 	}
 	return item;
 }
+*/
+
+static void rpc_async_callback(RpcAsyncCore_t* rpc, RpcItem_t* item, void* ret_msg) {
+	rpc_remove_node(&rpc->reg_tree, item);
+	item->ret_msg = ret_msg;
+	item->async_callback(item);
+}
 
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpc_get_item(&rpc->reg_tree, rpcid);
 	if (item) {
-		rpc_remove_node(&rpc->reg_tree, item);
-		item->ret_msg = ret_msg;
-		item->async_callback(item);
+		rpc_async_callback(rpc, item, ret_msg);
 	}
 	return item;
+}
+
+RpcItem_t* rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item) {
+	if (item->m_has_reg) {
+		rpc_async_callback(rpc, item, NULL);
+	}
+	return item;
+}
+
+void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, RBTree_t* item_set) {
+	RBTreeNode_t* rbnode;
+	rbtreeInit(item_set, __keycmp);
+	rbtreeSwap(item_set, &rpc->reg_tree);
+	for (rbnode = rbtreeFirstNode(item_set); rbnode; rbnode = rbtreeNextNode(rbnode)) {
+		RpcItem_t* item = pod_container_of(rbnode, RpcItem_t, m_treenode);
+		item->m_has_reg = 0;
+		item->ret_msg = NULL;
+		item->async_callback(item);
+	}
 }
 
 /*****************************************************************************************/
@@ -167,20 +192,24 @@ RpcItem_t* rpcFiberCoreYield(RpcFiberCore_t* rpc) {
 	return rpc->reply_item;
 }
 
+static void rpc_fiber_resume(RpcFiberCore_t* rpc, RpcItem_t* item, void* ret_msg) {
+	item->ret_msg = ret_msg;
+	rpc->reply_item = item;
+	fiberSwitch(rpc->sche_fiber, item->fiber);
+	rpc->cur_fiber = rpc->sche_fiber;
+	rpc->reply_item = NULL;
+	if (rpc->ret_flag) {
+		fiberFree(item->fiber);
+		item->fiber = NULL;
+		rpc->ret_flag = 0;
+	}
+}
+
 RpcItem_t* rpcFiberCoreResume(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 	RpcItem_t* item = rpc_get_item(&rpc->reg_tree, rpcid);
 	if (item) {
 		rpc_remove_node(&rpc->reg_tree, item);
-		item->ret_msg = ret_msg;
-		rpc->reply_item = item;
-		fiberSwitch(rpc->sche_fiber, item->fiber);
-		rpc->cur_fiber = rpc->sche_fiber;
-		rpc->reply_item = NULL;
-		if (rpc->ret_flag) {
-			fiberFree(item->fiber);
-			item->fiber = NULL;
-			rpc->ret_flag = 0;
-		}
+		rpc_fiber_resume(rpc, item, ret_msg);
 	}
 	return item;
 }
@@ -189,6 +218,25 @@ void rpcFiberCoreResumeMsg(RpcFiberCore_t* rpc, void* new_msg) {
 	rpc->new_msg = new_msg;
 	fiberSwitch(rpc->sche_fiber, rpc->msg_fiber);
 	rpc->cur_fiber = rpc->sche_fiber;
+}
+
+RpcItem_t* rpcFiberCoreCancel(RpcFiberCore_t* rpc, RpcItem_t* item) {
+	if (item->m_has_reg) {
+		rpc_remove_node(&rpc->reg_tree, item);
+		rpc_fiber_resume(rpc, item, NULL);
+	}
+	return item;
+}
+
+void rpcFiberCoreCancelAll(RpcFiberCore_t* rpc, RBTree_t* item_set) {
+	RBTreeNode_t* rbnode;
+	rbtreeInit(item_set, __keycmp);
+	rbtreeSwap(item_set, &rpc->reg_tree);
+	for (rbnode = rbtreeFirstNode(item_set); rbnode; rbnode = rbtreeNextNode(rbnode)) {
+		RpcItem_t* item = pod_container_of(rbnode, RpcItem_t, m_treenode);
+		item->m_has_reg = 0;
+		rpc_fiber_resume(rpc, item, NULL);
+	}
 }
 
 #ifdef __cplusplus
