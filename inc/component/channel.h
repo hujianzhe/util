@@ -20,6 +20,10 @@ typedef struct ChannelInbufDecodeResult_t {
 typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
+	union {
+		unsigned int userid32;
+		unsigned long long userid64;
+	};
 	void* userdata;
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
