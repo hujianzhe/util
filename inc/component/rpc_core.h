@@ -14,6 +14,7 @@ typedef struct RpcItem_t {
 	int id;
 	long long timestamp_msec;
 	long long timeout_msec;
+	void* timeout_ev;
 	void* async_req_arg;
 	void(*async_callback)(struct RpcItem_t*);
 	Fiber_t* fiber;
@@ -41,7 +42,7 @@ extern "C" {
 #endif
 
 __declspec_dll int rpcGenId(void);
-__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec);
+__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* timeout_ev);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 __declspec_dll void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
