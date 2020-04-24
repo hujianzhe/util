@@ -31,11 +31,11 @@ typedef struct RpcFiberCore_t {
 	void* new_msg;
 	RpcItem_t* reply_item;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
-	RBTree_t reg_tree;
+	RBTree_t rpc_item_tree;
 } RpcFiberCore_t;
 
 typedef struct RpcAsyncCore_t {
-	RBTree_t reg_tree;
+	RBTree_t rpc_item_tree;
 } RpcAsyncCore_t;
 
 #ifdef __cplusplus
@@ -53,7 +53,7 @@ __declspec_dll RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, v
 __declspec_dll RpcItem_t* rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item);
 __declspec_dll void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, RBTree_t* item_set);
 
-__declspec_dll RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size);
+__declspec_dll RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size, void(*msg_handler)(RpcFiberCore_t*, void*));
 __declspec_dll void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
 __declspec_dll RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 __declspec_dll RpcItem_t* rpcFiberCoreUnregItem(RpcFiberCore_t* rpc, RpcItem_t* item);
