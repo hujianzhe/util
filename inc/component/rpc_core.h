@@ -5,10 +5,12 @@
 #ifndef UTIL_C_COMPONENT_RPC_CORE_H
 #define	UTIL_C_COMPONENT_RPC_CORE_H
 
+#include "../datastruct/list.h"
 #include "../datastruct/rbtree.h"
 #include "../sysapi/process.h"
 
 typedef struct RpcItem_t {
+	ListNode_t listnode; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	char m_has_reg;
 	int id;
