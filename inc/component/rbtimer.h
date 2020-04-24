@@ -10,10 +10,10 @@
 #include "../sysapi/ipc.h"
 
 typedef struct RBTimerEvent_t {
+	ListNode_t m_listnode;
 	long long timestamp_msec;
 	int(*callback)(struct RBTimerEvent_t*, void*);
 	void* arg;
-	ListNode_t m_listnode;
 } RBTimerEvent_t;
 
 typedef struct RBTimer_t {
