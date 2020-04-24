@@ -27,11 +27,11 @@ typedef struct RpcFiberCore_t {
 	Fiber_t* sche_fiber;
 	Fiber_t* from_fiber;
 	int ret_flag;
-	RBTree_t reg_tree;
 	size_t stack_size;
 	void* new_msg;
 	RpcItem_t* reply_item;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
+	RBTree_t reg_tree;
 } RpcFiberCore_t;
 
 typedef struct RpcAsyncCore_t {
