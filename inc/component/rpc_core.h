@@ -11,12 +11,12 @@
 
 typedef struct RpcItem_t {
 	ListNode_t listnode; /* user use, library not use this field */
+	void* originator; /* user use, library not use this field */
+	void* timeout_ev; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	char m_has_reg;
 	int id;
 	long long timestamp_msec;
-	long long timeout_msec;
-	void* timeout_ev;
 	void* async_req_arg;
 	void(*async_callback)(struct RpcItem_t*);
 	Fiber_t* fiber;
@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 __declspec_dll int rpcGenId(void);
-__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* timeout_ev);
+__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 __declspec_dll void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);

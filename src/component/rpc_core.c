@@ -43,11 +43,9 @@ int rpcGenId(void) {
 	return id;
 }
 
-RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timeout_msec, void* timeout_ev) {
+RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
 	item->m_treenode.key = (const void*)(size_t)rpcid;
 	item->m_has_reg = 0;
-	item->timeout_msec = timeout_msec;
-	item->timeout_ev = timeout_ev;
 	item->id = rpcid;
 	item->ret_msg = NULL;
 	item->fiber = NULL;
