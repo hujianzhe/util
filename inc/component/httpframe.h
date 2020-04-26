@@ -18,7 +18,8 @@ typedef struct HttpFrame_t {
 	int status_code;
 	char method[8];
 	char* uri;
-	const char* query;
+	char* query;
+	size_t pathlen;
 	Hashtable_t headers;
 	HashtableNode_t* m_bulks[11];
 } HttpFrame_t;

@@ -151,6 +151,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 	frame->status_code = 0;
 	frame->method[0] = 0;
 	frame->query = frame->uri = NULL;
+	frame->pathlen = 0;
 	hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
@@ -185,11 +186,15 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 				frame->uri[e - s] = 0;
 				if (query_pos != -1) {
 					frame->query = frame->uri + query_pos;
+					if (query_pos)
+						frame->pathlen = query_pos - 1;
 					if (frag_pos != -1)
 						frame->uri[frag_pos - 1] = 0;
 				}
-				else
+				else {
 					frame->query = frame->uri + (e - s);
+					frame->pathlen = e - s;
+				}
 			}
 			s = e + 1;
 		}
@@ -304,6 +309,7 @@ HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
 		free(frame->uri);
+		frame->pathlen = 0;
 		frame->query = frame->uri = NULL;
 		frame->status_code = 0;
 		frame->method[0] = 0;
