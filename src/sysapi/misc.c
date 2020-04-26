@@ -44,7 +44,7 @@ void alignFree(const void* ptr) {
 #endif
 }
 
-char* strFormat(const char* format, ...) {
+char* strFormat(int* out_len, const char* format, ...) {
 	char test_buf;
 	char* buf;
 	int len;
@@ -64,6 +64,8 @@ char* strFormat(const char* format, ...) {
 		free(buf);
 		return NULL;
 	}
+	if (out_len)
+		*out_len = len;
 	buf[len] = 0;
 	return buf;
 }
