@@ -168,6 +168,7 @@ int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 				if (e - s >= sizeof(frame->method))
 					return -1;
 				strncpy(frame->method, s, e - s);
+				frame->method[e - s] = '\0';
 			}
 			else {
 				unsigned int i, query_pos = -1, frag_pos = -1;
