@@ -19,7 +19,7 @@ typedef struct HttpFrame_t {
 	char method[8];
 	char* uri;
 	char* query;
-	size_t pathlen;
+	unsigned int pathlen;
 	Hashtable_t headers;
 	HashtableNode_t* m_bulks[11];
 } HttpFrame_t;
