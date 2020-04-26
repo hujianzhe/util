@@ -292,7 +292,7 @@ void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
 	sprintf(txtbuf, "%x\r\n", datalen);
 }
 
-void httpframeFree(HttpFrame_t* frame) {
+HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 	if (frame) {
 		HashtableNode_t *cur, *next;
 		for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
@@ -307,6 +307,7 @@ void httpframeFree(HttpFrame_t* frame) {
 		frame->status_code = 0;
 		frame->method[0] = 0;
 	}
+	return frame;
 }
 
 #ifdef __cplusplus
