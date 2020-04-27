@@ -878,14 +878,11 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 
 /* SOCKET */
 int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
-	socklen_t slen;
-	if (from) {
-		slen = sizeof(*from);
-		/*memset(from, 0, sizeof(*from));*/
-	}
-	else
-		slen = 0;
+	Iobuf_t iov = iobufStaticInit(buf, nbytes);
+	return socketReadv(sockfd, &iov, 1, flags, from);
+	/* windows core dump here,,,but memory is ok......
 	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
+	*/
 }
 
 int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const void* to, int tolen) {
