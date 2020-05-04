@@ -20,10 +20,10 @@ typedef struct {
 extern "C" {
 #endif
 
-void SHA1Transform(unsigned int state[5], const unsigned char buffer[64]);
-void SHA1Init(SHA1_CTX* context);
-void SHA1Update(SHA1_CTX* context, const unsigned char* data, unsigned int len);
-void SHA1Final(unsigned char digest[20], SHA1_CTX* context);
+__declspec_dll void SHA1Transform(unsigned int state[5], const unsigned char buffer[64]);
+__declspec_dll void SHA1Init(SHA1_CTX* context);
+__declspec_dll void SHA1Update(SHA1_CTX* context, const unsigned char* data, unsigned int len);
+__declspec_dll void SHA1Final(unsigned char digest[20], SHA1_CTX* context);
 
 #ifdef __cplusplus
 }
