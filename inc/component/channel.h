@@ -69,8 +69,8 @@ extern "C" {
 __declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int initseq, const void* saddr);
 __declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
 __declspec_dll List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist);
-__declspec_dll Channel_t* channelShardSend(Channel_t* channel, const void* data, unsigned int len, int pktype);
-__declspec_dll Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
+__declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);
+__declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 __declspec_dll void channelDestroy(Channel_t* channel);
 
 #ifdef	__cplusplus

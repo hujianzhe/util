@@ -711,7 +711,7 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 	return packetlist;
 }
 
-Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
 	List_t pklist;
 	if (NETPACKET_SYN == pktype) {
 		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT))
@@ -737,9 +737,9 @@ Channel_t* channelShardSendv(Channel_t* channel, const Iobuf_t iov[], unsigned i
 	return channel;
 }
 
-Channel_t* channelShardSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
+Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
 	Iobuf_t iov = iobufStaticInit(data, len);
-	return channelShardSendv(channel, &iov, 1, pktype);
+	return channelSendv(channel, &iov, 1, pktype);
 }
 
 void channelDestroy(Channel_t* channel) {
