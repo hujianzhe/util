@@ -26,6 +26,7 @@ typedef struct Channel_t {
 			unsigned int userid32;
 			unsigned long long userid64;
 		};
+		int usertype;
 		void* userdata;
 		void* decode_userdata;
 	}; /* user use, library not use these field */
