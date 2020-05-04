@@ -722,10 +722,6 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 	else if (NETPACKET_FIN == pktype) {
 		if (_xchg32(&channel->m_has_sendfin, 1))
 			return channel;
-		if (0 == iovcnt && (channel->_.flag & CHANNEL_FLAG_STREAM)) {
-			reactorCommitCmd(NULL, &channel->_.stream_sendfincmd);
-			return channel;
-		}
 	}
 	else if (channel->m_has_sendfin)
 		return channel;
