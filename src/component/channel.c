@@ -644,6 +644,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 		streamtransportctxInit(&channel->_.stream_ctx, initseq);
 		//channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
 	}
+	listInit(&channel->rpc_itemlist);
 	channel->m_initseq = initseq;
 	channel->_.on_exec = on_exec;
 	channel->_.on_read = on_read;

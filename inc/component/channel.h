@@ -29,6 +29,7 @@ typedef struct Channel_t {
 		int usertype;
 		void* userdata;
 		void* decode_userdata;
+		List_t rpc_itemlist;
 	}; /* user use, library not use these field */
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
