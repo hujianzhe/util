@@ -39,6 +39,7 @@
 #include "component/channel.h"
 #include "component/cJSON.h"
 #include "component/collision_detection.h"
+#include "component/consistent_hash.h"
 #include "component/cXML.h"
 #include "component/dataqueue.h"
 #include "component/db.h"

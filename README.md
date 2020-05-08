@@ -25,6 +25,7 @@
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
 				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
+				consistent_hash		一致性hash算法  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 				rpc_core			基于协程/回调的RPC调度核心机制  
 			datastruct/  
