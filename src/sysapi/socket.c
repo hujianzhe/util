@@ -376,6 +376,28 @@ void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
 	}
 }
 
+/* SOCKET ENUM VALUE <-> STRING */
+const char* if_socktype2tring(int socktype) {
+	switch (socktype) {
+		case SOCK_STREAM:
+			return "SOCK_STREAM";
+		case SOCK_DGRAM:
+			return "SOCK_DGRAM";
+		// TODO: support other socktype
+		default:
+			return "";
+	}
+}
+
+int if_string2socktype(const char* socktype) {
+	if (!strcmp(socktype, "SOCK_STREAM"))
+		return SOCK_STREAM;
+	if (!strcmp(socktype, "SOCK_DGRAM"))
+		return SOCK_DGRAM;
+	// TODO: support other socktype
+	return 0;
+}
+
 /* SOCKET ADDRESS */
 int sockaddrIPType(const struct sockaddr* sa) {
 	if (AF_INET == sa->sa_family) {
