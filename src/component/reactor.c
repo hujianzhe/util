@@ -229,11 +229,15 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 			return 0;
 		else if (ret) {
 			o->stream.m_connected = 1;
+			streamChannel(o)->disable_send = 0;
 			if (!reactorobject_request_read(reactor, o))
 				return 0;
 		}
-		else if (!reactorobject_request_connect(reactor, o))
-			return 0;
+		else {
+			streamChannel(o)->disable_send = 1;
+			if (!reactorobject_request_connect(reactor, o))
+				return 0;
+		}
 	}
 	else {
 		BOOL bval;
@@ -248,6 +252,10 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 		if (!reactorobject_request_read(reactor, o))
 			return 0;
+		allChannelDoAction(o, ChannelBase_t* channel,
+			if (channel->flag & CHANNEL_FLAG_CLIENT)
+				channel->disable_send = 1;
+		);
 	}
 	return 1;
 }
@@ -454,6 +462,7 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 	}
 }
 
+static void channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
 static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
 	if (SOCK_STREAM == o->socktype) {
@@ -547,33 +556,15 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 				return;
 			}
 			allChannelDoAction(o, ChannelBase_t* channel,
+				int disable_send = channel->disable_send;
 				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr);
 				after_call_channel_interface(channel);
+				if (disable_send && !channel->disable_send) {
+					channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
+				}
 			);
 		}
 	}
-}
-
-static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel = streamChannel(o);
-	if (o->m_writeol) {
-		nioFreeOverlapped(o->m_writeol);
-		o->m_writeol = NULL;
-	}
-	do {
-		if (!nioConnectCheckSuccess(o->fd))
-			break;
-		if (!reactorobject_request_read(reactor, o))
-			break;
-		o->stream.m_connected = 1;
-		if (~0 != channel->connected_times) {
-			++channel->connected_times;
-		}
-		channel->on_syn_ack(channel, timestamp_msec);
-		after_call_channel_interface(channel);
-		return 1;
-	} while (0);
-	return 0;
 }
 
 static ReactorObject_t* reactorobject_dup(ReactorObject_t* o);
@@ -737,6 +728,41 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 	reactorpacketFree(packet);
 }
 
+static void channel_cachepacket_send_proc(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
+	ListNode_t* cur, *next;
+	List_t cache_list = channel->m_cache_packet_list;
+	listInit(&channel->m_cache_packet_list);
+	for (cur = cache_list.head; cur; cur = next) {
+		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
+		next = cur->next;
+		reactor_packet_send_proc(reactor, packet, timestamp_msec);
+	}
+}
+
+static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+	ChannelBase_t* channel = streamChannel(o);
+	if (o->m_writeol) {
+		nioFreeOverlapped(o->m_writeol);
+		o->m_writeol = NULL;
+	}
+	do {
+		if (!nioConnectCheckSuccess(o->fd))
+			break;
+		if (!reactorobject_request_read(reactor, o))
+			break;
+		o->stream.m_connected = 1;
+		if (~0 != channel->connected_times) {
+			++channel->connected_times;
+		}
+		channel->disable_send = 0;
+		channel->on_syn_ack(channel, timestamp_msec);
+		after_call_channel_interface(channel);
+		channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
+		return 1;
+	} while (0);
+	return 0;
+}
+
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -766,8 +792,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_REUSE_FINISH_CMD == cmd->type) {
-			List_t cache_list;
-			ListNode_t* cur, *next;
 			ReuseFinishCmd_t* cmdex = pod_container_of(cmd, ReuseFinishCmd_t, _);
 			ChannelBase_t* channel = cmdex->channel;
 			ReactorPacket_t* retpkg = cmdex->retpkg;
@@ -787,13 +811,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 				retpkg->channel = channel;
 				listPushNodeFront(&channel->m_cache_packet_list, &retpkg->_.node);
 			}
-			cache_list = channel->m_cache_packet_list;
-			listInit(&channel->m_cache_packet_list);
-			for (cur = cache_list.head; cur; cur = next) {
-				ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
-				next = cur->next;
-				reactor_packet_send_proc(reactor, packet, timestamp_msec);
-			}
+			channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
