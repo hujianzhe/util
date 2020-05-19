@@ -27,16 +27,20 @@ void consistenthashInit(ConsistentHash_t* ch) {
 	rbtreeInit(ch, __consthash_keycmp);
 }
 
-void consistenthashReg(ConsistentHash_t* ch, unsigned int key, void* value) {
-	RBTreeNode_t* exist_node;
+int consistenthashReg(ConsistentHash_t* ch, unsigned int key, void* value) {
 	VirtualNode_t* vc = (VirtualNode_t*)malloc(sizeof(VirtualNode_t));
-	vc->m_treenode.key = (void*)(size_t)key;
-	vc->value = value;
-	exist_node = rbtreeInsertNode(ch, &vc->m_treenode);
-	if (exist_node != &vc->m_treenode) {
-		rbtreeReplaceNode(exist_node, &vc->m_treenode);
-		free(pod_container_of(exist_node, VirtualNode_t, m_treenode));
+	if (vc) {
+		RBTreeNode_t* exist_node;
+		vc->m_treenode.key = (void*)(size_t)key;
+		vc->value = value;
+		exist_node = rbtreeInsertNode(ch, &vc->m_treenode);
+		if (exist_node != &vc->m_treenode) {
+			rbtreeReplaceNode(exist_node, &vc->m_treenode);
+			free(pod_container_of(exist_node, VirtualNode_t, m_treenode));
+		}
+		return 1;
 	}
+	return 0;
 }
 
 void* consistenthashSelect(ConsistentHash_t* ch, unsigned int key) {
@@ -50,7 +54,7 @@ void* consistenthashSelect(ConsistentHash_t* ch, unsigned int key) {
 	return pod_container_of(exist_node, VirtualNode_t, m_treenode)->value;
 }
 
-void consistenthashDelValue(ConsistentHash_t* ch, void* value) {
+void consistenthashDelValue(ConsistentHash_t* ch, const void* value) {
 	RBTreeNode_t* cur, *next;
 	for (cur = rbtreeFirstNode(ch); cur; cur = next) {
 		VirtualNode_t* vc = pod_container_of(cur, VirtualNode_t, m_treenode);
