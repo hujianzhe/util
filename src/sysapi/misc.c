@@ -3,6 +3,8 @@
 //
 
 #include "../../inc/sysapi/misc.h"
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifdef	__cplusplus
@@ -43,8 +45,12 @@ void alignFree(const void* ptr) {
 }
 
 int strFormatLen(const char* format, ...) {
+	char test_buf;
 	int len;
-	vaStringFormatLen(len, format);
+	va_list varg;
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
 	return len;
 }
 

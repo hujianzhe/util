@@ -18,22 +18,10 @@
 		#include <malloc.h>
 	#endif
 #endif
-#include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define	alignedAlloca(nbytes, alignment)\
 ((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((size_t)alignment) - 1)))
-
-#define	vaStringFormatLen(len, str_format)\
-do {\
-	char test_buf##len;\
-	const char* format##len = (str_format);\
-	va_list varg##len;\
-	va_start(varg##len, format##len);\
-	len = vsnprintf(&test_buf##len, 0, format##len, varg##len);\
-	va_end(varg##len);\
-} while (0)
 
 #ifdef	__cplusplus
 extern "C" {
