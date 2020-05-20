@@ -44,6 +44,16 @@ void alignFree(const void* ptr) {
 #endif
 }
 
+int strFormatLen(const char* format, ...) {
+	char test_buf;
+	int len;
+	va_list varg;
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	return len;
+}
+
 char* strFormat(int* out_len, const char* format, ...) {
 	char test_buf;
 	char* buf;
