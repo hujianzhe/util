@@ -44,7 +44,7 @@ void alignFree(const void* ptr) {
 
 int strFormatLen(const char* format, ...) {
 	int len;
-	valistFormatLen(format, len);
+	vaStringFormatLen(len, format);
 	return len;
 }
 

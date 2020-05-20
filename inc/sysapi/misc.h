@@ -25,7 +25,7 @@
 #define	alignedAlloca(nbytes, alignment)\
 ((void*)(((size_t)alloca(nbytes + alignment)) + (alignment - 1) & ~(((size_t)alignment) - 1)))
 
-#define	valistFormatLen(str_format, len)\
+#define	vaStringFormatLen(len, str_format)\
 do {\
 	char test_buf##len;\
 	const char* format##len = (str_format);\
