@@ -80,6 +80,7 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 			/* day rotate */
 			if (log->m_days != dt->tm_yday) {
 				log->m_days = dt->tm_yday;
+				log->m_filesegmentseq = 0;
 				log_rotate(log, dt);
 			}
 			/* size rotate */
@@ -200,6 +201,7 @@ void logFlush(Log_t* log) {
 		/* day rotate */
 		if (log->m_days != cache->dt.tm_yday) {
 			log->m_days = cache->dt.tm_yday;
+			log->m_filesegmentseq = 0;
 			if (txt && log->m_fd != INVALID_FD_HANDLE) {
 				fdWrite(log->m_fd, txt, txtlen);
 			}
