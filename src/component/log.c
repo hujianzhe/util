@@ -2,6 +2,7 @@
 // Created by hujianzhe
 //
 
+#include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/file.h"
 #include "../../inc/sysapi/misc.h"
 #include "../../inc/sysapi/time.h"
@@ -22,19 +23,36 @@ typedef struct CacheBlock_t {
 extern "C" {
 #endif
 
-static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
+static void log_rotate(Log_t* log, const struct tm* dt) {
 	FD_t fd;
 	char* pathname;
+	long long filesz;
 	while (1) {
 		pathname = strFormat(NULL, "%s.%d-%d-%d.%u.txt", log->pathname, dt->tm_year, dt->tm_mon, dt->tm_mday, log->m_filesegmentseq);
 		if (!pathname)
 			return;
-		if (!fileIsExist(pathname))
-			break;
+		fd = fdOpen(pathname, FILE_READ_BIT);
+		if (fd != INVALID_FD_HANDLE) {
+			filesz = fdGetSize(fd);
+			fdClose(fd);
+			if (filesz < 0) {
+				free(pathname);
+				return;
+			}
+		}
+		else if (errnoGet() == ENOENT) {
+			filesz = 0;
+		}
+		else {
+			free(pathname);
+			return;
+		}
 		log->m_filesegmentseq++;
+		if (filesz < log->m_maxfilesize)
+			break;
 		free(pathname);
 	}
-	fd = fdOpen(pathname, FILE_CREAT_BIT | FILE_WRITE_BIT | FILE_APPEND_BIT | (trunc ? FILE_TRUNC_BIT : 0));
+	fd = fdOpen(pathname, FILE_CREAT_BIT | FILE_WRITE_BIT | FILE_APPEND_BIT);
 	free(pathname);
 	if (INVALID_FD_HANDLE == fd)
 		return;
@@ -42,10 +60,7 @@ static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
 		fdClose(log->m_fd);
 	}
 	log->m_fd = fd;
-	if (trunc)
-		log->m_filesize = 0;
-	else
-		log->m_filesize = fdGetSize(fd);
+	log->m_filesize = filesz;
 }
 
 static void log_write(Log_t* log, CacheBlock_t* cache) {
@@ -65,11 +80,11 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 			/* day rotate */
 			if (log->m_days != dt->tm_yday) {
 				log->m_days = dt->tm_yday;
-				log_rotate(log, dt, 0);
+				log_rotate(log, dt);
 			}
 			/* size rotate */
 			else if (log->m_filesize + cache->len >= log->m_maxfilesize) {
-				log_rotate(log, dt, 1);
+				log_rotate(log, dt);
 			}
 			/* io */
 			if (INVALID_FD_HANDLE != log->m_fd) {
@@ -191,14 +206,14 @@ void logFlush(Log_t* log) {
 			free(txt);
 			txt = NULL;
 			txtlen = 0;
-			log_rotate(log, &cache->dt, 0);
+			log_rotate(log, &cache->dt);
 		}
 		/* size rotate */
 		else if (cache->len >= log->m_maxfilesize - log->m_filesize) {
 			free(txt);
 			txt = NULL;
 			txtlen = 0;
-			log_rotate(log, &cache->dt, 1);
+			log_rotate(log, &cache->dt);
 		}
 		/* copy data to cache */
 		p = (char*)realloc(txt, txtlen + cache->len);
