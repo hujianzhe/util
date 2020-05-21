@@ -49,11 +49,11 @@ static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
 }
 
 static void log_write(Log_t* log, CacheBlock_t* cache) {
+	unsigned char is_async = log->async_print_file;
 	if (log->print_stderr) {
 		fputs(cache->txt, stderr);
 	}
 	if (log->print_file) {
-		unsigned char is_async = log->async_print_file;
 		struct tm* dt = &cache->dt;
 
 		criticalsectionEnter(&log->m_lock);
@@ -79,10 +79,9 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		}
 
 		criticalsectionLeave(&log->m_lock);
-
-		if (!is_async)
-			free(cache);
 	}
+	if (!is_async)
+		free(cache);
 }
 
 #define log_build(log, priority, format) do {\
