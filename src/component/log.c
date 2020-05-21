@@ -86,56 +86,61 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 	}
 }
 
-static void log_build(Log_t* log, const char* priority, const char* format, va_list varg) {
-	int len, res;
-	char test_buf;
-	CacheBlock_t* cache;
-	struct tm dt;
-
-	if (!format || 0 == *format) {
-		return;
-	}
-	if (!structtmMake(gmtimeSecond(), &dt)) {
-		return;
-	}
-	structtmNormal(&dt);
-	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%zu|%s|",
-						log->ident,
-						dt.tm_year, dt.tm_mon, dt.tm_mday,
-						dt.tm_hour, dt.tm_min, dt.tm_sec,
-						log->m_pid, priority);
-	if (res <= 0)
-		return;
-	len = res;
-	res = vsnprintf(&test_buf, 0, format, varg);
-	if (res <= 0)
-		return;
-	len += res;
-
-	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
-	if (!cache)
-		return;
-	cache->dt = dt;
-	cache->len = len;
-
-	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|",
-					log->ident,
-					dt.tm_year, dt.tm_mon, dt.tm_mday,
-					dt.tm_hour, dt.tm_min, dt.tm_sec,
-					log->m_pid, priority);
-	if (res <= 0 || res >= cache->len) {
-		free(cache);
-		return;
-	}
-	res = vsnprintf(cache->txt + res, cache->len - res, format, varg);
-	if (res <= 0) {
-		free(cache);
-		return;
-	}
-	cache->txt[cache->len] = 0;
-
-	log_write(log, cache);
-}
+#define log_build(log, priority, format) do {\
+	va_list varg;\
+	int len, res;\
+	char test_buf;\
+	CacheBlock_t* cache;\
+	struct tm dt;\
+\
+	if (!format || 0 == *format) {\
+		return;\
+	}\
+	if (!structtmMake(gmtimeSecond(), &dt)) {\
+		return;\
+	}\
+	structtmNormal(&dt);\
+	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%zu|%s|",\
+						log->ident,\
+						dt.tm_year, dt.tm_mon, dt.tm_mday,\
+						dt.tm_hour, dt.tm_min, dt.tm_sec,\
+						log->m_pid, priority);\
+	if (res <= 0)\
+		return;\
+	len = res;\
+	va_start(varg, format);\
+	res = vsnprintf(&test_buf, 0, format, varg);\
+	va_end(varg);\
+	if (res <= 0)\
+		return;\
+	len += res;\
+\
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);\
+	if (!cache)\
+		return;\
+	cache->dt = dt;\
+	cache->len = len;\
+\
+	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|",\
+					log->ident,\
+					dt.tm_year, dt.tm_mon, dt.tm_mday,\
+					dt.tm_hour, dt.tm_min, dt.tm_sec,\
+					log->m_pid, priority);\
+	if (res <= 0 || res >= cache->len) {\
+		free(cache);\
+		return;\
+	}\
+	va_start(varg, format);\
+	res = vsnprintf(cache->txt + res, cache->len - res, format, varg);\
+	va_end(varg);\
+	if (res <= 0) {\
+		free(cache);\
+		return;\
+	}\
+	cache->txt[cache->len] = 0;\
+\
+	log_write(log, cache);\
+} while (0)
 
 Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	log->m_initok = 0;
@@ -248,52 +253,28 @@ void logDestroy(Log_t* log) {
 }
 
 void logEmerg(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "EMERG", format, varg);
-	va_end(varg);
+	log_build(log, "EMERG", format);
 }
 void logAlert(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "ALERT", format, varg);
-	va_end(varg);
+	log_build(log, "ALERT", format);
 }
 void logCrit(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "CRIT", format, varg);
-	va_end(varg);
+	log_build(log, "CRIT", format);
 }
 void logErr(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "ERR", format, varg);
-	va_end(varg);
+	log_build(log, "ERR", format);
 }
 void logWarning(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "WARNING", format, varg);
-	va_end(varg);
+	log_build(log, "WARNING", format);
 }
 void logNotice(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "NOTICE", format, varg);
-	va_end(varg);
+	log_build(log, "NOTICE", format);
 }
 void logInfo(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "INFO", format, varg);
-	va_end(varg);
+	log_build(log, "INFO", format);
 }
 void logDebug(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "DEBUG", format, varg);
-	va_end(varg);
+	log_build(log, "DEBUG", format);
 }
 
 #ifdef	__cplusplus
