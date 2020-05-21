@@ -158,7 +158,7 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	strncpy(log->ident, ident, sizeof(log->ident) - 1);
 	log->ident[sizeof(log->ident) - 1] = 0;
 	log->print_stderr = 0;
-	log->print_file = 0;
+	log->print_file = 1;
 	log->async_print_file = 0;
 
 	return log;
