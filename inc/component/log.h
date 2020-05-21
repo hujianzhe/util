@@ -17,7 +17,6 @@ typedef struct Log_t {
 	unsigned char async_print_file;
 /* private */
 	unsigned char m_initok;
-	size_t m_pid;
 	int m_days;
 	FD_t m_fd;
 	size_t m_filesize;

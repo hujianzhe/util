@@ -100,11 +100,11 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		return;\
 	}\
 	structtmNormal(&dt);\
-	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%zu|%s|",\
+	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%s|",\
 						log->ident,\
 						dt.tm_year, dt.tm_mon, dt.tm_mday,\
 						dt.tm_hour, dt.tm_min, dt.tm_sec,\
-						log->m_pid, priority);\
+						priority);\
 	if (res <= 0)\
 		return;\
 	len = res;\
@@ -121,11 +121,11 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 	cache->dt = dt;\
 	cache->len = len;\
 \
-	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|",\
+	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%s|",\
 					log->ident,\
 					dt.tm_year, dt.tm_mon, dt.tm_mday,\
 					dt.tm_hour, dt.tm_min, dt.tm_sec,\
-					log->m_pid, priority);\
+					priority);\
 	if (res <= 0 || res >= cache->len) {\
 		free(cache);\
 		return;\
@@ -151,7 +151,6 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 		free(log->pathname);
 		return NULL;
 	}
-	log->m_pid = processId();
 	log->m_days = -1;
 	log->m_fd = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
