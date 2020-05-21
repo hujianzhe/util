@@ -113,7 +113,7 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		return;\
 	len += res;\
 \
-	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);\
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len + 1);\
 	if (!cache)\
 		return;\
 	cache->dt = dt;\
@@ -129,7 +129,7 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		return;\
 	}\
 	va_start(varg, format);\
-	res = vsnprintf(cache->txt + res, cache->len - res, format, varg);\
+	res = vsnprintf(cache->txt + res, cache->len - res + 1, format, varg);\
 	va_end(varg);\
 	if (res <= 0) {\
 		free(cache);\
