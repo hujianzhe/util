@@ -11,7 +11,7 @@
 
 typedef struct Log_t {
 	char ident[64];
-	char rootpath[256], name[64];
+	char* pathname;
 	unsigned char print_stderr;
 	unsigned char print_file;
 	unsigned char async_print_file;
@@ -19,7 +19,7 @@ typedef struct Log_t {
 	unsigned char m_initok;
 	size_t m_pid;
 	int m_days;
-	FD_t m_file;
+	FD_t m_fd;
 	size_t m_filesize;
 	size_t m_maxfilesize;
 	List_t m_cachelist;
@@ -30,7 +30,7 @@ typedef struct Log_t {
 extern "C" {
 #endif
 
-__declspec_dll Log_t* logInit(Log_t* log);
+__declspec_dll Log_t* logInit(Log_t* log, const char ident[64], const char* pathname);
 __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);

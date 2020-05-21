@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/sysapi/file.h"
+#include "../../inc/sysapi/misc.h"
 #include "../../inc/sysapi/process.h"
 #include "../../inc/sysapi/time.h"
 #include "../../inc/component/log.h"
@@ -11,48 +12,43 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct CacheBlock {
+typedef struct CacheBlock_t {
 	ListNode_t m_listnode;
 	struct tm dt;
 	size_t len;
 	char txt[1];
-} CacheBlock;
+} CacheBlock_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
-	char fullpath[256];
-	if (log->m_file != INVALID_FD_HANDLE) {
-		fdClose(log->m_file);
-		log->m_file = INVALID_FD_HANDLE;
+	FD_t fd;
+	char* pathname = strFormat(NULL, "%s.%d-%d-%d.txt", log->pathname, dt->tm_year, dt->tm_mon, dt->tm_mday);
+	if (!pathname)
+		return;
+	fd = fdOpen(pathname, FILE_CREAT_BIT | FILE_WRITE_BIT | FILE_APPEND_BIT | (trunc ? FILE_TRUNC_BIT : 0));
+	free(pathname);
+	if (INVALID_FD_HANDLE == fd)
+		return;
+	if (log->m_fd != INVALID_FD_HANDLE) {
+		fdClose(log->m_fd);
 	}
-	log->m_filesize = 0;
-	snprintf(fullpath, sizeof(fullpath), "%s%s.%d-%d-%d.txt", log->rootpath, log->name, dt->tm_year, dt->tm_mon, dt->tm_mday);
-	log->m_file = fdOpen(fullpath, FILE_CREAT_BIT|FILE_WRITE_BIT|FILE_APPEND_BIT|(trunc ? FILE_TRUNC_BIT : 0));
-	if (log->m_file != INVALID_FD_HANDLE) {
-		log->m_filesize = fdGetSize(log->m_file);
-	}
+	log->m_fd = fd;
+	if (trunc)
+		log->m_filesize = 0;
+	else
+		log->m_filesize = fdGetSize(fd);
 }
 
-static void log_write(Log_t* log, const struct tm* dt, const char* content, size_t len) {
+static void log_write(Log_t* log, const CacheBlock_t* cache) {
 	if (log->print_stderr) {
-		fputs(content, stderr);
+		fputs(cache->txt, stderr);
 	}
 	if (log->print_file) {
-		CacheBlock* cache = NULL;
 		unsigned char is_async = log->async_print_file;
-		if (is_async) {
-			cache = (CacheBlock*)malloc(sizeof(CacheBlock) + len);
-			if (!cache) {
-				return;
-			}
-			cache->dt = *dt;
-			cache->len = len;
-			memcpy(cache->txt, content, len);
-			cache->txt[len] = 0;
-		}
+		struct tm* dt = &cache->dt;
 
 		criticalsectionEnter(&log->m_lock);
 
@@ -66,23 +62,27 @@ static void log_write(Log_t* log, const struct tm* dt, const char* content, size
 				log_rotate(log, dt, 0);
 			}
 			/* size rotate */
-			else if (log->m_filesize + len >= log->m_maxfilesize) {
+			else if (log->m_filesize + cache->len >= log->m_maxfilesize) {
 				log_rotate(log, dt, 1);
 			}
 			/* io */
-			if (INVALID_FD_HANDLE != log->m_file) {
-				fdWrite(log->m_file, content, len);
+			if (INVALID_FD_HANDLE != log->m_fd) {
+				fdWrite(log->m_fd, cache->txt, cache->len);
 			}
-			log->m_filesize += len;
+			log->m_filesize += cache->len;
 		}
 
 		criticalsectionLeave(&log->m_lock);
+
+		if (!is_async)
+			free(cache);
 	}
 }
 
 static void log_build(Log_t* log, const char* priority, const char* format, va_list varg) {
 	int len, res;
-	char buffer[2048];
+	char test_buf;
+	CacheBlock_t* cache;
 	struct tm dt;
 
 	if (!format || 0 == *format) {
@@ -92,37 +92,63 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 		return;
 	}
 	structtmNormal(&dt);
-	res = snprintf(buffer, sizeof(buffer), "%s|%d-%d-%d %d:%d:%d|%zu|%s|",
+	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%zu|%s|",
+						log->ident,
+						dt.tm_year, dt.tm_mon, dt.tm_mday,
+						dt.tm_hour, dt.tm_min, dt.tm_sec,
+						log->m_pid, priority);
+	if (res <= 0)
+		return;
+	len = res;
+	res = vsnprintf(&test_buf, 0, format, varg);
+	if (res <= 0)
+		return;
+	len += res;
+
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
+	if (!cache)
+		return;
+	cache->dt = dt;
+	cache->len = len;
+
+	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|%s",
 					log->ident,
 					dt.tm_year, dt.tm_mon, dt.tm_mday,
 					dt.tm_hour, dt.tm_min, dt.tm_sec,
 					log->m_pid, priority);
-	if (res <= 0 || res >= sizeof(buffer)) {
+	if (res <= 0 || res >= cache->len) {
+		free(cache);
 		return;
 	}
-	len = res;
-	res = vsnprintf(buffer + len, sizeof(buffer) - len, format, varg);
+	res = vsnprintf(cache->txt + res, cache->len - res, format, varg);
 	if (res <= 0) {
+		free(cache);
 		return;
 	}
-	len += res;
+	cache->txt[cache->len] = 0;
 
-	log_write(log, &dt, buffer, len);
+	log_write(log, cache);
 }
 
-Log_t* logInit(Log_t* log) {
+Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	log->m_initok = 0;
-	if (!criticalsectionCreate(&log->m_lock))
+	log->pathname = strdup(pathname);
+	if (!log->pathname)
 		return NULL;
+	if (!criticalsectionCreate(&log->m_lock)) {
+		free(log->pathname);
+		return NULL;
+	}
 	log->m_pid = processId();
 	log->m_days = -1;
-	log->m_file = INVALID_FD_HANDLE;
+	log->m_fd = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
 	log->m_maxfilesize = ~0;
 	listInit(&log->m_cachelist);
 	log->m_initok = 1;
 
-	log->rootpath[0] = log->name[0] = log->ident[0] = 0;
+	strncpy(log->ident, ident, sizeof(log->ident) - 1);
+	log->ident[sizeof(log->ident) - 1] = 0;
 	log->print_stderr = 0;
 	log->print_file = 0;
 	log->async_print_file = 0;
@@ -144,13 +170,13 @@ void logFlush(Log_t* log) {
 
 	for (; cur; cur = next) {
 		char *p;
-		CacheBlock* cache = pod_container_of(cur, CacheBlock, m_listnode);
+		CacheBlock_t* cache = pod_container_of(cur, CacheBlock_t, m_listnode);
 		next = cur->next;
 		/* day rotate */
 		if (log->m_days != cache->dt.tm_yday) {
 			log->m_days = cache->dt.tm_yday;
-			if (txt && log->m_file != INVALID_FD_HANDLE) {
-				fdWrite(log->m_file, txt, txtlen);
+			if (txt && log->m_fd != INVALID_FD_HANDLE) {
+				fdWrite(log->m_fd, txt, txtlen);
 			}
 			free(txt);
 			txt = NULL;
@@ -181,8 +207,8 @@ void logFlush(Log_t* log) {
 		free(cache);
 	}
 	/* io */
-	if (log->m_file != INVALID_FD_HANDLE && txt) {
-		fdWrite(log->m_file, txt, txtlen);
+	if (log->m_fd != INVALID_FD_HANDLE && txt) {
+		fdWrite(log->m_fd, txt, txtlen);
 	}
 	free(txt);
 }
@@ -199,7 +225,7 @@ void logClear(Log_t* log) {
 
 	for (; cur; cur = next) {
 		next = cur->next;
-		free(pod_container_of(cur, CacheBlock, m_listnode));
+		free(pod_container_of(cur, CacheBlock_t, m_listnode));
 	}
 }
 
@@ -207,8 +233,9 @@ void logDestroy(Log_t* log) {
 	if (log && log->m_initok) {
 		logClear(log);
 		criticalsectionClose(&log->m_lock);
-		if (INVALID_FD_HANDLE != log->m_file)
-			fdClose(log->m_file);
+		free(log->pathname);
+		if (INVALID_FD_HANDLE != log->m_fd)
+			fdClose(log->m_fd);
 	}
 }
 
