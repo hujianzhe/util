@@ -22,6 +22,7 @@ typedef struct Log_t {
 	FD_t m_fd;
 	size_t m_filesize;
 	size_t m_maxfilesize;
+	unsigned int m_filesegmentseq;
 	List_t m_cachelist;
 	CriticalSection_t m_lock;
 } Log_t;

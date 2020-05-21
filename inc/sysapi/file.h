@@ -67,6 +67,7 @@ __declspec_dll BOOL fileLockExclusive(FD_t fd, long long offset, long long nbyte
 __declspec_dll BOOL fileLockShared(FD_t fd, long long offset, long long nbytes, BOOL block_bool);
 __declspec_dll BOOL fileUnlock(FD_t fd, long long offset, long long nbytes);
 /* file name */
+__declspec_dll BOOL fileIsExist(const char* path);
 __declspec_dll const char* fileExtName(const char* path);
 __declspec_dll const char* fileFileName(const char* path);
 /* file link */

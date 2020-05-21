@@ -12,13 +12,16 @@ extern "C" {
 #endif
 
 #if	defined(_WIN32) || defined(_WIN64)
-static const char* __win32_path(char* path) {
-	char* p;
-	for (p = path; *p; ++p) {
-		if ('/' == *p)
-			*p = '\\';
+static char* __win32_path(const char* path) {
+	char* p = strdup(path);
+	if (p) {
+		char* pa;
+		for (pa = p; *pa; ++pa) {
+			if ('/' == *pa)
+				*pa = '\\';
+		}
 	}
-	return path;
+	return p;
 }
 #endif
 
@@ -140,7 +143,8 @@ FD_t fdDup2(FD_t oldfd, FD_t newfd) {
 /* file operator */
 FD_t fdOpen(const char* path, int obit) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szFullPath[MAX_PATH];
+	char* szFullPath;
+	HANDLE fd;
 	DWORD dwDesiredAccess = 0, dwCreationDisposition = 0, dwFlagsAndAttributes = 0;
 	SECURITY_ATTRIBUTES sa = { 0 };
 	//
@@ -183,10 +187,14 @@ FD_t fdOpen(const char* path, int obit) {
 			dwFlagsAndAttributes |= FILE_FLAG_OVERLAPPED;
 	}
 	//
-	return (FD_t)CreateFileA(
-		__win32_path(strcpy(szFullPath, path)), dwDesiredAccess,
+	szFullPath = __win32_path(path);
+	if (!szFullPath)
+		return (FD_t)INVALID_HANDLE_VALUE;
+	fd = CreateFileA(szFullPath, dwDesiredAccess,
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		&sa, dwCreationDisposition, dwFlagsAndAttributes, NULL);
+	free(szFullPath);
+	return (FD_t)fd;
 #else
 	mode_t mode = 0;
 	int oflag = 0;
@@ -387,6 +395,31 @@ BOOL fileUnlock(FD_t fd, long long offset, long long nbytes) {
 }
 
 /* file name */
+BOOL fileIsExist(const char* path) {
+#if defined(WIN32) || defined(_WIN64)
+	char* szFullPath;
+	WIN32_FIND_DATAA find_data;
+	HANDLE hFind;
+	BOOL exist;
+
+	szFullPath = __win32_path(path);
+	if (!szFullPath)
+		return FALSE;
+	hFind = FindFirstFileA(szFullPath, &find_data);
+	if (hFind != INVALID_HANDLE_VALUE) {
+		FindClose(hFind);
+		exist = TRUE;
+	}
+	else {
+		exist = FALSE;
+	}
+	free(szFullPath);
+	return exist;
+#else
+	return access(path, F_OK) == 0;
+#endif
+}
+
 const char* fileExtName(const char* path) {
 	const char* ext = NULL;
 	int i;
@@ -418,13 +451,26 @@ const char* fileFileName(const char* path) {
 /* file link */
 BOOL fileCreateSymlink(const char* actualpath, const char* sympath) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szActualPath[MAX_PATH], szSymPath[MAX_PATH];
+	char* szActualPath, *szSymPath;
 	DWORD dwAttr, dwFlag;
-	dwAttr = GetFileAttributesA(__win32_path(strcpy(szActualPath, actualpath)));
-	if (dwAttr == INVALID_FILE_ATTRIBUTES)
+	BOOLEAN ret;
+
+	szActualPath = __win32_path(actualpath);
+	if (!szActualPath)
 		return FALSE;
+	dwAttr = GetFileAttributesA(szActualPath);
+	if (dwAttr == INVALID_FILE_ATTRIBUTES) {
+		free(szActualPath);
+		return FALSE;
+	}
 	dwFlag = (dwAttr & FILE_ATTRIBUTE_DIRECTORY) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-	return CreateSymbolicLinkA(__win32_path(strcpy(szSymPath, sympath)), szActualPath, dwFlag);
+	szSymPath = __win32_path(sympath);
+	if (!szSymPath)
+		return FALSE;
+	ret = CreateSymbolicLinkA(szSymPath, szActualPath, dwFlag);
+	free(szSymPath);
+	free(szActualPath);
+	return ret;
 #else
 	return symlink(actualpath, sympath) == 0;
 #endif
@@ -432,8 +478,20 @@ BOOL fileCreateSymlink(const char* actualpath, const char* sympath) {
 
 BOOL fileCreateHardLink(const char* existpath, const char* newpath) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szExistPath[MAX_PATH], szNewPath[MAX_PATH];
-	return CreateHardLinkA(__win32_path(strcpy(szNewPath, newpath)), __win32_path(strcpy(szExistPath, existpath)), NULL);
+	BOOL ret;
+	char *szExistPath, *szNewPath;
+	szNewPath = __win32_path(newpath);
+	if (!szNewPath)
+		return FALSE;
+	szExistPath = __win32_path(existpath);
+	if (!szExistPath) {
+		free(szNewPath);
+		return FALSE;
+	}
+	ret = CreateHardLinkA(szNewPath, szExistPath, NULL);
+	free(szExistPath);
+	free(szNewPath);
+	return ret;
 #else
 	return link(existpath, newpath) == 0;
 #endif
@@ -441,8 +499,14 @@ BOOL fileCreateHardLink(const char* existpath, const char* newpath) {
 
 BOOL fileDeleteHardLink(const char* existpath) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szExistPath[MAX_PATH];
-	return DeleteFileA(__win32_path(strcpy(szExistPath, existpath)));
+	BOOL ret;
+	char *szExistPath;
+	szExistPath = __win32_path(existpath);
+	if (!szExistPath)
+		return FALSE;
+	ret = DeleteFileA(szExistPath);
+	free(szExistPath);
+	return ret;
 #else
 	return unlink(existpath) == 0;
 #endif
@@ -468,8 +532,14 @@ BOOL fileHardLinkCount(FD_t fd, unsigned int* count) {
 /* directory operator */
 BOOL dirCreate(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szFullPath[MAX_PATH];
-	return CreateDirectoryA(__win32_path(strcpy(szFullPath, path)), NULL);
+	BOOL ret;
+	char *szFullPath;
+	szFullPath = __win32_path(path);
+	if (!szFullPath)
+		return FALSE;
+	ret = CreateDirectoryA(szFullPath, NULL);
+	free(szFullPath);
+	return ret;
 #else
 	return mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0;
 #endif
@@ -485,8 +555,14 @@ BOOL dirCurrentPath(char* buf, size_t n) {
 
 BOOL dirSheftPath(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
-	char szFullPath[MAX_PATH];
-	return SetCurrentDirectoryA(__win32_path(strcpy(szFullPath, path)));
+	BOOL ret;
+	char *szFullPath;
+	szFullPath = __win32_path(path);
+	if (!szFullPath)
+		return FALSE;
+	ret = SetCurrentDirectoryA(szFullPath);
+	free(szFullPath);
+	return ret;
 #else
 	return chdir(path) == 0;
 #endif
@@ -494,16 +570,26 @@ BOOL dirSheftPath(const char* path) {
 
 Dir_t dirOpen(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
-	size_t len;
-	WIN32_FIND_DATAA fd;
-	char szFullPath[MAX_PATH];
-	__win32_path(strcpy(szFullPath, path));
-	len = strlen(szFullPath);
+	HANDLE hFind;
+	size_t i, len = strlen(path);
+	WIN32_FIND_DATAA find_data;
+	char *szFullPath;
+	szFullPath = (char*)malloc(len + 3);
+	if (!szFullPath)
+		return INVALID_HANDLE_VALUE;
+	memcpy(szFullPath, path, len);
+	for (i = 0; i < len; ++i) {
+		if (szFullPath[i] == '/')
+			szFullPath[i] = '\\';
+	}
+	szFullPath[len] = 0;
 	if (szFullPath[len - 1] == '\\')
 		strcat(szFullPath, "*");
 	else if (szFullPath[len - 1] != '*')
 		strcat(szFullPath, "\\*");
-	return FindFirstFileA(szFullPath, &fd);
+	hFind = FindFirstFileA(szFullPath, &find_data);
+	free(szFullPath);
+	return hFind;
 #else
 	return opendir(path);
 #endif

@@ -25,9 +25,16 @@ extern "C" {
 
 static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
 	FD_t fd;
-	char* pathname = strFormat(NULL, "%s.%d-%d-%d.txt", log->pathname, dt->tm_year, dt->tm_mon, dt->tm_mday);
-	if (!pathname)
-		return;
+	char* pathname;
+	while (1) {
+		pathname = strFormat(NULL, "%s.%d-%d-%d.%u.txt", log->pathname, dt->tm_year, dt->tm_mon, dt->tm_mday, log->m_filesegmentseq);
+		if (!pathname)
+			return;
+		if (!fileIsExist(pathname))
+			break;
+		log->m_filesegmentseq++;
+		free(pathname);
+	}
 	fd = fdOpen(pathname, FILE_CREAT_BIT | FILE_WRITE_BIT | FILE_APPEND_BIT | (trunc ? FILE_TRUNC_BIT : 0));
 	free(pathname);
 	if (INVALID_FD_HANDLE == fd)
@@ -42,7 +49,7 @@ static void log_rotate(Log_t* log, const struct tm* dt, int trunc) {
 		log->m_filesize = fdGetSize(fd);
 }
 
-static void log_write(Log_t* log, const CacheBlock_t* cache) {
+static void log_write(Log_t* log, CacheBlock_t* cache) {
 	if (log->print_stderr) {
 		fputs(cache->txt, stderr);
 	}
@@ -111,7 +118,7 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 	cache->dt = dt;
 	cache->len = len;
 
-	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|%s",
+	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%zu|%s|",
 					log->ident,
 					dt.tm_year, dt.tm_mon, dt.tm_mday,
 					dt.tm_hour, dt.tm_min, dt.tm_sec,
@@ -144,6 +151,7 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	log->m_fd = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
 	log->m_maxfilesize = ~0;
+	log->m_filesegmentseq = 0;
 	listInit(&log->m_cachelist);
 	log->m_initok = 1;
 
