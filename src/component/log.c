@@ -128,31 +128,30 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 	if (res <= 0)\
 		return;\
 	len += res;\
-\
-	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len + 1);\
+	++len;/* append '\n' */\
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);\
 	if (!cache)\
 		return;\
-	cache->dt = dt;\
-	cache->len = len;\
-\
-	res = snprintf(cache->txt, cache->len, "%s|%d-%d-%d %d:%d:%d|%s|",\
+	res = snprintf(cache->txt, len + 1, "%s|%d-%d-%d %d:%d:%d|%s|",\
 					log->ident,\
 					dt.tm_year, dt.tm_mon, dt.tm_mday,\
 					dt.tm_hour, dt.tm_min, dt.tm_sec,\
 					priority);\
-	if (res <= 0 || res >= cache->len) {\
+	if (res <= 0 || res >= len) {\
 		free(cache);\
 		return;\
 	}\
 	va_start(varg, format);\
-	res = vsnprintf(cache->txt + res, cache->len - res + 1, format, varg);\
+	res = vsnprintf(cache->txt + res, len - res + 1, format, varg);\
 	va_end(varg);\
 	if (res <= 0) {\
 		free(cache);\
 		return;\
 	}\
-	cache->txt[cache->len] = 0;\
-\
+	cache->txt[len - 1] = '\n';\
+	cache->txt[len] = 0;\
+	cache->len = len;\
+	cache->dt = dt;\
 	log_write(log, cache);\
 } while (0)
 
