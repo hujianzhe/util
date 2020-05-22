@@ -9,19 +9,19 @@
 #include "../datastruct/rbtree.h"
 #include "../sysapi/ipc.h"
 
-typedef struct RBTimerEvent_t {
-	ListNode_t m_listnode;
-	long long timestamp_msec;
-	int(*callback)(struct RBTimerEvent_t*, void*);
-	void* arg;
-} RBTimerEvent_t;
-
 typedef struct RBTimer_t {
 	char m_initok;
 	char m_uselock;
 	CriticalSection_t m_lock;
 	RBTree_t m_rbtree;
 } RBTimer_t;
+
+typedef struct RBTimerEvent_t {
+	ListNode_t m_listnode;
+	long long timestamp_msec;
+	int(*callback)(RBTimer_t*, struct RBTimerEvent_t*);
+	void* arg;
+} RBTimerEvent_t;
 
 #ifdef __cplusplus
 extern "C" {

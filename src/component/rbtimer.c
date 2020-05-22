@@ -59,7 +59,7 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
 
-	if (!e->callback || e->timestamp_msec < 0)
+	if (e->timestamp_msec < 0)
 		return 1;
 
 	if (timer->m_uselock)
