@@ -13,7 +13,8 @@ typedef struct Log_t {
 	char ident[64];
 	char* pathname;
 	unsigned char print_stderr;
-	unsigned char print_file;
+	unsigned char day_rotate;
+	unsigned char filename_append_date;
 	unsigned char async_print_file;
 /* private */
 	unsigned char m_initok;
