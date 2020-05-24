@@ -10,10 +10,9 @@ typedef struct VirtualNode_t {
 	void* value;
 } VirtualNode_t;
 static int __consthash_keycmp(const void* node_key, const void* key) {
-	ssize_t res = (ssize_t)key - (ssize_t)node_key;
-	if (res < 0)
+	if ((size_t)key < (size_t)node_key)
 		return -1;
-	else if (res > 0)
+	else if ((size_t)key > (size_t)node_key)
 		return 1;
 	else
 		return 0;
