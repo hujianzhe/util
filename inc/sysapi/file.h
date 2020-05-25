@@ -70,6 +70,8 @@ __declspec_dll BOOL fileUnlock(FD_t fd, long long offset, long long nbytes);
 __declspec_dll BOOL fileIsExist(const char* path);
 __declspec_dll const char* fileExtName(const char* path);
 __declspec_dll const char* fileFileName(const char* path);
+__declspec_dll char* fileReadAllData(const char* path, long long* ptr_file_sz);
+__declspec_dll int fileWriteCoverData(const char* path, const void* data, unsigned int len);
 /* file link */
 __declspec_dll BOOL fileCreateSymlink(const char* actualpath, const char* sympath);
 __declspec_dll BOOL fileCreateHardLink(const char* existpath, const char* newpath);

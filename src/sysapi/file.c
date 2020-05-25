@@ -448,6 +448,45 @@ const char* fileFileName(const char* path) {
 	return fname;
 }
 
+char* fileReadAllData(const char* path, long long* ptr_file_sz) {
+	char* file_data;
+	long long file_sz;
+	FD_t fd = fdOpen(path, FILE_READ_BIT);
+	if (INVALID_FD_HANDLE == fd)
+		return NULL;
+	file_sz = fdGetSize(fd);
+	if (file_sz < 0) {
+		fdClose(fd);
+		return NULL;
+	}
+	file_data = (char*)malloc(file_sz + 1);
+	if (!file_data) {
+		fdClose(fd);
+		return NULL;
+	}
+	file_sz = fdRead(fd, file_data, file_sz);
+	if (file_sz < 0) {
+		fdClose(fd);
+		free(file_data);
+		return NULL;
+	}
+	fdClose(fd);
+	file_data[file_sz] = 0;
+	if (ptr_file_sz)
+		*ptr_file_sz = file_sz;
+	return file_data;
+}
+
+int fileWriteCoverData(const char* path, const void* data, unsigned int len) {
+	int res;
+	FD_t fd = fdOpen(path, FILE_WRITE_BIT | FILE_CREAT_BIT | FILE_TRUNC_BIT);
+	if (INVALID_FD_HANDLE == fd)
+		return FALSE;
+	res = fdWrite(fd, data, len);
+	fdClose(fd);
+	return res;
+}
+
 /* file link */
 BOOL fileCreateSymlink(const char* actualpath, const char* sympath) {
 #if defined(_WIN32) || defined(_WIN64)
