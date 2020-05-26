@@ -24,6 +24,16 @@ typedef struct HttpFrame_t {
 	HashtableNode_t* m_bulks[11];
 } HttpFrame_t;
 
+#define	HTTP_SIMPLE_RESP_FMT \
+"HTTP/1.1 %u %s\r\n"\
+"Access-Control-Allow-Origin: *\r\n"\
+"Content-Length:%u\r\n"\
+"\r\n"\
+"%s"\
+
+#define	HTTP_SIMPLE_RESP_VALUE(status_code, strdata, strdatalen) \
+status_code, httpframeStatusDesc(status_code), strdatalen, strdata
+
 #ifdef __cplusplus
 extern "C" {
 #endif

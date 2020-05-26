@@ -314,7 +314,9 @@ static void stream_default_sys_recvfin_handler(ChannelBase_t* channel, long long
 		return;
 	else {
 		Reactor_t* reactor = channel->reactor;
+		criticalsectionEnter(&reactor->m_cmdlistlock);
 		listPushNodeBack(&reactor->m_cmdlist, &channel->stream_sendfincmd._);
+		criticalsectionLeave(&reactor->m_cmdlistlock);
 	}
 }
 
