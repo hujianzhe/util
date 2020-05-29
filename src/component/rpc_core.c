@@ -82,7 +82,7 @@ RpcItem_t* rpcAsyncCoreUnregItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 static void rpc_async_callback(RpcAsyncCore_t* rpc, RpcItem_t* item, void* ret_msg) {
 	rpc_remove_node(&rpc->rpc_item_tree, item);
 	item->ret_msg = ret_msg;
-	item->async_callback(item);
+	item->async_callback(rpc, item);
 }
 
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
@@ -108,7 +108,7 @@ void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, RBTree_t* item_set) {
 		RpcItem_t* item = pod_container_of(rbnode, RpcItem_t, m_treenode);
 		item->m_has_reg = 0;
 		item->ret_msg = NULL;
-		item->async_callback(item);
+		item->async_callback(rpc, item);
 	}
 }
 

@@ -9,6 +9,10 @@
 #include "../datastruct/rbtree.h"
 #include "../sysapi/process.h"
 
+typedef struct RpcAsyncCore_t {
+	RBTree_t rpc_item_tree;
+} RpcAsyncCore_t;
+
 typedef struct RpcItem_t {
 	ListNode_t listnode; /* user use, library not use this field */
 	void* originator; /* user use, library not use this field */
@@ -18,7 +22,7 @@ typedef struct RpcItem_t {
 	int id;
 	long long timestamp_msec;
 	void* async_req_arg;
-	void(*async_callback)(struct RpcItem_t*);
+	void(*async_callback)(RpcAsyncCore_t*, struct RpcItem_t*);
 	Fiber_t* fiber;
 	void* ret_msg;
 } RpcItem_t;
@@ -36,10 +40,6 @@ typedef struct RpcFiberCore_t {
 	RBTree_t rpc_item_tree;
 	void* runthread; /* userdata, library isn't use this field */
 } RpcFiberCore_t;
-
-typedef struct RpcAsyncCore_t {
-	RBTree_t rpc_item_tree;
-} RpcAsyncCore_t;
 
 #ifdef __cplusplus
 extern "C" {
