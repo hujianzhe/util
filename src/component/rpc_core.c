@@ -63,7 +63,7 @@ void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc) {
 	// TODO
 }
 
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcItem_t*)) {
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*)) {
 	if (rpc_reg_item(&rpc->rpc_item_tree, item)) {
 		item->async_req_arg = req_arg;
 		item->async_callback = ret_callback;
