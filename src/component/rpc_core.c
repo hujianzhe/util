@@ -157,6 +157,7 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	rpc->reply_item = NULL;
 	rpc->msg_handler = msg_handler;
 	rbtreeInit(&rpc->rpc_item_tree, __keycmp);
+	rpc->runthread = NULL;
 	return rpc;
 }
 

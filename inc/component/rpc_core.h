@@ -34,6 +34,7 @@ typedef struct RpcFiberCore_t {
 	RpcItem_t* reply_item;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
 	RBTree_t rpc_item_tree;
+	void* runthread; /* userdata, library isn't use this field */
 } RpcFiberCore_t;
 
 typedef struct RpcAsyncCore_t {
