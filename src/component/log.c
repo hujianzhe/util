@@ -23,7 +23,7 @@ typedef struct CacheBlock_t {
 extern "C" {
 #endif
 
-static void log_rotate(Log_t* log, const struct tm* dt) {
+static int log_rotate(Log_t* log, const struct tm* dt) {
 	FD_t fd;
 	char* pathname;
 	long long filesz;
@@ -36,14 +36,14 @@ static void log_rotate(Log_t* log, const struct tm* dt) {
 			pathname = strFormat(NULL, "%s.%u.txt", log->pathname, log->m_filesegmentseq);
 		}
 		if (!pathname)
-			return;
+			return 0;
 		fd = fdOpen(pathname, FILE_READ_BIT);
 		if (fd != INVALID_FD_HANDLE) {
 			filesz = fdGetSize(fd);
 			fdClose(fd);
 			if (filesz < 0) {
 				free(pathname);
-				return;
+				return 0;
 			}
 		}
 		else if (errnoGet() == ENOENT) {
@@ -51,7 +51,7 @@ static void log_rotate(Log_t* log, const struct tm* dt) {
 		}
 		else {
 			free(pathname);
-			return;
+			return 0;
 		}
 		log->m_filesegmentseq++;
 		if (filesz < log->m_maxfilesize)
@@ -62,13 +62,14 @@ static void log_rotate(Log_t* log, const struct tm* dt) {
 	free(pathname);
 	if (INVALID_FD_HANDLE == fd) {
 		log->m_filesegmentseq--;
-		return;
+		return 0;
 	}
 	if (log->m_fd != INVALID_FD_HANDLE) {
 		fdClose(log->m_fd);
 	}
 	log->m_fd = fd;
 	log->m_filesize = filesz;
+	return 1;
 }
 
 static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
@@ -81,13 +82,15 @@ static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
 		}
 		log_rotate(log, dt);
 	}
-	/* size rotate */
-	else if (cache->len >= log->m_maxfilesize - log->m_filesize) {
-		log_rotate(log, dt);
-	}
 	/* force open fd */
-	else if (INVALID_FD_HANDLE == log->m_fd) {
-		log_rotate(log, dt);
+	if (INVALID_FD_HANDLE == log->m_fd) {
+		if (!log_rotate(log, dt))
+			return;
+	}
+	/* size rotate */
+	while (log->m_maxfilesize <= log->m_filesize || cache->len > log->m_maxfilesize - log->m_filesize) {
+		if (!log_rotate(log, dt))
+			break;
 	}
 	/* io */
 	if (INVALID_FD_HANDLE != log->m_fd) {
