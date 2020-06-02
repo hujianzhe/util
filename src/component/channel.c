@@ -134,6 +134,8 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		else if (decode_result.incomplete)
 			return off;
 		off += decode_result.decodelen;
+		if (decode_result.ignore)
+			continue;
 		pktype = decode_result.pktype;
 		if (0 == pktype) {
 			channel->on_recv(channel, &channel->_.to_addr, &decode_result);
@@ -209,6 +211,8 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 	if (decode_result.err)
 		return 1;
 	else if (decode_result.incomplete)
+		return 1;
+	else if (decode_result.ignore)
 		return 1;
 	pktype = decode_result.pktype;
 	if (NETPACKET_SYN == pktype) {
@@ -309,6 +313,8 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	if (decode_result.err)
 		return 1;
 	else if (decode_result.incomplete)
+		return 1;
+	else if (decode_result.ignore)
 		return 1;
 	pktype = decode_result.pktype;
 	if (0 == pktype) {

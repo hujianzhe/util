@@ -10,6 +10,7 @@
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
 	char incomplete;
+	char ignore;
 	char pktype;
 	unsigned int pkseq;
 	unsigned int decodelen;
