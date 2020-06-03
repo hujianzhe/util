@@ -423,12 +423,12 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 static int on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
-		off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
-		if (off < 0)
+		int res_off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
+		if (res_off < 0)
 			channel_invalid(base, REACTOR_ONREAD_ERR);
 		else if (base->has_recvfin && base->has_sendfin)
 			channel_invalid(base, 0);
-		return off;
+		return res_off;
 	}
 	else {
 		if (channel->_.flag & CHANNEL_FLAG_LISTEN)

@@ -511,7 +511,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			o->m_inbuflen += res;
 			channel = streamChannel(o);
 			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
-			if (!after_call_channel_interface(channel)) {
+			if (!after_call_channel_interface(channel) || res < 0) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_ONREAD_ERR;
 				return;
