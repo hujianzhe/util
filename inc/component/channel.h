@@ -60,7 +60,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int initseq, const void* saddr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int extra_sz, const void* saddr);
 __declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
 __declspec_dll List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);

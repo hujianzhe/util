@@ -634,8 +634,8 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 
 /*******************************************************************************/
 
-Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, unsigned int initseq, const void* saddr) {
-	Channel_t* channel = (Channel_t*)channelbaseOpen(sizeof(Channel_t), flag, o, saddr);
+Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, unsigned int extra_sz, const void* saddr) {
+	Channel_t* channel = (Channel_t*)channelbaseOpen(sizeof(Channel_t) + extra_sz, flag, o, saddr);
 	if (!channel)
 		return NULL;
 	flag = channel->_.flag;
@@ -645,13 +645,13 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 		}
 		channel->dgram.rto = 200;
 		channel->dgram.resend_maxtimes = 5;
-		dgramtransportctxInit(&channel->_.dgram_ctx, initseq);
+		dgramtransportctxInit(&channel->_.dgram_ctx, 0);
 	}
 	else {
-		streamtransportctxInit(&channel->_.stream_ctx, initseq);
+		streamtransportctxInit(&channel->_.stream_ctx, 0);
 		//channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
 	}
-	channel->m_initseq = initseq;
+	channel->m_initseq = 0;
 	channel->_.on_exec = on_exec;
 	channel->_.on_read = on_read;
 	channel->_.on_pre_send = on_pre_send;
