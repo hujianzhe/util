@@ -22,15 +22,7 @@ typedef struct ChannelInbufDecodeResult_t {
 typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
-	struct {
-		union {
-			unsigned int userid32;
-			unsigned long long userid64;
-		};
-		void* userdata;
-		void* decode_userdata;
-		List_t rpc_itemlist;
-	}; /* user use, library not use these field */
+	void* userdata; /* user use, library not use these field */
 	int heartbeat_timeout_sec;
 	unsigned int heartbeat_maxtimes; /* client use */
 	struct {
