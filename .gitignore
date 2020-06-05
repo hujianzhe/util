@@ -1,4 +1,6 @@
 .gitattributes
 *.a
 *.so
+.xmake
+build
 tags
