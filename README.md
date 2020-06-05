@@ -21,7 +21,7 @@
 				httpfram			用于解析与组装HTTP协议报文  
 				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
-				log					用于日志读写,支持异步/同步写入文件与控制台两种模式  
+				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
 				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
@@ -49,7 +49,7 @@
 				error				提供统一的系统错误码接口  
 				file				提供统一的文件与目录操作接口  
 				io					提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
-				ipc					提供统一的同步接口  
+				ipc					提供统一的OS锁接口  
 				math				一些实用的数学运算接口  
 				misc				杂项接口  
 				mmap				提供统一的文件内存映射与共享内存接口  
