@@ -6,6 +6,7 @@
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
 #include <stdlib.h>
+#include <string.h>
 
 #define	allChannelDoAction(o, var_name, do_action)\
 do {\

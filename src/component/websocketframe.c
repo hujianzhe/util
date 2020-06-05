@@ -8,6 +8,7 @@
 #include "../../inc/datastruct/base64.h"
 #include "../../inc/datastruct/sha1.h"
 #include "../../inc/datastruct/memfunc.h"
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
