@@ -110,6 +110,12 @@ struct ListNode_t* listPopNodeBack(struct List_t* list) {
 	return tail;
 }
 
+struct ListNode_t* listAt(const struct List_t* list, ptrlen_t index) {
+	struct ListNode_t* node;
+	for (node = list->head; node && index--; node = node->next);
+	return node;
+}
+
 void listAppend(struct List_t* to, struct List_t* from) {
 	if (!to->head) {
 		to->head = from->head;
