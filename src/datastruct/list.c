@@ -191,7 +191,7 @@ struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_ta
 	return new_list;
 }
 
-struct ListNode_t* listFindNode(struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*), const void* key) {
+struct ListNode_t* listFindNode(const struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*), const void* key) {
 	struct ListNode_t* cur;
 	for (cur = list->head; cur; cur = cur->next) {
 		if (cmp(cur, key))
