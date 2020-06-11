@@ -377,7 +377,7 @@ void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info) {
 }
 
 /* SOCKET ENUM VALUE <-> STRING */
-const char* if_socktype2tring(int socktype) {
+const char* if_socktype2string(int socktype) {
 	switch (socktype) {
 		case SOCK_STREAM:
 			return "SOCK_STREAM";

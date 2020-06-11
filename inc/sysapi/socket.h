@@ -121,7 +121,7 @@ __declspec_dll BOOL networkCleanEnv(void);
 __declspec_dll NetworkInterfaceInfo_t* networkInterfaceInfo(void);
 __declspec_dll void networkFreeInterfaceInfo(NetworkInterfaceInfo_t* info);
 /* SOCKET ENUM VALUE <-> STRING */
-__declspec_dll const char* if_socktype2tring(int socktype);
+__declspec_dll const char* if_socktype2string(int socktype);
 __declspec_dll int if_string2socktype(const char* socktype);
 /* SOCKET ADDRESS */
 __declspec_dll int sockaddrIPType(const struct sockaddr* sa);
