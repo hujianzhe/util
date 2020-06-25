@@ -58,7 +58,10 @@ typedef struct Reactor_t {
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
-typedef ListNodeTemplateDeclare(int, type)	ReactorCmd_t;
+typedef struct ReactorCmd_t {
+	struct ListNode_t _;
+	int type;
+} ReactorCmd_t;
 typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
