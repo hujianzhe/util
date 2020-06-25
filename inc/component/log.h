@@ -36,6 +36,8 @@ __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);
 
+__declspec_dll void logPrintRaw(Log_t* log, int level, const char* format, ...);
+
 __declspec_dll void logEmerg(Log_t* log, const char* format, ...);
 __declspec_dll void logAlert(Log_t* log, const char* format, ...);
 __declspec_dll void logCrit(Log_t* log, const char* format, ...);

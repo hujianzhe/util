@@ -248,6 +248,39 @@ void logDestroy(Log_t* log) {
 	}
 }
 
+void logPrintRaw(Log_t* log, int level, const char* format, ...) {
+	va_list varg;
+	int len;
+	char test_buf;
+	CacheBlock_t* cache;
+	struct tm dt;
+
+	if (!format || 0 == *format)
+		return;
+	if (!structtmMake(gmtimeSecond(), &dt))
+		return;
+	structtmNormal(&dt);
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	if (len <= 0)
+		return;
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
+	if (!cache)
+		return;
+	va_start(varg, format);
+	len = vsnprintf(cache->txt, len + 1, format, varg);
+	va_end(varg);
+	if (len <= 0) {
+		free(cache);
+		return;
+	}
+	cache->txt[len] = 0;
+	cache->len = len;
+	cache->dt = dt;
+	log_write(log, cache);
+}
+
 void logEmerg(Log_t* log, const char* format, ...) {
 	log_build(log, "EMERG", format);
 }
