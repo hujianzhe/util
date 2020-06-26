@@ -10,6 +10,7 @@
 	#include <stdlib.h>
 #else
 	#include <arpa/inet.h>
+	#include <sys/ioctl.h>
 #endif
 #include <errno.h>
 #include <string.h>
