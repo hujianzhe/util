@@ -13,12 +13,9 @@ typedef struct Log_t {
 	char ident[64];
 	char* pathname;
 	unsigned char print_stderr;
-	unsigned char day_rotate;
-	unsigned char filename_append_date;
 	unsigned char async_print_file;
 /* private */
 	unsigned char m_initok;
-	int m_days;
 	FD_t m_fd;
 	size_t m_filesize;
 	size_t m_maxfilesize;

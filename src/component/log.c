@@ -14,7 +14,6 @@
 
 typedef struct CacheBlock_t {
 	ListNode_t m_listnode;
-	struct tm dt;
 	size_t len;
 	char txt[1];
 } CacheBlock_t;
@@ -23,18 +22,12 @@ typedef struct CacheBlock_t {
 extern "C" {
 #endif
 
-static int log_rotate(Log_t* log, const struct tm* dt) {
+static int log_rotate(Log_t* log) {
 	FD_t fd;
 	char* pathname;
 	long long filesz;
-	int filename_append_date = log->filename_append_date;
 	while (1) {
-		if (filename_append_date) {
-			pathname = strFormat(NULL, "%s.%d-%d-%d.%u.txt", log->pathname, dt->tm_year, dt->tm_mon, dt->tm_mday, log->m_filesegmentseq);
-		}
-		else {
-			pathname = strFormat(NULL, "%s.%u.txt", log->pathname, log->m_filesegmentseq);
-		}
+		pathname = strFormat(NULL, "%s.%u.txt", log->pathname, log->m_filesegmentseq);
 		if (!pathname)
 			return 0;
 		fd = fdOpen(pathname, FILE_READ_BIT);
@@ -73,23 +66,14 @@ static int log_rotate(Log_t* log, const struct tm* dt) {
 }
 
 static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
-	struct tm* dt = &cache->dt;
-	/* day rotate */
-	if (log->day_rotate && log->m_days != dt->tm_yday) {
-		log->m_days = dt->tm_yday;
-		if (log->filename_append_date) {
-			log->m_filesegmentseq = 0;
-		}
-		log_rotate(log, dt);
-	}
 	/* force open fd */
 	if (INVALID_FD_HANDLE == log->m_fd) {
-		if (!log_rotate(log, dt))
+		if (!log_rotate(log))
 			return;
 	}
 	/* size rotate */
 	while (log->m_maxfilesize <= log->m_filesize || cache->len > log->m_maxfilesize - log->m_filesize) {
-		if (!log_rotate(log, dt))
+		if (!log_rotate(log))
 			break;
 	}
 	/* io */
@@ -173,7 +157,6 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 	cache->txt[len - 1] = '\n';\
 	cache->txt[len] = 0;\
 	cache->len = len;\
-	cache->dt = dt;\
 	log_write(log, cache);\
 } while (0)
 
@@ -186,7 +169,6 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 		free(log->pathname);
 		return NULL;
 	}
-	log->m_days = -1;
 	log->m_fd = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
 	log->m_maxfilesize = ~0;
@@ -197,8 +179,6 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	strncpy(log->ident, ident, sizeof(log->ident) - 1);
 	log->ident[sizeof(log->ident) - 1] = 0;
 	log->print_stderr = 0;
-	log->day_rotate = 0;
-	log->filename_append_date = 0;
 	log->async_print_file = 0;
 
 	return log;
@@ -253,13 +233,9 @@ void logPrintRaw(Log_t* log, int level, const char* format, ...) {
 	int len;
 	char test_buf;
 	CacheBlock_t* cache;
-	struct tm dt;
 
 	if (!format || 0 == *format)
 		return;
-	if (!structtmMake(gmtimeSecond(), &dt))
-		return;
-	structtmNormal(&dt);
 	va_start(varg, format);
 	len = vsnprintf(&test_buf, 0, format, varg);
 	va_end(varg);
@@ -277,7 +253,6 @@ void logPrintRaw(Log_t* log, int level, const char* format, ...) {
 	}
 	cache->txt[len] = 0;
 	cache->len = len;
-	cache->dt = dt;
 	log_write(log, cache);
 }
 
