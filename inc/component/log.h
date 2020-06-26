@@ -14,6 +14,7 @@ typedef struct Log_t {
 	char* pathname;
 	unsigned char print_stderr;
 	unsigned char async_print_file;
+	int(*fn_priority_filter)(const char* priority);
 /* private */
 	unsigned char m_initok;
 	FD_t m_fd;
@@ -33,7 +34,8 @@ __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);
 
-__declspec_dll void logPrintRaw(Log_t* log, int level, const char* format, ...);
+__declspec_dll void logPrintRaw(Log_t* log, const char* priority, const char* format, ...);
+__declspec_dll void logPrintln(Log_t* log, const char* priority, const char* format, ...);
 
 __declspec_dll void logEmerg(Log_t* log, const char* format, ...);
 __declspec_dll void logAlert(Log_t* log, const char* format, ...);

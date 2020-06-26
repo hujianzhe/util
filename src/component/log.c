@@ -113,12 +113,12 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 	CacheBlock_t* cache;\
 	struct tm dt;\
 \
-	if (!format || 0 == *format) {\
+	if (!format || 0 == *format)\
 		return;\
-	}\
-	if (!structtmMake(gmtimeSecond(), &dt)) {\
+	if (log->fn_priority_filter && log->fn_priority_filter(priority))\
 		return;\
-	}\
+	if (!structtmMake(gmtimeSecond(), &dt))\
+		return;\
 	structtmNormal(&dt);\
 	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%s|",\
 						log->ident,\
@@ -180,6 +180,7 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	log->ident[sizeof(log->ident) - 1] = 0;
 	log->print_stderr = 0;
 	log->async_print_file = 0;
+	log->fn_priority_filter = NULL;
 
 	return log;
 }
@@ -228,13 +229,15 @@ void logDestroy(Log_t* log) {
 	}
 }
 
-void logPrintRaw(Log_t* log, int level, const char* format, ...) {
+void logPrintRaw(Log_t* log, const char* priority, const char* format, ...) {
 	va_list varg;
 	int len;
 	char test_buf;
 	CacheBlock_t* cache;
 
 	if (!format || 0 == *format)
+		return;
+	if (log->fn_priority_filter && log->fn_priority_filter(priority ? priority : ""))
 		return;
 	va_start(varg, format);
 	len = vsnprintf(&test_buf, 0, format, varg);
@@ -254,6 +257,12 @@ void logPrintRaw(Log_t* log, int level, const char* format, ...) {
 	cache->txt[len] = 0;
 	cache->len = len;
 	log_write(log, cache);
+}
+
+void logPrintln(Log_t* log, const char* priority, const char* format, ...) {
+	if (!priority)
+		priority = "";
+	log_build(log, priority, format);
 }
 
 void logEmerg(Log_t* log, const char* format, ...) {
