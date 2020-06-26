@@ -64,6 +64,9 @@ typedef struct Nio_t {
 #ifdef	__linux__
 	FD_t __epfd;
 #endif
+#if !defined(_WIN32) && !defined(_WIN64)
+	FD_t __socketpair[2];
+#endif
 } Nio_t;
 __declspec_dll BOOL nioCreate(Nio_t* nio);
 __declspec_dll BOOL nioReg(Nio_t* nio, FD_t fd);
@@ -74,7 +77,8 @@ __declspec_dll void nioFreeOverlapped(void* ol);
 __declspec_dll int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
 __declspec_dll BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen);
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
-__declspec_dll void* nioEventOverlappedCheck(const NioEv_t* e);
+__declspec_dll void nioWakeup(const Nio_t* nio);
+__declspec_dll void* nioEventOverlappedCheck(const Nio_t* nio, const NioEv_t* e);
 __declspec_dll FD_t nioEventFD(const NioEv_t* e);
 __declspec_dll int nioEventOpcode(const NioEv_t* e);
 __declspec_dll BOOL nioConnectCheckSuccess(FD_t sockfd);

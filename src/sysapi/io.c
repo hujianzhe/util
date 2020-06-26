@@ -156,8 +156,9 @@ BOOL nioCreate(Nio_t* nio) {
 	nio->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
 	return nio->__hNio != 0;
 #elif __linux__
-	int nio_ok = 0, epfd_ok = 0;
+	int nio_ok = 0, epfd_ok = 0, pair_ok = 0;
 	do {
+		int nb = 1;
 		struct epoll_event e = { 0 };
 		nio->__hNio = epoll_create1(EPOLL_CLOEXEC);
 		if (nio->__hNio < 0) {
@@ -174,6 +175,21 @@ BOOL nioCreate(Nio_t* nio) {
 		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__epfd, &e)) {
 			break;
 		}
+		if (socketpair(AF_UNIX, SOCK_STREAM, 0, nio->__socketpair)) {
+			break;
+		}
+		pair_ok = 1;
+		if (ioctl(nio->__socketpair[0], FIONBIO, &nb)) {
+			break;
+		}
+		if (ioctl(nio->__socketpair[1], FIONBIO, &nb)) {
+			break;
+		}
+		e.data.fd = nio->__socketpair[0];
+		e.events = EPOLLIN;
+		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__socketpair[0], &e)) {
+			break;
+		}
 		return TRUE;
 	} while (0);
 	if (nio_ok) {
@@ -182,9 +198,44 @@ BOOL nioCreate(Nio_t* nio) {
 	if (epfd_ok) {
 		assertTRUE(0 == close(nio->__epfd));
 	}
+	if (pair_ok) {
+		assertTRUE(0 == close(nio->__socketpair[0]));
+		assertTRUE(0 == close(nio->__socketpair[1]));
+	}
 	return FALSE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	return !((nio->__hNio = kqueue()) < 0);
+	int nio_ok = 0, pair_ok = 0;
+	do {
+		struct kevent e;
+		nio->__hNio = kqueue();
+		if (nio->__hNio < 0) {
+			break;
+		}
+		nio_ok = 1;
+		if (socketpair(AF_UNIX, SOCK_STREAM, 0, nio->__socketpair)) {
+			break;
+		}
+		pair_ok = 1;
+		if (ioctl(nio->__socketpair[0], FIONBIO, &nb)) {
+			break;
+		}
+		if (ioctl(nio->__socketpair[1], FIONBIO, &nb)) {
+			break;
+		}
+		EV_SET(&e, (uintptr_t)(nio->__socketpair[0]), EVFILT_READ, EV_ADD, 0, 0, (void*)(size_t)(nio->__socketpair[0]));
+		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
+			break;
+		}
+		return TRUE;
+	} while (0);
+	if (nio_ok) {
+		assertTRUE(0 == close(nio->__hNio));
+	}
+	if (pair_ok) {
+		assertTRUE(0 == close(nio->__socketpair[0]));
+		assertTRUE(0 == close(nio->__socketpair[1]));
+	}
+	return FALSE;
 #endif
 }
 
@@ -563,6 +614,15 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 #endif
 }
 
+void nioWakeup(const Nio_t* nio) {
+#if defined(_WIN32) || defined(_WIN64)
+	PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, (ULONG_PTR)INVALID_HANDLE_VALUE, NULL);
+#else
+	char c;
+	write(nio->__socketpair[1], &c, sizeof(c));
+#endif
+}
+
 FD_t nioEventFD(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	return e->lpCompletionKey;
@@ -573,10 +633,12 @@ FD_t nioEventFD(const NioEv_t* e) {
 #endif
 }
 
-void* nioEventOverlappedCheck(const NioEv_t* e) {
+void* nioEventOverlappedCheck(const Nio_t* nio, const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
-	if (iocp_ol->free) {
+	if (!iocp_ol)
+		return NULL;
+	else if (iocp_ol->free) {
 		free(iocp_ol);
 		return NULL;
 	}
@@ -585,6 +647,12 @@ void* nioEventOverlappedCheck(const NioEv_t* e) {
 		return iocp_ol;
 	}
 #else
+	FD_t fd = nioEventFD(e);
+	if (fd == nio->__socketpair[0]) {
+		char c[256];
+		read(fd, c, sizeof(c));
+		return NULL;
+	}
 	return (void*)(size_t)-1;
 #endif
 }
@@ -744,6 +812,8 @@ BOOL nioClose(Nio_t* nio) {
 	}
 	nio->__epfd = -1;
 	#endif
+	close(nio->__socketpair[0]);
+	close(nio->__socketpair[1]);
 	return close(nio->__hNio) == 0;
 #endif
 }
