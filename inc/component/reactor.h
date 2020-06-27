@@ -46,11 +46,8 @@ typedef struct Reactor_t {
 	/* private */
 	unsigned char m_runthreadhasbind;
 	long long m_event_msec;
-	//Atom16_t m_wake;
 	Thread_t m_runthread;
 	Nio_t m_nio;
-	//FD_t m_socketpair[2];
-	//void* m_readol;
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
 	List_t m_invalidlist;

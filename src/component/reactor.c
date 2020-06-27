@@ -864,53 +864,13 @@ static int objht_keycmp(const void* node_key, const void* key) {
 static unsigned int objht_keyhash(const void* key) { return *(FD_t*)key; }
 
 Reactor_t* reactorInit(Reactor_t* reactor) {
-	/*
-	Sockaddr_t saddr = { 0 };
-
-	if (!socketPair(SOCK_STREAM, reactor->m_socketpair))
-		return NULL;
-	saddr.sa.sa_family = AF_INET;
-
-	reactor->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, 0);
-	if (!reactor->m_readol) {
-		socketClose(reactor->m_socketpair[0]);
-		socketClose(reactor->m_socketpair[1]);
-		return NULL;
-	}
-	*/
-
 	if (!nioCreate(&reactor->m_nio)) {
-		/*
-		nioFreeOverlapped(reactor->m_readol);
-		socketClose(reactor->m_socketpair[0]);
-		socketClose(reactor->m_socketpair[1]);
-		*/
 		return NULL;
 	}
-	/*
-	if (!socketNonBlock(reactor->m_socketpair[0], TRUE) ||
-		!socketNonBlock(reactor->m_socketpair[1], TRUE) ||
-		!nioReg(&reactor->m_nio, reactor->m_socketpair[0]) ||
-		!nioCommit(&reactor->m_nio, reactor->m_socketpair[0], NIO_OP_READ, reactor->m_readol,
-			(struct sockaddr*)&saddr, sockaddrLength(&saddr)))
-	{
-		nioFreeOverlapped(reactor->m_readol);
-		socketClose(reactor->m_socketpair[0]);
-		socketClose(reactor->m_socketpair[1]);
-		nioClose(&reactor->m_nio);
-		return NULL;
-	}
-	*/
 	if (!criticalsectionCreate(&reactor->m_cmdlistlock)) {
-		/*
-		nioFreeOverlapped(reactor->m_readol);
-		socketClose(reactor->m_socketpair[0]);
-		socketClose(reactor->m_socketpair[1]);
-		*/
 		nioClose(&reactor->m_nio);
 		return NULL;
 	}
-
 	listInit(&reactor->m_cmdlist);
 	listInit(&reactor->m_invalidlist);
 	hashtableInit(&reactor->m_objht,
@@ -918,17 +878,10 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 		objht_keycmp, objht_keyhash);
 	reactor->m_runthreadhasbind = 0;
 	reactor->m_event_msec = 0;
-	//reactor->m_wake = 0;
 	return reactor;
 }
 
 void reactorWake(Reactor_t* reactor) {
-	/*
-	if (0 == _cmpxchg16(&reactor->m_wake, 1, 0)) {
-		char c;
-		socketWrite(reactor->m_socketpair[1], &c, sizeof(c), 0, NULL, 0);
-	}
-	*/
 	nioWakeup(&reactor->m_nio);
 }
 
@@ -1011,17 +964,6 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i))
 				continue;
 			fd = nioEventFD(e + i);
-			/*
-			if (fd == reactor->m_socketpair[0]) {
-				Sockaddr_t saddr;
-				char c[512];
-				socketRead(fd, c, sizeof(c), 0, NULL);
-				saddr.sa.sa_family = AF_INET;
-				nioCommit(&reactor->m_nio, fd, NIO_OP_READ, reactor->m_readol, (struct sockaddr*)&saddr, sockaddrLength(&saddr));
-				_xchg16(&reactor->m_wake, 0);
-				continue;
-			}
-			*/
 			find_node = hashtableSearchKey(&reactor->m_objht, &fd);
 			if (!find_node)
 				continue;
@@ -1070,11 +1012,6 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 }
 
 void reactorDestroy(Reactor_t* reactor) {
-	/*
-	nioFreeOverlapped(reactor->m_readol);
-	socketClose(reactor->m_socketpair[0]);
-	socketClose(reactor->m_socketpair[1]);
-	*/
 	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
 	do {

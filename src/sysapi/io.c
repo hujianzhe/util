@@ -154,6 +154,7 @@ BOOL nioCreate(Nio_t* nio) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
+	nio->__wakeup = 0;
 	nio->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
 	return nio->__hNio != 0;
 #elif __linux__
@@ -191,6 +192,7 @@ BOOL nioCreate(Nio_t* nio) {
 		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__socketpair[0], &e)) {
 			break;
 		}
+		nio->__wakeup = 0;
 		return TRUE;
 	} while (0);
 	if (nio_ok) {
@@ -227,6 +229,7 @@ BOOL nioCreate(Nio_t* nio) {
 		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
 			break;
 		}
+		nio->__wakeup = 0;
 		return TRUE;
 	} while (0);
 	if (nio_ok) {
@@ -615,13 +618,15 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 #endif
 }
 
-void nioWakeup(const Nio_t* nio) {
+void nioWakeup(Nio_t* nio) {
+	if (0 == _cmpxchg16(&nio->__wakeup, 1, 0)) {
 #if defined(_WIN32) || defined(_WIN64)
-	PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, (ULONG_PTR)INVALID_HANDLE_VALUE, NULL);
+		PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, (ULONG_PTR)INVALID_HANDLE_VALUE, NULL);
 #else
-	char c;
-	write(nio->__socketpair[1], &c, sizeof(c));
+		char c;
+		write(nio->__socketpair[1], &c, sizeof(c));
 #endif
+	}
 }
 
 FD_t nioEventFD(const NioEv_t* e) {
@@ -634,11 +639,13 @@ FD_t nioEventFD(const NioEv_t* e) {
 #endif
 }
 
-void* nioEventOverlappedCheck(const Nio_t* nio, const NioEv_t* e) {
+void* nioEventOverlappedCheck(Nio_t* nio, const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
-	if (!iocp_ol)
+	if (!iocp_ol) {
+		_xchg16(&nio->__wakeup, 0);
 		return NULL;
+	}
 	else if (iocp_ol->free) {
 		free(iocp_ol);
 		return NULL;
@@ -652,6 +659,7 @@ void* nioEventOverlappedCheck(const Nio_t* nio, const NioEv_t* e) {
 	if (fd == nio->__socketpair[0]) {
 		char c[256];
 		read(fd, c, sizeof(c));
+		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	return (void*)(size_t)-1;
