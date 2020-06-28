@@ -137,6 +137,7 @@ typedef struct ChannelBase_t {
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
 	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
 	void(*on_detach)(struct ChannelBase_t* self);
+	void(*on_free)(struct ChannelBase_t* self);
 /* private */
 	char m_has_detached;
 	List_t m_cache_packet_list;

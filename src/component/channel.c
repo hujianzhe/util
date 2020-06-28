@@ -592,6 +592,25 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 	}
 }
 
+static void on_free(ChannelBase_t* base) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	if (base->flag & CHANNEL_FLAG_DGRAM) {
+		if (base->flag & CHANNEL_FLAG_LISTEN) {
+			ListNode_t* cur, *next;
+			for (cur = base->dgram_ctx.recvlist.head; cur; cur = next) {
+				next = cur->next;
+				free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
+			}
+			listInit(&base->dgram_ctx.recvlist);
+			channel->dgram.m_halfconn_curwaitcnt = channel->dgram.halfconn_maxwaitcnt = 0;
+		}
+		else {
+			reactorpacketFree(channel->dgram.m_synpacket);
+			channel->dgram.m_synpacket = NULL;
+		}
+	}
+}
+
 static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;
@@ -655,6 +674,7 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 	channel->_.on_exec = on_exec;
 	channel->_.on_read = on_read;
 	channel->_.on_pre_send = on_pre_send;
+	channel->_.on_free = on_free;
 	return channel;
 }
 
@@ -743,24 +763,6 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
 	Iobuf_t iov = iobufStaticInit(data, len);
 	return channelSendv(channel, &iov, 1, pktype);
-}
-
-void channelDestroy(Channel_t* channel) {
-	if (channel->_.flag & CHANNEL_FLAG_DGRAM) {
-		if (channel->_.flag & CHANNEL_FLAG_LISTEN) {
-			ListNode_t* cur, *next;
-			for (cur = channel->_.dgram_ctx.recvlist.head; cur; cur = next) {
-				next = cur->next;
-				free_halfconn(pod_container_of(cur, DgramHalfConn_t, node));
-			}
-			listInit(&channel->_.dgram_ctx.recvlist);
-			channel->dgram.m_halfconn_curwaitcnt = channel->dgram.halfconn_maxwaitcnt = 0;
-		}
-		else {
-			reactorpacketFree(channel->dgram.m_synpacket);
-			channel->dgram.m_synpacket = NULL;
-		}
-	}
 }
 
 #ifdef	__cplusplus

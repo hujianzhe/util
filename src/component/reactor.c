@@ -909,6 +909,8 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, freecmd);
 		if (_xadd32(&channel->refcnt, -1) > 1)
 			return;
+		if (channel->on_free)
+			channel->on_free(channel);
 		reactor = channel->reactor;
 	}
 	else if (REACTOR_REUSE_CMD == cmdnode->type) {
