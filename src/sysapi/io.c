@@ -209,6 +209,7 @@ BOOL nioCreate(Nio_t* nio) {
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	int nio_ok = 0, pair_ok = 0;
 	do {
+		int nb = 1;
 		struct kevent e;
 		nio->__hNio = kqueue();
 		if (nio->__hNio < 0) {
