@@ -14,9 +14,12 @@ typedef struct RpcAsyncCore_t {
 } RpcAsyncCore_t;
 
 typedef struct RpcItem_t {
-	ListNode_t listnode; /* user use, library not use this field */
-	void* originator; /* user use, library not use this field */
-	void* timeout_ev; /* user use, library not use this field */
+	struct {
+		ListNode_t listnode;
+		void* originator;
+		void* timeout_ev;
+		size_t identity;
+	}; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	char m_has_reg;
 	int id;
