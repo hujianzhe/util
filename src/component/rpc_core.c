@@ -114,11 +114,18 @@ void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, RBTree_t* item_set) {
 
 /*****************************************************************************************/
 
+static void do_fiber_switch(RpcFiberCore_t* rpc, Fiber_t* dst_fiber) {
+	Fiber_t* cur_fiber = rpc->cur_fiber;
+	Fiber_t* from_fiber = rpc->from_fiber;
+	rpc->from_fiber = cur_fiber;
+	rpc->cur_fiber = dst_fiber;
+	fiberSwitch(cur_fiber, dst_fiber);
+	rpc->from_fiber = from_fiber;
+}
+
 static void RpcFiberProcEntry(Fiber_t* fiber) {
 	RpcFiberCore_t* rpc = (RpcFiberCore_t*)fiber->arg;
-	Fiber_t* from_fiber;
 	while (1) {
-		rpc->cur_fiber = fiber;
 		if (rpc->new_msg) {
 			void* msg = rpc->new_msg;
 			rpc->new_msg = NULL;
@@ -126,19 +133,8 @@ static void RpcFiberProcEntry(Fiber_t* fiber) {
 		}
 		if (fiber != rpc->msg_fiber)
 			rpc->ret_flag = 1;
-		from_fiber = rpc->from_fiber;
-		rpc->from_fiber = fiber;
-		fiberSwitch(fiber, from_fiber);
+		do_fiber_switch(rpc, rpc->from_fiber);
 	}
-}
-
-static void do_fiber_switch(RpcFiberCore_t* rpc, Fiber_t* dst_fiber) {
-	Fiber_t* cur_fiber = rpc->cur_fiber;
-	Fiber_t* from_fiber = rpc->from_fiber;
-	rpc->from_fiber = cur_fiber;
-	fiberSwitch(cur_fiber, dst_fiber);
-	rpc->cur_fiber = cur_fiber;
-	rpc->from_fiber = from_fiber;
 }
 
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size, void(*msg_handler)(RpcFiberCore_t*, void*)) {
