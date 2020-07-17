@@ -145,12 +145,14 @@ const char* httpframeStatusDesc(int status_code) {
 	}
 }
 
+static char EMPTY_STRING[] = "";
+
 int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
 	const char *h, *e;
 
 	frame->status_code = 0;
 	frame->method[0] = 0;
-	frame->query = frame->uri = NULL;
+	frame->query = frame->uri = EMPTY_STRING;
 	frame->pathlen = 0;
 	hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
@@ -308,9 +310,10 @@ HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 		hashtableInit(&frame->headers, frame->m_bulks,
 			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 			header_keycmp, header_keyhash);
-		free(frame->uri);
+		if (frame->uri != EMPTY_STRING)
+			free(frame->uri);
 		frame->pathlen = 0;
-		frame->query = frame->uri = NULL;
+		frame->query = frame->uri = EMPTY_STRING;
 		frame->status_code = 0;
 		frame->method[0] = 0;
 	}
