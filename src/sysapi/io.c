@@ -319,6 +319,7 @@ typedef struct IocpReadOverlapped {
 	struct sockaddr_storage saddr;
 	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
+	unsigned char append_data[1]; /* convienent for text data */
 } IocpReadOverlapped;
 typedef struct IocpAcceptExOverlapped {
 	IocpOverlapped base;
@@ -342,8 +343,9 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 					ol->wsabuf.len = refsize;
 				}
 				else if (appendsize) {
-					ol->wsabuf.buf = (char*)(ol + 1);
+					ol->wsabuf.buf = (char*)(ol->append_data);
 					ol->wsabuf.len = appendsize;
+					ol->append_data[appendsize] = 0;
 				}
 			}
 			return ol;

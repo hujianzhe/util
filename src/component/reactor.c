@@ -485,7 +485,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 		}
 		else {
 			if (o->m_inbufsize < o->m_inbuflen + res) {
-				unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res);
+				unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
 				if (!ptr) {
 					o->m_valid = 0;
 					return;
@@ -510,6 +510,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 				return;
 			}
 			o->m_inbuflen += res;
+			o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
 			channel = streamChannel(o);
 			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (!after_call_channel_interface(channel) || res < 0) {
@@ -533,7 +534,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			unsigned char* ptr;
 			if (readtimes) {
 				if (!o->m_inbuf) {
-					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size);
+					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
 					if (!o->m_inbuf) {
 						o->m_valid = 0;
 						return;
@@ -558,6 +559,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 					o->m_valid = 0;
 				return;
 			}
+			ptr[res] = 0; /* convienent for text data */
 			allChannelDoAction(o, ChannelBase_t* channel,
 				int disable_send = channel->disable_send;
 				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr);
