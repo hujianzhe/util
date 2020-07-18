@@ -379,7 +379,7 @@ int httpframeDecodeMultipartFormData(HttpFrame_t* frame, unsigned char* buf, uns
 	len -= boundarylen + 2;
 	if (s[0] == '\r' && s[1] == '\n') {
 		const char* h = (char*)s + 2;
-		e = strStr((char*)s, len, "\r\n\r\n", 4);
+		e = (char*)strStr((char*)s, len, "\r\n\r\n", 4);
 		if (!e)
 			return 0;
 		e += 4;
