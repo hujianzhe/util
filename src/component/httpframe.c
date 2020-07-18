@@ -147,7 +147,7 @@ const char* httpframeStatusDesc(int status_code) {
 
 static char EMPTY_STRING[] = "";
 
-int httpframeDecode(HttpFrame_t* frame, char* buf, unsigned int len) {
+int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len) {
 	const char *h, *e;
 
 	frame->status_code = 0;
