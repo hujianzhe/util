@@ -22,6 +22,7 @@ typedef struct HttpFrame_t {
 	unsigned int pathlen;
 	Hashtable_t headers;
 	HashtableNode_t* m_bulks[11];
+	const char* multipart_form_data_boundary;
 } HttpFrame_t;
 
 #define	HTTP_SIMPLE_RESP_FMT \
@@ -38,13 +39,16 @@ status_code, httpframeStatusDesc(status_code), strdatalen, strdata
 extern "C" {
 #endif
 
-__declspec_dll const char* httpframeStatusDesc(int status_code);
-__declspec_dll int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len);
-__declspec_dll const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
+__declspec_dll HttpFrame_t* httpframeInit(HttpFrame_t* frame);
 __declspec_dll HttpFrame_t* httpframeReset(HttpFrame_t* frame);
+__declspec_dll const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
+__declspec_dll HttpFrame_t* httpframeClearHeader(HttpFrame_t* frame);
+__declspec_dll const char* httpframeStatusDesc(int status_code);
 
+__declspec_dll int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len);
 __declspec_dll int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
 __declspec_dll void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
+__declspec_dll int httpframeDecodeMultipartFormData(HttpFrame_t* frame, unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
 
 #ifdef __cplusplus
 }

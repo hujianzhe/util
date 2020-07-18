@@ -22,12 +22,51 @@ static unsigned int header_keyhash(const void* key) {
 	return hashBKDR((const char*)key);
 }
 
+static char EMPTY_STRING[] = "";
+
+HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
+	frame->status_code = 0;
+	frame->method[0] = 0;
+	frame->query = frame->uri = EMPTY_STRING;
+	frame->pathlen = 0;
+	hashtableInit(&frame->headers, frame->m_bulks,
+		sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
+		header_keycmp, header_keyhash);
+	frame->multipart_form_data_boundary = EMPTY_STRING;
+	return frame;
+}
+
+HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
+	if (frame) {
+		httpframeClearHeader(frame);
+		if (frame->uri != EMPTY_STRING)
+			free(frame->uri);
+		httpframeInit(frame);
+	}
+	return frame;
+}
+
 const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {
 	HashtableNode_t* node = hashtableSearchKey(&frame->headers, key);
 	if (node)
 		return pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value;
 	else
 		return NULL;
+}
+
+HttpFrame_t* httpframeClearHeader(HttpFrame_t* frame) {
+	if (frame) {
+		HashtableNode_t *cur, *next;
+		for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
+			next = hashtableNextNode(cur);
+			free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
+		}
+		hashtableInit(&frame->headers, frame->m_bulks,
+			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
+			header_keycmp, header_keyhash);
+		frame->multipart_form_data_boundary = EMPTY_STRING;
+	}
+	return frame;
 }
 
 const char* httpframeStatusDesc(int status_code) {
@@ -145,18 +184,49 @@ const char* httpframeStatusDesc(int status_code) {
 	}
 }
 
-static char EMPTY_STRING[] = "";
+static int parse_and_add_header(HttpFrame_t* frame, const char* h) {
+	while (!('\r' == h[0] && '\n' == h[1])) {
+		const char *key, *value;
+		unsigned int keylen, valuelen;
+		const char *p;
+		for (p = key = h; ' ' != *p && ':' != *p; ++p);
+		keylen = p - key;
+		for (++p; ' ' == *p || ':' == *p; ++p);
+		for (value = p; '\r' != *p; ++p);
+		valuelen = p - value;
+		h = p + 2;
+		if (keylen && valuelen) {
+			char *p;
+			HashtableNode_t* exist_node;
+			HttpFrameHeaderField_t* field;
+
+			field = (HttpFrameHeaderField_t*)malloc(sizeof(HttpFrameHeaderField_t) + keylen + valuelen + 2);
+			if (!field)
+				return 0;
+
+			p = (char*)(field + 1);
+			memcpy(p, key, keylen);
+			p[keylen] = 0;
+			field->key = p;
+			memcpy(p + keylen + 1, value, valuelen);
+			p[keylen + valuelen + 1] = 0;
+			field->value = p + keylen + 1;
+
+			field->m_hashnode.key = field->key;
+			exist_node = hashtableInsertNode(&frame->headers, &field->m_hashnode);
+			if (exist_node != &field->m_hashnode) {
+				hashtableReplaceNode(exist_node, &field->m_hashnode);
+				free(pod_container_of(exist_node, HttpFrameHeaderField_t, m_hashnode));
+			}
+		}
+	}
+	return 1;
+}
 
 int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len) {
 	const char *h, *e;
 
-	frame->status_code = 0;
-	frame->method[0] = 0;
-	frame->query = frame->uri = EMPTY_STRING;
-	frame->pathlen = 0;
-	hashtableInit(&frame->headers, frame->m_bulks,
-			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
-			header_keycmp, header_keyhash);
+	httpframeInit(frame);
 
 	e = strStr(buf, len, "\r\n\r\n", -1);
 	if (!e)
@@ -218,41 +288,8 @@ int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len) {
 		h = s + 2;
 	}
 
-	while (!('\r' == h[0] && '\n' == h[1])) {
-		const char *key, *value;
-		unsigned int keylen, valuelen;
-		const char *p;
-		for (p = key = h; ' ' != *p && ':' != *p; ++p);
-		keylen = p - key;
-		for (++p; ' ' == *p || ':' == *p; ++p);
-		for (value = p; '\r' != *p; ++p);
-		valuelen = p - value;
-		h = p + 2;
-		if (keylen && valuelen) {
-			char *p;
-			HashtableNode_t* exist_node;
-			HttpFrameHeaderField_t* field;
-
-			field = (HttpFrameHeaderField_t*)malloc(sizeof(HttpFrameHeaderField_t) + keylen + valuelen + 2);
-			if (!field)
-				return -1;
-
-			p = (char*)(field + 1);
-			memcpy(p, key, keylen);
-			p[keylen] = 0;
-			field->key = p;
-			memcpy(p + keylen + 1, value, valuelen);
-			p[keylen + valuelen + 1] = 0;
-			field->value = p + keylen + 1;
-
-			field->m_hashnode.key = field->key;
-			exist_node = hashtableInsertNode(&frame->headers, &field->m_hashnode);
-			if (exist_node != &field->m_hashnode) {
-				hashtableReplaceNode(exist_node, &field->m_hashnode);
-				free(pod_container_of(exist_node, HttpFrameHeaderField_t, m_hashnode));
-			}
-		}
-	}
+	if (!parse_and_add_header(frame, h))
+		return -1;
 
 	return e - buf + 4;
 }
@@ -300,24 +337,91 @@ void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
 	sprintf(txtbuf, "%x\r\n", datalen);
 }
 
-HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
-	if (frame) {
-		HashtableNode_t *cur, *next;
-		for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
-			next = hashtableNextNode(cur);
-			free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
+const char* httpframeMultipartFormDataBoundary(HttpFrame_t* frame) {
+	static const char MULTIPART_FORM_DATA[] = "multipart/form-data";
+	static const char BOUNDARY[] = "boundary=";
+	const char* content_type;
+	const char* multipart_form_data;
+	const char* boundary;
+
+	content_type = httpframeGetHeader(frame, "Content-Type");
+	if (!content_type)
+		return NULL;
+
+	multipart_form_data = strstr(content_type, MULTIPART_FORM_DATA);
+	if (!multipart_form_data)
+		return NULL;
+	multipart_form_data += sizeof(MULTIPART_FORM_DATA) - 1;
+
+	boundary = strstr(multipart_form_data, BOUNDARY);
+	if (!boundary)
+		return NULL;
+	boundary += sizeof(BOUNDARY) - 1;
+
+	return boundary;
+}
+
+int httpframeDecodeMultipartFormData(HttpFrame_t* frame, unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
+	const char* boundary;
+	int boundarylen;
+	unsigned char *s, *e;
+
+	boundary = frame->multipart_form_data_boundary;
+	if (!boundary || '\0' == *boundary)
+		return -1;
+	boundarylen = strlen(boundary);
+	
+	if (len < 6 + boundarylen)
+		return 0;
+	if (buf[0] != '-' || buf[1] != '-')
+		return -1;
+	s = buf + 2 + boundarylen;
+	len -= boundarylen + 2;
+	if (s[0] == '\r' && s[1] == '\n') {
+		const char* h = (char*)s + 2;
+		e = strStr((char*)s, len, "\r\n\r\n", 4);
+		if (!e)
+			return 0;
+		e += 4;
+		len -= e - s;
+		*data = s = e;
+		while (1) {
+			e = (unsigned char*)memSearch(s, len, "\r\n--", 4);
+			if (!e)
+				return 0;
+			len -= e - s;
+			if (len < 4 + boundarylen)
+				return 0;
+			if (0 == memcmp(e + 4, boundary, boundarylen))
+				break;
+			s = e + 4;
+			len -= 4;
 		}
-		hashtableInit(&frame->headers, frame->m_bulks,
-			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
-			header_keycmp, header_keyhash);
-		if (frame->uri != EMPTY_STRING)
-			free(frame->uri);
-		frame->pathlen = 0;
-		frame->query = frame->uri = EMPTY_STRING;
-		frame->status_code = 0;
-		frame->method[0] = 0;
+		if (len < 8 + boundarylen)
+			return 0;
+
+		if (!parse_and_add_header(frame, h))
+			return -1;
+
+		*datalen = e - *data;
+		if (e == *data)
+			*data = NULL;
+		s = e + 4 + boundarylen;
+		if (s[0] == '-' && s[1] == '-' && s[2] == '\r' && s[3] == '\n')
+			return e + 8 + boundarylen - buf;
+		else
+			return e + 2 - buf;
 	}
-	return frame;
+	else if (s[0] == '-' && s[1] == '-') {
+		if (s[2] != '\r' || s[3] != '\n')
+			return -1;
+		*datalen = 0;
+		*data = NULL;
+		return s + 4 - buf;
+	}
+	else {
+		return -1;
+	}
 }
 
 #ifdef __cplusplus
