@@ -40,10 +40,11 @@ extern "C" {
 
 __declspec_dll const char* httpframeStatusDesc(int status_code);
 __declspec_dll int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len);
-__declspec_dll int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
-__declspec_dll void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
 __declspec_dll const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
 __declspec_dll HttpFrame_t* httpframeReset(HttpFrame_t* frame);
+
+__declspec_dll int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
+__declspec_dll void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
 
 #ifdef __cplusplus
 }

@@ -33,7 +33,7 @@ void* memCopy(void* dst, const void* src, ptrlen_t n) {
 	return dst;
 }
 
-unsigned char* memSkipByte(const void* p, ptrlen_t n, const char* delim, ptrlen_t dn) {
+unsigned char* memSkipByte(const void* p, ptrlen_t n, const unsigned char* delim, ptrlen_t dn) {
 	const unsigned char* ptr = (const unsigned char*)p;
 	while (n--) {
 		ptrlen_t i = 0;
@@ -77,6 +77,23 @@ unsigned short memCheckSum16(const void* buffer, int len) {
 	cksum = (cksum >> 16) + (cksum & 0xFFFF);
 	cksum += (cksum >> 16);
 	return (unsigned short)(~cksum);
+}
+
+void* memSearch(const void* buf, ptrlen_t n, const void* s, ptrlen_t sn) {
+	const unsigned char* pbuf = (const unsigned char*)buf, *ps = (const unsigned char*)s;
+	ptrlen_t i, j;
+	for (i = 0; i < n; ++i) {
+		if (n - i < sn)
+			break;
+		for (j = 0; j < sn; ++j) {
+			if (pbuf[j] != ps[j])
+				break;
+		}
+		if (j == sn)
+			return (void*)pbuf;
+		pbuf++;
+	}
+	return (void*)0;
 }
 
 char* strSkipByte(const char* s, const char* delim) {
