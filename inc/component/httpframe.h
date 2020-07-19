@@ -60,7 +60,7 @@ __declspec_dll const char* httpframeStatusDesc(int status_code);
 __declspec_dll int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len);
 __declspec_dll int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
 __declspec_dll void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]);
-__declspec_dll int httpframeDecodeMultipartFormData(HttpFrame_t* frame, unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
+__declspec_dll int httpframeDecodeMultipartFormData(const char* boundary, unsigned char* buf, unsigned int len, HttpMultipartFormData_t** form_data);
 
 #ifdef __cplusplus
 }
