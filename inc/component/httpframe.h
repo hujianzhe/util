@@ -23,6 +23,7 @@ typedef struct HttpFrame_t {
 	Hashtable_t headers;
 	HashtableNode_t* m_bulks[11];
 	const char* multipart_form_data_boundary;
+	unsigned int content_length;
 } HttpFrame_t;
 
 #define	HTTP_SIMPLE_RESP_FMT \

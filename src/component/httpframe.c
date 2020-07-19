@@ -22,6 +22,30 @@ static unsigned int header_keyhash(const void* key) {
 	return hashBKDR((const char*)key);
 }
 
+static const char* httpframeMultipartFormDataBoundary(HttpFrame_t* frame) {
+	static const char MULTIPART_FORM_DATA[] = "multipart/form-data";
+	static const char BOUNDARY[] = "boundary=";
+	const char* content_type;
+	const char* multipart_form_data;
+	const char* boundary;
+
+	content_type = httpframeGetHeader(frame, "Content-Type");
+	if (!content_type)
+		return NULL;
+
+	multipart_form_data = strstr(content_type, MULTIPART_FORM_DATA);
+	if (!multipart_form_data)
+		return NULL;
+	multipart_form_data += sizeof(MULTIPART_FORM_DATA) - 1;
+
+	boundary = strstr(multipart_form_data, BOUNDARY);
+	if (!boundary)
+		return NULL;
+	boundary += sizeof(BOUNDARY) - 1;
+	frame->multipart_form_data_boundary = boundary;
+	return boundary;
+}
+
 static char EMPTY_STRING[] = "";
 
 HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
@@ -33,6 +57,7 @@ HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
 		sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 		header_keycmp, header_keyhash);
 	frame->multipart_form_data_boundary = EMPTY_STRING;
+	frame->content_length = 0;
 	return frame;
 }
 
@@ -184,6 +209,28 @@ const char* httpframeStatusDesc(int status_code) {
 	}
 }
 
+static int save_special_header(HttpFrame_t* frame, const char* k, const char* v) {
+	if (0 == strcmp(k, "Content-Type")) {
+		static const char MULTIPART_FORM_DATA[] = "multipart/form-data";
+
+		v = strstr(v, MULTIPART_FORM_DATA);
+		if (v) {
+			static const char BOUNDARY[] = "boundary=";
+			v += sizeof(MULTIPART_FORM_DATA) - 1;
+			v = strstr(v, BOUNDARY);
+			if (!v)
+				return 0;
+			v += sizeof(BOUNDARY) - 1;
+			frame->multipart_form_data_boundary = v;
+		}
+	}
+	else if (0 == strcmp(k, "Content-Length")) {
+		if (sscanf(v, "%u", &frame->content_length) != 1)
+			return 0;
+	}
+	return 1;
+}
+
 static int parse_and_add_header(HttpFrame_t* frame, const char* h) {
 	while (!('\r' == h[0] && '\n' == h[1])) {
 		const char *key, *value;
@@ -196,7 +243,7 @@ static int parse_and_add_header(HttpFrame_t* frame, const char* h) {
 		valuelen = p - value;
 		h = p + 2;
 		if (keylen && valuelen) {
-			char *p;
+			char *pkv;
 			HashtableNode_t* exist_node;
 			HttpFrameHeaderField_t* field;
 
@@ -204,13 +251,13 @@ static int parse_and_add_header(HttpFrame_t* frame, const char* h) {
 			if (!field)
 				return 0;
 
-			p = (char*)(field + 1);
-			memcpy(p, key, keylen);
-			p[keylen] = 0;
-			field->key = p;
-			memcpy(p + keylen + 1, value, valuelen);
-			p[keylen + valuelen + 1] = 0;
-			field->value = p + keylen + 1;
+			pkv = (char*)(field + 1);
+			memcpy(pkv, key, keylen);
+			pkv[keylen] = 0;
+			field->key = pkv;
+			memcpy(pkv + keylen + 1, value, valuelen);
+			pkv[keylen + valuelen + 1] = 0;
+			field->value = pkv + keylen + 1;
 
 			field->m_hashnode.key = field->key;
 			exist_node = hashtableInsertNode(&frame->headers, &field->m_hashnode);
@@ -218,6 +265,9 @@ static int parse_and_add_header(HttpFrame_t* frame, const char* h) {
 				hashtableReplaceNode(exist_node, &field->m_hashnode);
 				free(pod_container_of(exist_node, HttpFrameHeaderField_t, m_hashnode));
 			}
+
+			if (!save_special_header(frame, field->key, field->value))
+				return 0;
 		}
 	}
 	return 1;
@@ -335,30 +385,6 @@ int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, un
 void httpframeEncodeChunked(unsigned int datalen, char txtbuf[11]) {
 	txtbuf[0] = 0;
 	sprintf(txtbuf, "%x\r\n", datalen);
-}
-
-const char* httpframeMultipartFormDataBoundary(HttpFrame_t* frame) {
-	static const char MULTIPART_FORM_DATA[] = "multipart/form-data";
-	static const char BOUNDARY[] = "boundary=";
-	const char* content_type;
-	const char* multipart_form_data;
-	const char* boundary;
-
-	content_type = httpframeGetHeader(frame, "Content-Type");
-	if (!content_type)
-		return NULL;
-
-	multipart_form_data = strstr(content_type, MULTIPART_FORM_DATA);
-	if (!multipart_form_data)
-		return NULL;
-	multipart_form_data += sizeof(MULTIPART_FORM_DATA) - 1;
-
-	boundary = strstr(multipart_form_data, BOUNDARY);
-	if (!boundary)
-		return NULL;
-	boundary += sizeof(BOUNDARY) - 1;
-
-	return boundary;
 }
 
 int httpframeDecodeMultipartFormData(HttpFrame_t* frame, unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
