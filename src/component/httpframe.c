@@ -22,28 +22,25 @@ static unsigned int header_keyhash(const void* key) {
 	return hashBKDR((const char*)key);
 }
 
-static const char* httpframeMultipartFormDataBoundary(HttpFrame_t* frame) {
-	static const char MULTIPART_FORM_DATA[] = "multipart/form-data";
-	static const char BOUNDARY[] = "boundary=";
-	const char* content_type;
-	const char* multipart_form_data;
-	const char* boundary;
+static void httpframe_clear_headers(Hashtable_t* tbl) {
+	HashtableNode_t *cur, *next;
+	for (cur = hashtableFirstNode(tbl); cur; cur = next) {
+		next = hashtableNextNode(cur);
+		free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
+	}
+}
 
-	content_type = httpframeGetHeader(frame, "Content-Type");
-	if (!content_type)
-		return NULL;
-
-	multipart_form_data = strstr(content_type, MULTIPART_FORM_DATA);
-	if (!multipart_form_data)
-		return NULL;
-	multipart_form_data += sizeof(MULTIPART_FORM_DATA) - 1;
-
-	boundary = strstr(multipart_form_data, BOUNDARY);
-	if (!boundary)
-		return NULL;
-	boundary += sizeof(BOUNDARY) - 1;
-	frame->multipart_form_data_boundary = boundary;
-	return boundary;
+static HttpFrame_t* httpframe_clear_multipart_form_data(HttpFrame_t* frame) {
+	if (frame) {
+		ListNode_t* cur, *next;
+		for (cur = frame->multipart_form_datalist.head; cur; cur = next) {
+			HttpMultipartFormData_t* form_data = pod_container_of(cur, HttpMultipartFormData_t, listnode);
+			next = cur->next;
+			httpframe_clear_headers(&form_data->headers);
+			free(form_data);
+		}
+	}
+	return frame;
 }
 
 static char EMPTY_STRING[] = "";
@@ -57,13 +54,15 @@ HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
 		sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
 		header_keycmp, header_keyhash);
 	frame->multipart_form_data_boundary = EMPTY_STRING;
+	listInit(&frame->multipart_form_datalist);
 	frame->content_length = 0;
 	return frame;
 }
 
 HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 	if (frame) {
-		httpframeClearHeader(frame);
+		httpframe_clear_headers(&frame->headers);
+		httpframe_clear_multipart_form_data(frame);
 		if (frame->uri != EMPTY_STRING)
 			free(frame->uri);
 		httpframeInit(frame);
@@ -77,21 +76,6 @@ const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {
 		return pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value;
 	else
 		return NULL;
-}
-
-HttpFrame_t* httpframeClearHeader(HttpFrame_t* frame) {
-	if (frame) {
-		HashtableNode_t *cur, *next;
-		for (cur = hashtableFirstNode(&frame->headers); cur; cur = next) {
-			next = hashtableNextNode(cur);
-			free(pod_container_of(cur, HttpFrameHeaderField_t, m_hashnode));
-		}
-		hashtableInit(&frame->headers, frame->m_bulks,
-			sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
-			header_keycmp, header_keyhash);
-		frame->multipart_form_data_boundary = EMPTY_STRING;
-	}
-	return frame;
 }
 
 const char* httpframeStatusDesc(int status_code) {

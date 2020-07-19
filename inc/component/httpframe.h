@@ -7,6 +7,7 @@
 
 #include "../compiler_define.h"
 #include "../datastruct/hashtable.h"
+#include "../datastruct/list.h"
 
 typedef struct HttpFrameHeaderField_t {
 	HashtableNode_t m_hashnode;
@@ -14,7 +15,16 @@ typedef struct HttpFrameHeaderField_t {
 	const char* value;
 } HttpFrameHeaderField_t;
 
+typedef struct HttpMultipartFormData_t {
+	ListNode_t listnode;
+	Hashtable_t headers;
+	HashtableNode_t* m_headerbulks[5];
+	unsigned int datalen;
+	unsigned char data[1];
+} HttpMultipartFormData_t;
+
 typedef struct HttpFrame_t {
+	/* header */
 	int status_code;
 	char method[8];
 	char* uri;
@@ -22,7 +32,9 @@ typedef struct HttpFrame_t {
 	unsigned int pathlen;
 	Hashtable_t headers;
 	HashtableNode_t* m_bulks[11];
+	/* body */
 	const char* multipart_form_data_boundary;
+	List_t multipart_form_datalist;
 	unsigned int content_length;
 } HttpFrame_t;
 
@@ -43,7 +55,6 @@ extern "C" {
 __declspec_dll HttpFrame_t* httpframeInit(HttpFrame_t* frame);
 __declspec_dll HttpFrame_t* httpframeReset(HttpFrame_t* frame);
 __declspec_dll const char* httpframeGetHeader(HttpFrame_t* frame, const char* key);
-__declspec_dll HttpFrame_t* httpframeClearHeader(HttpFrame_t* frame);
 __declspec_dll const char* httpframeStatusDesc(int status_code);
 
 __declspec_dll int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len);
