@@ -27,6 +27,7 @@
 #include "crt/cJSON.h"
 #include "crt/collision_detection.h"
 #include "crt/consistent_hash.h"
+#include "crt/dynbuf.h"
 #include "sysapi/assert.h"
 #include "sysapi/atomic.h"
 #include "sysapi/error.h"
