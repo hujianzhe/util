@@ -4,6 +4,7 @@
 
 #include "../../inc/crt/math.h"
 #include "../../inc/crt/collision_detection.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
