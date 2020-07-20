@@ -67,12 +67,9 @@ HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 	return frame;
 }
 
-const char* httpframeGetHeader(HttpFrame_t* frame, const char* key) {
-	HashtableNode_t* node = hashtableSearchKey(&frame->headers, key);
-	if (node)
-		return pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value;
-	else
-		return NULL;
+const char* httpframeGetHeader(Hashtable_t* headers, const char* key) {
+	HashtableNode_t* node = hashtableSearchKey(headers, key);
+	return node ? pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value : NULL;
 }
 
 const char* httpframeStatusDesc(int status_code) {
