@@ -30,17 +30,14 @@ static void httpframe_clear_headers(Hashtable_t* tbl) {
 	}
 }
 
-static HttpFrame_t* httpframe_clear_multipart_form_data(HttpFrame_t* frame) {
-	if (frame) {
-		ListNode_t* cur, *next;
-		for (cur = frame->multipart_form_datalist.head; cur; cur = next) {
-			HttpMultipartFormData_t* form_data = pod_container_of(cur, HttpMultipartFormData_t, listnode);
-			next = cur->next;
-			httpframe_clear_headers(&form_data->headers);
-			free(form_data);
-		}
+static void httpframe_clear_multipart_form_data(List_t* list) {
+	ListNode_t* cur, *next;
+	for (cur = list->head; cur; cur = next) {
+		HttpMultipartFormData_t* form_data = pod_container_of(cur, HttpMultipartFormData_t, listnode);
+		next = cur->next;
+		httpframe_clear_headers(&form_data->headers);
+		free(form_data);
 	}
-	return frame;
 }
 
 static char EMPTY_STRING[] = "";
@@ -62,7 +59,7 @@ HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
 HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 	if (frame) {
 		httpframe_clear_headers(&frame->headers);
-		httpframe_clear_multipart_form_data(frame);
+		httpframe_clear_multipart_form_data(&frame->multipart_form_datalist);
 		if (frame->uri != EMPTY_STRING)
 			free(frame->uri);
 		httpframeInit(frame);
@@ -462,6 +459,34 @@ int httpframeDecodeMultipartFormData(const char* boundary, unsigned char* buf, u
 	else {
 		return -1;
 	}
+}
+
+HttpFrame_t* httpframeDecodeMultipartFormDataList(HttpFrame_t* frame, unsigned char* buf, unsigned int content_length) {
+	unsigned int decodelen = 0;
+	List_t list;
+	listInit(&list);
+	while (decodelen < content_length) {
+		HttpMultipartFormData_t* form_data;
+		int res = httpframeDecodeMultipartFormData(frame->multipart_form_data_boundary, buf + decodelen, content_length - decodelen, &form_data);
+		if (res < 0) {
+			break;
+		}
+		else if (0 == res) {
+			break;
+		}
+		else if (form_data) {
+			listPushNodeBack(&list, &form_data->listnode);
+		}
+		decodelen += res;
+	}
+	if (decodelen < content_length) {
+		httpframe_clear_multipart_form_data(&list);
+		return NULL;
+	}
+	else {
+		listAppend(&frame->multipart_form_datalist, &list);
+	}
+	return frame;
 }
 
 #ifdef __cplusplus
