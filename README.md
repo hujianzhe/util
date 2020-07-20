@@ -15,8 +15,6 @@
   
 			component/  
 				channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存,断线重连自动重发等实现细节  
-				cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
-				cXML				用于解析XML  
 				dataqueue			用于线程间通信的消息队列  
 				db					用于与数据库交互的通用接口,屏蔽了不同数据库的CRUD接口,目前内部实现只支持MYSQL  
 				httpfram			用于解析与组装HTTP协议报文  
@@ -25,10 +23,15 @@
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
 				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
-				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
-				consistent_hash		一致性hash算法  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 				rpc_core			基于协程/回调的RPC调度核心机制  
+			crt/
+				cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
+				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
+				consistent_hash		一致性hash算法  
+				cXML				用于解析XML  
+				dynbuf				自动扩容的线性数组  
+				math				一些实用的数学运算接口  
 			datastruct/  
 				base64				提供base64编解码接口  
 				bstree				类型无关的二叉搜索树  
@@ -51,7 +54,6 @@
 				file				提供统一的文件与目录操作接口  
 				io					提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
 				ipc					提供统一的OS锁接口  
-				math				一些实用的数学运算接口  
 				misc				杂项接口  
 				mmap				提供统一的文件内存映射与共享内存接口  
 				process				提供统一的进程/线程/协程接口  
