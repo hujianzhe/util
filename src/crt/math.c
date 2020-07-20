@@ -2,7 +2,7 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/sysapi/math.h"
+#include "../../inc/crt/math.h"
 #include <stddef.h>
 
 #ifdef	__cplusplus

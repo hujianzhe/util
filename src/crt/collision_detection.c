@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/sysapi/math.h"
-#include "../../inc/component/collision_detection.h"
+#include "../../inc/crt/math.h"
+#include "../../inc/crt/collision_detection.h"
 
 #ifdef __cplusplus
 extern "C" {

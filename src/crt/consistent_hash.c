@@ -2,7 +2,7 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/component/consistent_hash.h"
+#include "../../inc/crt/consistent_hash.h"
 #include <stdlib.h>
 
 typedef struct VirtualNode_t {

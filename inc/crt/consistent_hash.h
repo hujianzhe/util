@@ -2,10 +2,10 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_COMPONENT_CONSISTENT_HASH_H
-#define	UTIL_C_COMPONENT_CONSISTENT_HASH_H
+#ifndef UTIL_C_CRT_CONSISTENT_HASH_H
+#define	UTIL_C_CRT_CONSISTENT_HASH_H
 
-#include "../platform_define.h"
+#include "../compiler_define.h"
 #include "../datastruct/rbtree.h"
 
 typedef RBTree_t ConsistentHash_t;
@@ -25,4 +25,4 @@ __declspec_dll void consistenthashFree(ConsistentHash_t* ch);
 }
 #endif
 
-#endif // !UTIL_C_COMPONENT_CONSISTENT_HASH_H
+#endif // !UTIL_C_CRT_CONSISTENT_HASH_H

@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_SYSLIB_MATH_H
-#define	UTIL_C_SYSLIB_MATH_H
+#ifndef UTIL_C_CRT_MATH_H
+#define	UTIL_C_CRT_MATH_H
 
 #include "../compiler_define.h"
 

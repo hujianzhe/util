@@ -2,10 +2,10 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_COMPONENT_COLLISION_DETECTION_H
-#define	UTIL_C_COMPONENT_COLLISION_DETECTION_H
+#ifndef UTIL_C_CRT_COLLISION_DETECTION_H
+#define	UTIL_C_CRT_COLLISION_DETECTION_H
 
-#include "../platform_define.h"
+#include "../compiler_define.h"
 
 typedef struct CCTResult_t {
 	float distance;
@@ -82,4 +82,4 @@ __declspec_dll CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, con
 }
 #endif
 
-#endif // !UTIL_C_COMPONENT_COLLISION_DETECTION_H
+#endif // !UTIL_C_CRT_COLLISION_DETECTION_H

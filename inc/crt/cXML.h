@@ -2,8 +2,8 @@
 // Created by hujianzhe
 //
 
-#ifndef UTIL_C_COMPONENT_XML_H
-#define	UTIL_C_COMPONENT_XML_H
+#ifndef UTIL_C_CRT_XML_H
+#define	UTIL_C_CRT_XML_H
 
 #include "../compiler_define.h"
 #include <stddef.h>
