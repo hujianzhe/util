@@ -49,20 +49,22 @@ DynBuf_t* dynbufClear(DynBuf_t* dynbuf) {
 }
 
 DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen) {
-	size_t old_size;
+	size_t old_size, total_size;
 	if (0 == datalen)
 		return dynbuf;
 	old_size = dynbuf->size;
-	if (offset > old_size)
-		return NULL;
-	if (dynbuf->capcity < old_size + datalen) {
-		char* buf = (char*)realloc(dynbuf->buf, old_size + datalen);
+	if (offset >= old_size)
+		total_size = offset + datalen;
+	else
+		total_size = old_size + datalen;
+	if (dynbuf->capcity < total_size) {
+		char* buf = (char*)realloc(dynbuf->buf, total_size);
 		if (!buf)
 			return NULL;
 		dynbuf->buf = buf;
-		dynbuf->capcity = dynbuf->size;
+		dynbuf->capcity = total_size;
 	}
-	dynbuf->size += datalen;
+	dynbuf->size = total_size;
 	if (offset < old_size)
 		memCopy(dynbuf->buf + offset + datalen, dynbuf->buf + offset, old_size - offset);
 	memCopy(dynbuf->buf + offset, data, datalen);
