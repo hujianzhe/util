@@ -26,6 +26,7 @@ __declspec_dll DynBuf_t* dynbufClear(DynBuf_t* dynbuf);
 __declspec_dll DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen);
 __declspec_dll DynBuf_t* dynbufRemove(DynBuf_t* dynbuf, size_t start, size_t end);
 __declspec_dll DynBuf_t* dynbufCopy(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen);
+__declspec_dll int dynbufPrintf(DynBuf_t* dynbuf, size_t offset, const char* format, ...);
 
 #ifdef __cplusplus
 }

@@ -4,6 +4,8 @@
 
 #include "../../inc/crt/dynbuf.h"
 #include "../../inc/datastruct/memfunc.h"
+#include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -90,6 +92,31 @@ DynBuf_t* dynbufCopy(DynBuf_t* dynbuf, size_t offset, const void* data, size_t d
 	if (offset + datalen > dynbuf->size)
 		dynbuf->size = offset + datalen;
 	return dynbuf;
+}
+
+int dynbufPrintf(DynBuf_t* dynbuf, size_t offset, const char* format, ...) {
+	size_t old_size;
+	char test_buf;
+	int len;
+	va_list varg;
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	if (len < 0)
+		return len;
+	old_size = dynbuf->size;
+	if (offset + len + 1 > dynbuf->size) {
+		dynbufSetSize(dynbuf, offset + len + 1);
+	}
+	va_start(varg, format);
+	len = vsnprintf(dynbuf->buf + offset, len + 1, format, varg);
+	va_end(varg);
+	if (len < 0) {
+		dynbuf->size = old_size;
+		return len;
+	}
+	dynbuf->buf[offset + len] = 0;
+	return len;
 }
 
 #ifdef __cplusplus
