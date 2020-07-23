@@ -39,6 +39,7 @@
 				hashtable			类型无关的哈希表  
 				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
 				list				类型无关的双向链表,顺带支持栈/队列的PUSH/POP操作  
+				md5					MD5编码生成  
 				memheap				简单内存堆分配与释放  
 				random				随机数算法,提供rand48与MT19937算法  
 				strings				一些安全的字符串操作接口  

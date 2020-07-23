@@ -13,6 +13,7 @@
 #include "datastruct/hash.h"
 #include "datastruct/hashtable.h"
 #include "datastruct/list.h"
+#include "datastruct/md5.h"
 #include "datastruct/memfunc.h"
 #include "datastruct/memheap.h"
 #include "datastruct/random.h"
