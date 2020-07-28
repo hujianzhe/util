@@ -96,6 +96,11 @@ void cJSON_Delete(cJSON *c)
 	while (c)
 	{
 		next=c->next;
+		if (c->txt) {
+			cJSON_free(c->txt);
+			c->txt = NULL;
+		}
+		c->txtlen = 0;
 		if (c->child) {
 			cJSON_Delete(c->child);
 			c->child = NULL;
@@ -129,6 +134,12 @@ void cJSON_Reset(cJSON *c) {
 		if (c->freevaluestring)
 			cJSON_free(c->valuestring);
 		c->valuestring = NULL;
+
+		if (c->txt) {
+			cJSON_free(c->txt);
+			c->txt = NULL;
+		}
+		c->txtlen = 0;
 	}
 }
 
@@ -402,9 +413,32 @@ cJSON *cJSON_ParseFromFile(cJSON *root, const char* path)
 }
 
 /* Render a cJSON item/entity/structure to text. */
-char *cJSON_Print(cJSON *item)			{return print_value(item,0,0,0);}
-char *cJSON_PrintFormatted(cJSON *item)	{return print_value(item,0,1,0);}
+cJSON *cJSON_Print(cJSON *item)
+{
+	if (item->txt)
+		cJSON_free(item->txt);
+	item->txtlen = 0;
+	item->txt = print_value(item,0,0,0);
+	if (item->txt) {
+		item->txtlen = strlen(item->txt);
+		return item;
+	}
+	return NULL;
+}
 
+cJSON *cJSON_PrintFormatted(cJSON *item)
+{
+	if (item->txt)
+		cJSON_free(item->txt);
+	item->txtlen = 0;
+	item->txt = print_value(item,0,1,0);
+	if (item->txt) {
+		item->txtlen = strlen(item->txt);
+		return item;
+	}
+	return NULL;
+}
+/*
 char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt)
 {
 	printbuffer p;
@@ -413,7 +447,7 @@ char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt)
 	p.offset=0;
 	return print_value(item,0,fmt,&p);
 }
-
+*/
 
 /* Parser core - when encountering text, process appropriately. */
 static const char *parse_value(cJSON *item,const char *value)

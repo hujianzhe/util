@@ -52,6 +52,9 @@ typedef struct cJSON {
 	struct cJSON *parent;		/* An array or object item parent item */
 	struct cJSON *next, *prev;	/* next/prev allow you to walk array/object chains. Alternatively, use GetArraySize/GetArrayItem/GetObjectItem */
 	struct cJSON *child;		/* An array or object item will have a child pointer pointing to a chain of the items in the array/object. */
+
+	char* txt;
+	size_t txtlen;
 } cJSON;
 
 typedef struct cJSON_Hooks {
@@ -73,11 +76,11 @@ __declspec_dll cJSON *cJSON_Parse(cJSON *root, const char *value);
 /* Parse JSON from a file. */
 __declspec_dll cJSON *cJSON_ParseFromFile(cJSON *root, const char* path);
 /* Render a cJSON entity to text for transfer/storage without any formatting. Free the char* when finished. */
-__declspec_dll char  *cJSON_Print(cJSON *item);
+__declspec_dll cJSON  *cJSON_Print(cJSON *item);
 /* Render a cJSON entity to text for transfer/storage. Free the char* when finished. */
-__declspec_dll char  *cJSON_PrintFormatted(cJSON *item);
+__declspec_dll cJSON  *cJSON_PrintFormatted(cJSON *item);
 /* Render a cJSON entity to text using a buffered strategy. prebuffer is a guess at the final size. guessing well reduces reallocation. fmt=0 gives unformatted, =1 gives formatted */
-__declspec_dll char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);
+/*__declspec_dll char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);*/
 /* Delete a cJSON text */
 __declspec_dll void cJSON_FreeString(char* s);
 /* Delete a cJSON entity and all subentities. */
