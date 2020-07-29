@@ -484,6 +484,12 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			return;
 		}
 		else {
+			channel = streamChannel(o);
+			if (channel->readcache_max_size && channel->readcache_max_size < o->m_inbuflen + res) {
+				o->m_valid = 0;
+				o->detach_error = REACTOR_ONREAD_ERR;
+				return;
+			}
 			if (o->m_inbufsize < o->m_inbuflen + res) {
 				unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
 				if (!ptr) {
@@ -511,7 +517,6 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			}
 			o->m_inbuflen += res;
 			o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-			channel = streamChannel(o);
 			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
 			if (!after_call_channel_interface(channel) || res < 0) {
 				o->m_valid = 0;
@@ -563,8 +568,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			allChannelDoAction(o, ChannelBase_t* channel,
 				int disable_send = channel->disable_send;
 				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr);
-				after_call_channel_interface(channel);
-				if (disable_send && !channel->disable_send) {
+				if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
 					channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 				}
 			);

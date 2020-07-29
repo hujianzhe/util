@@ -127,6 +127,7 @@ typedef struct ChannelBase_t {
 	int detach_error;
 	long long event_msec;
 	unsigned int write_fragment_size;
+	unsigned int readcache_max_size;
 
 	union {
 		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
