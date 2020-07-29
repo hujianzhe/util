@@ -86,9 +86,6 @@ static cJSON *cJSON_New_Item(void)
 	return node;
 }
 
-/* Delete a cJSON text */
-void cJSON_FreeString(char* s) { cJSON_free(s); }
-
 /* Delete a cJSON structure. */
 void cJSON_Delete(cJSON *c)
 {
@@ -862,6 +859,34 @@ cJSON *cJSON_NewObject(const char* name) {
 			item->string = cJSON_strdup(name);
 	}
 	return item;
+}
+
+cJSON* cJSON_SetValueString(cJSON *object, const char* s, size_t slen)
+{
+	char* p;
+	if (s && slen) {
+		if (-1 == slen)
+			slen = strlen(s);
+		p = (char*)cJSON_malloc(slen + 1);
+		if (!p)
+			return NULL;
+		memcpy(p, s, slen);
+		p[slen] = 0;
+	}
+	else
+		p = NULL;
+	if (object->freevaluestring)
+		cJSON_free(object->valuestring);
+	object->valuestring = p;
+	if (p)
+		object->freevaluestring = 1;
+	return object;
+}
+cJSON* cJSON_SetValueNumber(cJSON *object, double num)
+{
+	object->valuedouble = num;
+	object->valueint = (long long)num;
+	return object;
 }
 
 /* Duplication */
