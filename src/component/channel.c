@@ -371,6 +371,11 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
 			List_t list;
+			if (channel->_.readcache_max_size &&
+				channel->_.readcache_max_size < channel->_.dgram_ctx.cache_recv_bytes + decode_result.bodylen)
+			{
+				return 0;
+			}
 			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 			if (!packet)

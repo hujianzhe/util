@@ -49,6 +49,7 @@ typedef struct DgramTransportCtx_t {
 	List_t sendlist;
 	unsigned char send_all_acked;
 	unsigned char cwndsize;
+	unsigned int cache_recv_bytes;
 	/* private */
 	unsigned int m_sendseq;
 	unsigned int m_recvseq;

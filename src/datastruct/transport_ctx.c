@@ -15,6 +15,7 @@ extern "C" {
 DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->send_all_acked = 1;
 	ctx->cwndsize = 1;
+	ctx->cache_recv_bytes = 0;
 	ctx->m_cwndseq = ctx->m_recvseq = ctx->m_sendseq = ctx->m_ackseq = initseq;
 	ctx->m_recvnode = (struct ListNode_t*)0;
 	listInit(&ctx->recvlist);
@@ -62,11 +63,12 @@ void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* pac
 		cur = cur->next;
 	}
 	packet->cached = 1;
+	ctx->cache_recv_bytes += (packet->hdrlen + packet->bodylen);
 }
 
 int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
-	ListNode_t* cur;
 	if (ctx->m_recvnode) {
+		ListNode_t* cur;
 		for (cur = ctx->recvlist.head; cur && cur != ctx->m_recvnode->next; cur = cur->next) {
 			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 			if (NETPACKET_FRAGMENT_EOF != packet->type && NETPACKET_FIN != packet->type)
@@ -74,8 +76,11 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 			*list = listSplitByTail(&ctx->recvlist, cur);
 			if (!ctx->recvlist.head || ctx->m_recvnode == cur)
 				ctx->m_recvnode = (struct ListNode_t*)0;
-			for (cur = list->head; cur; cur = cur->next)
-				pod_container_of(cur, NetPacket_t, node)->cached = 0;
+			for (cur = list->head; cur; cur = cur->next) {
+				packet = pod_container_of(cur, NetPacket_t, node);
+				packet->cached = 0;
+				ctx->cache_recv_bytes -= (packet->hdrlen + packet->bodylen);
+			}
 			return 1;
 		}
 	}
