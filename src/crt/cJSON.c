@@ -379,10 +379,14 @@ cJSON *cJSON_Parse(cJSON *root, const char *value)
 	if (!end || *end != '{') return NULL;
 
 	c = root ? root : cJSON_New_Item();
-	if (!c) return NULL;       /* memory fail */
+	if (!c) return NULL;
 
 	end=parse_object(c,end);
-	if (!end)	{cJSON_Delete(c);return NULL;}	/* parse failure. ep is set. */
+	if (!end) {
+		if (!root)
+			cJSON_Delete(c);
+		return NULL;
+	}
 	return c;
 }
 
