@@ -19,6 +19,7 @@ __declspec_dll void* memReverse(void* s, ptrlen_t len);
 __declspec_dll unsigned short memCheckSum16(const void* buffer, int len);
 #define	memCheckSumIsOk(cksum)	(0 == (cksum))
 __declspec_dll void* memSearch(const void* buf, ptrlen_t n, const void* s, ptrlen_t sn);
+__declspec_dll void* memSearchValue(const void* buf, ptrlen_t n, const void* d, ptrlen_t dn);
 
 __declspec_dll char* strSkipByte(const char* s, const char* delim);
 __declspec_dll char* strStr(const char* s1, ptrlen_t s1len, const char* s2, ptrlen_t s2len);

@@ -96,6 +96,24 @@ void* memSearch(const void* buf, ptrlen_t n, const void* s, ptrlen_t sn) {
 	return (void*)0;
 }
 
+void* memSearchValue(const void* buf, ptrlen_t n, const void* d, ptrlen_t dn) {
+	const unsigned char* pbuf = (const unsigned char*)buf, *ps = (const unsigned char*)d;
+	ptrlen_t i = 0, j;
+	while (i < n) {
+		if (n - i < dn)
+			break;
+		for (j = 0; j < dn; ++j) {
+			if (pbuf[j] != ps[j])
+				break;
+		}
+		if (j == dn)
+			return (void*)pbuf;
+		i += dn;
+		pbuf += dn;
+	}
+	return (void*)0;
+}
+
 char* strSkipByte(const char* s, const char* delim) {
 	while (*s) {
 		const char* p = delim;
