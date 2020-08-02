@@ -18,7 +18,7 @@ typedef struct RpcItem_t {
 		ListNode_t listnode;
 		void* originator;
 		void* timeout_ev;
-		size_t identity;
+		size_t udata;
 	}; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	char m_has_reg;
