@@ -39,8 +39,10 @@ DynBuf_t* dynbufSetCapcity(DynBuf_t* dynbuf, size_t capcity) {
 DynBuf_t* dynbufSetSize(DynBuf_t* dynbuf, size_t size) {
 	if (dynbuf->size == size)
 		return dynbuf;
-	else if (size > dynbuf->capcity)
-		dynbufSetCapcity(dynbuf, size);
+	else if (size > dynbuf->capcity) {
+		if (!dynbufSetCapcity(dynbuf, size))
+			return NULL;
+	}
 	dynbuf->size = size;
 	return dynbuf;
 }
@@ -50,7 +52,7 @@ DynBuf_t* dynbufClear(DynBuf_t* dynbuf) {
 	return dynbufInitSizeOfType(dynbuf, dynbuf->sizeof_type);
 }
 
-DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen) {
+DynBuf_t* dynbufExtend(DynBuf_t* dynbuf, size_t offset, size_t datalen) {
 	size_t old_size, total_size;
 	if (0 == datalen)
 		return dynbuf;
@@ -69,6 +71,12 @@ DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t
 	dynbuf->size = total_size;
 	if (offset < old_size)
 		memCopy(dynbuf->buf + offset + datalen, dynbuf->buf + offset, old_size - offset);
+	return dynbuf;
+}
+
+DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen) {
+	if (!dynbufExtend(dynbuf, offset, datalen))
+		return NULL;
 	memCopy(dynbuf->buf + offset, data, datalen);
 	return dynbuf;
 }
@@ -106,13 +114,36 @@ int dynbufPrintf(DynBuf_t* dynbuf, size_t offset, const char* format, ...) {
 		return len;
 	old_size = dynbuf->size;
 	if (offset + len + 1 > dynbuf->size) {
-		dynbufSetSize(dynbuf, offset + len + 1);
+		if (!dynbufSetSize(dynbuf, offset + len + 1))
+			return -1;
 	}
 	va_start(varg, format);
 	len = vsnprintf(dynbuf->buf + offset, len + 1, format, varg);
 	va_end(varg);
 	if (len < 0) {
 		dynbuf->size = old_size;
+		return len;
+	}
+	dynbuf->buf[offset + len] = 0;
+	return len;
+}
+
+int dynbufPrintfInsert(DynBuf_t* dynbuf, size_t offset, const char* format, ...) {
+	char test_buf;
+	int len;
+	va_list varg;
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	if (len < 0)
+		return len;
+	if (!dynbufExtend(dynbuf, offset, len + 1))
+		return -1;
+	va_start(varg, format);
+	len = vsnprintf(dynbuf->buf + offset, len + 1, format, varg);
+	va_end(varg);
+	if (len < 0) {
+		dynbufRemove(dynbuf, offset, offset + len + 1);
 		return len;
 	}
 	dynbuf->buf[offset + len] = 0;

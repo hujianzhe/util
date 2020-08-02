@@ -23,10 +23,12 @@ __declspec_dll DynBuf_t* dynbufInitSizeOfType(DynBuf_t* dynbuf, size_t sizeof_ty
 __declspec_dll DynBuf_t* dynbufSetCapcity(DynBuf_t* dynbuf, size_t capcity);
 __declspec_dll DynBuf_t* dynbufSetSize(DynBuf_t* dynbuf, size_t size);
 __declspec_dll DynBuf_t* dynbufClear(DynBuf_t* dynbuf);
+__declspec_dll DynBuf_t* dynbufExtend(DynBuf_t* dynbuf, size_t offset, size_t datalen);
 __declspec_dll DynBuf_t* dynbufInsert(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen);
 __declspec_dll DynBuf_t* dynbufRemove(DynBuf_t* dynbuf, size_t start, size_t end);
 __declspec_dll DynBuf_t* dynbufCopy(DynBuf_t* dynbuf, size_t offset, const void* data, size_t datalen);
 __declspec_dll int dynbufPrintf(DynBuf_t* dynbuf, size_t offset, const char* format, ...);
+__declspec_dll int dynbufPrintfInsert(DynBuf_t* dynbuf, size_t offset, const char* format, ...);
 
 #ifdef __cplusplus
 }
