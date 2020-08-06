@@ -117,8 +117,13 @@ void cJSON_Delete(cJSON *c)
 
 /* Delete all subentities */
 void cJSON_Reset(cJSON *c) {
-	if (c && c->child) {
-		cJSON_Delete(c->child);
+	if (c) {
+		cJSON* child = c->child;
+		while (child) {
+			cJSON* next_child = child->next;
+			cJSON_Delete(child);
+			child = next_child;
+		}
 		c->child = NULL;
 
 		c->valuedouble = 0.0;
