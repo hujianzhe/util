@@ -82,8 +82,10 @@ __declspec_dll cJSON  *cJSON_PrintFormatted(cJSON *item);
 /* Render a cJSON entity to text using a buffered strategy. prebuffer is a guess at the final size. guessing well reduces reallocation. fmt=0 gives unformatted, =1 gives formatted */
 /*__declspec_dll char *cJSON_PrintBuffered(cJSON *item,int prebuffer,int fmt);*/
 /* Delete a cJSON entity and all subentities. */
-__declspec_dll void   cJSON_Delete(cJSON *c);
+__declspec_dll void cJSON_Delete(cJSON *c);
 /* Delete all subentities */
+__declspec_dll void cJSON_DeleteAllSub(cJSON *c);
+/* Delete all subentities and cJSON entity attributes */
 __declspec_dll void cJSON_Reset(cJSON *c);
 
 /* Returns the number of items in an array (or object). */
