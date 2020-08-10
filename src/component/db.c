@@ -186,6 +186,8 @@ DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec) {
 
 DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec) {
 	const char* errmsg;
+	if (handle->connectok)
+		return handle;
 	do {
 		char* buf;
 		URL_t url;
