@@ -266,23 +266,51 @@ DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val) {
 	return res;
 }
 
-DB_RETURN dbCommit(DBHandle_t* handle, int bool_val) {
+DB_RETURN dbStartTransaction(DBHandle_t* handle) {
 	DB_RETURN res = DB_ERROR;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
 		{
-			if (bool_val) {
-				if (mysql_commit(&handle->mysql.mysql)) {
-					handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
-					break;
-				}
+			if (mysql_query(&handle->mysql.mysql, "start transaction")) {
+				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
+				break;
 			}
-			else {
-				if (mysql_rollback(&handle->mysql.mysql)) {
-					handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
-					break;
-				}
+			res = DB_SUCCESS;
+			break;
+		}
+		#endif
+	}
+	return res;
+}
+
+DB_RETURN dbCommit(DBHandle_t* handle) {
+	DB_RETURN res = DB_ERROR;
+	switch (handle->type) {
+		#ifdef DB_ENABLE_MYSQL
+		case DB_TYPE_MYSQL:
+		{
+			if (mysql_commit(&handle->mysql.mysql)) {
+				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
+				break;
+			}
+			res = DB_SUCCESS;
+			break;
+		}
+		#endif
+	}
+	return res;
+}
+
+DB_RETURN dbRollback(DBHandle_t* handle) {
+	DB_RETURN res = DB_ERROR;
+	switch (handle->type) {
+		#ifdef DB_ENABLE_MYSQL
+		case DB_TYPE_MYSQL:
+		{
+			if (mysql_rollback(&handle->mysql.mysql)) {
+				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
+				break;
 			}
 			res = DB_SUCCESS;
 			break;

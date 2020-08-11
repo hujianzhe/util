@@ -89,7 +89,9 @@ __declspec_dll DB_RETURN dbCheckAlive(DBHandle_t* handle);
 __declspec_dll const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
 __declspec_dll DB_RETURN dbEnableAutoCommit(DBHandle_t* handle, int bool_val);
-__declspec_dll DB_RETURN dbCommit(DBHandle_t* handle, int bool_val);
+__declspec_dll DB_RETURN dbStartTransaction(DBHandle_t* handle);
+__declspec_dll DB_RETURN dbCommit(DBHandle_t* handle);
+__declspec_dll DB_RETURN dbRollback(DBHandle_t* handle);
 /* SQL execute */
 __declspec_dll DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt);
 __declspec_dll DB_RETURN dbCloseStmt(DBStmt_t* stmt);
