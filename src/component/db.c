@@ -326,6 +326,8 @@ DBStmt_t* dbAllocStmt(DBHandle_t* handle, DBStmt_t* stmt) {
 
 DB_RETURN dbCloseStmt(DBStmt_t* stmt) {
 	DB_RETURN res = DB_ERROR;
+	if (!stmt->handle)
+		return DB_SUCCESS;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -349,6 +351,7 @@ DB_RETURN dbCloseStmt(DBStmt_t* stmt) {
 		}
 		#endif
 	}
+	stmt->handle = NULL;
     return res;
 }
 
@@ -520,6 +523,8 @@ short dbGetResult(DBStmt_t* stmt) {
 
 DB_RETURN dbFreeResult(DBStmt_t* stmt) {
 	DB_RETURN res = DB_ERROR;
+	if (!stmt->handle)
+		return DB_SUCCESS;
 	switch (stmt->handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
