@@ -102,6 +102,8 @@ DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype) {
 	handle->type = dbname_to_dbtype(dbtype);
 	handle->initok = 0;
 	handle->connectok = 0;
+	handle->last_active_timestamp_sec = 0;
+	handle->max_idle_sec = -1;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -143,10 +145,45 @@ void dbCloseHandle(DBHandle_t* handle) {
 	}
 }
 
+static int db_need_connect(DBHandle_t* handle) {
+	time_t cur_sec;
+	if (!handle->connectok)
+		return 1;
+	if (handle->max_idle_sec < 0)
+		return 0;
+	if (0 == handle->max_idle_sec)
+		return 1;
+	cur_sec = time(NULL);
+	if (cur_sec <= handle->last_active_timestamp_sec ||
+		handle->last_active_timestamp_sec < 0 ||
+		cur_sec - handle->last_active_timestamp_sec >= handle->max_idle_sec)
+	{
+		switch (handle->type) {
+			#ifdef DB_ENABLE_MYSQL
+			case DB_TYPE_MYSQL:
+			{
+				mysql_close(&handle->mysql.mysql);
+				if (!mysql_init(&handle->mysql.mysql)) {
+					return -1;
+				}
+				break;
+			}
+			#endif
+			default:
+				return 0;
+		}
+		handle->connectok = 0;
+		return 1;
+	}
+	return 0;
+}
+
 DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname, int timeout_sec) {
 	DB_RETURN res = DB_ERROR;
-
-	if (handle->connectok)
+	int retcode = db_need_connect(handle);
+	if (retcode < 0)
+		return NULL;
+	else if (!retcode)
 		return handle;
 
 	switch (handle->type) {
@@ -175,6 +212,7 @@ DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, c
 	}
 	if (DB_SUCCESS == res) {
 		handle->connectok = 1;
+		handle->last_active_timestamp_sec = time(NULL);
 		return handle;
 	}
 	return NULL;
@@ -186,7 +224,10 @@ DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec) {
 
 DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec) {
 	const char* errmsg;
-	if (handle->connectok)
+	int retcode = db_need_connect(handle);
+	if (retcode < 0)
+		return NULL;
+	else if (!retcode)
 		return handle;
 	do {
 		char* buf;
@@ -225,6 +266,7 @@ DB_RETURN dbCheckAlive(DBHandle_t* handle) {
 				handle->mysql.error_msg = mysql_error(&handle->mysql.mysql);
 				break;
 			}
+			handle->last_active_timestamp_sec = time(NULL);
 			res = DB_SUCCESS;
 			break;
 		}

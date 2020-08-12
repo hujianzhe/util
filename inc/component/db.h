@@ -17,6 +17,7 @@
 	#endif
 #endif
 #include <stddef.h>
+#include <time.h>
 
 typedef enum DB_RETURN {
 	DB_ERROR,
@@ -39,6 +40,8 @@ typedef struct DBHandle_t {
 	int type;
 	short initok;
 	short connectok;
+	time_t last_active_timestamp_sec;
+	int max_idle_sec;
 	union {
 		char reserved[1];
 #ifdef DB_ENABLE_MYSQL
