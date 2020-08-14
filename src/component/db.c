@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/component/db.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -104,6 +105,9 @@ DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype) {
 	handle->connectok = 0;
 	handle->last_active_timestamp_sec = 0;
 	handle->max_idle_sec = -1;
+	handle->connect_timeout_sec = -1;
+	handle->m_urlmembuf = NULL;
+	memset(&handle->url, 0, sizeof(handle->url));
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
@@ -133,6 +137,8 @@ void dbCloseHandle(DBHandle_t* handle) {
 		return;
 	handle->initok = 0;
 	handle->connectok = 0;
+	free(handle->m_urlmembuf);
+	handle->m_urlmembuf = NULL;
 
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
@@ -178,7 +184,7 @@ static int db_need_connect(DBHandle_t* handle) {
 	return 0;
 }
 
-DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname, int timeout_sec) {
+static DBHandle_t* db_connect(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname, int timeout_sec) {
 	DB_RETURN res = DB_ERROR;
 	int retcode = db_need_connect(handle);
 	if (retcode < 0)
@@ -218,21 +224,45 @@ DBHandle_t* dbConnect(DBHandle_t* handle, const char* ip, unsigned short port, c
 	return NULL;
 }
 
-DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec) {
-	return dbConnect(handle, url->host, url->port, url->user, url->pwd, url->path + 1, timeout_sec);
+DBHandle_t* dbSetConnectByArg(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname) {
+	size_t schemalen, iplen, userlen, pwdlen, dbnamelen;
+	size_t memsz;
+	char* buf, *schema;
+	switch (handle->type) {
+		#ifdef DB_ENABLE_MYSQL
+		case DB_TYPE_MYSQL:
+		{
+			schema = "mysql";
+			schemalen = sizeof("mysql") - 1;
+			break;
+		}
+		#endif
+		default:
+		{
+			return NULL;
+		}
+	}
+	iplen = strlen(ip);
+	userlen = strlen(user);
+	pwdlen = strlen(pwd);
+	dbnamelen = strlen(dbname);
+	// mysql://vivie:vivie970126@127.0.0.1:3306/filemeta
+	memsz = schemalen + 3 + userlen + 1 + pwdlen + 1 + iplen + 1 + 5 + 1 + dbnamelen + 1;
+	buf = (char*)malloc(memsz);
+	if (!buf)
+		return NULL;
+	sprintf(buf, "%s://%s:%s@%s:%u/%s", schema, user, pwd, ip, port, dbname);
+	buf[memsz - 1] = 0;
+	handle = dbSetConnectByUrlString(handle, buf);
+	free(buf);
+	return handle;
 }
 
-DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec) {
+DBHandle_t* dbSetConnectByUrlString(DBHandle_t* handle, const char* str_url) {
 	const char* errmsg;
-	int retcode = db_need_connect(handle);
-	if (retcode < 0)
-		return NULL;
-	else if (!retcode)
-		return handle;
 	do {
 		char* buf;
-		URL_t url;
-		unsigned int bufsize = urlParsePrepare(&url, str);
+		unsigned int bufsize = urlParsePrepare(&handle->url, str_url);
 		if (0 == bufsize) {
 			errmsg = "URL format invalid";
 			break;
@@ -242,8 +272,9 @@ DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_
 			errmsg = "memory not enough";
 			break;
 		}
-		handle = dbConnectURL(handle, urlParseFinish(&url, buf), timeout_sec);
-		free(buf);
+		urlParseFinish(&handle->url, buf);
+		free(handle->m_urlmembuf);
+		handle->m_urlmembuf = buf;
 		return handle;
 	} while (0);
 	switch (handle->type) {
@@ -254,6 +285,11 @@ DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_
 		#endif
 	}
 	return NULL;
+}
+
+DBHandle_t* dbConnect(DBHandle_t* handle) {
+	URL_t* url = &handle->url;
+	return db_connect(handle, url->host, url->port, url->user, url->pwd, url->path + 1, handle->connect_timeout_sec);
 }
 
 DB_RETURN dbCheckAlive(DBHandle_t* handle) {

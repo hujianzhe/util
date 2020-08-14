@@ -42,6 +42,9 @@ typedef struct DBHandle_t {
 	short connectok;
 	time_t last_active_timestamp_sec;
 	int max_idle_sec;
+	int connect_timeout_sec;
+	URL_t url;
+	char* m_urlmembuf;
 	union {
 		char reserved[1];
 #ifdef DB_ENABLE_MYSQL
@@ -85,9 +88,9 @@ __declspec_dll void dbFreeTls(void);
 /* handle */
 __declspec_dll DBHandle_t* dbCreateHandle(DBHandle_t* handle, const char* dbtype);
 __declspec_dll void dbCloseHandle(DBHandle_t* handle);
-__declspec_dll DBHandle_t* dbConnect(DBHandle_t* handle, const char *ip, unsigned short port, const char *user, const char *pwd, const char *dbname, int timeout_sec);
-__declspec_dll DBHandle_t* dbConnectURL(DBHandle_t* handle, URL_t* url, int timeout_sec);
-__declspec_dll DBHandle_t* dbConnectStringURL(DBHandle_t* handle, const char* str, int timeout_sec);
+__declspec_dll DBHandle_t* dbSetConnectByArg(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname);
+__declspec_dll DBHandle_t* dbSetConnectByUrlString(DBHandle_t* handle, const char* str_url);
+__declspec_dll DBHandle_t* dbConnect(DBHandle_t* handle);
 __declspec_dll DB_RETURN dbCheckAlive(DBHandle_t* handle);
 __declspec_dll const char* dbHandleErrorMessage(DBHandle_t* handle);
 /* transaction */
