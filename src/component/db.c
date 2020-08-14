@@ -227,7 +227,8 @@ static DBHandle_t* db_connect(DBHandle_t* handle, const char* ip, unsigned short
 DBHandle_t* dbSetConnectByArg(DBHandle_t* handle, const char* ip, unsigned short port, const char* user, const char* pwd, const char* dbname) {
 	size_t schemalen, iplen, userlen, pwdlen, dbnamelen;
 	size_t memsz;
-	char* buf, *schema;
+	char* buf;
+	const char* schema;
 	switch (handle->type) {
 		#ifdef DB_ENABLE_MYSQL
 		case DB_TYPE_MYSQL:
