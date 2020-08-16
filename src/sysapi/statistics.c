@@ -51,25 +51,43 @@ char* systemHostname(char* buf, size_t len) {
 #endif
 }
 
-BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_mb, unsigned long long* free_mb, unsigned long long* availabel_mb, unsigned long long* b_size) {
+BOOL diskPartitionSize(const char* dev_path, unsigned long long* total_bytes, unsigned long long* free_bytes, unsigned long long* availabel_bytes, unsigned long long* block_bytes) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD spc,bps,nfc,tnc;
-	ULARGE_INTEGER t,f,a;
-	if (GetDiskFreeSpaceExA(dev_path, &a, &t, &f) && GetDiskFreeSpaceA(dev_path, &spc, &bps, &nfc, &tnc)) {
-		*total_mb = t.QuadPart >> 20;
-		*free_mb = f.QuadPart >> 20;
-		*availabel_mb = a.QuadPart >> 20;
-		*b_size = spc * bps;
-		return TRUE;
+	ULARGE_INTEGER t, f, a;
+	if (!GetDiskFreeSpaceExA(dev_path, &a, &t, &f)) {
+		return FALSE;
 	}
-	return FALSE;
+	if (block_bytes) {
+		DWORD spc, bps, nfc, tnc;
+		if (!GetDiskFreeSpaceA(dev_path, &spc, &bps, &nfc, &tnc))
+			return FALSE;
+		*block_bytes = spc * bps;
+	}
+	if (total_bytes)
+		*total_bytes = t.QuadPart;
+	if (free_bytes)
+		*free_bytes = f.QuadPart;
+	if (availabel_bytes)
+		*availabel_bytes = a.QuadPart;
+	return TRUE;
 #else
-	struct statvfs disk_info = {0};
-	if (!statvfs(dev_path,&disk_info)) {
-		*total_mb = (disk_info.f_blocks * disk_info.f_bsize) >> 20;
-		*free_mb = (disk_info.f_bfree * disk_info.f_bsize) >> 20;
-		*availabel_mb = (disk_info.f_bavail * disk_info.f_bsize) >> 20;
-		*b_size = disk_info.f_bsize;
+	struct statvfs disk_info = { 0 };
+	if (!statvfs(dev_path, &disk_info)) {
+		unsigned long f_bsize = disk_info.f_bsize;
+		if (total_bytes) {
+			*total_bytes = disk_info.f_blocks;
+			*total_bytes *= f_bsize;
+		}
+		if (free_bytes) {
+			*free_bytes = disk_info.f_bfree;
+			*free_bytes *= f_bsize;
+		}
+		if (availabel_bytes) {
+			*availabel_bytes = disk_info.f_bavail;
+			*availabel_bytes *= f_bsize;
+		}
+		if (block_bytes)
+			*block_bytes = f_bsize;
 		return TRUE;
 	}
 	return FALSE;
