@@ -219,9 +219,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 		return 0;
 	if (SOCK_STREAM == o->socktype) {
 		BOOL ret;
-		if (!socketIsListened(o->fd, &ret))
-			return 0;
-		if (ret) {
+		ChannelBase_t* channel = streamChannel(o);
+		if (channel->flag & CHANNEL_FLAG_LISTEN) {
 			o->stream.m_listened = 1;
 			if (!reactorobject_request_read(reactor, o))
 				return 0;
@@ -230,12 +229,12 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 			return 0;
 		else if (ret) {
 			o->stream.m_connected = 1;
-			streamChannel(o)->disable_send = 0;
+			channel->disable_send = 0;
 			if (!reactorobject_request_read(reactor, o))
 				return 0;
 		}
 		else {
-			streamChannel(o)->disable_send = 1;
+			channel->disable_send = 1;
 			if (!reactorobject_request_connect(reactor, o))
 				return 0;
 		}

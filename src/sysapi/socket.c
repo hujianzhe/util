@@ -530,6 +530,9 @@ BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, u
 	memset(saddr, 0, sizeof(*saddr));
 	if (af == AF_INET) {/* IPv4 */
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
+#if defined(__FreeBSD__) || defined(__APPLE__)
+		addr_in->sin_len = sizeof(*addr_in);
+#endif
 		addr_in->sin_family = AF_INET;
 		addr_in->sin_port = htons(port);
 		if (!strIP || !strIP[0])
@@ -545,6 +548,9 @@ BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, u
 	}
 	else if (af == AF_INET6) {
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
+#if defined(__FreeBSD__) || defined(__APPLE__)
+		addr_in6->sin6_len = sizeof(*addr_in6);
+#endif
 		addr_in6->sin6_family = AF_INET6;
 		addr_in6->sin6_port = htons(port);
 		if (strIP && strIP[0]) {
@@ -780,6 +786,7 @@ BOOL socketIsConnected(FD_t fd, BOOL* bool_value) {
 }
 
 BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
+	/* note: Mac Darwin call getsockopt(SO_ACCEPTCONN) always return FALSE ??? */
 	socklen_t len = sizeof(*bool_value);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len)) {
 		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTSOCK))
