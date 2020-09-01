@@ -66,6 +66,17 @@ struct array {
 // private:
 	T e[N?N:1];
 };
+
+template <typename T, size_t N>
+bool operator==(const array<T, N>& lhs, const array<T, N>& rhs) {
+	for (size_t i = 0; i < N; ++i) {
+		if (lhs[i] != rhs[i])
+			return false;
+	}
+	return true;
+}
+template <typename T, size_t N>
+bool operator!=(const array<T, N>& lhs, const array<T, N>& rhs) { return !(lhs == rhs); }
 }
 #endif
 
