@@ -20,6 +20,25 @@ struct array {
 	typedef T value_type;
 	typedef size_t size_type;
 	typedef ptrdiff_t difference_type;
+	typedef T* iterator;
+	typedef const T* const_iterator;
+	typedef std::reverse_iterator<iterator> reverse_iterator;
+	typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+
+	iterator begin(void) { return iterator(e); }
+	const_iterator begin(void) const { return const_iterator(e); }
+	iterator end(void) { return iterator(e + N); }
+	const_iterator end(void) const { return const_iterator(e + N); }
+
+	reverse_iterator rbegin(void) { return reverse_iterator(end()); }
+	const_reverse_iterator rbegin(void) const { return const_reverse_iterator(end()); }
+	reverse_iterator rend(void) { return reverse_iterator(begin()); }
+	const_reverse_iterator rend(void) const { return const_reverse_iterator(begin()); }
+
+	const_iterator cbegin(void) const { return const_iterator(e); }
+	const_iterator cend(void) const { return const_iterator(e + N); }
+	const_reverse_iterator crbegin(void) const { return const_reverse_iterator(end()); }
+	const_reverse_iterator crend(void) const { return const_reverse_iterator(begin()); }
 
 	void fill(const T& v) {
 		for (size_t i = 0; i < N; ++i) {
