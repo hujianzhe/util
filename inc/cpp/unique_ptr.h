@@ -138,6 +138,9 @@ template <class T, class D>
 bool operator!=(nullptr_t p, const unique_ptr<T, D>& x) { return x.get() != p; }
 template <class T, class D>
 bool operator!=(const unique_ptr<T, D>& x, nullptr_t p) { return x.get() != p; }
+
+template <class T, class D>
+unique_ptr<T, D> move(unique_ptr<T, D>& p) { return std::unique_ptr<T, D>(p.release()); }
 }
 #endif
 
