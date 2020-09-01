@@ -32,6 +32,9 @@ public:
 	{
 		p.m_ptr = (T*)0;
 	}
+	~unique_ptr(void) {
+		m_deleter(m_ptr);
+	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
 	const T& operator*(void) const { return *m_ptr; }
@@ -76,6 +79,9 @@ public:
 		m_deleter(p.m_deleter)
 	{
 		p.m_ptr = (T*)0;
+	}
+	~unique_ptr(void) {
+		m_deleter(m_ptr);
 	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
