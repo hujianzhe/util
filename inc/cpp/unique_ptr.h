@@ -26,6 +26,11 @@ template <typename T, typename Deleter = default_delete<T> >
 class unique_ptr {
 public:
 	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
+	~unique_ptr(void) {
+		if (m_do_deleter)
+			m_deleter(m_ptr);
+	}
+	// compromise
 	unique_ptr(const unique_ptr& p) :
 		m_ptr(p.m_ptr),
 		m_deleter(p.m_deleter),
@@ -34,10 +39,7 @@ public:
 		p.m_ptr = (T*)0;
 		p.m_do_deleter = false;
 	}
-	~unique_ptr(void) {
-		if (m_do_deleter)
-			m_deleter(m_ptr);
-	}
+	// compromise
 	unique_ptr& operator=(const unique_ptr& rhs) {
 		this->m_ptr = rhs.m_ptr;
 		this->m_deleter = rhs.m_deleter;
@@ -89,6 +91,11 @@ template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> {
 public:
 	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
+	~unique_ptr(void) {
+		if (m_do_deleter)
+			m_deleter(m_ptr);
+	}
+	// compromise
 	unique_ptr(const unique_ptr& p) :
 		m_ptr(p.m_ptr),
 		m_deleter(p.m_deleter),
@@ -97,10 +104,7 @@ public:
 		p.m_ptr = (T*)0;
 		p.m_do_deleter = false;
 	}
-	~unique_ptr(void) {
-		if (m_do_deleter)
-			m_deleter(m_ptr);
-	}
+	// compromise
 	unique_ptr& operator=(const unique_ptr& rhs) {
 		this->m_ptr = rhs.m_ptr;
 		this->m_deleter = rhs.m_deleter;
