@@ -78,7 +78,7 @@ private:
 private:
 	mutable T* m_ptr;
 	Deleter m_deleter;
-	bool m_do_deleter;
+	mutable bool m_do_deleter;
 };
 template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> {
@@ -135,7 +135,7 @@ private:
 private:
 	mutable T* m_ptr;
 	Deleter m_deleter;
-	bool m_do_deleter;
+	mutable bool m_do_deleter;
 };
 template <class T1, class D1, class T2, class D2>
 bool operator==(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y) { return x.get() == y.get(); }
