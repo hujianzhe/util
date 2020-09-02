@@ -38,6 +38,14 @@ public:
 		if (m_do_deleter)
 			m_deleter(m_ptr);
 	}
+	unique_ptr& operator=(const unique_ptr& rhs) {
+		this->m_ptr = rhs.m_ptr;
+		this->m_deleter = rhs.m_deleter;
+		this->m_do_deleter = (rhs.m_ptr != (T*)0);
+		rhs.m_ptr = (T*)0;
+		rhs.m_do_deleter = false;
+		return *this;
+	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
 	const T& operator*(void) const { return *m_ptr; }
@@ -73,9 +81,6 @@ public:
 	const Deleter& get_deleter(void) const { return m_deleter; }
 
 private:
-	unique_ptr& operator=(const unique_ptr&) { return *this; }
-
-private:
 	mutable T* m_ptr;
 	Deleter m_deleter;
 	mutable bool m_do_deleter;
@@ -95,6 +100,14 @@ public:
 	~unique_ptr(void) {
 		if (m_do_deleter)
 			m_deleter(m_ptr);
+	}
+	unique_ptr& operator=(const unique_ptr& rhs) {
+		this->m_ptr = rhs.m_ptr;
+		this->m_deleter = rhs.m_deleter;
+		this->m_do_deleter = (rhs.m_ptr != (T*)0);
+		rhs.m_ptr = (T*)0;
+		rhs.m_do_deleter = false;
+		return *this;
 	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
@@ -128,9 +141,6 @@ public:
 	T* get(void) const { return m_ptr; }
 	Deleter& get_deleter(void) { return m_deleter; }
 	const Deleter& get_deleter(void) const { return m_deleter; }
-
-private:
-	unique_ptr& operator=(const unique_ptr&) { return *this; }
 
 private:
 	mutable T* m_ptr;
