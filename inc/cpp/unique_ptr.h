@@ -25,15 +25,18 @@ struct default_delete<T[]> {
 template <typename T, typename Deleter = default_delete<T> >
 class unique_ptr {
 public:
-	explicit unique_ptr(T* p = (T*)0) : m_ptr(p) {}
+	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
 	unique_ptr(const unique_ptr& p) :
 		m_ptr(p.m_ptr),
-		m_deleter(p.m_deleter)
+		m_deleter(p.m_deleter),
+		m_do_deleter(p.m_ptr != (T*)0)
 	{
 		p.m_ptr = (T*)0;
+		p.m_do_deleter = false;
 	}
 	~unique_ptr(void) {
-		m_deleter(m_ptr);
+		if (m_do_deleter)
+			m_deleter(m_ptr);
 	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
@@ -45,19 +48,25 @@ public:
 	T* release(void) {
 		T* p = m_ptr;
 		m_ptr = (T*)0;
+		m_do_deleter = false;
 		return p;
 	}
 	void reset(T* p = (T*)0) {
-		m_deleter(m_ptr);
+		if (m_do_deleter)
+			m_deleter(m_ptr);
 		m_ptr = p;
+		m_do_deleter = (p != (T*)0);
 	}
 	void swap(unique_ptr& other) {
 		T* temp_p = other.m_ptr;
 		Deleter temp_del = other.m_deleter;
+		bool temp_do_del = other.m_do_deleter;
 		other.m_ptr = m_ptr;
 		other.m_deleter = m_deleter;
+		other.m_do_deleter = m_do_deleter;
 		m_ptr = temp_p;
 		m_deleter = temp_del;
+		m_do_deleter = temp_do_del;
 	}
 	T* get(void) const { return m_ptr; }
 	Deleter& get_deleter(void) { return m_deleter; }
@@ -69,19 +78,23 @@ private:
 private:
 	mutable T* m_ptr;
 	Deleter m_deleter;
+	bool m_do_deleter;
 };
 template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> {
 public:
-	explicit unique_ptr(T* p = (T*)0) : m_ptr(p) {}
+	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
 	unique_ptr(const unique_ptr& p) :
 		m_ptr(p.m_ptr),
-		m_deleter(p.m_deleter)
+		m_deleter(p.m_deleter),
+		m_do_deleter(p.m_ptr != (T*)0)
 	{
 		p.m_ptr = (T*)0;
+		p.m_do_deleter = false;
 	}
 	~unique_ptr(void) {
-		m_deleter(m_ptr);
+		if (m_do_deleter)
+			m_deleter(m_ptr);
 	}
 
 	operator bool(void) const { return m_ptr != (T*)0; }
@@ -92,19 +105,25 @@ public:
 	T* release(void) {
 		T* p = m_ptr;
 		m_ptr = (T*)0;
+		m_do_deleter = false;
 		return p;
 	}
 	void reset(T* p = (T*)0) {
-		m_deleter(m_ptr);
+		if (m_do_deleter)
+			m_deleter(m_ptr);
 		m_ptr = p;
+		m_do_deleter = (p != (T*)0);
 	}
 	void swap(unique_ptr& other) {
 		T* temp_p = other.m_ptr;
 		Deleter temp_del = other.m_deleter;
+		bool temp_do_del = other.m_do_deleter;
 		other.m_ptr = m_ptr;
 		other.m_deleter = m_deleter;
+		other.m_do_deleter = m_do_deleter;
 		m_ptr = temp_p;
 		m_deleter = temp_del;
+		m_do_deleter = temp_do_del;
 	}
 	T* get(void) const { return m_ptr; }
 	Deleter& get_deleter(void) { return m_deleter; }
@@ -116,6 +135,7 @@ private:
 private:
 	mutable T* m_ptr;
 	Deleter m_deleter;
+	bool m_do_deleter;
 };
 template <class T1, class D1, class T2, class D2>
 bool operator==(const unique_ptr<T1, D1>& x, const unique_ptr<T2, D2>& y) { return x.get() == y.get(); }
