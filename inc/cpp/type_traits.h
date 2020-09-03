@@ -16,6 +16,10 @@ template <typename T>
 struct is_array<T[]> {
 	enum { value = true };
 };
+template <typename T, size_t N>
+struct is_array<T[N]> {
+	enum { value = true };
+};
 
 template <typename T>
 struct is_void {
