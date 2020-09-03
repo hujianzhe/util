@@ -41,11 +41,13 @@ public:
 	}
 	// compromise
 	unique_ptr& operator=(const unique_ptr& rhs) {
-		this->m_ptr = rhs.m_ptr;
-		this->m_deleter = rhs.m_deleter;
-		this->m_do_deleter = (rhs.m_ptr != (T*)0);
-		rhs.m_ptr = (T*)0;
-		rhs.m_do_deleter = false;
+		if (this != &rhs) {
+			this->m_ptr = rhs.m_ptr;
+			this->m_deleter = rhs.m_deleter;
+			this->m_do_deleter = (rhs.m_ptr != (T*)0);
+			rhs.m_ptr = (T*)0;
+			rhs.m_do_deleter = false;
+		}
 		return *this;
 	}
 
@@ -106,11 +108,13 @@ public:
 	}
 	// compromise
 	unique_ptr& operator=(const unique_ptr& rhs) {
-		this->m_ptr = rhs.m_ptr;
-		this->m_deleter = rhs.m_deleter;
-		this->m_do_deleter = (rhs.m_ptr != (T*)0);
-		rhs.m_ptr = (T*)0;
-		rhs.m_do_deleter = false;
+		if (this != &rhs) {
+			this->m_ptr = rhs.m_ptr;
+			this->m_deleter = rhs.m_deleter;
+			this->m_do_deleter = (rhs.m_ptr != (T*)0);
+			rhs.m_ptr = (T*)0;
+			rhs.m_do_deleter = false;
+		}
 		return *this;
 	}
 
