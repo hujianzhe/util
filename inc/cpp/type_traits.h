@@ -9,6 +9,15 @@
 #include "cpp_compiler_define.h"
 namespace util {
 template <typename T>
+struct is_void {
+	enum { value = false };
+};
+template <>
+struct is_void<void> {
+	enum { value = true };
+};
+
+template <typename T>
 struct is_pointer {
 	enum { value = false };
 };
