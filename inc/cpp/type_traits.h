@@ -9,6 +9,15 @@
 #include "cpp_compiler_define.h"
 namespace util {
 template <typename T>
+struct is_array {
+	enum { value = false };
+};
+template <typename T>
+struct is_array<T[]> {
+	enum { value = true };
+};
+
+template <typename T>
 struct is_void {
 	enum { value = false };
 };
