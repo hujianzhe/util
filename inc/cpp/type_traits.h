@@ -64,8 +64,8 @@ public:
 		enum { value = false };
 	};
 };
-template <class Sub, class Parent>
-struct is_inhert {
+template <class Parent, class Sub>
+struct is_base_of {
 	enum { value =  is_inherit_impl<Parent>::template Check<Sub>::value };
 };
 }
