@@ -9,6 +9,27 @@
 #include "cpp_compiler_define.h"
 namespace util {
 template <typename T>
+struct is_pointer {
+	enum { value = false };
+};
+template <typename C, typename D>
+struct is_pointer<D C::*> {
+	enum { value = true };
+};
+template <typename T>
+struct is_pointer<T(*)()> {
+	enum { value = true };
+};
+template <typename T>
+struct is_pointer<T*> {
+	enum { value = true };
+};
+template <>
+struct is_pointer<void> {
+	enum { value = false };
+};
+
+template <typename T>
 struct is_class {
 private:
 	template <typename C> static char test(int C::*);
