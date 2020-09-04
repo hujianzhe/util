@@ -13,6 +13,13 @@
 #else
 #include "shared_ptr.h"
 namespace std {
+class bad_weak_ptr : public std::exception {
+public:
+	virtual const char* what(void) const throw() {
+		return "bad_weak_ptr";
+	}
+};
+
 template <typename T>
 class weak_ptr {
 public:
