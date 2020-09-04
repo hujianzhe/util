@@ -35,6 +35,14 @@ public:
 			m_refcnt->incr_weak(1);
 	}
 
+	weak_ptr(const weak_ptr& wp) :
+		m_ptr(wp.m_ptr),
+		m_refcnt(wp.m_refcnt)
+	{
+		if (m_refcnt)
+			m_refcnt->incr_weak(1);
+	}
+
 	template <typename U>
 	weak_ptr(const weak_ptr<U>& wp) :
 		m_ptr(wp.m_ptr),
@@ -44,9 +52,22 @@ public:
 			m_refcnt->incr_weak(1);
 	}
 
+	weak_ptr& operator=(const weak_ptr& other) {
+		if (this != &other) {
+			if (m_refcnt) {
+				sp_refcnt::wp_release(m_refcnt);
+			}
+			m_ptr = other.m_ptr;
+			m_refcnt = other.m_refcnt;
+			if (other.m_refcnt)
+				other.m_refcnt->incr_weak(1);
+		}
+		return *this;
+	}
+
 	template <typename U>
 	weak_ptr& operator=(const weak_ptr<U>& other) {
-		if (this != &other) {
+		if (m_refcnt != other->m_refcnt) {
 			if (m_refcnt) {
 				sp_refcnt::wp_release(m_refcnt);
 			}

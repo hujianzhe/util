@@ -140,7 +140,7 @@ public:
 
 	template <typename U>
 	shared_ptr& operator=(const shared_ptr<U>& other) {
-		if (m_ptr != (T*)other.m_ptr) {
+		if (m_ptr != other.m_ptr) {
 			if (m_refcnt) {
 				sp_refcnt::sp_release(m_refcnt);
 			}
