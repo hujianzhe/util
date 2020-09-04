@@ -12,6 +12,7 @@
 #include <memory>
 #else
 #include "shared_ptr.h"
+#include <exception>
 namespace std {
 class bad_weak_ptr : public std::exception {
 public:
