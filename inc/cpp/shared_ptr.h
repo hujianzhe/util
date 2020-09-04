@@ -28,6 +28,7 @@ class weak_ptr;
 class sp_refcnt {
 public:
 	sp_refcnt(void) : m_share_refcnt (1), m_weak_refcnt(1) {}
+	virtual ~sp_refcnt(void) {}
 
 	int incr_share(int v) { return _xadd32(&m_share_refcnt, v); }
 	int incr_weak(int v) { return _xadd32(&m_weak_refcnt, v); }
@@ -42,14 +43,12 @@ public:
 		}
 	}
 
-	template <typename T, typename Deleter>
-	static void sp_release(sp_refcnt* refcnt, T* ptr, const Deleter& deleter) {
+	static void sp_release(sp_refcnt* refcnt) {
 		if (refcnt->incr_share(-1) > 1)
 			return;
-		deleter(ptr);
-		if (refcnt->incr_weak(-1) > 1)
-			return;
-		delete refcnt;
+		refcnt->destroy();
+		if (refcnt->incr_weak(-1) <= 1)
+			delete refcnt;
 	}
 
 	static void wp_release(sp_refcnt* refcnt) {
@@ -62,10 +61,28 @@ public:
 private:
 	sp_refcnt(const sp_refcnt&) {}
 	sp_refcnt& operator=(const sp_refcnt&) { return *this; }
+	virtual void destroy(void) {}
 
 private:
 	Atom32_t m_share_refcnt;
 	Atom32_t m_weak_refcnt;
+};
+
+template <typename T, typename Deleter>
+class sp_impl : public sp_refcnt {
+public:
+	sp_impl(T* p, const Deleter& deleter) :
+		m_ptr(p),
+		m_deleter(deleter)
+	{
+	}
+
+private:
+	virtual void destroy(void) { m_deleter(m_ptr); }
+
+private:
+	T* m_ptr;
+	Deleter m_deleter;
 };
 
 template <typename T, typename Deleter = shared_ptr_default_delete<T> >
@@ -74,11 +91,10 @@ friend class enable_shared_from_this<T>;
 friend class weak_ptr<T>;
 public:
 	explicit shared_ptr(T* p = (T*)0, const Deleter& deleter = Deleter()) :
-		m_ptr(p),
-		m_deleter(deleter)
+		m_ptr(p)
 	{
 		if (p) {
-			m_refcnt = new sp_refcnt();
+			m_refcnt = new sp_impl<T, Deleter>(p, deleter);
 			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
 				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
 				pe->m_refcnt = m_refcnt;
@@ -101,7 +117,7 @@ public:
 	shared_ptr& operator=(const shared_ptr& other) {
 		if (this != &other) {
 			if (m_refcnt) {
-				sp_refcnt::sp_release(m_refcnt, m_ptr, m_deleter);
+				sp_refcnt::sp_release(m_refcnt);
 			}
 			m_ptr = other.m_ptr;
 			m_refcnt = other.m_refcnt;
@@ -114,7 +130,7 @@ public:
 
 	~shared_ptr(void) {
 		if (m_refcnt) {
-			sp_refcnt::sp_release(m_refcnt, m_ptr, m_deleter);
+			sp_refcnt::sp_release(m_refcnt);
 		}
 	}
 
@@ -128,11 +144,11 @@ public:
 		if (m_ptr == p)
 			return;
 		if (m_refcnt) {
-			sp_refcnt::sp_release(m_refcnt, m_ptr, m_deleter);
+			sp_refcnt::sp_release(m_refcnt);
 		}
 		m_ptr = p;
 		if (p) {
-			m_refcnt = new sp_refcnt();
+			m_refcnt = new sp_impl<T, Deleter>(p, Deleter());
 			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
 				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
 				pe->m_refcnt = m_refcnt;
@@ -142,13 +158,32 @@ public:
 			m_refcnt = (sp_refcnt*)0;
 		}
 	}
+	template <typename D>
+	void reset(T* p, const D& deleter) {
+		if (m_ptr == p)
+			return;
+		if (m_refcnt) {
+			sp_refcnt::sp_release(m_refcnt);
+		}
+		m_ptr = p;
+		if (p) {
+			m_refcnt = new sp_impl<T, D>(p, deleter);
+			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
+				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
+				pe->m_refcnt = m_refcnt;
+			}
+		}
+		else {
+			m_refcnt = (sp_refcnt*)0;
+		}
+	}
+
 	long int use_count(void) const { return m_refcnt ? m_refcnt->count_share() : 0; }
 	T* get(void) const { return m_ptr; }
 
 private:
 	T* m_ptr;
 	sp_refcnt* m_refcnt;
-	Deleter m_deleter;
 };
 
 template <class T1, class D1, class T2, class D2>
