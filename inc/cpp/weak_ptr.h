@@ -44,6 +44,8 @@ public:
 			}
 			m_ptr = other.m_ptr;
 			m_refcnt = other.m_refcnt;
+			if (other.m_refcnt)
+				other.m_refcnt->incr_weak(1);
 		}
 		return *this;
 	}

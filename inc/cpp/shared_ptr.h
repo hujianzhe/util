@@ -93,7 +93,9 @@ public:
 		m_ptr(other.m_ptr),
 		m_refcnt(other.m_refcnt)
 	{
-		m_refcnt->incr_share(1);
+		if (m_refcnt) {
+			m_refcnt->incr_share(1);
+		}
 	}
 
 	shared_ptr& operator=(const shared_ptr& other) {
@@ -103,7 +105,9 @@ public:
 			}
 			m_ptr = other.m_ptr;
 			m_refcnt = other.m_refcnt;
-			other.m_refcnt->incr_share(1);
+			if (other.m_refcnt) {
+				other.m_refcnt->incr_share(1);
+			}
 		}
 		return *this;
 	}
