@@ -114,7 +114,32 @@ public:
 		}
 	}
 
+	template <typename U>
+	shared_ptr(const shared_ptr<U>& other) :
+		m_ptr(other.m_ptr),
+		m_refcnt(other.m_refcnt)
+	{
+		if (m_refcnt) {
+			m_refcnt->incr_share(1);
+		}
+	}
+
 	shared_ptr& operator=(const shared_ptr& other) {
+		if (this != &other) {
+			if (m_refcnt) {
+				sp_refcnt::sp_release(m_refcnt);
+			}
+			m_ptr = other.m_ptr;
+			m_refcnt = other.m_refcnt;
+			if (other.m_refcnt) {
+				other.m_refcnt->incr_share(1);
+			}
+		}
+		return *this;
+	}
+
+	template <typename U>
+	shared_ptr& operator=(const shared_ptr<U>& other) {
 		if (this != &other) {
 			if (m_refcnt) {
 				sp_refcnt::sp_release(m_refcnt);
@@ -181,7 +206,7 @@ public:
 	long int use_count(void) const { return m_refcnt ? m_refcnt->count_share() : 0; }
 	T* get(void) const { return m_ptr; }
 
-private:
+public:
 	T* m_ptr;
 	sp_refcnt* m_refcnt;
 };
