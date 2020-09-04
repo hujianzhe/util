@@ -2,8 +2,8 @@
 // Created by hujianzhe on 20-9-3
 //
 
-#ifndef	UTIL_CPP_TYPE_IS_CLASS_H
-#define	UTIL_CPP_TYPE_IS_CLASS_H
+#ifndef	UTIL_CPP_TYPE_TRAITS_H
+#define	UTIL_CPP_TYPE_TRAITS_H
 
 #ifdef	__cplusplus
 #include "cpp_compiler_define.h"

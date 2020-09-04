@@ -25,7 +25,12 @@ struct default_delete<T[]> {
 template <typename T, typename Deleter = default_delete<T> >
 class unique_ptr {
 public:
-	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
+	explicit unique_ptr(T* p = (T*)0, const Deleter& deleter = Deleter()) :
+		m_ptr(p),
+		m_deleter(deleter),
+		m_do_deleter(p != (T*)0)
+	{
+	}
 	~unique_ptr(void) {
 		if (m_do_deleter)
 			m_deleter(m_ptr);
@@ -92,7 +97,12 @@ private:
 template <typename T, typename Deleter>
 class unique_ptr<T[], Deleter> {
 public:
-	explicit unique_ptr(T* p = (T*)0) : m_ptr(p), m_do_deleter(p != (T*)0) {}
+	explicit unique_ptr(T* p = (T*)0, const Deleter& deleter = Deleter()) :
+		m_ptr(p),
+		m_deleter(deleter),
+		m_do_deleter(p != (T*)0)
+	{
+	}
 	~unique_ptr(void) {
 		if (m_do_deleter)
 			m_deleter(m_ptr);
