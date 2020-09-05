@@ -154,6 +154,9 @@ public:
 			m_refcnt = new sp_impl<T, Deleter>(m_ptr, other.get_deleter());
 			set_enable_shared_from_this(m_refcnt, m_ptr);
 		}
+		else {
+			m_refcnt = (sp_refcnt*)0;
+		}
 	}
 
 	template <typename U>
@@ -166,7 +169,9 @@ public:
 				m_refcnt->incr_share(1);
 			}
 		}
-		m_refcnt = (sp_refcnt*)0;
+		else {
+			m_refcnt = (sp_refcnt*)0;
+		}
 	}
 
 	~shared_ptr(void) {
