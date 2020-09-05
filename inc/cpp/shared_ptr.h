@@ -156,7 +156,7 @@ public:
 		}
 	}
 
-	template <typename U, typename E>
+	template <typename U>
 	shared_ptr(const shared_ptr<U>& other, T* p) :
 		m_ptr(p),
 		m_refcnt(other.m_refcnt)
