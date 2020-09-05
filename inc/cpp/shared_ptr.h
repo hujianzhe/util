@@ -13,7 +13,6 @@
 #else
 #include "../sysapi/atomic.h"
 #include "nullptr.h"
-#include "type_traits.h"
 namespace std {
 template<typename T>
 struct shared_ptr_default_delete {
@@ -95,10 +94,7 @@ public:
 	{
 		if (p) {
 			m_refcnt = new sp_impl<T, Deleter>(p, deleter);
-			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
-				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
-				pe->m_refcnt = m_refcnt;
-			}
+			set_enable_shared_from_this(m_refcnt, p);
 		}
 		else {
 			m_refcnt = (sp_refcnt*)0;
@@ -174,10 +170,7 @@ public:
 		m_ptr = p;
 		if (p) {
 			m_refcnt = new sp_impl<T, Deleter>(p, Deleter());
-			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
-				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
-				pe->m_refcnt = m_refcnt;
-			}
+			set_enable_shared_from_this(m_refcnt, p);
 		}
 		else {
 			m_refcnt = (sp_refcnt*)0;
@@ -193,10 +186,7 @@ public:
 		m_ptr = p;
 		if (p) {
 			m_refcnt = new sp_impl<T, D>(p, deleter);
-			if (util::is_base_of<enable_shared_from_this<T>, T >::value) {
-				enable_shared_from_this<T>* pe = (enable_shared_from_this<T>*)p;
-				pe->m_refcnt = m_refcnt;
-			}
+			set_enable_shared_from_this(m_refcnt, p);
 		}
 		else {
 			m_refcnt = (sp_refcnt*)0;
@@ -205,6 +195,13 @@ public:
 
 	long int use_count(void) const { return m_refcnt ? m_refcnt->count_share() : 0; }
 	T* get(void) const { return m_ptr; }
+
+private:
+	template <typename E>
+	void set_enable_shared_from_this(sp_refcnt* refcnt, std::enable_shared_from_this<E>* pe) {
+		pe->__assign_refcnt(refcnt);
+	}
+	void set_enable_shared_from_this(sp_refcnt* refcnt, ...) {}
 
 public:
 	T* m_ptr;
@@ -245,10 +242,13 @@ protected:
 		return p;
 	}
 
-	enable_shared_from_this(void) {}
+	enable_shared_from_this(void) : m_refcnt((sp_refcnt*)0) {}
 	enable_shared_from_this(enable_shared_from_this&) {}
 	enable_shared_from_this& operator=(const enable_shared_from_this&) { return *this; }
 	~enable_shared_from_this(void) {}
+
+public:
+	void __assign_refcnt(sp_refcnt* refcnt) { m_refcnt = refcnt; }
 
 private:
 	sp_refcnt* m_refcnt;
