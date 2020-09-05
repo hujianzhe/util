@@ -68,6 +68,10 @@
 				exception			包含文件名称,行号,出错语句的异常  
 				lexical_cast		简陋但可用的通用类型转换接口  
 				nullptr				给98标准的编译器提供nullptr关键字  
+				shared_ptr			给98标准的编译器提供std::shared_ptr  
+				type_traits			给98标准的编译器提供部分类型萃取接口  
 				unique_ptr			给98标准的编译器提供std::unique_ptr  
 				unordered_map		给98标准的编译器提供std::unordered_map(与标准库相同的CRUD接口,但不支持其他STL接口风骚的用法)  
 				unordered_set		给98标准的编译器提供std::unordered_set(同上)  
+				weak_ptr			给98标准的编译器提供std::weak_ptr  
+
