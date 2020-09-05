@@ -84,6 +84,8 @@ class shared_ptr {
 friend class enable_shared_from_this<T>;
 friend class weak_ptr<T>;
 public:
+	typedef T element_type;
+
 	explicit shared_ptr(T* p = (T*)0, const Deleter& deleter = Deleter()) :
 		m_ptr(p)
 	{
@@ -151,6 +153,16 @@ public:
 		if (m_ptr) {
 			m_refcnt = new sp_impl<T, Deleter>(m_ptr, other.get_deleter());
 			set_enable_shared_from_this(m_refcnt, m_ptr);
+		}
+	}
+
+	template <typename U, typename E>
+	shared_ptr(const shared_ptr<U>& other, T* p) :
+		m_ptr(p),
+		m_refcnt(other.m_refcnt)
+	{
+		if (m_refcnt) {
+			m_refcnt->incr_share(1);
 		}
 	}
 
