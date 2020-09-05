@@ -89,6 +89,14 @@ public:
 	Deleter& get_deleter(void) { return m_deleter; }
 	const Deleter& get_deleter(void) const { return m_deleter; }
 
+	// dont't call this function...(for construct shared_ptr)
+	T* __release_for_shared_ptr(void) const {
+		T* p = m_ptr;
+		m_ptr = (T*)0;
+		m_do_deleter = false;
+		return p;
+	}
+
 private:
 	mutable T* m_ptr;
 	Deleter m_deleter;

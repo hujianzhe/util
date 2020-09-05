@@ -12,13 +12,8 @@
 #include <memory>
 #else
 #include "../sysapi/atomic.h"
-#include "nullptr.h"
+#include "unique_ptr.h"
 namespace std {
-template<typename T>
-struct shared_ptr_default_delete {
-	void operator()(T* ptr) const { delete ptr; }
-};
-
 template <typename T>
 class enable_shared_from_this;
 template <typename T>
@@ -84,7 +79,7 @@ private:
 	Deleter m_deleter;
 };
 
-template <typename T, typename Deleter = shared_ptr_default_delete<T> >
+template <typename T, typename Deleter = default_delete<T> >
 class shared_ptr {
 friend class enable_shared_from_this<T>;
 friend class weak_ptr<T>;
@@ -147,6 +142,16 @@ public:
 			}
 		}
 		return *this;
+	}
+
+	template <typename U, typename D>
+	shared_ptr(const unique_ptr<U, D>& other) :
+		m_ptr(other.__release_for_shared_ptr())
+	{
+		if (m_ptr) {
+			m_refcnt = new sp_impl<T, Deleter>(m_ptr, other.get_deleter());
+			set_enable_shared_from_this(m_refcnt, m_ptr);
+		}
 	}
 
 	~shared_ptr(void) {
@@ -248,6 +253,7 @@ protected:
 	~enable_shared_from_this(void) {}
 
 public:
+	// dont't call this function...(for construct shared_ptr)
 	void __assign_refcnt(sp_refcnt* refcnt) { m_refcnt = refcnt; }
 
 private:
