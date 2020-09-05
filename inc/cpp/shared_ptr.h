@@ -158,12 +158,15 @@ public:
 
 	template <typename U>
 	shared_ptr(const shared_ptr<U>& other, T* p) :
-		m_ptr(p),
-		m_refcnt(other.m_refcnt)
+		m_ptr(p)
 	{
-		if (m_refcnt) {
-			m_refcnt->incr_share(1);
+		if (p) {
+			m_refcnt = other.m_refcnt;
+			if (m_refcnt) {
+				m_refcnt->incr_share(1);
+			}
 		}
+		m_refcnt = (sp_refcnt*)0;
 	}
 
 	~shared_ptr(void) {
@@ -246,6 +249,20 @@ template <class T, class D>
 bool operator!=(nullptr_t p, const shared_ptr<T, D>& x) { return x.get() != p; }
 template <class T, class D>
 bool operator!=(const shared_ptr<T, D>& x, nullptr_t p) { return x.get() != p; }
+
+template <class T, class U>
+shared_ptr<T> static_pointer_cast(const shared_ptr<U>& sp) {
+	T* ptr = static_cast<T*>(sp.get());
+	return shared_ptr<T>(sp, ptr);
+}
+template <class T, class U>
+shared_ptr<T> dynamic_pointer_cast(const shared_ptr<U>& sp) {
+	T* ptr = dynamic_cast<T*>(sp.get());
+	if (ptr)
+		return shared_ptr<T>(sp, ptr);
+	else
+		return shared_ptr<T>();
+}
 
 template <typename T>
 class enable_shared_from_this {
