@@ -8,6 +8,15 @@
 #ifdef	__cplusplus
 #include "cpp_compiler_define.h"
 namespace util {
+template <typename T, typename U>
+struct is_same {
+	enum { value = false };
+};
+template <typename T>
+struct is_same<T, T> {
+	enum { value = true };
+};
+
 template <typename T>
 struct is_array {
 	enum { value = false };
