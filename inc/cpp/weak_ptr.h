@@ -110,10 +110,24 @@ public:
 		}
 	}
 
+	void swap(weak_ptr& other) {
+		T* tmp_ptr = m_ptr;
+		sp_refcnt* tmp_refcnt = m_refcnt;
+		m_ptr = other.m_ptr;
+		m_refcnt = other.m_refcnt;
+		other.m_ptr = tmp_ptr;
+		other.m_refcnt = tmp_refcnt;
+	}
+
 private:
 	mutable T* m_ptr;
 	sp_refcnt* m_refcnt;
 };
+
+template <class T>
+void swap(weak_ptr<T>& x, weak_ptr<T>& y) {
+	x.swap(y);
+}
 }
 #endif
 

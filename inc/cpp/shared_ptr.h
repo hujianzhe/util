@@ -13,6 +13,7 @@
 #else
 #include "../sysapi/atomic.h"
 #include "unique_ptr.h"
+#include <ostream>
 namespace std {
 template <typename T>
 class enable_shared_from_this;
@@ -218,7 +219,17 @@ public:
 		}
 	}
 
+	void swap(shared_ptr& other) {
+		T* tmp_ptr = m_ptr;
+		sp_refcnt* tmp_refcnt = m_refcnt;
+		m_ptr = other.m_ptr;
+		m_refcnt = other.m_refcnt;
+		other.m_ptr = tmp_ptr;
+		other.tmp_refcnt = tmp_refcnt;
+	}
+
 	long int use_count(void) const { return m_refcnt ? m_refcnt->count_share() : 0; }
+	bool unique(void) const { return use_count() == 1; }
 	T* get(void) const { return m_ptr; }
 
 private:
@@ -268,6 +279,12 @@ shared_ptr<T> dynamic_pointer_cast(const shared_ptr<U>& sp) {
 	else
 		return shared_ptr<T>();
 }
+
+template <class T>
+void swap(shared_ptr<T>& x, shared_ptr<T>& y) { x.swap(y); }
+
+template <class charT, class traits, class T>
+basic_ostream<charT, traits>& operator<< (basic_ostream<charT, traits>& os, const shared_ptr<T>& x) { os << x.get(); }
 
 template <typename T>
 class enable_shared_from_this {

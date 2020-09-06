@@ -197,6 +197,9 @@ bool operator!=(const unique_ptr<T, D>& x, nullptr_t p) { return x.get() != p; }
 
 template <class T, class D>
 unique_ptr<T, D> move(unique_ptr<T, D>& p) { return std::unique_ptr<T, D>(p.release()); }
+
+template <class T, class D>
+void swap(unique_ptr<T, D>& x, unique_ptr<T, D>& y) { x.swap(y); }
 }
 #endif
 
