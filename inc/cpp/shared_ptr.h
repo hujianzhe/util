@@ -225,7 +225,7 @@ public:
 		m_ptr = other.m_ptr;
 		m_refcnt = other.m_refcnt;
 		other.m_ptr = tmp_ptr;
-		other.tmp_refcnt = tmp_refcnt;
+		other.m_refcnt = tmp_refcnt;
 	}
 
 	long int use_count(void) const { return m_refcnt ? m_refcnt->count_share() : 0; }
