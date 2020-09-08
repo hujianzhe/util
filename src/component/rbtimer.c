@@ -54,6 +54,24 @@ long long rbtimerMiniumTimestamp(RBTimer_t* timer) {
 	return min_timestamp;
 }
 
+RBTimer_t* rbtimerDueFirst(RBTimer_t* timers[], size_t timer_cnt, long long* min_timestamp) {
+	RBTimer_t* timer_result = NULL;
+	long long min_timestamp_result = -1;
+	size_t i;
+	for (i = 0; i < timer_cnt; ++i) {
+		long long this_timeout_ts = rbtimerMiniumTimestamp(timers[i]);
+		if (this_timeout_ts < 0)
+			continue;
+		if (!timer_result || min_timestamp_result > this_timeout_ts) {
+			timer_result = timers[i];
+			min_timestamp_result = this_timeout_ts;
+		}
+	}
+	if (min_timestamp)
+		*min_timestamp = min_timestamp_result;
+	return timer_result;
+}
+
 int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	int ok = 0;
 	RBTimerEvList* evlist;
