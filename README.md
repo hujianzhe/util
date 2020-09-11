@@ -17,7 +17,7 @@
 				channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存,断线重连自动重发等实现细节  
 				dataqueue			用于线程间通信的消息队列  
 				db					用于与数据库交互的通用接口,屏蔽了不同数据库的CRUD接口,目前内部实现只支持MYSQL  
-				httpfram			用于解析与组装HTTP协议报文  
+				httpframe			用于解析与组装HTTP协议报文  
 				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
@@ -62,7 +62,7 @@
 				statistics			一些杂项统计接口  
 				terminal			提供获取终端名字,统一的kbhit/getch接口  
 				time				提供统一的线程安全的时间接口  
-			c++/  
+			cpp/  
 				array				给98标准的编译器提供std::array  
 				cpp_compiler_define	判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
 				exception			包含文件名称,行号,出错语句的异常  
