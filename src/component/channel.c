@@ -646,8 +646,10 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 	}
 	else {
 		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
+		/*
 		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->_.flag))
 			return packetlist;
+		*/
 		packet = reactorpacketMake(0, hdrsize, 0);
 		if (!packet)
 			return NULL;
@@ -673,7 +675,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 	}
 	else {
 		streamtransportctxInit(&channel->_.stream_ctx, 0);
-		//channel->_.stream_on_sys_recvfin = channel_stream_on_sys_recvfin;
 	}
 	channel->m_initseq = 0;
 	channel->_.on_exec = on_exec;

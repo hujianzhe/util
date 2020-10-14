@@ -309,49 +309,19 @@ static int reactor_unreg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
-static void stream_default_sys_recvfin_handler(ChannelBase_t* channel, long long timestamp_msec) {
-	if (_xchg8(&channel->m_stream_has_sendfincmd, 1))
-		return;
-	else {
-		Reactor_t* reactor = channel->reactor;
-		criticalsectionEnter(&reactor->m_cmdlistlock);
-		listPushNodeBack(&reactor->m_cmdlist, &channel->stream_sendfincmd._);
-		criticalsectionLeave(&reactor->m_cmdlistlock);
-	}
-}
-
-static int stream_recvfin_handler(ReactorObject_t* o, long long timestamp_msec) {
+static void stream_recvfin_handler(ReactorObject_t* o) {
 	ChannelBase_t* channel = streamChannel(o);
-	if (!channel->has_recvfin) {
-		channel->has_recvfin = 1;
-	}
-	if (!o->stream.m_sys_has_recvfin) {
-		o->stream.m_sys_has_recvfin = 1;
-		if (channel->stream_on_sys_recvfin)
-			channel->stream_on_sys_recvfin(channel, timestamp_msec);
-	}
-	return channel->has_sendfin;
-}
-
-static int stream_sendfin_direct_handler(ReactorObject_t* o) {
-	ChannelBase_t* channel = streamChannel(o);
-	channel->m_stream_sendfinwait = 0;
-	if (!channel->has_sendfin) {
-		channel->has_sendfin = 1;
-	}
-	return channel->has_recvfin;
-}
-
-static int stream_sendfin_check(ReactorObject_t* o) {
-	ChannelBase_t* channel = streamChannel(o);
+	channel->has_recvfin = 1;
 	if (channel->has_sendfin)
-		return channel->has_recvfin;
-	if (streamtransportctxSendCheckBusy(&channel->stream_ctx)) {
-		channel->m_stream_sendfinwait = 1;
-		return 0;
+		o->m_valid = 0;
+	else {
+		ReactorPacket_t* fin_pkg = reactorpacketMake(NETPACKET_FIN, 0, 0);
+		if (!fin_pkg) {
+			o->m_valid = 0;
+			return;
+		}
+		channelbaseSendPacket(channel, fin_pkg);
 	}
-	socketShutdown(o->fd, SHUT_WR);
-	return stream_sendfin_direct_handler(o);
 }
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
@@ -399,7 +369,6 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 }
 
 static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
-	int busy = 0;
 	List_t finishedlist;
 	ListNode_t* cur, *next;
 	ChannelBase_t* channel = streamChannel(o);
@@ -407,6 +376,17 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 	for (cur = ctxptr->sendlist.head; cur; cur = cur->next) {
 		int res;
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		if (NETPACKET_FIN == packet->type) {
+			packet->off = packet->hdrlen + packet->bodylen;
+			channel->has_sendfin = 1;
+			if (channel->has_recvfin)
+				o->m_valid = 0;
+			else {
+				channel->m_stream_sendfinwait = 0;
+				socketShutdown(o->fd, SHUT_WR);
+			}
+			break;
+		}
 		if (packet->off >= packet->hdrlen + packet->bodylen)
 			continue;
 		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
@@ -420,16 +400,12 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			if (NETPACKET_FIN == packet->type && stream_sendfin_direct_handler(o)) {
-				o->m_valid = 0;
-			}
-			else if (NETPACKET_SYN_ACK == packet->type) {
+			if (NETPACKET_SYN_ACK == packet->type) {
 				break;
 			}
 			continue;
 		}
 		if (reactorobject_request_write(reactor, o)) {
-			busy = 1;
 			break;
 		}
 		else {
@@ -443,13 +419,6 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		next = cur->next;
 		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
-	if (busy)
-		return;
-	if (!channel->m_stream_sendfinwait)
-		return;
-	socketShutdown(o->fd, SHUT_WR);
-	if (stream_sendfin_direct_handler(o))
-		o->m_valid = 0;
 }
 
 static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
@@ -475,11 +444,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			return;
 		}
 		else if (0 == res) {
-			if (stream_recvfin_handler(o, timestamp_msec) ||
-				stream_sendfin_check(o))
-			{
-				o->m_valid = 0;
-			}
+			stream_recvfin_handler(o);
 			return;
 		}
 		else {
@@ -507,11 +472,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 				return;
 			}
 			else if (0 == res) {
-				if (stream_recvfin_handler(o, timestamp_msec) ||
-					stream_sendfin_check(o))
-				{
-					o->m_valid = 0;
-				}
+				stream_recvfin_handler(o);
 				return;
 			}
 			o->m_inbuflen += res;
@@ -680,18 +641,26 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 	}
 	if (SOCK_STREAM == o->socktype) {
 		StreamTransportCtx_t* ctx = &channel->stream_ctx;
-		if (NETPACKET_FIN == packet->_.type && !ctx->send_all_acked) {
-			if (o->stream.m_sys_has_recvfin) {
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-			}
-			else {
+		packet->_.off = 0;
+		if (NETPACKET_FIN == packet->_.type) {
+			if (ctx->sendlist.head) {
 				channel->m_stream_sendfinwait = 1;
 				streamtransportctxCacheSendPacket(ctx, &packet->_);
 			}
+			else {
+				channel->has_sendfin = 1;
+				reactorpacketFree(packet);
+				if (channel->has_recvfin) {
+					o->m_valid = 0;
+					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+				}
+				else {
+					channel->m_stream_sendfinwait = 0;
+					socketShutdown(o->fd, SHUT_WR);
+				}
+			}
 			return;
 		}
-		packet->_.off = 0;
 		if (!packet_allow_send) {
 			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
 			return;
@@ -717,10 +686,6 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			}
 			return;
-		}
-		if (NETPACKET_FIN == packet->_.type && stream_sendfin_direct_handler(o)) {
-			o->m_valid = 0;
-			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 		}
 	}
 	else {
@@ -828,7 +793,10 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			if (!channel->valid)
 				continue;
 			o = channel->o;
-			if (stream_sendfin_check(o)) {
+			channel->has_sendfin = 1;
+			channel->m_stream_sendfinwait = 0;
+			socketShutdown(o->fd, SHUT_WR);
+			if (channel->has_recvfin) {
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			}
@@ -1253,7 +1221,6 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);
 		streamtransportctxInit(&channel->stream_ctx, 0);
 		channel->stream_sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
-		channel->stream_on_sys_recvfin = stream_default_sys_recvfin_handler;
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);

@@ -73,7 +73,6 @@ typedef struct ReactorObject_t {
 		Sockaddr_t m_connect_addr;
 		char m_connected;
 		char m_listened;
-		char m_sys_has_recvfin;
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -113,7 +112,6 @@ typedef struct ChannelBase_t {
 		DgramTransportCtx_t dgram_ctx;
 	};
 	struct {
-		void(*stream_on_sys_recvfin)(struct ChannelBase_t* self, long long timestamp_msec);
 		ReactorCmd_t stream_sendfincmd;
 		Atom8_t m_stream_has_sendfincmd;
 		char m_stream_sendfinwait;

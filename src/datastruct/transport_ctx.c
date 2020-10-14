@@ -209,7 +209,9 @@ unsigned int streamtransportctxNextSendSeq(StreamTransportCtx_t* ctx, int pktype
 
 int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
 	if (packet->type < NETPACKET_STREAM_HAS_SEND_SEQ) {
-		if (packet->off >= packet->hdrlen + packet->bodylen) {
+		if (NETPACKET_FIN == packet->type)
+			listInsertNodeBack(&ctx->sendlist, ctx->sendlist.tail, &packet->node);
+		else if (packet->off >= packet->hdrlen + packet->bodylen) {
 			packet->cached = 0;
 			return 0;
 		}
