@@ -25,6 +25,33 @@ static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
 }
 #endif
 
+FD_t terminalStdin(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE fd = GetStdHandle(STD_INPUT_HANDLE);
+	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+#else
+	return isatty(STDIN_FILENO) ? STDIN_FILENO : INVALID_FD_HANDLE;
+#endif
+}
+
+FD_t terminalStdout(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE fd = GetStdHandle(STD_OUTPUT_HANDLE);
+	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+#else
+	return isatty(STDOUT_FILENO) ? STDOUT_FILENO : INVALID_FD_HANDLE;
+#endif
+}
+
+FD_t terminalStderr(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE fd = GetStdHandle(STD_ERROR_HANDLE);
+	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+#else
+	return isatty(STDERR_FILENO) ? STDERR_FILENO : INVALID_FD_HANDLE;
+#endif
+}
+
 char* terminalName(char* buf, size_t buflen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD res = GetConsoleTitleA(buf, buflen);

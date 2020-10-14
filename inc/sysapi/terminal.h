@@ -17,6 +17,9 @@
 extern "C" {
 #endif
 
+__declspec_dll FD_t terminalStdin(void);
+__declspec_dll FD_t terminalStdout(void);
+__declspec_dll FD_t terminalStderr(void);
 __declspec_dll char* terminalName(char* buf, size_t buflen);
 __declspec_dll int terminalKbhit(void);
 __declspec_dll int terminalGetch(void);
