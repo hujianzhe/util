@@ -449,8 +449,10 @@ static int on_read(ChannelBase_t* base, unsigned char* buf, unsigned int len, un
 static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
-		packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
-		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		if (NETPACKET_FIN != packet->_.type) {
+			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
+			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		}
 		return 1;
 	}
 	else {
