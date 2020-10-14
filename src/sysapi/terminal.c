@@ -52,6 +52,14 @@ FD_t terminalStderr(void) {
 #endif
 }
 
+BOOL terminalFlushInput(FD_t fd) {
+#if defined(_WIN32) || defined(_WIN64)
+	return FlushConsoleInputBuffer(fd);
+#else
+	return tcflush(fd, TCIFLUSH) == 0;
+#endif
+}
+
 char* terminalName(char* buf, size_t buflen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD res = GetConsoleTitleA(buf, buflen);
