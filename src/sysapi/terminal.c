@@ -185,13 +185,13 @@ BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
 #endif
 }
 
-BOOL terminalSetCursorPos(FD_t fd, int x_row, int y_col) {
+BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_raw) {
 #if defined(_WIN32) || defined(_WIN64)
-	COORD pos = { y_col, x_row };
+	COORD pos = { x_col, y_raw };
 	return SetConsoleCursorPosition((HANDLE)fd, pos);
 #else
 	char esc[11 + 11 + 4 + 1];
-	int esc_len = sprintf(esc, "\033[%d;%dH", ++x_row, ++y_col);
+	int esc_len = sprintf(esc, "\033[%d;%dH", ++y_raw, ++x_col);
 	if (esc_len <= 0)
 		return FALSE;
 	esc[esc_len] = 0;
