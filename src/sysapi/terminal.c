@@ -201,6 +201,24 @@ BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_raw) {
 #endif
 }
 
+BOOL terminalShowCursor(FD_t fd, BOOL bval) {
+#if defined(_WIN32) || defined(_WIN64)
+	CONSOLE_CURSOR_INFO ci;
+	ci.dwSize = 100;
+	ci.bVisible = bval;
+	return SetConsoleCursorInfo((HANDLE)fd, &ci);
+#else
+	if (bval) {
+		char esc[] = "\033[?25h";
+		return write(fd, esc, sizeof(esc) - 1) == sizeof(esc) - 1;
+	}
+	else {
+		char esc[] = "\033[?25l";
+		return write(fd, esc, sizeof(esc) - 1) == sizeof(esc) - 1;
+	}
+#endif
+}
+
 #ifdef	__cplusplus
 }
 #endif
