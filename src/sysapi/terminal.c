@@ -9,9 +9,41 @@ extern "C" {
 #endif
 
 #if	defined(_WIN32) || defined(_WIN64)
+static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
+	DWORD mode, mode_mask;
+	if (!GetConsoleMode(fd, &mode))
+		return FALSE;
+	mode_mask = mode & mask;
+	if (0 == mode_mask && !bval)
+		return TRUE;
+	if (mode_mask && bval)
+		return TRUE;
+	if (bval)
+		mode |= mask;
+	else
+		mode &= ~mask;
+	return SetConsoleMode(fd, mode);
+}
 #else
 #include <sys/ioctl.h>
 #include <errno.h>
+static int __set_tty_mode(int fd, tcflag_t mask, int bval) {
+	tcflag_t lflag_mask;
+	struct termios tm;
+	if (tcgetattr(fd, &tm))
+		return 0;
+	lflag_mask = tm.c_lflag & mask;
+	if (0 == lflag_mask && !bval)
+		return 1;
+	if (lflag_mask && bval)
+		return 1;
+	if (bval)
+		tm.c_lflag |= mask;
+	else
+		tm.c_lflag &= ~mask;
+	return tcsetattr(fd, TCSANOW, &tm) == 0;
+}
+
 static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min, int time) {
 	struct termios newtc;
 	tcgetattr(ttyfd, old);
@@ -120,35 +152,17 @@ int terminalGetch(void) {
 
 BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD mode;
-	if (!GetConsoleMode((HANDLE)fd, &mode))
-		return FALSE;
-	if (0 == (mode & ENABLE_ECHO_INPUT) && !bval) {
-		return TRUE;
-	}
-	else if ((mode & ENABLE_ECHO_INPUT) && bval) {
-		return TRUE;
-	}
-	else if (bval)
-		mode |= ENABLE_ECHO_INPUT;
-	else
-		mode &= ~ENABLE_ECHO_INPUT;
-	return SetConsoleMode((HANDLE)fd, mode);
+	return __set_tty_mode((HANDLE)fd, ENABLE_ECHO_INPUT, bval);
 #else
-	struct termios tm;
-	if (tcgetattr(fd, &tm))
-		return 0;
-	if (0 == (tm.c_lflag & ECHO) && !bval) {
-		return 1;
-	}
-	else if ((tm.c_lflag & ECHO) && bval) {
-		return 1;
-	}
-	else if (bval)
-		tm.c_lflag |= ECHO;
-	else
-		tm.c_lflag &= ~ECHO;
-	return tcsetattr(fd, TCSANOW, &tm) == 0;
+	return __set_tty_mode(fd, ECHO, bval);
+#endif
+}
+
+BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
+#if defined(_WIN32) || defined(_WIN64)
+	return __set_tty_mode((HANDLE)fd, ENABLE_LINE_INPUT, bval);
+#else
+	return __set_tty_mode(fd, ICANON | ECHO, bval);
 #endif
 }
 

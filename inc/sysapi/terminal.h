@@ -25,6 +25,7 @@ __declspec_dll char* terminalName(char* buf, size_t buflen);
 __declspec_dll int terminalKbhit(void);
 __declspec_dll int terminalGetch(void);
 __declspec_dll BOOL terminalEnableEcho(FD_t fd, BOOL bval);
+__declspec_dll BOOL terminalEnableLineInput(FD_t fd, BOOL bval);
 
 #ifdef	__cplusplus
 }
