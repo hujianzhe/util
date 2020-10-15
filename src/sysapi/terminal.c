@@ -187,7 +187,9 @@ BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
 
 BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_raw) {
 #if defined(_WIN32) || defined(_WIN64)
-	COORD pos = { x_col, y_raw };
+	COORD pos;
+	pos.X = x_col;
+	pos.Y = y_raw;
 	return SetConsoleCursorPosition((HANDLE)fd, pos);
 #else
 	char esc[11 + 11 + 4 + 1];
