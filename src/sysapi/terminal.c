@@ -15,10 +15,13 @@ extern "C" {
 static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
 	struct termios newt;
 	tcgetattr(ttyfd, old);
+	if (0 == (old->c_lflag & (ICANON|ECHO|ISIG)) &&
+		old->c_cc[VMIN] == min && old->c_cc[VTIME] == time)
+	{
+		return;
+	}
 	newt = *old;
-	newt.c_lflag &= ~ICANON;
-	newt.c_lflag &= ~ECHO;
-	newt.c_lflag &= ~ISIG;
+	newt.c_lflag &= ~(ICANON|ECHO|ISIG);
 	newt.c_cc[VMIN] = min;
 	newt.c_cc[VTIME] = time;
 	tcsetattr(ttyfd, TCSANOW, &newt);
