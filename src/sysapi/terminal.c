@@ -26,9 +26,6 @@ static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min
 	new.c_cc[VTIME] = time;
 	tcsetattr(ttyfd, TCSANOW, &new);
 }
-static void __set_tty_enable_echo(int ttyfd, struct termios* old, int bool_val) {
-	
-}
 #endif
 
 FD_t terminalStdin(void) {
@@ -121,7 +118,7 @@ int terminalGetch(void) {
 #endif
 }
 
-BOOL terminalEnableEcho(int fd, BOOL bval) {
+BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode;
 	if (!GetConsoleMode((HANDLE)fd, &mode))
