@@ -171,8 +171,8 @@ BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
 	CONSOLE_SCREEN_BUFFER_INFO ws;
 	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &ws))
 		return FALSE;
-	*row = ws.dwSize.X;
-	*col = ws.dwSize.Y;
+	*row = ws.srWindow.Right + 1;
+	*col = ws.srWindow.Bottom + 1;
 	return TRUE;
 #else
 	struct winsize ws;
