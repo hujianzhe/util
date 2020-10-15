@@ -24,6 +24,7 @@ __declspec_dll BOOL terminalFlushInput(FD_t fd);
 __declspec_dll char* terminalName(char* buf, size_t buflen);
 __declspec_dll int terminalKbhit(void);
 __declspec_dll int terminalGetch(void);
+__declspec_dll BOOL terminalEnableEcho(int fd, BOOL bval);
 
 #ifdef	__cplusplus
 }

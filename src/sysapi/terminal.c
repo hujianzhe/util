@@ -12,19 +12,22 @@ extern "C" {
 #else
 #include <sys/ioctl.h>
 #include <errno.h>
-static void __unix_set_tty(int ttyfd, struct termios* old, int min, int time) {
-	struct termios newt;
+static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min, int time) {
+	struct termios new;
 	tcgetattr(ttyfd, old);
 	if (0 == (old->c_lflag & (ICANON|ECHO|ISIG)) &&
 		old->c_cc[VMIN] == min && old->c_cc[VTIME] == time)
 	{
 		return;
 	}
-	newt = *old;
-	newt.c_lflag &= ~(ICANON|ECHO|ISIG);
-	newt.c_cc[VMIN] = min;
-	newt.c_cc[VTIME] = time;
-	tcsetattr(ttyfd, TCSANOW, &newt);
+	new = *old;
+	new.c_lflag &= ~(ICANON|ECHO|ISIG);
+	new.c_cc[VMIN] = min;
+	new.c_cc[VTIME] = time;
+	tcsetattr(ttyfd, TCSANOW, &new);
+}
+static void __set_tty_enable_echo(int ttyfd, struct termios* old, int bool_val) {
+	
 }
 #endif
 
@@ -94,7 +97,7 @@ int terminalKbhit(void) {
 #else
 	int res = -1;
 	struct termios old;
-	__unix_set_tty(STDIN_FILENO, &old, 0, 0);
+	__set_tty_no_canon_echo_isig(STDIN_FILENO, &old, 0, 0);
 	ioctl(STDIN_FILENO, FIONREAD, &res);
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
 	return res > 0;
@@ -108,13 +111,47 @@ int terminalGetch(void) {
 	int res = -1;
 	char c;
 	struct termios old;
-	__unix_set_tty(STDIN_FILENO, &old, 1, 0);
+	__set_tty_no_canon_echo_isig(STDIN_FILENO, &old, 1, 0);
 	res = read(STDIN_FILENO, &c, 1);
 	if (res >= 0) {
 		res = (unsigned char)c;
 	}
 	tcsetattr(STDIN_FILENO, TCSANOW, &old);
 	return c;
+#endif
+}
+
+BOOL terminalEnableEcho(int fd, BOOL bval) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD mode;
+	if (!GetConsoleMode((HANDLE)fd, &mode))
+		return FALSE;
+	if (0 == (mode & ENABLE_ECHO_INPUT) && !bval) {
+		return TRUE;
+	}
+	else if ((mode & ENABLE_ECHO_INPUT) && bval) {
+		return TRUE;
+	}
+	else if (bval)
+		mode |= ENABLE_ECHO_INPUT;
+	else
+		mode &= ~ENABLE_ECHO_INPUT;
+	return SetConsoleMode((HANDLE)fd, mode);
+#else
+	struct termios tm;
+	if (tcgetattr(fd, &tm))
+		return 0;
+	if (0 == (tm.c_lflag & ECHO) && !bval) {
+		return 1;
+	}
+	else if ((tm.c_lflag & ECHO) && bval) {
+		return 1;
+	}
+	else if (bval)
+		tm.c_lflag |= ECHO;
+	else
+		tm.c_lflag &= ~ECHO;
+	return tcsetattr(fd, TCSANOW, &tm) == 0;
 #endif
 }
 
