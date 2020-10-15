@@ -54,7 +54,7 @@ FD_t terminalStderr(void) {
 
 BOOL terminalFlushInput(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	return FlushConsoleInputBuffer(fd);
+	return FlushConsoleInputBuffer((HANDLE)fd);
 #else
 	return tcflush(fd, TCIFLUSH) == 0;
 #endif
