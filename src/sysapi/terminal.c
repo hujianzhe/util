@@ -166,6 +166,24 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #endif
 }
 
+BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
+#if defined(_WIN32) || defined(_WIN64)
+	CONSOLE_SCREEN_BUFFER_INFO ws;
+	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &cinfo))
+		return FALSE;
+	*row = ws.dwSize.X;
+	*col = ws.dwSize.Y;
+	return TRUE;
+#else
+	struct winsize ws;
+	if (ioctl(fd, TIOCGWINSZ, (char*)&ws))
+		return FALSE;
+	*row = ws.ws_row;
+	*col = ws.ws_col;
+	return TRUE;
+#endif
+}
+
 #ifdef	__cplusplus
 }
 #endif
