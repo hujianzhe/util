@@ -27,6 +27,7 @@ static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
 #else
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <stdio.h>
 static int __set_tty_mode(int fd, tcflag_t mask, int bval) {
 	tcflag_t lflag_mask;
 	struct termios tm;
@@ -181,6 +182,20 @@ BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
 	*row = ws.ws_row;
 	*col = ws.ws_col;
 	return TRUE;
+#endif
+}
+
+BOOL terminalSetCursorPos(FD_t fd, int x_row, int y_col) {
+#if defined(_WIN32) || defined(_WIN64)
+	COORD pos = { y_col, x_row };
+	return SetConsoleCursorPosition((HANDLE)fd, pos);
+#else
+	char esc[11 + 11 + 4 + 1];
+	int esc_len = sprintf(esc, "\033[%d;%dH", ++x_row, ++y_col);
+	if (esc_len <= 0)
+		return FALSE;
+	esc[esc_len] = 0;
+	return write(fd, esc, esc_len) == esc_len;
 #endif
 }
 
