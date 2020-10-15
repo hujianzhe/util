@@ -169,7 +169,7 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
 #if defined(_WIN32) || defined(_WIN64)
 	CONSOLE_SCREEN_BUFFER_INFO ws;
-	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &cinfo))
+	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &ws))
 		return FALSE;
 	*row = ws.dwSize.X;
 	*col = ws.dwSize.Y;
