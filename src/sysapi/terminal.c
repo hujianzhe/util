@@ -13,18 +13,18 @@ extern "C" {
 #include <sys/ioctl.h>
 #include <errno.h>
 static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min, int time) {
-	struct termios new;
+	struct termios newtc;
 	tcgetattr(ttyfd, old);
 	if (0 == (old->c_lflag & (ICANON|ECHO|ISIG)) &&
 		old->c_cc[VMIN] == min && old->c_cc[VTIME] == time)
 	{
 		return;
 	}
-	new = *old;
-	new.c_lflag &= ~(ICANON|ECHO|ISIG);
-	new.c_cc[VMIN] = min;
-	new.c_cc[VTIME] = time;
-	tcsetattr(ttyfd, TCSANOW, &new);
+	newtc = *old;
+	newtc.c_lflag &= ~(ICANON|ECHO|ISIG);
+	newtc.c_cc[VMIN] = min;
+	newtc.c_cc[VTIME] = time;
+	tcsetattr(ttyfd, TCSANOW, &newtc);
 }
 #endif
 
