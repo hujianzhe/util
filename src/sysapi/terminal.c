@@ -16,7 +16,7 @@ static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
 	mode_mask = mode & mask;
 	if (0 == mode_mask && !bval)
 		return TRUE;
-	if (mode_mask && bval)
+	if (mask == mode_mask && bval)
 		return TRUE;
 	if (bval)
 		mode |= mask;
@@ -35,7 +35,7 @@ static int __set_tty_mode(int fd, tcflag_t mask, int bval) {
 	lflag_mask = tm.c_lflag & mask;
 	if (0 == lflag_mask && !bval)
 		return 1;
-	if (lflag_mask && bval)
+	if (mask == lflag_mask && bval)
 		return 1;
 	if (bval)
 		tm.c_lflag |= mask;
