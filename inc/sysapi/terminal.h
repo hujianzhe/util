@@ -26,9 +26,10 @@ __declspec_dll int terminalKbhit(void);
 __declspec_dll int terminalGetch(void);
 __declspec_dll BOOL terminalEnableEcho(FD_t fd, BOOL bval);
 __declspec_dll BOOL terminalEnableLineInput(FD_t fd, BOOL bval);
-__declspec_dll BOOL terminalGetRowColSize(FD_t fd, int* row, int* col);
-__declspec_dll BOOL terminalSetCursorPos(FD_t fd, int x_row, int y_col);
+__declspec_dll BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row);
+__declspec_dll BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_row);
 __declspec_dll BOOL terminalShowCursor(FD_t fd, BOOL bval);
+__declspec_dll BOOL terminalClrscr(FD_t fd);
 
 #ifdef	__cplusplus
 }

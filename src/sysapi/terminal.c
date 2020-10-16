@@ -167,33 +167,33 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #endif
 }
 
-BOOL terminalGetRowColSize(FD_t fd, int* row, int* col) {
+BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row) {
 #if defined(_WIN32) || defined(_WIN64)
 	CONSOLE_SCREEN_BUFFER_INFO ws;
 	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &ws))
 		return FALSE;
-	*row = ws.srWindow.Right + 1;
-	*col = ws.srWindow.Bottom + 1;
+	*y_row = ws.srWindow.Right + 1;
+	*x_col = ws.srWindow.Bottom + 1;
 	return TRUE;
 #else
 	struct winsize ws;
 	if (ioctl(fd, TIOCGWINSZ, (char*)&ws))
 		return FALSE;
-	*row = ws.ws_row;
-	*col = ws.ws_col;
+	*y_row = ws.ws_row;
+	*x_col = ws.ws_col;
 	return TRUE;
 #endif
 }
 
-BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_raw) {
+BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_row) {
 #if defined(_WIN32) || defined(_WIN64)
 	COORD pos;
 	pos.X = x_col;
-	pos.Y = y_raw;
+	pos.Y = y_row;
 	return SetConsoleCursorPosition((HANDLE)fd, pos);
 #else
 	char esc[11 + 11 + 4 + 1];
-	int esc_len = sprintf(esc, "\033[%d;%dH", ++y_raw, ++x_col);
+	int esc_len = sprintf(esc, "\033[%d;%dH", ++y_row, ++x_col);
 	if (esc_len <= 0)
 		return FALSE;
 	esc[esc_len] = 0;
@@ -216,6 +216,21 @@ BOOL terminalShowCursor(FD_t fd, BOOL bval) {
 		char esc[] = "\033[?25l";
 		return write(fd, esc, sizeof(esc) - 1) == sizeof(esc) - 1;
 	}
+#endif
+}
+
+BOOL terminalClrscr(FD_t fd) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD write_chars_num;
+	COORD coord = { 0 };
+	CONSOLE_SCREEN_BUFFER_INFO ws;
+	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &ws))
+		return FALSE;
+	write_chars_num = ws.dwSize.X * ws.dwSize.Y;
+	return FillConsoleOutputCharacterA((HANDLE)fd, ' ', write_chars_num, coord, &write_chars_num);
+#else
+	char esc[] = "\033[2J";
+	return write(fd, esc, sizeof(esc) - 1) == sizeof(esc) - 1;
 #endif
 }
 
