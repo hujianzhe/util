@@ -60,7 +60,7 @@
 				process				提供统一的进程/线程/协程接口  
 				socket				提供统一的socket接口  
 				statistics			一些杂项统计接口  
-				terminal			提供获取终端名字,统一的kbhit/getch接口  
+				terminal			提供终端控制台的操作接口  
 				time				提供统一的线程安全的时间接口  
 			cpp/  
 				array				给98标准的编译器提供std::array  
