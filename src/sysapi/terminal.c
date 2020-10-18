@@ -252,7 +252,7 @@ int terminalReadKey(FD_t fd) {
 	}
 #else
 	int k = 0;
-	if (fdRead(fd, &k, sizeof(k)) < 0)
+	if (read(fd, &k, sizeof(k)) < 0)
 		return -1;
 	return k;
 #endif
