@@ -236,17 +236,20 @@ BOOL terminalClrscr(FD_t fd) {
 
 int terminalReadKey(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD n;
-	INPUT_RECORD ir;
-	if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
-		return 0;
-	if (KEY_EVENT == ir.EventType && ir.Event.KeyEvent.bKeyDown) {
-		int k = ir.Event.KeyEvent.uChar.UnicodeChar;
-		if (!k)
-			k = ir.Event.KeyEvent.wVirtualScanCode;
-		return k;
+	while (1) {
+		DWORD n;
+		INPUT_RECORD ir;
+		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
+			return 0;
+		if (KEY_EVENT != ir.EventType)
+			continue;
+		if (ir.Event.KeyEvent.bKeyDown) {
+			int k = ir.Event.KeyEvent.uChar.UnicodeChar;
+			if (!k)
+				k = ir.Event.KeyEvent.wVirtualScanCode;
+			return k;
+		}
 	}
-	return 0;
 #else
 	int k = 0;
 	if (fdRead(fd, &k, sizeof(k)) < 0)
