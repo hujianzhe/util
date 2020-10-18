@@ -234,27 +234,38 @@ BOOL terminalClrscr(FD_t fd) {
 #endif
 }
 
-int terminalReadKey(FD_t fd) {
+BOOL terminalReadKey(FD_t fd, int* character, int* keycode) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (1) {
 		DWORD n;
 		INPUT_RECORD ir;
 		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
-			return 0;
+			return FALSE;
 		if (KEY_EVENT != ir.EventType)
 			continue;
 		if (ir.Event.KeyEvent.bKeyDown) {
-			int k = ir.Event.KeyEvent.uChar.UnicodeChar;
-			if (!k)
-				k = ir.Event.KeyEvent.wVirtualScanCode;
-			return k;
+			*character = ir.Event.KeyEvent.uChar.UnicodeChar;
+			if (*character)
+				*keycode = 0;
+			else
+				*keycode = ir.Event.KeyEvent.wVirtualKeyCode;
+			return TRUE;
 		}
 	}
 #else
-	int k = 0;
-	if (read(fd, &k, sizeof(k)) < 0)
-		return -1;
-	return k;
+	int k = 0, res;
+	res = read(fd, &k, sizeof(k));
+	if (res > 1) {
+		*character = 0;
+		*keycode = k;
+		return 1;
+	}
+	else if (1 == res) {
+		*character = k;
+		*keycode = 0;
+		return 1;
+	}
+	return 0;
 #endif
 }
 
