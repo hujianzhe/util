@@ -30,6 +30,7 @@ __declspec_dll BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row);
 __declspec_dll BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_row);
 __declspec_dll BOOL terminalShowCursor(FD_t fd, BOOL bval);
 __declspec_dll BOOL terminalClrscr(FD_t fd);
+__declspec_dll int terminalReadKey(FD_t fd);
 
 #ifdef	__cplusplus
 }
