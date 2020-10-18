@@ -28,21 +28,18 @@ static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <stdio.h>
-static int __set_tty_mode(int fd, tcflag_t mask, int bval) {
-	tcflag_t lflag_mask;
-	struct termios tm;
-	if (tcgetattr(fd, &tm))
-		return 0;
-	lflag_mask = tm.c_lflag & mask;
-	if (0 == lflag_mask && !bval)
-		return 1;
-	if (mask == lflag_mask && bval)
-		return 1;
+static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
+	tcflag_t flag_mask;
+	flag_mask = flag & mask;
+	if (0 == flag_mask && !bval)
+		return flag;
+	if (mask == flag_mask && bval)
+		return flag;
 	if (bval)
-		tm.c_lflag |= mask;
+		flag |= mask;
 	else
-		tm.c_lflag &= ~mask;
-	return tcsetattr(fd, TCSANOW, &tm) == 0;
+		flag &= ~mask;
+	return flag;
 }
 
 static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min, int time) {
@@ -155,7 +152,16 @@ BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	return __set_tty_mode((HANDLE)fd, ENABLE_ECHO_INPUT, bval);
 #else
-	return __set_tty_mode(fd, ECHO, bval);
+	tcflag_t new_lflag;
+	struct termios tm;
+	if (tcgetattr(fd, &tm))
+		return 0;
+	new_lflag = __set_tty_flag(tm.c_lflag, ECHO, bval);
+	if (new_lflag != tm.c_lflag) {
+		tm.c_lflag = new_lflag;
+		return tcsetattr(fd, TCSANOW, &tm) == 0;
+	}
+	return 1;
 #endif
 }
 
@@ -163,7 +169,16 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	return __set_tty_mode((HANDLE)fd, ENABLE_LINE_INPUT, bval);
 #else
-	return __set_tty_mode(fd, ICANON | ECHO, bval);
+	tcflag_t new_lflag;
+	struct termios tm;
+	if (tcgetattr(fd, &tm))
+		return 0;
+	new_lflag = __set_tty_flag(tm.c_lflag, ICANON | ECHO | IEXTEN, bval);
+	if (new_lflag != tm.c_lflag) {
+		tm.c_lflag = new_lflag;
+		return tcsetattr(fd, TCSANOW, &tm) == 0;
+	}
+	return 1;
 #endif
 }
 
