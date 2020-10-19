@@ -131,23 +131,6 @@ int terminalKbhit(void) {
 #endif
 }
 
-int terminalGetch(void) {
-#if defined(_WIN32) || defined(_WIN64)
-	return _getch();
-#else
-	int res = -1;
-	char c;
-	struct termios old;
-	__set_tty_no_canon_echo_isig(STDIN_FILENO, &old, 1, 0);
-	res = read(STDIN_FILENO, &c, 1);
-	if (res >= 0) {
-		res = (unsigned char)c;
-	}
-	tcsetattr(STDIN_FILENO, TCSANOW, &old);
-	return c;
-#endif
-}
-
 BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	return __set_tty_mode((HANDLE)fd, ENABLE_ECHO_INPUT, bval);
