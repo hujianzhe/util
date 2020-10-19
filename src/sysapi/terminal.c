@@ -165,6 +165,23 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #endif
 }
 
+BOOL terminalEnableSignal(FD_t fd, BOOL bval) {
+#if defined(_WIN32) || defined(_WIN64)
+	return __set_tty_mode((HANDLE)fd, ENABLE_PROCESSED_INPUT, bval);
+#else
+	tcflag_t new_lflag;
+	struct termios tm;
+	if (tcgetattr(fd, &tm))
+		return 0;
+	new_lflag = __set_tty_flag(tm.c_lflag, ISIG, bval);
+	if (new_lflag != tm.c_lflag) {
+		tm.c_lflag = new_lflag;
+		return tcsetattr(fd, TCSANOW, &tm) == 0;
+	}
+	return 1;
+#endif
+}
+
 BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row) {
 #if defined(_WIN32) || defined(_WIN64)
 	CONSOLE_SCREEN_BUFFER_INFO ws;
