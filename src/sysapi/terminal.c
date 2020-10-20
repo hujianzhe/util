@@ -28,6 +28,10 @@ static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <stdio.h>
+#ifdef	__linux__
+#include <linux/kd.h>
+#include <linux/input.h>
+#endif
 static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 	tcflag_t flag_mask;
 	flag_mask = flag & mask;
@@ -249,7 +253,7 @@ BOOL terminalClrscr(FD_t fd) {
 #endif
 }
 
-BOOL terminalReadKey(FD_t fd, int* character, int* keycode) {
+BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (1) {
 		DWORD n;
@@ -259,11 +263,9 @@ BOOL terminalReadKey(FD_t fd, int* character, int* keycode) {
 		if (KEY_EVENT != ir.EventType)
 			continue;
 		if (ir.Event.KeyEvent.bKeyDown) {
-			*character = ir.Event.KeyEvent.uChar.UnicodeChar;
-			if (*character)
-				*keycode = 0;
-			else
-				*keycode = ir.Event.KeyEvent.wVirtualKeyCode;
+			e->keydown = 1;
+			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
+			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
 			return TRUE;
 		}
 	}
@@ -271,17 +273,56 @@ BOOL terminalReadKey(FD_t fd, int* character, int* keycode) {
 	int k = 0, res;
 	res = read(fd, &k, sizeof(k));
 	if (res > 1) {
-		*character = 0;
-		*keycode = k;
+		e->keydown = 1;
+		e->charcode = 0;
+		e->vkeycode = k;
 		return 1;
 	}
 	else if (1 == res) {
-		*character = k;
-		*keycode = 0;
+		e->keydown = 1;
+		e->charcode = k;
+		e->vkeycode = 0;
 		return 1;
 	}
 	return 0;
 #endif
+}
+
+BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
+#if defined(_WIN32) || defined(_WIN64)
+	while (1) {
+		DWORD n;
+		INPUT_RECORD ir;
+		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
+			return FALSE;
+		if (KEY_EVENT != ir.EventType)
+			continue;
+		e->keydown = ir.Event.KeyEvent.bKeyDown;
+		e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
+		e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
+		return TRUE;
+	}
+#elif __linux__
+	unsigned char k;
+	int res;
+	long oldmode = 0;
+	if (ioctl(fd, KDGKBMODE, &oldmode) < 0)
+		return 0;
+	if (ioctl(fd, KDSKBMODE, K_MEDIUMRAW) < 0)
+		return 0;
+	k = 0;
+	res = read(fd, &k, sizeof(k));
+	ioctl(fd, KDSKBMODE, oldmode);
+	e->keydown = (0 == (k & 0x80) && res);
+	e->charcode = k & 0x7f;
+	e->vkeycode = k & 0x7f;
+	return 1;
+#endif
+	// TODO MAC
+	e->keydown = 0;
+	e->charcode = 0;
+	e->vkeycode = 0;
+	return FALSE;
 }
 
 #ifdef	__cplusplus

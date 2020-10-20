@@ -13,6 +13,12 @@
 	#include <termios.h>
 #endif
 
+typedef struct DevKeyEvent_t {
+	unsigned char keydown;
+	unsigned short charcode;
+	unsigned int vkeycode;
+} DevKeyEvent_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -30,7 +36,8 @@ __declspec_dll BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row);
 __declspec_dll BOOL terminalSetCursorPos(FD_t fd, int x_col, int y_row);
 __declspec_dll BOOL terminalShowCursor(FD_t fd, BOOL bval);
 __declspec_dll BOOL terminalClrscr(FD_t fd);
-__declspec_dll BOOL terminalReadKey(FD_t fd, int* character, int* keycode);
+__declspec_dll BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e);
+__declspec_dll BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e);
 
 #ifdef	__cplusplus
 }
