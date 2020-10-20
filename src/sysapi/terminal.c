@@ -44,6 +44,7 @@ typedef struct DevFdSet_t {
     size_t fd_cnt;
     int fd_max;
 } DevFdSet_t;
+static DevFdSet_t s_DevFdSet;
 
 static void free_dev_fd_set(DevFdSet_t* ds) {
     if (ds) {
@@ -331,6 +332,16 @@ BOOL terminalClrscr(FD_t fd) {
 #endif
 }
 
+BOOL terminalKeyDevScan(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	return TRUE;
+#elif __linux__
+	return scan_dev_fd_set(&s_DevFdSet) && s_DevFdSet.fd_cnt > 0;
+#else
+	return TRUE;
+#endif
+}
+
 BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (1) {
@@ -381,66 +392,44 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 		return TRUE;
 	}
 #elif __linux__
-	/*
-	unsigned char k;
-	int res;
-	long oldmode = 0;
-	if (ioctl(fd, KDGKBMODE, &oldmode) < 0)
-		return 0;
-	if (ioctl(fd, KDSKBMODE, K_MEDIUMRAW) < 0)
-		return 0;
-	k = 0;
-	res = read(fd, &k, sizeof(k));
-	ioctl(fd, KDSKBMODE, oldmode);
-	e->keydown = (0 == (k & 0x80) && res);
-	e->charcode = k & 0x7f;
-	e->vkeycode = k & 0x7f;
-	return 1;
-	*/
-	DevFdSet_t ds;
-	if (!scan_dev_fd_set(&ds) || 0 == ds.fd_cnt) {
-		return 0;
-	}
+	DevFdSet_t* ds = &s_DevFdSet;
 	while (1) {
 		int i;
 		fd_set rset;
 		FD_ZERO(&rset);
-		for (i = 0; i < ds.fd_cnt; ++i) {
-			FD_SET(ds.fd_ptr[i], &rset);
+		for (i = 0; i < ds->fd_cnt; ++i) {
+			FD_SET(ds->fd_ptr[i], &rset);
 		}
-		i = select(ds.fd_max + 1, &rset, NULL, NULL, NULL);
-		if (i < 0) {
-			free_dev_fd_set(&ds);
+		i = select(ds->fd_max + 1, &rset, NULL, NULL, NULL);
+		if (i < 0)
 			return 0;
-		}
-		else if (0 == i) {
+		else if (0 == i)
 			continue;
-		}
-		for (i = 0; i < ds.fd_cnt; ++i) {
+		for (i = 0; i < ds->fd_cnt; ++i) {
 			struct input_event input_ev;
 			int len;
-			if (!FD_ISSET(ds.fd_ptr[i], &rset))
+			if (!FD_ISSET(ds->fd_ptr[i], &rset))
 				continue;
-			len = read(ds.fd_ptr[i], &input_ev, sizeof(input_ev));
+			len = read(ds->fd_ptr[i], &input_ev, sizeof(input_ev));
 			if (len < 0)
 				continue;
 			else if (len != sizeof(input_ev))
 				continue;
 			else if (EV_KEY != input_ev.type)
 				continue;
-			free_dev_fd_set(&ds);
 			e->keydown = (input_ev.value != 0);
 			e->charcode = input_ev.code;
 			e->vkeycode = input_ev.code;
 			return 1;
 		}
 	}
-#endif
+#else
 	// TODO MAC
 	e->keydown = 0;
 	e->charcode = 0;
 	e->vkeycode = 0;
 	return FALSE;
+#endif
 }
 
 #ifdef	__cplusplus
