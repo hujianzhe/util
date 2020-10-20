@@ -384,12 +384,57 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 		INPUT_RECORD ir;
 		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
 			return FALSE;
-		if (KEY_EVENT != ir.EventType)
-			continue;
-		e->keydown = ir.Event.KeyEvent.bKeyDown;
-		e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
-		e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
-		return TRUE;
+		if (KEY_EVENT == ir.EventType) {
+			e->keydown = ir.Event.KeyEvent.bKeyDown;
+			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
+			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
+			return TRUE;
+		}
+		else if (MOUSE_EVENT == ir.EventType) {
+			static int mk_sts[3];
+			if (ir.Event.MouseEvent.dwEventFlags) {
+				continue;
+			}
+			e->charcode = 0;
+			switch (ir.Event.MouseEvent.dwButtonState) {
+				case 0:
+					if (mk_sts[0]) {
+						mk_sts[0] = 0;
+						e->vkeycode = VK_LBUTTON;
+					}
+					else if (mk_sts[1]) {
+						mk_sts[1] = 0;
+						e->vkeycode = VK_RBUTTON;
+					}
+					else if (mk_sts[2]) {
+						mk_sts[2] = 0;
+						e->vkeycode = VK_MBUTTON;
+					}
+					else {
+						continue;
+					}
+					e->keydown = 0;
+					break;
+				case FROM_LEFT_1ST_BUTTON_PRESSED:
+					mk_sts[0] = 1;
+					e->keydown = 1;
+					e->vkeycode = VK_LBUTTON;
+					break;
+				case RIGHTMOST_BUTTON_PRESSED:
+					mk_sts[1] = 1;
+					e->keydown = 1;
+					e->vkeycode = VK_RBUTTON;
+					break;
+				case FROM_LEFT_2ND_BUTTON_PRESSED:
+					mk_sts[2] = 1;
+					e->keydown = 1;
+					e->vkeycode = VK_MBUTTON;
+					break;
+				default:
+					continue;
+			}
+			return TRUE;
+		}
 	}
 #elif __linux__
 	DevFdSet_t* ds = &s_DevFdSet;
