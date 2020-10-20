@@ -25,12 +25,90 @@ static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
 	return SetConsoleMode(fd, mode);
 }
 #else
-#include <sys/ioctl.h>
+#include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #ifdef	__linux__
-#include <linux/kd.h>
 #include <linux/input.h>
+
+typedef struct DevFdSet_t {
+    int* fd_ptr;
+    size_t fd_cnt;
+    int fd_max;
+} DevFdSet_t;
+
+static void free_dev_fd_set(DevFdSet_t* ds) {
+    if (ds) {
+        size_t i;
+        for (i = 0; i < ds->fd_cnt; ++i) {
+            close(ds->fd_ptr[i]);
+        }
+        free(ds->fd_ptr);
+        ds->fd_ptr = NULL;
+        ds->fd_cnt = 0;
+        ds->fd_max = -1;
+    }
+}
+
+static DevFdSet_t* scan_dev_fd_set(DevFdSet_t* ds) {
+    DIR* dir;
+    struct dirent* dir_item;
+
+    dir = opendir("/dev/input");
+    if (!dir) {
+        return NULL;
+    }
+    ds->fd_ptr = NULL;
+    ds->fd_cnt = 0;
+    ds->fd_max = -1;
+    while (dir_item = readdir(dir)) {
+        int fd, i;
+        long evs[EV_MAX/(sizeof(long)*8) + 1] = { 0 };
+        char str_data[32];
+
+        if (!strstr(dir_item->d_name, "event"))
+            continue;
+        i = sprintf(str_data, "/dev/input/%s", dir_item->d_name);
+        if (i < 0)
+            continue;
+        str_data[i] = 0;
+        fd = open(str_data, O_RDONLY);
+        if (fd < 0)
+            continue;
+        /*
+        ioctl(fd, EVIOCGNAME(sizeof(str_data) - 1), str_data);
+        str_data[sizeof(str_data) - 1] = 0;
+        */
+        for (i = 0; i < sizeof(evs) / sizeof(evs[0]); ++i) {
+            evs[i] = 0;
+        }
+        if (ioctl(fd, EVIOCGBIT(0, EV_MAX), evs) < 0)
+            continue;
+        if (evs[EV_KEY / (sizeof(long) * 8)] & (1L << EV_KEY % (sizeof(long) * 8))) {
+            int* fd_ptr = (int*)realloc(ds->fd_ptr, sizeof(ds->fd_ptr[0]) * (1 + ds->fd_cnt));
+            if (!fd_ptr)
+                break;
+            ds->fd_ptr = fd_ptr;
+            fd_ptr[ds->fd_cnt++] = fd;
+            if (ds->fd_max < 0 || ds->fd_max < fd) {
+                ds->fd_max = fd;
+            }
+        }
+    }
+    if (dir_item) {
+        free_dev_fd_set(ds);
+        return NULL;
+    }
+    return ds;
+}
 #endif
 static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 	tcflag_t flag_mask;
@@ -303,6 +381,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 		return TRUE;
 	}
 #elif __linux__
+	/*
 	unsigned char k;
 	int res;
 	long oldmode = 0;
@@ -317,6 +396,45 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 	e->charcode = k & 0x7f;
 	e->vkeycode = k & 0x7f;
 	return 1;
+	*/
+	DevFdSet_t ds;
+	if (!scan_dev_fd_set(&ds) || 0 == ds.fd_cnt) {
+		return 0;
+	}
+	while (1) {
+		int i;
+		fd_set rset;
+		FD_ZERO(&rset);
+		for (i = 0; i < ds.fd_cnt; ++i) {
+			FD_SET(ds.fd_ptr[i], &rset);
+		}
+		i = select(ds.fd_max + 1, &rset, NULL, NULL, NULL);
+		if (i < 0) {
+			free_dev_fd_set(&ds);
+			return 0;
+		}
+		else if (0 == i) {
+			continue;
+		}
+		for (i = 0; i < ds.fd_cnt; ++i) {
+			struct input_event input_ev;
+			int len;
+			if (!FD_ISSET(ds.fd_ptr[i], &rset))
+				continue;
+			len = read(ds.fd_ptr[i], &input_ev, sizeof(input_ev));
+			if (len < 0)
+				continue;
+			else if (len != sizeof(input_ev))
+				continue;
+			else if (EV_KEY != input_ev.type)
+				continue;
+			free_dev_fd_set(&ds);
+			e->keydown = (input_ev.value != 0);
+			e->charcode = input_ev.code;
+			e->vkeycode = input_ev.code;
+			return 1;
+		}
+	}
 #endif
 	// TODO MAC
 	e->keydown = 0;
