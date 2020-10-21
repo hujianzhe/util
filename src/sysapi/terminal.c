@@ -9,20 +9,18 @@ extern "C" {
 #endif
 
 #if	defined(_WIN32) || defined(_WIN64)
-static BOOL __set_tty_mode(HANDLE fd, DWORD mask, BOOL bval) {
-	DWORD mode, mode_mask;
-	if (!GetConsoleMode(fd, &mode))
-		return FALSE;
-	mode_mask = mode & mask;
-	if (0 == mode_mask && !bval)
-		return TRUE;
-	if (mask == mode_mask && bval)
-		return TRUE;
+static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
+	DWORD flag_mask;
+	flag_mask = flag & mask;
+	if (0 == flag_mask && !bval)
+		return flag;
+	if (mask == flag_mask && bval)
+		return flag;
 	if (bval)
-		mode |= mask;
+		flag |= mask;
 	else
-		mode &= ~mask;
-	return SetConsoleMode(fd, mode);
+		flag &= ~mask;
+	return flag;
 }
 #else
 #include <dirent.h>
@@ -216,7 +214,14 @@ int terminalKbhit(void) {
 
 BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __set_tty_mode((HANDLE)fd, ENABLE_ECHO_INPUT, bval);
+	DWORD mode, new_mode;
+	if (!GetConsoleMode((HANDLE)fd, &mode))
+		return FALSE;
+	new_mode = __set_tty_flag(mode, ENABLE_ECHO_INPUT, bval);
+	if (new_mode != mode) {
+		return SetConsoleMode((HANDLE)fd, new_mode);
+	}
+	return TRUE;
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
@@ -233,7 +238,15 @@ BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 
 BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __set_tty_mode((HANDLE)fd, ENABLE_LINE_INPUT, bval);
+	DWORD mode, new_mode;
+	if (!GetConsoleMode((HANDLE)fd, &mode))
+		return FALSE;
+	new_mode = __set_tty_flag(mode, ENABLE_MOUSE_INPUT, !bval);
+	new_mode = __set_tty_flag(new_mode, ENABLE_LINE_INPUT, bval);
+	if (new_mode != mode) {
+		return SetConsoleMode((HANDLE)fd, new_mode);
+	}
+	return TRUE;
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
@@ -250,7 +263,14 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 
 BOOL terminalEnableSignal(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
-	return __set_tty_mode((HANDLE)fd, ENABLE_PROCESSED_INPUT, bval);
+	DWORD mode, new_mode;
+	if (!GetConsoleMode((HANDLE)fd, &mode))
+		return FALSE;
+	new_mode = __set_tty_flag(mode, ENABLE_PROCESSED_INPUT, bval);
+	if (new_mode != mode) {
+		return SetConsoleMode((HANDLE)fd, new_mode);
+	}
+	return TRUE;
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
