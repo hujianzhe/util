@@ -290,8 +290,8 @@ BOOL terminalGetPageSize(FD_t fd, int* x_col, int* y_row) {
 	CONSOLE_SCREEN_BUFFER_INFO ws;
 	if (!GetConsoleScreenBufferInfo((HANDLE)fd, &ws))
 		return FALSE;
-	*y_row = ws.srWindow.Right + 1;
-	*x_col = ws.srWindow.Bottom + 1;
+	*x_col = ws.srWindow.Right + 1;
+	*y_row = ws.srWindow.Bottom + 1;
 	return TRUE;
 #else
 	struct winsize ws;
