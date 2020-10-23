@@ -503,8 +503,9 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 					e->vkeycode = KEY_ALT;
 					break;
 				}
+				default:
+					e->vkeycode = input_ev.code;
 			}
-			e->vkeycode = input_ev.code;
 			return 1;
 		}
 	}
