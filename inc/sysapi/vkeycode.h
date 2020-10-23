@@ -8,29 +8,87 @@
 #include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-	#define	DEV_VKEY(k)		VK_##k
-
-	#define	VK_BACKSPACE	VK_BACK
-	#define	VK_CAPSLOCK		VK_CAPITAL
-	#define	VK_ENTER		VK_RETURN
-	#define	VK_SCROLLLOCK	VK_SCROLL
-	#define	VK_ALT			VK_MENU
-
+enum {
+	
+};
 #elif	__linux__
-	#include <linux/input.h>
-	#define	DEV_VKEY(k)		KEY_##k
-
-	#define	KEY_SHIFT		0x10000
-	#define	KEY_CONTROL		0x10001
-	#define	KEY_ALT			0x10002
-	#define	KEY_ESCAPE		KEY_ESC
-	#define	KEY_LBUTTON		BTN_LEFT
-	#define	KEY_RBUTTON		BTN_RIGHT
-	#define	KEY_MBUTTON		BTN_MIDDLE
-
+#include <linux/input.h>
+enum {
+	VKEY_A			= KEY_A,
+	VKEY_B			= KEY_B,
+	VKEY_C			= KEY_C,
+	VKEY_D			= KEY_D,
+	VKEY_E			= KEY_E,
+	VKEY_F			= KEY_F,
+	VKEY_G			= KEY_G,
+	VKEY_H			= KEY_H,
+	VKEY_I			= KEY_I,
+	VKEY_J			= KEY_J,
+	VKEY_K			= KEY_K,
+	VKEY_L			= KEY_L,
+	VKEY_M			= KEY_M,
+	VKEY_N			= KEY_N,
+	VKEY_O			= KEY_O,
+	VKEY_P			= KEY_P,
+	VKEY_Q			= KEY_Q,
+	VKEY_R			= KEY_R,
+	VKEY_S			= KEY_S,
+	VKEY_T			= KEY_T,
+	VKEY_U			= KEY_U,
+	VKEY_V			= KEY_V,
+	VKEY_W			= KEY_W,
+	VKEY_X			= KEY_X,
+	VKEY_Y			= KEY_Y,
+	VKEY_Z			= KEY_Z,
+	VKEY_0			= KEY_0,
+	VKEY_1			= KEY_1,
+	VKEY_2			= KEY_2,
+	VKEY_3			= KEY_3,
+	VKEY_4			= KEY_4,
+	VKEY_5			= KEY_5,
+	VKEY_6			= KEY_6,
+	VKEY_7			= KEY_7,
+	VKEY_8			= KEY_8,
+	VKEY_9			= KEY_9,
+	VKEY_F1			= KEY_F1,
+	VKEY_F2			= KEY_F2,
+	VKEY_F3			= KEY_F3,
+	VKEY_F4			= KEY_F4,
+	VKEY_F5			= KEY_F5,
+	VKEY_F6			= KEY_F6,
+	VKEY_F7			= KEY_F7,
+	VKEY_F8			= KEY_F8,
+	VKEY_F9			= KEY_F9,
+	VKEY_F10		= KEY_F10,
+	VKEY_F11		= KEY_F11,
+	VKEY_F12		= KEY_F12,
+	VKEY_LBUTTON	= BTN_LEFT,
+	VKEY_RBUTTON	= BTN_RIGHT,
+	VKEY_MBUTTON	= BTN_MIDDLE,
+	VKEY_UP			= KEY_UP,
+	VKEY_DOWN		= KEY_DOWN,
+	VKEY_LEFT		= KEY_LEFT,
+	VKEY_RIGHT		= KEY_RIGHT,
+	VKEY_ENTER		= KEY_ENTER,
+	VKEY_SPACE		= KEY_SPACE,
+	VKEY_TAB		= KEY_TAB,
+	VKEY_PAGEUP		= KEY_PAGEUP,
+	VKEY_PAGEDOWN	= KEY_PAGEDOWN,
+	VKEY_HOME		= KEY_HOME,
+	VKEY_END		= KEY_END,
+	VKEY_ESC		= KEY_ESC,
+	VKEY_DELETE		= KEY_DELETE,
+	VKEY_INSERT 	= KEY_INSERT,
+	VKEY_BACKSPACE	= KEY_BACKSPACE,
+	VKEY_SCROLLLOCK	= KEY_SCROLLLOCK,
+	VKEY_NUMLOCK	= KEY_NUMLOCK,
+	VKEY_CAPSLOCK	= KEY_CAPSLOCK,
+	VKEY_CTRL		= 0x10000,
+	VKEY_ALT		= 0x10001,
+	VKEY_SHIFT		= 0x10002,
+};
 #else
 	// TODO MAC
-	#define	DEV_VKEY(k)		_##k
 
 #endif
 

@@ -488,19 +488,19 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 				case KEY_LEFTSHIFT:
 				case KEY_RIGHTSHIFT:
 				{
-					e->vkeycode = KEY_SHIFT;
+					e->vkeycode = VKEY_SHIFT;
 					break;
 				}
 				case KEY_LEFTCTRL:
 				case KEY_RIGHTCTRL:
 				{
-					e->vkeycode = KEY_CONTROL;
+					e->vkeycode = VKEY_CTRL;
 					break;
 				}
 				case KEY_LEFTALT:
 				case KEY_RIGHTALT:
 				{
-					e->vkeycode = KEY_ALT;
+					e->vkeycode = VKEY_ALT;
 					break;
 				}
 				default:
