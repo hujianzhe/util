@@ -12,6 +12,7 @@
 #else
 	#include <termios.h>
 #endif
+#include "vkeycode.h"
 
 typedef struct DevKeyEvent_t {
 	unsigned char keydown;

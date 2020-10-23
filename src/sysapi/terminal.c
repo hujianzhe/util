@@ -484,6 +484,26 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 				continue;
 			e->keydown = (input_ev.value != 0);
 			e->charcode = input_ev.code;
+			switch (input_ev.code) {
+				case KEY_LEFTSHIFT:
+				case KEY_RIGHTSHIFT:
+				{
+					e->vkeycode = KEY_SHIFT;
+					break;
+				}
+				case KEY_LEFTCTRL:
+				case KEY_RIGHTCTRL:
+				{
+					e->vkeycode = KEY_CONTROL;
+					break;
+				}
+				case KEY_LEFTALT:
+				case KEY_RIGHTALT:
+				{
+					e->vkeycode = KEY_ALT;
+					break;
+				}
+			}
 			e->vkeycode = input_ev.code;
 			return 1;
 		}
