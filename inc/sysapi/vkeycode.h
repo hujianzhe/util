@@ -24,6 +24,9 @@
 	#define	KEY_CONTROL		0x10001
 	#define	KEY_ALT			0x10002
 	#define	KEY_ESCAPE		KEY_ESC
+	#define	KEY_LBUTTON		BTN_LEFT
+	#define	KEY_RBUTTON		BTN_RIGHT
+	#define	KEY_MBUTTON		BTN_MIDDLE
 
 #else
 	// TODO MAC
