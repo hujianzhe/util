@@ -458,18 +458,33 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 	}
 #elif __linux__
 	DevFdSet_t* ds = &s_DevFdSet;
+	int fd_max = fd > ds->fd_max ? fd : ds->fd_max;
 	while (1) {
 		int i;
 		fd_set rset;
 		FD_ZERO(&rset);
+		FD_SET(fd, &rset);
 		for (i = 0; i < ds->fd_cnt; ++i) {
 			FD_SET(ds->fd_ptr[i], &rset);
 		}
-		i = select(ds->fd_max + 1, &rset, NULL, NULL, NULL);
+		i = select(fd_max + 1, &rset, NULL, NULL, NULL);
 		if (i < 0)
 			return 0;
 		else if (0 == i)
 			continue;
+		e->charcode = 0;
+		if (FD_ISSET(fd, &rset)) {
+			int k = 0;
+			int len = read(fd, &k, sizeof(k));
+			if (len <= 0) {
+				continue;
+			}
+			e->keydown = 1;
+			e->charcode = k;
+			e->vkeycode = 0;
+			if (1 == i)
+				return 1;
+		}
 		for (i = 0; i < ds->fd_cnt; ++i) {
 			struct input_event input_ev;
 			int len;
@@ -483,7 +498,6 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 			else if (EV_KEY != input_ev.type)
 				continue;
 			e->keydown = (input_ev.value != 0);
-			e->charcode = input_ev.code;
 			switch (input_ev.code) {
 				case KEY_LEFTSHIFT:
 				case KEY_RIGHTSHIFT:

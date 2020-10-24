@@ -16,7 +16,7 @@
 
 typedef struct DevKeyEvent_t {
 	unsigned char keydown;
-	unsigned short charcode;
+	unsigned int charcode;
 	unsigned int vkeycode;
 } DevKeyEvent_t;
 
