@@ -473,7 +473,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			continue;
 		e->charcode = 0;
-		if (FD_ISSET(fd, &rset)) {
+		if (FD_ISSET(fd, &rset) && 1 == i) {
 			int k = 0;
 			int len = read(fd, &k, sizeof(k));
 			if (len <= 0) {
@@ -482,8 +482,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 			e->keydown = 1;
 			e->charcode = k;
 			e->vkeycode = 0;
-			if (1 == i)
-				return 1;
+			return 1;
 		}
 		for (i = 0; i < ds->fd_cnt; ++i) {
 			struct input_event input_ev;
@@ -519,6 +518,12 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 				}
 				default:
 					e->vkeycode = input_ev.code;
+			}
+			if (FD_ISSET(fd, &rset)) {
+				int k = 0;
+				int len = read(fd, &k, sizeof(k));
+				if (len > 0)
+					e->charcode = k;
 			}
 			return 1;
 		}
