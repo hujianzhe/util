@@ -434,41 +434,6 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		INPUT_RECORD ir;
 		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
 			return FALSE;
-		if (KEY_EVENT != ir.EventType)
-			continue;
-		if (ir.Event.KeyEvent.bKeyDown) {
-			e->keydown = 1;
-			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
-			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
-			return TRUE;
-		}
-	}
-#else
-	int k = 0, res;
-	res = read(fd, &k, sizeof(k));
-	if (res > 1) {
-		e->keydown = 1;
-		e->charcode = 0;
-		e->vkeycode = k;
-		return 1;
-	}
-	else if (1 == res) {
-		e->keydown = 1;
-		e->charcode = k;
-		e->vkeycode = 0;
-		return 1;
-	}
-	return 0;
-#endif
-}
-
-BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
-#if defined(_WIN32) || defined(_WIN64)
-	while (1) {
-		DWORD n;
-		INPUT_RECORD ir;
-		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
-			return FALSE;
 		if (KEY_EVENT == ir.EventType) {
 			e->keydown = ir.Event.KeyEvent.bKeyDown;
 			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
