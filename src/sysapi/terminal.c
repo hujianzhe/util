@@ -37,6 +37,64 @@ static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
 #ifdef	__linux__
 #include <linux/input.h>
 
+static int vkey2char(int vkey, int shift_press) {
+	switch (vkey) {
+		case KEY_0: return shift_press ? ')' : '0';
+		case KEY_1: return shift_press ? '!' : '1';
+		case KEY_2: return shift_press ? '@' : '2';
+		case KEY_3: return shift_press ? '#' : '3';
+		case KEY_4: return shift_press ? '$' : '4';
+		case KEY_5: return shift_press ? '%' : '5';
+		case KEY_6: return shift_press ? '^' : '6';
+		case KEY_7: return shift_press ? '&' : '7';
+		case KEY_8: return shift_press ? '*' : '8';
+		case KEY_9: return shift_press ? '(' : '9';
+		case KEY_A: return shift_press ? 'A' : 'a';
+		case KEY_B: return shift_press ? 'B' : 'b';
+		case KEY_C: return shift_press ? 'C' : 'c';
+		case KEY_D: return shift_press ? 'D' : 'd';
+		case KEY_E: return shift_press ? 'E' : 'e';
+		case KEY_F: return shift_press ? 'F' : 'f';
+		case KEY_G: return shift_press ? 'G' : 'g';
+		case KEY_H: return shift_press ? 'H' : 'h';
+		case KEY_I: return shift_press ? 'I' : 'i';
+		case KEY_J: return shift_press ? 'J' : 'j';
+		case KEY_K: return shift_press ? 'K' : 'k';
+		case KEY_L: return shift_press ? 'L' : 'l';
+		case KEY_M: return shift_press ? 'M' : 'm';
+		case KEY_N: return shift_press ? 'N' : 'n';
+		case KEY_O: return shift_press ? 'O' : 'o';
+		case KEY_P: return shift_press ? 'P' : 'p';
+		case KEY_Q: return shift_press ? 'Q' : 'q';
+		case KEY_R: return shift_press ? 'R' : 'r';
+		case KEY_S: return shift_press ? 'S' : 's';
+		case KEY_T: return shift_press ? 'T' : 't';
+		case KEY_U: return shift_press ? 'U' : 'u';
+		case KEY_V: return shift_press ? 'V' : 'v';
+		case KEY_W: return shift_press ? 'W' : 'w';
+		case KEY_X: return shift_press ? 'X' : 'x';
+		case KEY_Y: return shift_press ? 'Y' : 'y';
+		case KEY_Z: return shift_press ? 'Z' : 'z';
+		case KEY_GRAVE: return shift_press ? '~' : '`';
+		case KEY_EQUAL: return shift_press ? '+' : '=';
+		case KEY_MINUS: return shift_press ? '_' : '-';
+		case KEY_LEFTBRACE: return shift_press ? '{' : '[';
+		case KEY_RIGHTBRACE: return shift_press ? '}' : ']';
+		case KEY_BACKSLASH: return shift_press ? '|' : '\\';
+		case KEY_SEMICOLON: return shift_press ? ':' : ';';
+		case KEY_APOSTROPHE: return shift_press ? '"' : '\'';
+		case KEY_COMMA: return shift_press ? '<' : ',';
+		case KEY_DOT: return shift_press ? '>' : '.';
+		case KEY_SLASH: return shift_press ? '?' : '/';
+		case KEY_SPACE: return ' ';
+		case KEY_TAB: return '\t';
+		case KEY_ENTER: return '\n';
+		case KEY_BACKSPACE: return 8;
+		case KEY_ESC: return 27;
+	}
+	return 0;
+}
+
 typedef struct DevFdSet_t {
     int* fd_ptr;
     size_t fd_cnt;
@@ -458,6 +516,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 	}
 #elif __linux__
 	DevFdSet_t* ds = &s_DevFdSet;
+	static int shift_press;
 	int fd_max = fd > ds->fd_max ? fd : ds->fd_max;
 	while (1) {
 		int i;
@@ -472,7 +531,6 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 			return 0;
 		else if (0 == i)
 			continue;
-		e->charcode = 0;
 		if (FD_ISSET(fd, &rset) && 1 == i) {
 			int k = 0;
 			int len = read(fd, &k, sizeof(k));
@@ -502,6 +560,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 				case KEY_RIGHTSHIFT:
 				{
 					e->vkeycode = VKEY_SHIFT;
+					shift_press = e->keydown;
 					break;
 				}
 				case KEY_LEFTCTRL:
@@ -519,11 +578,10 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 				default:
 					e->vkeycode = input_ev.code;
 			}
+			e->charcode = vkey2char(e->vkeycode, shift_press);
 			if (FD_ISSET(fd, &rset)) {
 				int k = 0;
-				int len = read(fd, &k, sizeof(k));
-				if (len > 0)
-					e->charcode = k;
+				read(fd, &k, sizeof(k));
 			}
 			return 1;
 		}
