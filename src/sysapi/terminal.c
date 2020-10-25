@@ -37,7 +37,14 @@ static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
 #ifdef	__linux__
 #include <linux/input.h>
 
-static int vkey2char(int vkey, int shift_press) {
+static int vkey2char(int vkey, int shift_press, int capslock) {
+	int alphabet_upper;
+	if (!capslock && shift_press)
+		alphabet_upper = 1;
+	else if (capslock && !shift_press)
+		alphabet_upper = 1;
+	else
+		alphabet_upper = 0;
 	switch (vkey) {
 		case KEY_0: return shift_press ? ')' : '0';
 		case KEY_1: return shift_press ? '!' : '1';
@@ -49,32 +56,32 @@ static int vkey2char(int vkey, int shift_press) {
 		case KEY_7: return shift_press ? '&' : '7';
 		case KEY_8: return shift_press ? '*' : '8';
 		case KEY_9: return shift_press ? '(' : '9';
-		case KEY_A: return shift_press ? 'A' : 'a';
-		case KEY_B: return shift_press ? 'B' : 'b';
-		case KEY_C: return shift_press ? 'C' : 'c';
-		case KEY_D: return shift_press ? 'D' : 'd';
-		case KEY_E: return shift_press ? 'E' : 'e';
-		case KEY_F: return shift_press ? 'F' : 'f';
-		case KEY_G: return shift_press ? 'G' : 'g';
-		case KEY_H: return shift_press ? 'H' : 'h';
-		case KEY_I: return shift_press ? 'I' : 'i';
-		case KEY_J: return shift_press ? 'J' : 'j';
-		case KEY_K: return shift_press ? 'K' : 'k';
-		case KEY_L: return shift_press ? 'L' : 'l';
-		case KEY_M: return shift_press ? 'M' : 'm';
-		case KEY_N: return shift_press ? 'N' : 'n';
-		case KEY_O: return shift_press ? 'O' : 'o';
-		case KEY_P: return shift_press ? 'P' : 'p';
-		case KEY_Q: return shift_press ? 'Q' : 'q';
-		case KEY_R: return shift_press ? 'R' : 'r';
-		case KEY_S: return shift_press ? 'S' : 's';
-		case KEY_T: return shift_press ? 'T' : 't';
-		case KEY_U: return shift_press ? 'U' : 'u';
-		case KEY_V: return shift_press ? 'V' : 'v';
-		case KEY_W: return shift_press ? 'W' : 'w';
-		case KEY_X: return shift_press ? 'X' : 'x';
-		case KEY_Y: return shift_press ? 'Y' : 'y';
-		case KEY_Z: return shift_press ? 'Z' : 'z';
+		case KEY_A: return alphabet_upper ? 'A' : 'a';
+		case KEY_B: return alphabet_upper ? 'B' : 'b';
+		case KEY_C: return alphabet_upper ? 'C' : 'c';
+		case KEY_D: return alphabet_upper ? 'D' : 'd';
+		case KEY_E: return alphabet_upper ? 'E' : 'e';
+		case KEY_F: return alphabet_upper ? 'F' : 'f';
+		case KEY_G: return alphabet_upper ? 'G' : 'g';
+		case KEY_H: return alphabet_upper ? 'H' : 'h';
+		case KEY_I: return alphabet_upper ? 'I' : 'i';
+		case KEY_J: return alphabet_upper ? 'J' : 'j';
+		case KEY_K: return alphabet_upper ? 'K' : 'k';
+		case KEY_L: return alphabet_upper ? 'L' : 'l';
+		case KEY_M: return alphabet_upper ? 'M' : 'm';
+		case KEY_N: return alphabet_upper ? 'N' : 'n';
+		case KEY_O: return alphabet_upper ? 'O' : 'o';
+		case KEY_P: return alphabet_upper ? 'P' : 'p';
+		case KEY_Q: return alphabet_upper ? 'Q' : 'q';
+		case KEY_R: return alphabet_upper ? 'R' : 'r';
+		case KEY_S: return alphabet_upper ? 'S' : 's';
+		case KEY_T: return alphabet_upper ? 'T' : 't';
+		case KEY_U: return alphabet_upper ? 'U' : 'u';
+		case KEY_V: return alphabet_upper ? 'V' : 'v';
+		case KEY_W: return alphabet_upper ? 'W' : 'w';
+		case KEY_X: return alphabet_upper ? 'X' : 'x';
+		case KEY_Y: return alphabet_upper ? 'Y' : 'y';
+		case KEY_Z: return alphabet_upper ? 'Z' : 'z';
 		case KEY_GRAVE: return shift_press ? '~' : '`';
 		case KEY_EQUAL: return shift_press ? '+' : '=';
 		case KEY_MINUS: return shift_press ? '_' : '-';
@@ -516,7 +523,7 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 	}
 #elif __linux__
 	DevFdSet_t* ds = &s_DevFdSet;
-	static int shift_press;
+	static int shift_press, capslock_open;
 	int fd_max = fd > ds->fd_max ? fd : ds->fd_max;
 	while (1) {
 		int i;
@@ -575,10 +582,21 @@ BOOL terminalReadKey2(FD_t fd, DevKeyEvent_t* e) {
 					e->vkeycode = VKEY_ALT;
 					break;
 				}
+				case KEY_CAPSLOCK:
+				{
+					if (e->keydown) {
+						if (0 == capslock_open)
+							capslock_open = 1;
+						else if (2 == capslock_open)
+							capslock_open = 0;
+					}
+					else if (!e->keydown && 1 == capslock_open)
+						capslock_open = 2;
+				}
 				default:
 					e->vkeycode = input_ev.code;
 			}
-			e->charcode = vkey2char(e->vkeycode, shift_press);
+			e->charcode = vkey2char(e->vkeycode, shift_press, capslock_open);
 			if (FD_ISSET(fd, &rset)) {
 				int k = 0;
 				read(fd, &k, sizeof(k));
