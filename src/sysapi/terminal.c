@@ -35,6 +35,7 @@ static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
 #include <sys/time.h>
 #include <sys/types.h>
 #ifdef	__linux__
+#include <poll.h>
 #include <linux/input.h>
 
 static int vkey2char(int vkey, int shift_press, int capslock) {
@@ -103,36 +104,32 @@ static int vkey2char(int vkey, int shift_press, int capslock) {
 }
 
 typedef struct DevFdSet_t {
-    int* fd_ptr;
-    size_t fd_cnt;
-    int fd_max;
+	nfds_t nfds;
+	struct pollfd fds[1];
 } DevFdSet_t;
-static DevFdSet_t s_DevFdSet;
+static DevFdSet_t* s_DevFdSet;
 
 static void free_dev_fd_set(DevFdSet_t* ds) {
     if (ds) {
-        size_t i;
-        for (i = 0; i < ds->fd_cnt; ++i) {
-            close(ds->fd_ptr[i]);
+        nfds_t i;
+        for (i = 0; i < ds->nfds; ++i) {
+            close(ds->fds[i].fd);
         }
-        free(ds->fd_ptr);
-        ds->fd_ptr = NULL;
-        ds->fd_cnt = 0;
-        ds->fd_max = -1;
+        free(ds);
     }
 }
 
 static DevFdSet_t* scan_dev_fd_set(DevFdSet_t* ds) {
     DIR* dir;
     struct dirent* dir_item;
+	nfds_t nfds;
 
     dir = opendir("/dev/input");
     if (!dir) {
+		free_dev_fd_set(ds);
         return NULL;
     }
-    ds->fd_ptr = NULL;
-    ds->fd_cnt = 0;
-    ds->fd_max = -1;
+	nfds = 0;
     while (dir_item = readdir(dir)) {
         int fd, i;
         long evs[EV_MAX/(sizeof(long)*8) + 1] = { 0 };
@@ -157,20 +154,23 @@ static DevFdSet_t* scan_dev_fd_set(DevFdSet_t* ds) {
         if (ioctl(fd, EVIOCGBIT(0, EV_MAX), evs) < 0)
             continue;
         if (evs[EV_KEY / (sizeof(long) * 8)] & (1L << EV_KEY % (sizeof(long) * 8))) {
-            int* fd_ptr = (int*)realloc(ds->fd_ptr, sizeof(ds->fd_ptr[0]) * (1 + ds->fd_cnt));
-            if (!fd_ptr)
+			struct pollfd* pfd;
+            DevFdSet_t* new_ds = (DevFdSet_t*)realloc(ds, sizeof(*ds) + (1 + nfds) * sizeof(struct pollfd));
+            if (!new_ds)
                 break;
-            ds->fd_ptr = fd_ptr;
-            fd_ptr[ds->fd_cnt++] = fd;
-            if (ds->fd_max < 0 || ds->fd_max < fd) {
-                ds->fd_max = fd;
-            }
+			ds = new_ds;
+			pfd = &ds->fds[nfds++];
+			pfd->fd = fd;
+			pfd->events = POLLIN;
+			pfd->revents = 0;
         }
     }
     if (dir_item) {
         free_dev_fd_set(ds);
         return NULL;
     }
+	ds->fds[nfds].events = POLLIN;
+	ds->nfds = nfds;
     return ds;
 }
 #endif
@@ -421,7 +421,8 @@ BOOL terminalKeyDevScan(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TRUE;
 #elif __linux__
-	return scan_dev_fd_set(&s_DevFdSet) && s_DevFdSet.fd_cnt > 0;
+	s_DevFdSet = scan_dev_fd_set(s_DevFdSet);
+	return s_DevFdSet != NULL;
 #else
 	return TRUE;
 #endif
@@ -487,23 +488,19 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		}
 	}
 #elif __linux__
-	DevFdSet_t* ds = &s_DevFdSet;
 	static int shift_press, capslock_open;
-	int fd_max = fd > ds->fd_max ? fd : ds->fd_max;
+	DevFdSet_t* ds = s_DevFdSet;
+	struct pollfd* in_pfd = &ds->fds[ds->nfds];
+	in_pfd->fd = fd;
+	in_pfd->revents = 0;
 	while (1) {
 		int i;
-		fd_set rset;
-		FD_ZERO(&rset);
-		FD_SET(fd, &rset);
-		for (i = 0; i < ds->fd_cnt; ++i) {
-			FD_SET(ds->fd_ptr[i], &rset);
-		}
-		i = select(fd_max + 1, &rset, NULL, NULL, NULL);
+		i = poll(ds->fds, ds->nfds + 1, -1);
 		if (i < 0)
 			return 0;
 		else if (0 == i)
 			continue;
-		if (FD_ISSET(fd, &rset) && 1 == i) {
+		if ((in_pfd->revents & POLLIN) && 1 == i) {
 			int k = 0;
 			int len = read(fd, &k, sizeof(k));
 			if (len <= 0) {
@@ -514,12 +511,12 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 			e->vkeycode = 0;
 			return 1;
 		}
-		for (i = 0; i < ds->fd_cnt; ++i) {
+		for (i = 0; i < ds->nfds; ++i) {
 			struct input_event input_ev;
 			int len;
-			if (!FD_ISSET(ds->fd_ptr[i], &rset))
+			if (!(ds->fds[i].revents & POLLIN))
 				continue;
-			len = read(ds->fd_ptr[i], &input_ev, sizeof(input_ev));
+			len = read(ds->fds[i].fd, &input_ev, sizeof(input_ev));
 			if (len < 0)
 				continue;
 			else if (len != sizeof(input_ev))
@@ -562,7 +559,7 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 					e->vkeycode = input_ev.code;
 			}
 			e->charcode = vkey2char(e->vkeycode, shift_press, capslock_open);
-			if (FD_ISSET(fd, &rset)) {
+			if (in_pfd->revents & POLLIN) {
 				int k = 0;
 				read(fd, &k, sizeof(k));
 			}
