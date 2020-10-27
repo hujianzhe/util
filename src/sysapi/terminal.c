@@ -22,6 +22,49 @@ static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
 		flag &= ~mask;
 	return flag;
 }
+
+static BOOL __fill_mouse_event(DevKeyEvent_t* e, DWORD button_state) {
+	static int mk_sts[3];
+	e->charcode = 0;
+	switch (button_state) {
+		case 0:
+			if (mk_sts[0]) {
+				mk_sts[0] = 0;
+				e->vkeycode = VK_LBUTTON;
+			}
+			else if (mk_sts[1]) {
+				mk_sts[1] = 0;
+				e->vkeycode = VK_RBUTTON;
+			}
+			else if (mk_sts[2]) {
+				mk_sts[2] = 0;
+				e->vkeycode = VK_MBUTTON;
+			}
+			else {
+				return FALSE;
+			}
+			e->keydown = 0;
+			break;
+		case FROM_LEFT_1ST_BUTTON_PRESSED:
+			mk_sts[0] = 1;
+			e->keydown = 1;
+			e->vkeycode = VK_LBUTTON;
+			break;
+		case RIGHTMOST_BUTTON_PRESSED:
+			mk_sts[1] = 1;
+			e->keydown = 1;
+			e->vkeycode = VK_RBUTTON;
+			break;
+		case FROM_LEFT_2ND_BUTTON_PRESSED:
+			mk_sts[2] = 1;
+			e->keydown = 1;
+			e->vkeycode = VK_MBUTTON;
+			break;
+		default:
+			return FALSE;
+	}
+	return TRUE;
+}
 #else
 #include <dirent.h>
 #include <errno.h>
@@ -400,6 +443,37 @@ BOOL terminalKeyDevScan(void) {
 #endif
 }
 
+BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD n = 0;
+	INPUT_RECORD ir;
+	while (PeekConsoleInput((HANDLE)fd, &ir, 1, &n) && n > 0) {
+		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
+			return FALSE;
+		if (KEY_EVENT == ir.EventType) {
+			e->keydown = ir.Event.KeyEvent.bKeyDown;
+			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
+			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
+			return TRUE;
+		}
+		else if (MOUSE_EVENT == ir.EventType) {
+			if (ir.Event.MouseEvent.dwEventFlags) {
+				continue;
+			}
+			if (!__fill_mouse_event(e, ir.Event.MouseEvent.dwButtonState)) {
+				continue;
+			}
+			return TRUE;
+		}
+		n = 0;
+	}
+	return n > 0;
+#elif __linux__
+#endif
+	// TODO
+	return FALSE;
+}
+
 BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (1) {
@@ -414,47 +488,11 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 			return TRUE;
 		}
 		else if (MOUSE_EVENT == ir.EventType) {
-			static int mk_sts[3];
 			if (ir.Event.MouseEvent.dwEventFlags) {
 				continue;
 			}
-			e->charcode = 0;
-			switch (ir.Event.MouseEvent.dwButtonState) {
-				case 0:
-					if (mk_sts[0]) {
-						mk_sts[0] = 0;
-						e->vkeycode = VK_LBUTTON;
-					}
-					else if (mk_sts[1]) {
-						mk_sts[1] = 0;
-						e->vkeycode = VK_RBUTTON;
-					}
-					else if (mk_sts[2]) {
-						mk_sts[2] = 0;
-						e->vkeycode = VK_MBUTTON;
-					}
-					else {
-						continue;
-					}
-					e->keydown = 0;
-					break;
-				case FROM_LEFT_1ST_BUTTON_PRESSED:
-					mk_sts[0] = 1;
-					e->keydown = 1;
-					e->vkeycode = VK_LBUTTON;
-					break;
-				case RIGHTMOST_BUTTON_PRESSED:
-					mk_sts[1] = 1;
-					e->keydown = 1;
-					e->vkeycode = VK_RBUTTON;
-					break;
-				case FROM_LEFT_2ND_BUTTON_PRESSED:
-					mk_sts[2] = 1;
-					e->keydown = 1;
-					e->vkeycode = VK_MBUTTON;
-					break;
-				default:
-					continue;
+			if (!__fill_mouse_event(e, ir.Event.MouseEvent.dwButtonState)) {
+				continue;
 			}
 			return TRUE;
 		}
