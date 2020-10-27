@@ -187,21 +187,6 @@ static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 		flag &= ~mask;
 	return flag;
 }
-
-static void __set_tty_no_canon_echo_isig(int ttyfd, struct termios* old, int min, int time) {
-	struct termios newtc;
-	tcgetattr(ttyfd, old);
-	if (0 == (old->c_lflag & (ICANON|ECHO|ISIG)) &&
-		old->c_cc[VMIN] == min && old->c_cc[VTIME] == time)
-	{
-		return;
-	}
-	newtc = *old;
-	newtc.c_lflag &= ~(ICANON|ECHO|ISIG);
-	newtc.c_cc[VMIN] = min;
-	newtc.c_cc[VTIME] = time;
-	tcsetattr(ttyfd, TCSANOW, &newtc);
-}
 #endif
 
 FD_t terminalStdin(void) {
@@ -261,19 +246,6 @@ char* terminalName(char* buf, size_t buflen) {
 		buf[buflen - 1] = 0;
 		return buf;
 	}
-#endif
-}
-
-int terminalKbhit(void) {
-#if defined(_WIN32) || defined(_WIN64)
-	return _kbhit();
-#else
-	int res = -1;
-	struct termios old;
-	__set_tty_no_canon_echo_isig(STDIN_FILENO, &old, 0, 0);
-	ioctl(STDIN_FILENO, FIONREAD, &res);
-	tcsetattr(STDIN_FILENO, TCSANOW, &old);
-	return res > 0;
 #endif
 }
 
