@@ -38,6 +38,7 @@ __declspec_dll BOOL terminalShowCursor(FD_t fd, BOOL bval);
 __declspec_dll BOOL terminalClrscr(FD_t fd);
 __declspec_dll BOOL terminalKeyDevScan(void);
 __declspec_dll BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e);
+__declspec_dll BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e);
 
 #ifdef	__cplusplus
 }

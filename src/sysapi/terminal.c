@@ -216,6 +216,46 @@ static DevFdSet_t* scan_dev_fd_set(DevFdSet_t* ds) {
 	ds->nfds = nfds;
     return ds;
 }
+
+static void __fill_key_event(DevKeyEvent_t* e, const struct input_event* input_ev) {
+	static int shift_press, capslock_open;
+	e->keydown = (input_ev->value != 0);
+	switch (input_ev->code) {
+		case KEY_LEFTSHIFT:
+		case KEY_RIGHTSHIFT:
+		{
+			e->vkeycode = VKEY_SHIFT;
+			shift_press = e->keydown;
+			break;
+		}
+		case KEY_LEFTCTRL:
+		case KEY_RIGHTCTRL:
+		{
+			e->vkeycode = VKEY_CTRL;
+			break;
+		}
+		case KEY_LEFTALT:
+		case KEY_RIGHTALT:
+		{
+			e->vkeycode = VKEY_ALT;
+			break;
+		}
+		case KEY_CAPSLOCK:
+		{
+			if (e->keydown) {
+				if (0 == capslock_open)
+					capslock_open = 1;
+					else if (2 == capslock_open)
+						capslock_open = 0;
+			}
+			else if (!e->keydown && 1 == capslock_open)
+				capslock_open = 2;
+		}
+		default:
+			e->vkeycode = input_ev->code;
+	}
+	e->charcode = vkey2char(e->vkeycode, shift_press, capslock_open);
+}
 #endif
 static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 	tcflag_t flag_mask;
@@ -443,37 +483,6 @@ BOOL terminalKeyDevScan(void) {
 #endif
 }
 
-BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
-#if defined(_WIN32) || defined(_WIN64)
-	DWORD n = 0;
-	INPUT_RECORD ir;
-	while (PeekConsoleInput((HANDLE)fd, &ir, 1, &n) && n > 0) {
-		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
-			return FALSE;
-		if (KEY_EVENT == ir.EventType) {
-			e->keydown = ir.Event.KeyEvent.bKeyDown;
-			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
-			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
-			return TRUE;
-		}
-		else if (MOUSE_EVENT == ir.EventType) {
-			if (ir.Event.MouseEvent.dwEventFlags) {
-				continue;
-			}
-			if (!__fill_mouse_event(e, ir.Event.MouseEvent.dwButtonState)) {
-				continue;
-			}
-			return TRUE;
-		}
-		n = 0;
-	}
-	return n > 0;
-#elif __linux__
-#endif
-	// TODO
-	return FALSE;
-}
-
 BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	while (1) {
@@ -498,7 +507,6 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		}
 	}
 #elif __linux__
-	static int shift_press, capslock_open;
 	DevFdSet_t* ds = s_DevFdSet;
 	struct pollfd* in_pfd = &ds->fds[ds->nfds];
 	in_pfd->fd = fd;
@@ -533,42 +541,7 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 				continue;
 			else if (EV_KEY != input_ev.type)
 				continue;
-			e->keydown = (input_ev.value != 0);
-			switch (input_ev.code) {
-				case KEY_LEFTSHIFT:
-				case KEY_RIGHTSHIFT:
-				{
-					e->vkeycode = VKEY_SHIFT;
-					shift_press = e->keydown;
-					break;
-				}
-				case KEY_LEFTCTRL:
-				case KEY_RIGHTCTRL:
-				{
-					e->vkeycode = VKEY_CTRL;
-					break;
-				}
-				case KEY_LEFTALT:
-				case KEY_RIGHTALT:
-				{
-					e->vkeycode = VKEY_ALT;
-					break;
-				}
-				case KEY_CAPSLOCK:
-				{
-					if (e->keydown) {
-						if (0 == capslock_open)
-							capslock_open = 1;
-						else if (2 == capslock_open)
-							capslock_open = 0;
-					}
-					else if (!e->keydown && 1 == capslock_open)
-						capslock_open = 2;
-				}
-				default:
-					e->vkeycode = input_ev.code;
-			}
-			e->charcode = vkey2char(e->vkeycode, shift_press, capslock_open);
+			__fill_key_event(e, &input_ev);
 			if (in_pfd->revents & POLLIN) {
 				int k = 0;
 				read(fd, &k, sizeof(k));
@@ -581,6 +554,80 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 	e->keydown = 0;
 	e->charcode = 0;
 	e->vkeycode = 0;
+	return FALSE;
+#endif
+}
+
+BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD n = 0;
+	INPUT_RECORD ir;
+	while (PeekConsoleInput((HANDLE)fd, &ir, 1, &n) && n > 0) {
+		if (!ReadConsoleInput((HANDLE)fd, &ir, 1, &n) || 0 == n)
+			return FALSE;
+		if (KEY_EVENT == ir.EventType) {
+			e->keydown = ir.Event.KeyEvent.bKeyDown;
+			e->charcode = ir.Event.KeyEvent.uChar.UnicodeChar;
+			e->vkeycode = ir.Event.KeyEvent.wVirtualKeyCode;
+			return TRUE;
+		}
+		else if (MOUSE_EVENT == ir.EventType) {
+			if (ir.Event.MouseEvent.dwEventFlags) {
+				continue;
+			}
+			if (!__fill_mouse_event(e, ir.Event.MouseEvent.dwButtonState)) {
+				continue;
+			}
+			return TRUE;
+		}
+		n = 0;
+	}
+	return n > 0;
+#elif __linux__
+	DevFdSet_t* ds = s_DevFdSet;
+	struct pollfd* in_pfd = &ds->fds[ds->nfds];
+	in_pfd->fd = fd;
+	in_pfd->revents = 0;
+	while (1) {
+		int i;
+		i = poll(ds->fds, ds->nfds + 1, 0);
+		if (i < 0)
+			return 0;
+		else if (0 == i)
+			return 0;
+		if ((in_pfd->revents & POLLIN) && 1 == i) {
+			int k = 0;
+			int len = read(fd, &k, sizeof(k));
+			if (len <= 0) {
+				return 0;
+			}
+			e->keydown = 1;
+			e->charcode = k;
+			e->vkeycode = 0;
+			return 1;
+		}
+		for (i = 0; i < ds->nfds; ++i) {
+			struct input_event input_ev;
+			int len;
+			if (!(ds->fds[i].revents & POLLIN))
+				continue;
+			len = read(ds->fds[i].fd, &input_ev, sizeof(input_ev));
+			if (len < 0)
+				continue;
+			else if (len != sizeof(input_ev))
+				continue;
+			else if (EV_KEY != input_ev.type)
+				continue;
+			__fill_key_event(e, &input_ev);
+			if (in_pfd->revents & POLLIN) {
+				int k = 0;
+				read(fd, &k, sizeof(k));
+			}
+			return 1;
+		}
+	}
+#else
+	// TODO MAC
 	return FALSE;
 #endif
 }
