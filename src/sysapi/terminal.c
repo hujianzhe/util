@@ -272,6 +272,42 @@ static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 }
 #endif
 
+/***********************************************************************/
+
+char* terminalName(char* buf, size_t buflen) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD res = GetConsoleTitleA(buf, buflen);
+	if (res) {
+		buf[buflen - 1] = 0;
+		if (res < buflen) {
+			buf[res] = 0;
+		}
+		return buf;
+	}
+	return NULL;
+#else
+	int res = ttyname_r(STDIN_FILENO, buf, buflen);
+	if (res) {
+		errno = res;
+		return NULL;
+	}
+	else {
+		buf[buflen - 1] = 0;
+		return buf;
+	}
+#endif
+}
+
+char* terminalOriginalName(char* buf, size_t buflen) {
+#if defined(_WIN32) || defined(_WIN64)
+	return GetConsoleOriginalTitleA(name, buflen) ? name : NULL;
+#else
+	if (buflen <= L_ctermid)
+		return NULL;
+	return ctermid(buf) ? buf : NULL;
+#endif
+}
+
 FD_t terminalStdin(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE fd = GetStdHandle(STD_INPUT_HANDLE);
@@ -304,31 +340,6 @@ BOOL terminalFlushInput(FD_t fd) {
 	return FlushConsoleInputBuffer((HANDLE)fd);
 #else
 	return tcflush(fd, TCIFLUSH) == 0;
-#endif
-}
-
-char* terminalName(char* buf, size_t buflen) {
-#if defined(_WIN32) || defined(_WIN64)
-	DWORD res = GetConsoleTitleA(buf, buflen);
-	if (res) {
-		buf[buflen - 1] = 0;
-		if (res < buflen) {
-			buf[res] = 0;
-		}
-		return buf;
-	}
-	return NULL;
-#else
-	/*ctermid(buf);*/
-	int res = ttyname_r(STDIN_FILENO, buf, buflen);
-	if (res) {
-		errno = res;
-		return NULL;
-	}
-	else {
-		buf[buflen - 1] = 0;
-		return buf;
-	}
 #endif
 }
 
