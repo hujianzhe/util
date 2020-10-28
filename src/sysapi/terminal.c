@@ -300,7 +300,7 @@ char* terminalName(char* buf, size_t buflen) {
 
 char* terminalOriginalName(char* buf, size_t buflen) {
 #if defined(_WIN32) || defined(_WIN64)
-	return GetConsoleOriginalTitleA(name, buflen) ? name : NULL;
+	return GetConsoleOriginalTitleA(buf, buflen) ? buf : NULL;
 #else
 	if (buflen <= L_ctermid)
 		return NULL;
