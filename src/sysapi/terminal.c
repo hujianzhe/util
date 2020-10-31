@@ -69,16 +69,14 @@ static BOOL __fill_mouse_event(DevKeyEvent_t* e, DWORD button_state) {
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #ifdef	__linux__
-#include <poll.h>
 #include <linux/input.h>
 
 static int vkey2char(int vkey, int shift_press, int capslock) {
@@ -269,6 +267,31 @@ static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 	else
 		flag &= ~mask;
 	return flag;
+}
+static unsigned int __read_charcode(int fd) {
+	unsigned char c;
+	if (read(fd, &c, 1) <= 0)
+		return 0;
+	if (c != 0x1b)
+		return c;
+	else {
+		int charcode, res;
+		struct pollfd pfd;
+		pfd.fd = fd;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		res = poll(&pfd, 1, 0);
+		if (res < 0)
+			return 0;
+		else if (0 == res)
+			return c;
+		charcode = 0;
+		if (read(fd, &charcode, sizeof(charcode)) <= 0)
+			return 0;
+		charcode <<= 8;
+		charcode |= c;
+		return charcode;
+	}
 }
 #endif
 
@@ -530,11 +553,9 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			continue;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			int k = 0;
-			int len = read(fd, &k, sizeof(k));
-			if (len <= 0) {
+			unsigned int k = __read_charcode(fd);
+			if (0 == k)
 				continue;
-			}
 			e->keydown = 1;
 			e->charcode = k;
 			e->vkeycode = 0;
@@ -554,8 +575,8 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 				continue;
 			__fill_key_event(e, &input_ev);
 			if (in_pfd->revents & POLLIN) {
-				int k = 0;
-				read(fd, &k, sizeof(k));
+				char k[8];
+				read(fd, k, sizeof(k));
 			}
 			return 1;
 		}
@@ -607,11 +628,9 @@ BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			return 0;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			int k = 0;
-			int len = read(fd, &k, sizeof(k));
-			if (len <= 0) {
+			unsigned int k = __read_charcode(fd);
+			if (0 == k)
 				return 0;
-			}
 			e->keydown = 1;
 			e->charcode = k;
 			e->vkeycode = 0;
@@ -631,8 +650,8 @@ BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
 				continue;
 			__fill_key_event(e, &input_ev);
 			if (in_pfd->revents & POLLIN) {
-				int k = 0;
-				read(fd, &k, sizeof(k));
+				char k[8];
+				read(fd, k, sizeof(k));
 			}
 			return 1;
 		}
