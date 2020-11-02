@@ -331,6 +331,13 @@ char* terminalOriginalName(char* buf, size_t buflen) {
 #endif
 }
 
+void terminalUtf8(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	SetConsoleCP(65001);
+	SetConsoleOutputCP(65001);
+#endif
+}
+
 FD_t terminalStdin(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE fd = GetStdHandle(STD_INPUT_HANDLE);
