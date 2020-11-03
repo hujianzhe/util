@@ -26,7 +26,6 @@ extern "C" {
 
 __declspec_dll char* terminalName(char* buf, size_t buflen);
 __declspec_dll char* terminalOriginalName(char* buf, size_t buflen);
-__declspec_dll void terminalUtf8(void);
 __declspec_dll FD_t terminalStdin(void);
 __declspec_dll FD_t terminalStdout(void);
 __declspec_dll FD_t terminalStderr(void);
