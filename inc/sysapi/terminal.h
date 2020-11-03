@@ -21,7 +21,7 @@ typedef struct DevKeyEvent_t {
 	unsigned int charcode;
 #else
 	union {
-		char charbuf[8];
+		unsigned char charbuf[8];
 		unsigned int charcode;
 	};
 #endif
