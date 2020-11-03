@@ -268,14 +268,12 @@ static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
 		flag &= ~mask;
 	return flag;
 }
-static unsigned int __read_charcode(int fd) {
-	unsigned char c;
-	if (read(fd, &c, 1) <= 0)
+static int __read_charcode(int fd, unsigned char charcode[8]) {
+	int i;
+	int res = read(fd, charcode, 1);
+	if (res <= 0)
 		return 0;
-	if (c != 0x1b)
-		return c;
-	else {
-		int charcode, res;
+	if (0x1b == charcode[0]) {
 		struct pollfd pfd;
 		pfd.fd = fd;
 		pfd.events = POLLIN;
@@ -283,15 +281,53 @@ static unsigned int __read_charcode(int fd) {
 		res = poll(&pfd, 1, 0);
 		if (res < 0)
 			return 0;
-		else if (0 == res)
-			return c;
-		charcode = 0;
-		if (read(fd, &charcode, sizeof(charcode)) <= 0)
-			return 0;
-		charcode <<= 8;
-		charcode |= c;
-		return charcode;
+		else if (res) {
+			res = read(fd, &charcode[1], 7);
+			if (res <= 0)
+				return 0;
+		}
+		res++;
 	}
+	for (i = res; i < 8; ++i)
+		charcode[i] = 0;
+	return res;
+}
+static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
+	if (1 == len) {
+		if (0x1b == charcode[0])
+			return VKEY_ESC;
+		else if (' ' == charcode[0])
+			return VKEY_SPACE;
+		else if ('\t' == charcode[0])
+			return VKEY_TAB;
+		else if ('\n' == charcode[0])
+			return VKEY_ENTER;
+		return 0;
+	}
+	if (3 == len) {
+		do {
+			char buf[] = { 0x1b, 0x5b, 0x41 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_UP;
+		} while (0);
+		do {
+			char buf[] = { 0x1b, 0x5b, 0x42 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_DOWN;
+		} while (0);
+		do {
+			char buf[] = { 0x1b, 0x5b, 0x43 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_RIGHT;
+		} while (0);
+		do {
+			char buf[] = { 0x1b, 0x5b, 0x44 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_LEFT;
+		} while (0);
+		return 0;
+	}
+	return 0;
 }
 #endif
 
@@ -553,12 +589,11 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			continue;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			unsigned int k = __read_charcode(fd);
-			if (0 == k)
+			int len = __read_charcode(fd, e->charbuf);
+			if (len <= 0)
 				continue;
 			e->keydown = 1;
-			e->charcode = k;
-			e->vkeycode = 0;
+			e->vkeycode = __vt_char2vkey(e->charbuf, len);
 			return 1;
 		}
 		for (i = 0; i < ds->nfds; ++i) {
@@ -628,12 +663,11 @@ BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			return 0;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			unsigned int k = __read_charcode(fd);
-			if (0 == k)
+			int len = __read_charcode(fd, e->charbuf);
+			if (len <= 0)
 				return 0;
 			e->keydown = 1;
-			e->charcode = k;
-			e->vkeycode = 0;
+			e->vkeycode = __vt_char2vkey(e->charbuf, len);
 			return 1;
 		}
 		for (i = 0; i < ds->nfds; ++i) {

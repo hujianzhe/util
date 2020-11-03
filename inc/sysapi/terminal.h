@@ -16,8 +16,15 @@
 
 typedef struct DevKeyEvent_t {
 	unsigned char keydown;
-	unsigned int charcode;
 	unsigned int vkeycode;
+#if defined(_WIN32) || defined(_WIN64)
+	unsigned int charcode;
+#else
+	union {
+		char charbuf[8];
+		unsigned int charcode;
+	};
+#endif
 } DevKeyEvent_t;
 
 #ifdef	__cplusplus
