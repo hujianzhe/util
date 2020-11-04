@@ -296,6 +296,8 @@ static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
 	if (1 == len) {
 		if (0x1b == charcode[0])
 			return VKEY_ESC;
+		else if (0x8 == charcode[0])
+			return KEY_BACKSPACE;
 		else if (' ' == charcode[0])
 			return VKEY_SPACE;
 		else if ('\t' == charcode[0])
@@ -589,11 +591,11 @@ BOOL terminalReadKey(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			continue;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			int len = __read_charcode(fd, e->charbuf);
+			int len = __read_charcode(fd, e->__charbuf);
 			if (len <= 0)
 				continue;
 			e->keydown = 1;
-			e->vkeycode = __vt_char2vkey(e->charbuf, len);
+			e->vkeycode = __vt_char2vkey(e->__charbuf, len);
 			return 1;
 		}
 		for (i = 0; i < ds->nfds; ++i) {
@@ -663,11 +665,11 @@ BOOL terminalReadKeyNonBlock(FD_t fd, DevKeyEvent_t* e) {
 		else if (0 == i)
 			return 0;
 		if ((in_pfd->revents & POLLIN) && 1 == i) {
-			int len = __read_charcode(fd, e->charbuf);
+			int len = __read_charcode(fd, e->__charbuf);
 			if (len <= 0)
 				return 0;
 			e->keydown = 1;
-			e->vkeycode = __vt_char2vkey(e->charbuf, len);
+			e->vkeycode = __vt_char2vkey(e->__charbuf, len);
 			return 1;
 		}
 		for (i = 0; i < ds->nfds; ++i) {
