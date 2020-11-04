@@ -293,6 +293,8 @@ static int __read_charcode(int fd, unsigned char charcode[8]) {
 	return res;
 }
 static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
+	if (len < 1)
+		return 0;
 	if (1 == len) {
 		if (0x1b == charcode[0])
 			return VKEY_ESC;
@@ -306,6 +308,8 @@ static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
 			return VKEY_ENTER;
 		return 0;
 	}
+	if (charcode[0] != 0x1b)
+		return 0;
 	if (3 == len) {
 		do {
 			char buf[] = { 0x1b, 0x5b, 0x41 };
@@ -326,6 +330,102 @@ static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
 			char buf[] = { 0x1b, 0x5b, 0x44 };
 			if (!memcmp(charcode, buf, 3))
 				return VKEY_LEFT;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x4f, 0x50 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_F1;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x4f, 0x51 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_F2;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x4f, 0x52 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_F3;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x4f, 0x53 };
+			if (!memcmp(charcode, buf, 3))
+				return VKEY_F4;
+		} while (0);
+		return 0;
+	}
+	if (4 == len) {
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x31, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_HOME;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x32, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_INSERT;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x33, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_DELETE;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x34, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_END;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x35, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_PAGEUP;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x36, 0x7e };
+			if (!memcmp(charcode, buf, 4))
+				return VKEY_PAGEDOWN;
+		} while (0);
+		return 0;
+	}
+	if (5 == len) {
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x31, 0x35, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F5;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x31, 0x37, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F6;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x31, 0x38, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F7;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x31, 0x39, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F8;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x32, 0x30, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F9;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x32, 0x31, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F10;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x32, 0x33, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F11;
+		} while (0);
+		do {
+			char buf[]  = { 0x1b, 0x5b, 0x32, 0x34, 0x7e };
+			if (!memcmp(charcode, buf, 5))
+				return VKEY_F12;
 		} while (0);
 		return 0;
 	}
