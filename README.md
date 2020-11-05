@@ -6,8 +6,7 @@
 		.gitignore					用于git忽略一些无用文件  
 		lib_compile.sh				unix系统编译静态链接库脚本  
 		so_compile.sh				unix系统编译动态链接库脚本  
-		unzip.sh					unix根据文件后缀名自动解压缩脚本  
-		xmake.lua				使用waruqi的xmake编译构建脚本  
+		xmake.lua					使用waruqi的xmake编译构建脚本  
 		inc/  
 			all						自动include所有库内头文件  
 			compiler_define			根据编译器不同,给出统一的关键字,定一缺失类型,必须的预处理语句,频闭不需要的警告等  
