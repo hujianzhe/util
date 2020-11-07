@@ -8,6 +8,7 @@
 #ifdef __cplusplus
 
 #include "cpp_compiler_define.h"
+#include <string.h>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,16 @@ void string_split(const char* str, const char* delim, std::vector<std::string>& 
 	}
 	if (str != p)
 		v.push_back(std::string(p, str - p));
+}
+void string_splits(const char* str, const char* delim, std::vector<std::string>& v) {
+	const char* p;
+	size_t delim_len = strlen(delim);
+	while (p = strstr(str, delim)) {
+		v.push_back(std::string(str, p - str));
+		str = p + delim_len;
+	}
+	if (*str)
+		v.push_back(str);
 }
 }
 
