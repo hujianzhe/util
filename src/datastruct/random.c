@@ -11,10 +11,10 @@ extern "C" {
 /* linear congruential */
 #define	N					16
 #define MASK				((1 << (N - 1)) + (1 << (N - 1)) - 1)
-#define LOW(x)				((unsigned)(x) & MASK)
+#define LOW(x)				((unsigned int)(x) & MASK)
 #define HIGH(x)				LOW((x) >> N)
-#define MUL(x, y, z)		{ int l = (long)(x) * (long)(y); (z)[0] = LOW(l); (z)[1] = HIGH(l); }
-#define CARRY(x, y)			((int)(x) + (long)(y) > MASK)
+#define MUL(x, y, z)		{ int l = (long long)(x) * (long long)(y); (z)[0] = LOW(l); (z)[1] = HIGH(l); }
+#define CARRY(x, y)			((int)(x) + (long long)(y) > MASK)
 #define ADDEQU(x, y, z)		(z = CARRY(x, (y)), x = LOW(x + (y)))
 #define X0					0x330E
 #define X1					0xABCD
