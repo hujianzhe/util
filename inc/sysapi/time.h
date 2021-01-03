@@ -29,6 +29,7 @@ __declspec_dll struct tm* structtmMake(time_t value, struct tm* datetime);
 __declspec_dll struct tm* structtmNormal(struct tm* datetime);
 __declspec_dll struct tm* structtmUnnormal(struct tm* datetime);
 __declspec_dll int structtmCmp(const struct tm* t1, const struct tm* t2);
+__declspec_dll long long clockNanosecond(void);
 
 #ifdef	__cplusplus
 }

@@ -6,6 +6,11 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#if	defined(__APPLE__) || defined(__MACH__)
+#include <mach/clock.h>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -135,6 +140,30 @@ int structtmCmp(const struct tm* t1, const struct tm* t2) {
 		return -1;
 	}
 	return 0;
+}
+
+long long clockNanosecond(void) {
+#if defined(WIN32) || defined(_WIN64)
+	return -1;
+#elif __linux__
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
+		return -1;
+	return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+#elif __FreeBSD__
+	struct timespec ts;
+	if (clock_gettime(CLOCK_UPTIME, &ts) < 0)
+		return -1;
+	return ts.tv_sec * 1000000000LL + ts.tv_nsec;
+#elif defined(__APPLE__) || defined(__MACH__)
+	static mach_timebase_info_data_t s_timebase_info;
+	if (0 == s_timebase_info.denom) {
+		mach_timebase_info(&s_timebase_info);
+	}
+	return mach_absolute_time() * s_timebase_info.numer / s_timebase_info.denom;
+#else
+	return -1;
+#endif
 }
 
 #ifdef	__cplusplus
