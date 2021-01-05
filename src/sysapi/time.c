@@ -144,7 +144,16 @@ int structtmCmp(const struct tm* t1, const struct tm* t2) {
 
 long long clockNanosecond(void) {
 #if defined(WIN32) || defined(_WIN64)
-	return -1;
+	static LARGE_INTEGER s_frep;
+	LARGE_INTEGER counter;
+	if (0 == s_frep.QuadPart) {
+		if (!QueryPerformanceFrequency(&s_frep) || 0 == s_frep.QuadPart) {
+			return -1;
+		}
+	}
+	if (!QueryPerformanceCounter(&counter))
+		return -1;
+	return (double)counter.QuadPart / s_frep.QuadPart * 1000000000;
 #elif __linux__
 	struct timespec ts;
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
@@ -159,6 +168,8 @@ long long clockNanosecond(void) {
 	static mach_timebase_info_data_t s_timebase_info;
 	if (0 == s_timebase_info.denom) {
 		mach_timebase_info(&s_timebase_info);
+		if (0 == s_timebase_info.denom)
+			return -1;
 	}
 	return mach_absolute_time() * s_timebase_info.numer / s_timebase_info.denom;
 #else
