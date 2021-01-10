@@ -7,6 +7,8 @@
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #endif
@@ -75,7 +77,9 @@ BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 		return FALSE;
 	}
 	mm->__handle = handle;
+	return TRUE;
 #else
+	/*
 	int fd = open(name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 	if (-1 == fd) {
 		return FALSE;
@@ -86,8 +90,15 @@ BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 	}
 	mm->__isref = 0;
 	mm->__fd = fd;
+	*/
+	key_t k = ftok(name, 0);
+	if ((key_t)-1 == k) {
+		return FALSE;
+	}
+	mm->__isref = 1;
+	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT);
+	return -1 != mm->__fd;
 #endif
-	return TRUE;
 }
 
 BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name) {
@@ -95,8 +106,17 @@ BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name) {
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return mm->__handle != NULL;
 #else
+	/*
 	mm->__isref = 0;
 	mm->__fd = open(name, O_RDWR);
+	return mm->__fd != -1;
+	*/
+	key_t k = ftok(name, 0);
+	if ((key_t)-1 == k) {
+		return FALSE;
+	}
+	mm->__isref = 1;
+	mm->__fd = shmget(k, 0, 0666);
 	return mm->__fd != -1;
 #endif
 }
@@ -113,7 +133,8 @@ void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size
 #if defined(_WIN32) || defined(_WIN64)
 	return MapViewOfFileEx(mm->__handle, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
 #else
-	return mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->__fd, offset);
+	return shmat(mm->__fd, NULL, 0);
+	//return mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->__fd, offset);
 #endif
 }
 
@@ -125,14 +146,16 @@ BOOL memorySyncMapping(void* addr, size_t nbytes) {
 #endif
 }
 
-BOOL memoryUndoMapping(void* addr, size_t nbytes) {
+BOOL memoryUndoMapping(void* addr) {
 #if defined(_WIN32) || defined(_WIN64)
 	return UnmapViewOfFile(addr);
 #else
-	return munmap(addr, nbytes) == 0;
+	return shmdt(addr) == 0;
+	//return munmap(addr, nbytes) == 0;
 #endif
 }
 
+/*
 BOOL memoryUnlinkMapping(const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
 	return TRUE;
@@ -140,6 +163,7 @@ BOOL memoryUnlinkMapping(const char* name) {
 	return unlink(name) == 0 || ENOENT == errno;
 #endif
 }
+*/
 
 #ifdef	__cplusplus
 }
