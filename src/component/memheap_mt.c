@@ -51,7 +51,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		}
 		if (ok > 1) {
 			memoryCloseMapping(&memheap->mm);
-			memoryUnlinkMapping(strcat(strcpy(name_ext, name), "mem"));
+			//memoryUnlinkMapping(strcat(strcpy(name_ext, name), "mem"));
 		}
 		free(name_ext);
 		return NULL;
@@ -130,7 +130,7 @@ void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 void memheapmtClose(MemHeapMt_t* memheap) {
 	if (memheap->initok) {
 		memheap->initok = 0;
-		memoryUndoMapping(memheap->ptr, memheap->len);
+		memoryUndoMapping(memheap->ptr);
 		memoryCloseMapping(&memheap->mm);
 		semaphoreClose(&memheap->semlock);
 		if (!memheap->is_open) {
@@ -140,8 +140,10 @@ void memheapmtClose(MemHeapMt_t* memheap) {
 			semaphoreUnlink(strcat(memheap->name_ext, "init"));
 			memheap->name_ext[memheap->namelen] = 0;
 			semaphoreUnlink(strcat(memheap->name_ext, "lock"));
+			/*
 			memheap->name_ext[memheap->namelen] = 0;
 			memoryUnlinkMapping(strcat(memheap->name_ext, "mem"));
+			*/
 		}
 		free(memheap->name_ext);
 	}
