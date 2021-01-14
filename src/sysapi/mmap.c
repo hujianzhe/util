@@ -63,7 +63,7 @@ BOOL memoryCreateFileMapping(MemoryMapping_t* mm, FD_t fd) {
 	mm->__handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
 	return mm->__handle != NULL;
 #else
-	mm->__isref = 1;
+	mm->__is_shm = 0;
 	mm->__fd = fd;
 	return TRUE;
 #endif
@@ -79,23 +79,11 @@ BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 	mm->__handle = handle;
 	return TRUE;
 #else
-	/*
-	int fd = open(name, O_CREAT|O_EXCL|O_TRUNC|O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
-	if (-1 == fd) {
-		return FALSE;
-	}
-	if (ftruncate(fd, nbytes)) {
-		assertTRUE(close(fd) == 0);
-		return FALSE;
-	}
-	mm->__isref = 0;
-	mm->__fd = fd;
-	*/
 	key_t k = ftok(name, 0);
 	if ((key_t)-1 == k) {
 		return FALSE;
 	}
-	mm->__isref = 1;
+	mm->__is_shm = 1;
 	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT);
 	return -1 != mm->__fd;
 #endif
@@ -106,16 +94,11 @@ BOOL memoryOpenMapping(MemoryMapping_t* mm, const char* name) {
 	mm->__handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return mm->__handle != NULL;
 #else
-	/*
-	mm->__isref = 0;
-	mm->__fd = open(name, O_RDWR);
-	return mm->__fd != -1;
-	*/
 	key_t k = ftok(name, 0);
 	if ((key_t)-1 == k) {
 		return FALSE;
 	}
-	mm->__isref = 1;
+	mm->__is_shm = 1;
 	mm->__fd = shmget(k, 0, 0666);
 	return mm->__fd != -1;
 #endif
@@ -125,16 +108,36 @@ BOOL memoryCloseMapping(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(mm->__handle);
 #else
-	return mm->__isref || close(mm->__fd) == 0;
+	return TRUE;
 #endif
 }
 
-void* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes) {
+Iobuf_t* memoryDoMapping(MemoryMapping_t* mm, void* va_base, long long offset, size_t nbytes, Iobuf_t* res) {
 #if defined(_WIN32) || defined(_WIN64)
-	return MapViewOfFileEx(mm->__handle, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
+	void* addr = MapViewOfFileEx(mm->__handle, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
+	if (!addr) {
+		return NULL;
+	}
+	iobufPtr(res) = addr;
+	iobufLen(res) = nbytes;
+	return res;
 #else
-	return shmat(mm->__fd, NULL, 0);
-	//return mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->__fd, offset);
+	void* addr;
+	if (mm->__is_shm) {
+		addr = shmat(mm->__fd, va_base, 0);
+		if ((void*)-1 == addr) {
+			return NULL;
+		}
+	}
+	else {
+		addr = mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->__fd, offset);
+		if (MAP_FAILED == addr) {
+			return NULL;
+		}
+	}
+	iobufPtr(res) = addr;
+	iobufLen(res) = nbytes;
+	return res;
 #endif
 }
 
@@ -146,24 +149,18 @@ BOOL memorySyncMapping(void* addr, size_t nbytes) {
 #endif
 }
 
-BOOL memoryUndoMapping(void* addr) {
+BOOL memoryUndoMapping(MemoryMapping_t* mm, const Iobuf_t* buf) {
 #if defined(_WIN32) || defined(_WIN64)
-	return UnmapViewOfFile(addr);
+	return UnmapViewOfFile(iobufPtr(buf));
 #else
-	return shmdt(addr) == 0;
-	//return munmap(addr, nbytes) == 0;
+	if (mm->__is_shm) {
+		return shmdt(iobufPtr(buf)) == 0;
+	}
+	else {
+		return munmap(iobufPtr(buf), iobufLen(buf)) == 0;
+	}
 #endif
 }
-
-/*
-BOOL memoryUnlinkMapping(const char* name) {
-#if defined(_WIN32) || defined(_WIN64)
-	return TRUE;
-#else
-	return unlink(name) == 0 || ENOENT == errno;
-#endif
-}
-*/
 
 #ifdef	__cplusplus
 }
