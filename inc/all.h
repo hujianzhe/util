@@ -7,6 +7,7 @@
 
 #include "compiler_define.h"
 #include "platform_define.h"
+#include "datastruct/arrheap.h"
 #include "datastruct/base64.h"
 #include "datastruct/bstree.h"
 #include "datastruct/graph.h"
