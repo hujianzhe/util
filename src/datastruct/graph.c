@@ -26,7 +26,8 @@ Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v) {
 	return g;
 }
 
-void graphRemoveNode(Graph_t* g, GraphNode_t* v) {
+void graphRemoveNode(Graph_t* g, GraphNode_t* v, List_t* unlink_edgelist) {
+	graphUnlinkNode(v, unlink_edgelist);
 	listRemoveNode(&g->vnodelist, &v->node);
 }
 
@@ -54,10 +55,8 @@ void graphUnlinkEdge(GraphEdge_t* e) {
 	}
 }
 
-List_t graphUnlinkNode(GraphNode_t* v) {
-	List_t free_edgelist;
+void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist) {
 	int i;
-	listInit(&free_edgelist);
 	for (i = 0; i < 2; ++i) {
 		List_t* edgelist = &v->edgelist[i];
 		ListNode_t* cur, *next;
@@ -65,11 +64,10 @@ List_t graphUnlinkNode(GraphNode_t* v) {
 			GraphEdge_t* edge = pod_container_of(cur, GraphEdge_t, edgelistnode[i]);
 			next = cur->next;
 			graphUnlinkEdge(edge);
-			listPushNodeBack(&free_edgelist, &edge->viewnode);
+			listPushNodeBack(unlink_edgelist, &edge->viewnode);
 		}
 		v->degree[i] = 0;
 	}
-	return free_edgelist;
 }
 
 GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v) {
