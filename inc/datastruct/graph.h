@@ -10,16 +10,18 @@
 
 typedef struct Graph_t {
 	List_t vnodelist;
+	int dfs_visit;
 } Graph_t;
 
+struct GraphEdge_t;
 typedef struct GraphNode_t {
 	ListNode_t node;
 	Graph_t* graph;
 	List_t edgelist[2];
 	ptrlen_t degree[2];
 	struct {
-		ListNode_t* last_visit_edgenode;
-		int visited;
+		struct GraphEdge_t* visit_from_edgenode;
+		int dfs_visit;
 	};
 } GraphNode_t;
 
