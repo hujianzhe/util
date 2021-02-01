@@ -32,7 +32,7 @@
 				dynbuf				自动扩容的线性数组  
 				math				一些实用的数学运算接口  
 			datastruct/  
-				rrheap				最小堆,最大堆  
+				arrheap				最小堆,最大堆  
 				base64				提供base64编解码接口  
 				bstree				类型无关的二叉搜索树  
 				hash				提供一些常用的hash算法  
