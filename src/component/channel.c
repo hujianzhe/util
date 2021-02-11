@@ -90,7 +90,8 @@ static void channel_recv_fin_haneler(Channel_t* channel) {
 	if (_xchg32(&channel->m_has_sendfin, 1))
 		return;
 	else {
-		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, channel->on_hdrsize(channel, 0), 0);
+		unsigned int hdrsz = channel->on_hdrsize(channel, 0);
+		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, hdrsz, 0);
 		if (fin_packet) {
 			channelbaseSendPacket(&channel->_, fin_packet);
 		}
@@ -618,6 +619,9 @@ static void on_free(ChannelBase_t* base) {
 	}
 }
 
+static unsigned int on_hdrsize(struct Channel_t* self, unsigned int bodylen) { return 0; }
+static void on_encode(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq) {}
+
 static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;
@@ -679,6 +683,8 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 		streamtransportctxInit(&channel->_.stream_ctx, 0);
 	}
 	channel->m_initseq = 0;
+	channel->on_hdrsize = on_hdrsize;
+	channel->on_encode = on_encode;
 	channel->_.on_exec = on_exec;
 	channel->_.on_read = on_read;
 	channel->_.on_pre_send = on_pre_send;
