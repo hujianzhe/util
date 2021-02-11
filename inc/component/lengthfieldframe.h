@@ -14,6 +14,7 @@ extern "C" {
 __declspec_dll int lengthfieldframeDecode(unsigned short lengthfieldsize,
 		unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen);
 __declspec_dll int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen);
+__declspec_dll int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, unsigned int len);
 
 #ifdef __cplusplus
 }

@@ -54,6 +54,26 @@ int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize,
 	}
 }
 
+int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, unsigned int len) {
+	int decodelen;
+	if (lengthfieldsize > len)
+		return 0;
+
+	switch (lengthfieldsize) {
+		case 2:
+			decodelen = ntohs(*(unsigned short*)buf);
+			break;
+
+		case 4:
+			decodelen = ntohl(*(unsigned int*)buf);
+			break;
+
+		default:
+			return -1;
+	}
+	return decodelen <= len ? decodelen : 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
