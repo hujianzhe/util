@@ -23,6 +23,15 @@ typedef struct DgramHalfConn_t {
 extern "C" {
 #endif
 
+static const ChannelOutbufEncodeParam_t* netpacket2encodeparam(NetPacket_t* pkg, ChannelOutbufEncodeParam_t* param) {
+	param->bodylen = pkg->bodylen;
+	param->hdrlen = pkg->hdrlen;
+	param->pkseq = pkg->seq;
+	param->pktype = pkg->type;
+	param->buf = pkg->buf;
+	return param;
+}
+
 /*******************************************************************************/
 
 static void channel_invalid(ChannelBase_t* base, int detach_error) {
@@ -237,7 +246,8 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				ReactorObject_t* o;
 				unsigned short local_port;
 				Sockaddr_t local_saddr;
-				unsigned int buflen;
+				unsigned int buflen, hdrlen;
+				ChannelOutbufEncodeParam_t encode_param;
 				memcpy(&local_saddr, &channel->_.listen_addr, sockaddrLength(&channel->_.listen_addr));
 				if (!sockaddrSetPort(&local_saddr.st, 0))
 					break;
@@ -253,7 +263,8 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 					break;
 				if (!socketNonBlock(new_sockfd, TRUE))
 					break;
-				buflen = channel->on_hdrsize(channel, sizeof(local_port)) + sizeof(local_port);
+				hdrlen = channel->on_hdrsize(channel, sizeof(local_port));
+				buflen = hdrlen + sizeof(local_port);
 				halfconn = (DgramHalfConn_t*)malloc(sizeof(DgramHalfConn_t) + buflen);
 				if (!halfconn)
 					break;
@@ -266,7 +277,13 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				listPushNodeBack(&channel->_.dgram_ctx.recvlist, &halfconn->node);
 				channel->dgram.m_halfconn_curwaitcnt++;
 				channel_set_timestamp(channel, halfconn->resend_msec);
-				channel->on_encode(channel, halfconn->buf, sizeof(local_port), NETPACKET_SYN_ACK, 0);
+
+				encode_param.bodylen = sizeof(local_port);
+				encode_param.hdrlen = hdrlen;
+				encode_param.pkseq = 0;
+				encode_param.pktype = NETPACKET_SYN_ACK;
+				encode_param.buf = halfconn->buf;
+				channel->on_encode(channel, &encode_param);
 				*(unsigned short*)(halfconn->buf + buflen - sizeof(local_port)) = htons(local_port);
 				socketWrite(o->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr, sockaddrLength(&halfconn->from_addr));
 			} while (0);
@@ -451,14 +468,16 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
 		if (NETPACKET_FIN != packet->_.type) {
+			ChannelOutbufEncodeParam_t encode_param;
 			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
-			channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+			channel->on_encode(channel, netpacket2encodeparam(&packet->_, &encode_param));
 		}
 		return 1;
 	}
 	else {
+		ChannelOutbufEncodeParam_t encode_param;
 		packet->_.seq = dgramtransportctxNextSendSeq(&channel->_.dgram_ctx, packet->_.type);
-		channel->on_encode(channel, packet->_.buf, packet->_.bodylen, packet->_.type, packet->_.seq);
+		channel->on_encode(channel, netpacket2encodeparam(&packet->_, &encode_param));
 		if (dgramtransportctxCacheSendPacket(&channel->_.dgram_ctx, &packet->_)) {
 			if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_))
 				return 0;
@@ -620,7 +639,7 @@ static void on_free(ChannelBase_t* base) {
 }
 
 static unsigned int on_hdrsize(struct Channel_t* self, unsigned int bodylen) { return 0; }
-static void on_encode(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq) {}
+static void on_encode(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param) {}
 
 static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;

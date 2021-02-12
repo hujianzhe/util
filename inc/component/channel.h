@@ -19,6 +19,14 @@ typedef struct ChannelInbufDecodeResult_t {
 	void* userdata;
 } ChannelInbufDecodeResult_t;
 
+typedef struct ChannelOutbufEncodeParam_t {
+	char pktype;
+	unsigned int pkseq;
+	unsigned int hdrlen;
+	unsigned int bodylen;
+	unsigned char* buf;
+} ChannelOutbufEncodeParam_t;
+
 typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
@@ -48,7 +56,7 @@ typedef struct Channel_t {
 	void(*on_recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
 	int(*on_heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
-	void(*on_encode)(struct Channel_t* self, unsigned char* hdr, unsigned int bodylen, unsigned char pktype, unsigned int pkseq);
+	void(*on_encode)(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param);
 /* private */
 	long long m_heartbeat_msec;
 	unsigned int m_initseq;
