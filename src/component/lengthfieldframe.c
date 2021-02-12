@@ -56,7 +56,7 @@ int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize,
 
 int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, unsigned int len) {
 	int decodelen;
-	if (lengthfieldsize > len)
+	if (len < lengthfieldsize)
 		return 0;
 
 	switch (lengthfieldsize) {
@@ -70,6 +70,9 @@ int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, 
 
 		default:
 			return -1;
+	}
+	if (decodelen < lengthfieldsize) {
+		return -1;
 	}
 	return decodelen <= len ? decodelen : 0;
 }
