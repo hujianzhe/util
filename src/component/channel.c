@@ -649,10 +649,13 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
 		unsigned int shardsz = channel->_.write_fragment_size;
-		shardsz -= channel->on_hdrsize(channel, shardsz);
+		unsigned int hdrsz = channel->on_hdrsize(channel, shardsz);
+		if (shardsz <= hdrsz)
+			return packetlist;
+		shardsz -= hdrsz;
 		packet = NULL;
 		while (off < nbytes) {
-			unsigned int hdrsz, memsz = nbytes - off;
+			unsigned int memsz = nbytes - off;
 			if (memsz > shardsz)
 				memsz = shardsz;
 			hdrsz = channel->on_hdrsize(channel, memsz);
