@@ -90,7 +90,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static void channel_recv_fin_haneler(Channel_t* channel) {
+static void channel_recv_fin_handler(Channel_t* channel) {
 	if (channel->_.has_recvfin)
 		return;
 	channel->_.has_recvfin = 1;
@@ -115,7 +115,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
-		channel_recv_fin_haneler(channel);
+		channel_recv_fin_handler(channel);
 	}
 	else if (packetlist->head == packetlist->tail) {
 		decode_result->bodyptr = packet->_.buf;
@@ -166,6 +166,9 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				continue;
 			}
 		}
+		else if (NETPACKET_FIN == pktype) {
+			continue;
+		}
 		else {
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
@@ -187,9 +190,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 							return -1;
 					}
 				}
+				/*
 				else if (NETPACKET_FIN == pktype) {
-					channel_recv_fin_haneler(channel);
+					channel_recv_fin_handler(channel);
 				}
+				*/
 				else {
 					channel->on_recv(channel, &channel->_.to_addr, &decode_result);
 				}
@@ -756,9 +761,10 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 				no_ack = (pktype != NETPACKET_FRAGMENT && pktype != NETPACKET_FRAGMENT_EOF);
 			else
 				no_ack = 1;
+			pktype = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
 			for (cur = pklist.head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
+				packet->_.type = pktype;
 			}
 			if (packet)
 				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF);
