@@ -473,16 +473,22 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	if (CHANNEL_FLAG_STREAM & channel->_.flag) {
 		if (NETPACKET_FIN != packet->_.type) {
-			ChannelOutbufEncodeParam_t encode_param;
 			packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
-			channel->on_encode(channel, netpacket2encodeparam(&packet->_, &encode_param));
+			if (channel->on_encode) {
+				ChannelOutbufEncodeParam_t encode_param;
+				netpacket2encodeparam(&packet->_, &encode_param);
+				channel->on_encode(channel, &encode_param);
+			}
 		}
 		return 1;
 	}
 	else {
-		ChannelOutbufEncodeParam_t encode_param;
 		packet->_.seq = dgramtransportctxNextSendSeq(&channel->_.dgram_ctx, packet->_.type);
-		channel->on_encode(channel, netpacket2encodeparam(&packet->_, &encode_param));
+		if (channel->on_encode) {
+			ChannelOutbufEncodeParam_t encode_param;
+			netpacket2encodeparam(&packet->_, &encode_param);
+			channel->on_encode(channel, &encode_param);
+		}
 		if (dgramtransportctxCacheSendPacket(&channel->_.dgram_ctx, &packet->_)) {
 			if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_))
 				return 0;
@@ -644,7 +650,6 @@ static void on_free(ChannelBase_t* base) {
 }
 
 static unsigned int on_hdrsize(struct Channel_t* self, unsigned int bodylen) { return 0; }
-static void on_encode(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param) {}
 
 static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
@@ -711,7 +716,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 	}
 	channel->m_initseq = 0;
 	channel->on_hdrsize = on_hdrsize;
-	channel->on_encode = on_encode;
 	channel->_.on_exec = on_exec;
 	channel->_.on_read = on_read;
 	channel->_.on_pre_send = on_pre_send;
