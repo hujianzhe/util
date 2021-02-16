@@ -90,20 +90,22 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static void channel_recv_fin_handler(Channel_t* channel) {
+static int channel_recv_fin_handler(Channel_t* channel) {
 	if (channel->_.has_recvfin)
-		return;
+		return 1;
 	channel->_.has_recvfin = 1;
 	if (channel->_.has_sendfin)
-		return;
+		return 1;
 	if (_xchg32(&channel->m_has_sendfin, 1))
-		return;
+		return 1;
 	else {
 		unsigned int hdrsz = channel->on_hdrsize(channel, 0);
 		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, hdrsz, 0);
-		if (fin_packet) {
-			channelbaseSendPacket(&channel->_, fin_packet);
+		if (!fin_packet) {
+			return 0;
 		}
+		channelbaseSendPacket(&channel->_, fin_packet);
+		return 1;
 	}
 }
 
@@ -115,7 +117,7 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
-		channel_recv_fin_handler(channel);
+		return channel_recv_fin_handler(channel);
 	}
 	else if (packetlist->head == packetlist->tail) {
 		decode_result->bodyptr = packet->_.buf;
