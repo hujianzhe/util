@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-__declspec_dll int endianIsLittle(void);
 __declspec_dll size_t processorCount(void);
 __declspec_dll char* systemCurrentLoginUsername(char* buffer, size_t nbytes);
 __declspec_dll char* systemHostname(char* buf, size_t len);

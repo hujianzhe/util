@@ -9,11 +9,6 @@
 extern "C" {
 #endif
 
-int endianIsLittle(void) {
-	unsigned short v = 0x0001;
-	return *((unsigned char*)&v);
-}
-
 size_t processorCount(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;

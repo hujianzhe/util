@@ -8,6 +8,53 @@
 extern "C" {
 #endif
 
+int byteorderIsLE(void) {
+	unsigned short v = 0x0001;
+	return *((unsigned char*)&v);
+}
+
+unsigned short memBE16(unsigned short v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned short memLE16(unsigned short v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned int memBE32(unsigned int v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned int memLE32(unsigned int v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned long long memBE64(unsigned long long v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned long long memLE64(unsigned long long v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
 void memSwap(void* p1, void* p2, ptrlen_t n) {
 	unsigned char* _p1 = (unsigned char*)p1;
 	unsigned char* _p2 = (unsigned char*)p2;
