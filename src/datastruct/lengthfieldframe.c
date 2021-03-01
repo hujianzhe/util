@@ -2,8 +2,8 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#include "../../inc/sysapi/socket.h"
-#include "../../inc/component/lengthfieldframe.h"
+#include "../../inc/datastruct/lengthfieldframe.h"
+#include "../../inc/datastruct/memfunc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,11 +17,11 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 
 	switch (lengthfieldsize) {
 		case 2:
-			*datalen = ntohs(*(unsigned short*)buf);
+			*datalen = memFromBE16(*(unsigned short*)buf);
 			break;
 
 		case 4:
-			*datalen = ntohl(*(unsigned int*)buf);
+			*datalen = memFromBE32(*(unsigned int*)buf);
 			break;
 
 		default:
@@ -33,7 +33,7 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 	if (*datalen)
 		*data = buf + lengthfieldsize;
 	else
-		*data = NULL;
+		*data = (unsigned char*)0;
 	return lengthfieldsize + *datalen;
 }
 
@@ -42,11 +42,11 @@ int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize,
 		case 2:
 			if (datalen > 0xffff)
 				return 0;
-			*(unsigned short*)lengthfieldbuf = htons(datalen);
+			*(unsigned short*)lengthfieldbuf = memToBE16(datalen);
 			return 1;
 
 		case 4:
-			*(unsigned int*)lengthfieldbuf = htonl(datalen);
+			*(unsigned int*)lengthfieldbuf = memToBE32(datalen);
 			return 1;
 
 		default:
@@ -61,11 +61,11 @@ int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, 
 
 	switch (lengthfieldsize) {
 		case 2:
-			decodelen = ntohs(*(unsigned short*)buf);
+			decodelen = memFromBE16(*(unsigned short*)buf);
 			break;
 
 		case 4:
-			decodelen = ntohl(*(unsigned int*)buf);
+			decodelen = memFromBE32(*(unsigned int*)buf);
 			break;
 
 		default:

@@ -2,8 +2,8 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#ifndef	UTIL_C_COMPONENT_LENGTHFIELDFRAME_H
-#define	UTIL_C_COMPONENT_LENGTHFIELDFRAME_H
+#ifndef	UTIL_C_DATASTRUCT_LENGTHFIELDFRAME_H
+#define	UTIL_C_DATASTRUCT_LENGTHFIELDFRAME_H
 
 #include "../compiler_define.h"
 

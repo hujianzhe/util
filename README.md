@@ -17,7 +17,6 @@
 				dataqueue			用于线程间通信的消息队列  
 				db					用于与数据库交互的通用接口,屏蔽了不同数据库的CRUD接口,目前内部实现只支持MYSQL  
 				httpframe			用于解析与组装HTTP协议报文  
-				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
@@ -38,6 +37,7 @@
 				hash				提供一些常用的hash算法  
 				hashtable			类型无关的哈希表  
 				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
+				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				list				类型无关的双向链表,顺带支持栈/队列的PUSH/POP操作  
 				md5					MD5编码生成  
 				memheap				简单内存堆分配与释放  
