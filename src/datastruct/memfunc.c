@@ -13,84 +13,84 @@ int byteorderIsLE(void) {
 	return *((unsigned char*)&v);
 }
 
-unsigned short memBE16(unsigned short v) {
+unsigned short memToBE16(unsigned short v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned short memLE16(unsigned short v) {
+unsigned short memToLE16(unsigned short v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned short BE16toNative(unsigned short v) {
+unsigned short memFromBE16(unsigned short v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned short LE16toNative(unsigned short v) {
+unsigned short memFromLE16(unsigned short v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned int memBE32(unsigned int v) {
+unsigned int memToBE32(unsigned int v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned int memLE32(unsigned int v) {
+unsigned int memToLE32(unsigned int v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned int BE32toNative(unsigned int v) {
+unsigned int memFromBE32(unsigned int v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned int LE32toNative(unsigned int v) {
+unsigned int memFromLE32(unsigned int v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned long long memBE64(unsigned long long v) {
+unsigned long long memToBE64(unsigned long long v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned long long memLE64(unsigned long long v) {
+unsigned long long memToLE64(unsigned long long v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned long long BE64toNative(unsigned long long v) {
+unsigned long long memFromBE64(unsigned long long v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
 	return v;
 }
 
-unsigned long long LE64toNative(unsigned long long v) {
+unsigned long long memFromLE64(unsigned long long v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}

@@ -12,18 +12,18 @@ extern "C" {
 #endif
 
 __declspec_dll int byteorderIsLE(void);
-__declspec_dll unsigned short memBE16(unsigned short v);
-__declspec_dll unsigned short memLE16(unsigned short v);
-__declspec_dll unsigned short BE16toNative(unsigned short v);
-__declspec_dll unsigned short LE16toNative(unsigned short v);
-__declspec_dll unsigned int memBE32(unsigned int v);
-__declspec_dll unsigned int memLE32(unsigned int v);
-__declspec_dll unsigned int BE32toNative(unsigned int v);
-__declspec_dll unsigned int LE32toNative(unsigned int v);
-__declspec_dll unsigned long long memBE64(unsigned long long v);
-__declspec_dll unsigned long long memLE64(unsigned long long v);
-__declspec_dll unsigned long long BE64toNative(unsigned long long v);
-__declspec_dll unsigned long long LE64toNative(unsigned long long v);
+__declspec_dll unsigned short memToBE16(unsigned short v);
+__declspec_dll unsigned short memToLE16(unsigned short v);
+__declspec_dll unsigned short memFromBE16(unsigned short v);
+__declspec_dll unsigned short memFromLE16(unsigned short v);
+__declspec_dll unsigned int memToBE32(unsigned int v);
+__declspec_dll unsigned int memToLE32(unsigned int v);
+__declspec_dll unsigned int memFromBE32(unsigned int v);
+__declspec_dll unsigned int memFromLE32(unsigned int v);
+__declspec_dll unsigned long long memToBE64(unsigned long long v);
+__declspec_dll unsigned long long memToLE64(unsigned long long v);
+__declspec_dll unsigned long long memFromBE64(unsigned long long v);
+__declspec_dll unsigned long long memFromLE64(unsigned long long v);
 
 __declspec_dll void memSwap(void* p1, void* p2, ptrlen_t n);
 __declspec_dll void* memCopy(void* dst, const void* src, ptrlen_t n);
