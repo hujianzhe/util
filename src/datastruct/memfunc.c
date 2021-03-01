@@ -27,6 +27,20 @@ unsigned short memLE16(unsigned short v) {
 	return v;
 }
 
+unsigned short BE16toNative(unsigned short v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned short LE16toNative(unsigned short v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
 unsigned int memBE32(unsigned int v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
@@ -41,6 +55,20 @@ unsigned int memLE32(unsigned int v) {
 	return v;
 }
 
+unsigned int BE32toNative(unsigned int v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned int LE32toNative(unsigned int v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
 unsigned long long memBE64(unsigned long long v) {
 	if (byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
@@ -49,6 +77,20 @@ unsigned long long memBE64(unsigned long long v) {
 }
 
 unsigned long long memLE64(unsigned long long v) {
+	if (!byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned long long BE64toNative(unsigned long long v) {
+	if (byteorderIsLE()) {
+		memReverse(&v, sizeof(v));
+	}
+	return v;
+}
+
+unsigned long long LE64toNative(unsigned long long v) {
 	if (!byteorderIsLE()) {
 		memReverse(&v, sizeof(v));
 	}
