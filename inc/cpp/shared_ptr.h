@@ -25,7 +25,10 @@ public:
 	sp_refcnt(void) : m_share_refcnt (1), m_weak_refcnt(1) {}
 	virtual ~sp_refcnt(void) {}
 
-	int incr_share(int v) { return _xadd32(&m_share_refcnt, v); }
+	void incr_share(int v) {
+		_xadd32(&m_share_refcnt, v);
+		_xadd32(&m_weak_refcnt, v);
+	}
 	int incr_weak(int v) { return _xadd32(&m_weak_refcnt, v); }
 	int count_share(void) { return m_share_refcnt; }
 	bool lock(void) {
@@ -39,7 +42,7 @@ public:
 	}
 
 	static void sp_release(sp_refcnt* refcnt) {
-		if (refcnt->incr_share(-1) > 1)
+		if (_xadd32(&refcnt->m_share_refcnt, -1) > 1)
 			return;
 		refcnt->destroy();
 		if (refcnt->incr_weak(-1) <= 1)
@@ -47,10 +50,9 @@ public:
 	}
 
 	static void wp_release(sp_refcnt* refcnt) {
-		if (refcnt->incr_weak(-1) > 1)
-			return;
-		if (refcnt->incr_share(0) < 1)
+		if (refcnt->incr_weak(-1) <= 1) {
 			delete refcnt;
+		}
 	}
 
 private:
