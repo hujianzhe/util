@@ -50,6 +50,7 @@
 #include "component/httpframe.h"
 #include "component/log.h"
 #include "component/memheap_mt.h"
+#include "component/memref.h"
 #include "component/rbtimer.h"
 #include "component/reactor.h"
 #include "component/rpc_core.h"

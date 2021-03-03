@@ -18,7 +18,7 @@ extern "C" {
 
 struct MemRef_t* memrefCreate(void* p) {
 	if (p) {
-		MemRef_t* ref = (struct MemRef_t*)malloc(sizeof(struct MemRef_t));
+		struct MemRef_t* ref = (struct MemRef_t*)malloc(sizeof(struct MemRef_t));
 		if (!ref) {
 			return NULL;
 		}
@@ -43,7 +43,7 @@ void* memrefDecrStrong(struct MemRef_t** p_ref) {
 	struct MemRef_t* ref = *p_ref;
 	if (ref) {
 		void* p;
-		Atom32 sp_cnt = _xadd32(&ref->sp_cnt, -1);
+		Atom32_t sp_cnt = _xadd32(&ref->sp_cnt, -1);
 		if (sp_cnt <= 1) {
 			p = ref->p;
 			ref->p = NULL;
@@ -63,7 +63,7 @@ void* memrefLock(struct MemRef_t* ref) {
 	if (!ref || !ref->p) {
 		return NULL;
 	}
-	while (true) {
+	while (1) {
 		Atom32_t tmp = _xadd32(&ref->sp_cnt, 0);
 		if (tmp < 1) {
 			return NULL;

@@ -14,7 +14,7 @@ extern "C" {
 __declspec_dll struct MemRef_t* memrefCreate(void* p);
 
 __declspec_dll void* memrefIncrStrong(struct MemRef_t* ref);
-__declspec_dll int memrefDecrStrong(struct MemRef_t** p_ref);
+__declspec_dll void* memrefDecrStrong(struct MemRef_t** p_ref);
 
 __declspec_dll void* memrefLock(struct MemRef_t* ref);
 __declspec_dll struct MemRef_t* memrefIncrWeak(struct MemRef_t* ref);
