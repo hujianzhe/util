@@ -36,8 +36,10 @@ public:
 			Atom32_t tmp = _xadd32(&m_share_refcnt, 0);
 			if (tmp < 1)
 				return false;
-			if (_cmpxchg32(&m_share_refcnt, tmp + 1, tmp) == tmp)
+			if (_cmpxchg32(&m_share_refcnt, tmp + 1, tmp) == tmp) {
+				_xadd32(&m_weak_refcnt, 1);
 				return true;
+			}
 		}
 	}
 
