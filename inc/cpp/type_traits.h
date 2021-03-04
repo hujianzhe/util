@@ -8,6 +8,7 @@
 #ifdef	__cplusplus
 #include "cpp_compiler_define.h"
 namespace util {
+// is_same
 template <typename T, typename U>
 struct is_same {
 	enum { value = false };
@@ -16,7 +17,7 @@ template <typename T>
 struct is_same<T, T> {
 	enum { value = true };
 };
-
+// is_array
 template <typename T>
 struct is_array {
 	enum { value = false };
@@ -29,7 +30,7 @@ template <typename T, size_t N>
 struct is_array<T[N]> {
 	enum { value = true };
 };
-
+// is_void
 template <typename T>
 struct is_void {
 	enum { value = false };
@@ -38,7 +39,7 @@ template <>
 struct is_void<void> {
 	enum { value = true };
 };
-
+// is_pointer
 template <typename T>
 struct is_pointer {
 	enum { value = false };
@@ -59,7 +60,7 @@ template <>
 struct is_pointer<void> {
 	enum { value = false };
 };
-
+// is class
 template <typename T>
 struct is_class {
 private:
@@ -69,7 +70,7 @@ private:
 public:
 	enum { value = (sizeof(test<T>(0)) == sizeof(char)) };
 };
-
+// is_base_of
 template <typename T, bool isClass = is_class<T>::value> struct is_inherit_impl;
 template <typename T>
 struct is_inherit_impl <T, true> {
