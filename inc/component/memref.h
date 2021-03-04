@@ -7,6 +7,8 @@
 
 #include "../../inc/platform_define.h"
 
+struct MemRef_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
