@@ -49,11 +49,11 @@ typedef struct Channel_t {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
 		};
-		void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const void* to_saddr);
+		void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const struct sockaddr* to_saddr);
 	} dgram;
 	/* interface */
 	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(struct Channel_t* self, const void* from_saddr, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(struct Channel_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
 	int(*on_heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*on_encode)(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param);
@@ -68,7 +68,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int extra_sz, const void* saddr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int extra_sz, const struct sockaddr* addr);
 __declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
 __declspec_dll List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);

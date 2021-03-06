@@ -487,9 +487,8 @@ int ipstrFamily(const char* ip) {
 	return AF_UNSPEC;
 }
 
-int sockaddrLength(const void* saddr_) {
+int sockaddrLength(const struct sockaddr* saddr) {
 	int socklen;
-	const struct sockaddr* saddr = (const struct sockaddr*)saddr_;
 	if (saddr) {
 		if (AF_INET == saddr->sa_family)
 			socklen = sizeof(struct sockaddr_in);
@@ -511,8 +510,8 @@ int sockaddrLength(const void* saddr_) {
 		return 0;
 }
 
-int sockaddrIsEqual(const void* one, const void* two) {
-	const struct sockaddr* addr[2] = { (const struct sockaddr*)one, (const struct sockaddr*)two };
+int sockaddrIsEqual(const struct sockaddr* one, const struct sockaddr* two) {
+	const struct sockaddr* addr[2] = { one, two };
 	if (addr[0]->sa_family != addr[1]->sa_family)
 		return 0;
 	else {
@@ -525,11 +524,11 @@ int sockaddrIsEqual(const void* one, const void* two) {
 	}
 }
 
-BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, unsigned short port) {
+BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port) {
 	/* win32 must zero this structure, otherwise report 10049 error. */
-	memset(saddr, 0, sizeof(*saddr));
 	if (af == AF_INET) {/* IPv4 */
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
+		memset(addr_in, 0, sizeof(*addr_in));
 #if defined(__FreeBSD__) || defined(__APPLE__)
 		addr_in->sin_len = sizeof(*addr_in);
 #endif
@@ -548,6 +547,7 @@ BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, u
 	}
 	else if (af == AF_INET6) {
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
+		memset(addr_in6, 0, sizeof(*addr_in6));
 #if defined(__FreeBSD__) || defined(__APPLE__)
 		addr_in6->sin6_len = sizeof(*addr_in6);
 #endif
@@ -569,9 +569,9 @@ BOOL sockaddrEncode(struct sockaddr_storage* saddr, int af, const char* strIP, u
 	return FALSE;
 }
 
-BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned short* port) {
+BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, unsigned short* port) {
 	unsigned long len;
-	if (saddr->ss_family == AF_INET) {
+	if (saddr->sa_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
 		if (port)
 			*port = ntohs(addr_in->sin_port);
@@ -592,7 +592,7 @@ BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned 
 		}
 		return TRUE;
 	}
-	else if (saddr->ss_family == AF_INET6) {
+	else if (saddr->sa_family == AF_INET6) {
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
 		if (port)
 			*port = ntohs(addr_in6->sin6_port);
@@ -622,12 +622,12 @@ BOOL sockaddrDecode(const struct sockaddr_storage* saddr, char* strIP, unsigned 
 	return FALSE;
 }
 
-BOOL sockaddrSetPort(struct sockaddr_storage* saddr, unsigned short port) {
-	if (saddr->ss_family == AF_INET) {
+BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port) {
+	if (saddr->sa_family == AF_INET) {
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
 		addr_in->sin_port = htons(port);
 	}
-	else if (saddr->ss_family == AF_INET6) {
+	else if (saddr->sa_family == AF_INET6) {
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
 		addr_in6->sin6_port = htons(port);
 	}
@@ -796,13 +796,13 @@ BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
 	return TRUE;
 }
 
-FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
+FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from) {
 	FD_t confd = INVALID_SOCKET;
 	socklen_t slen = sizeof(*from);
 	socklen_t* p_slen = from ? &slen : NULL;
 	if (msec < 0) {
 		do {
-			confd = accept(listenfd, (struct sockaddr*)from, p_slen);
+			confd = accept(listenfd, from, p_slen);
 		} while (confd == INVALID_SOCKET &&
 				(__GetErrorCode() == SOCKET_ERROR_VALUE(ECONNABORTED) ||
 				 errno == EPROTO || errno == EINTR));
@@ -824,7 +824,7 @@ FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr_storage* from) {
 			if (!socketNonBlock(listenfd, 1)) {
 				break;
 			}
-			confd = accept(listenfd, (struct sockaddr*)from, p_slen);
+			confd = accept(listenfd, from, p_slen);
 		} while (0);
 	}
 	return confd;
@@ -914,7 +914,7 @@ int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct so
 	*/
 }
 
-int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const void* to, int tolen) {
+int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen) {
 	Iobuf_t iov;
 	if (tolen < 0) {
 		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
@@ -954,10 +954,10 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif	
 }
 
-int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const void* to, int tolen) {
+int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
-	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, (const struct sockaddr*)to, tolen, NULL, NULL) ? -1 : realbytes;
+	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
 #else
 	struct msghdr msghdr = {0};
 	msghdr.msg_name = (struct sockaddr*)to;

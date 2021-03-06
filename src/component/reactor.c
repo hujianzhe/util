@@ -173,7 +173,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 			return 0;
 	}
 	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, opcode, o->m_readol, &saddr.sa, sockaddrLength(&saddr)))
+	if (!nioCommit(&reactor->m_nio, o->fd, opcode, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa)))
 		return 0;
 	o->m_readol_has_commit = 1;
 	return 1;
@@ -192,7 +192,7 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol, &saddr.sa, sockaddrLength(&saddr)))
+	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol, &saddr.sa, sockaddrLength(&saddr.sa)))
 		return 0;
 	o->m_writeol_has_commit = 1;
 	return 1;
@@ -206,7 +206,7 @@ static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o)
 			return 0;
 	}
 	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
-		&o->stream.m_connect_addr.sa, sockaddrLength(&o->stream.m_connect_addr)))
+		&o->stream.m_connect_addr.sa, sockaddrLength(&o->stream.m_connect_addr.sa)))
 	{
 		return 0;
 	}
@@ -245,9 +245,9 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 			return 0;
 		if (!bval) {
 			Sockaddr_t local_addr;
-			if (!sockaddrEncode(&local_addr.st, o->domain, NULL, 0))
+			if (!sockaddrEncode(&local_addr.sa, o->domain, NULL, 0))
 				return 0;
-			if (!socketBindAddr(o->fd, &local_addr.sa, sockaddrLength(&local_addr)))
+			if (!socketBindAddr(o->fd, &local_addr.sa, sockaddrLength(&local_addr.sa)))
 				return 0;
 		}
 		if (!reactorobject_request_read(reactor, o))
@@ -429,7 +429,7 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 		connfd != INVALID_FD_HANDLE;
 		connfd = nioAcceptNext(o->fd, &saddr.st))
 	{
-		channel->on_ack_halfconn(channel, connfd, &saddr, timestamp_msec);
+		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
 	}
 }
 
@@ -477,7 +477,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			}
 			o->m_inbuflen += res;
 			o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr);
+			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr.sa);
 			if (!after_call_channel_interface(channel) || res < 0) {
 				o->m_valid = 0;
 				o->detach_error = REACTOR_ONREAD_ERR;
@@ -527,7 +527,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 			ptr[res] = 0; /* convienent for text data */
 			allChannelDoAction(o, ChannelBase_t* channel,
 				int disable_send = channel->disable_send;
-				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr);
+				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
 				if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
 					channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 				}
@@ -548,13 +548,13 @@ static void reactor_stream_client_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmd
 	if (!reconnect_o) {
 		return;
 	}
-	sockaddrlen = sockaddrLength(&cmdex->toaddr);
+	sockaddrlen = sockaddrLength(&cmdex->toaddr.sa);
 	if (sockaddrlen > 0) {
 		memcpy(&src_channel->to_addr, &cmdex->toaddr, sockaddrlen);
 		memcpy(&reconnect_o->stream.m_connect_addr, &cmdex->toaddr, sockaddrlen);
 	}
 	else {
-		sockaddrlen = sockaddrLength(&src_channel->to_addr);
+		sockaddrlen = sockaddrLength(&src_channel->to_addr.sa);
 		memcpy(&reconnect_o->stream.m_connect_addr, &src_channel->to_addr, sockaddrlen);
 	}
 	_xchg8(&reconnect_o->m_reghaspost, 1);
@@ -583,7 +583,7 @@ static void reactor_stream_client_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmd
 
 static void reactor_dgram_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmdex, long long timestamp_msec) {
 	ChannelBase_t* channel = cmdex->channel;
-	int sockaddrlen = sockaddrLength(&cmdex->toaddr);
+	int sockaddrlen = sockaddrLength(&cmdex->toaddr.sa);
 	if (sockaddrlen > 0) {
 		memcpy(&channel->to_addr, &cmdex->toaddr, sockaddrlen);
 	}
@@ -694,7 +694,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 			return;
 		}
 		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-			&channel->to_addr, sockaddrLength(&channel->to_addr));
+			&channel->to_addr.sa, sockaddrLength(&channel->to_addr.sa));
 		if (packet->_.cached)
 			return;
 	}
@@ -1153,7 +1153,7 @@ void reactorpacketFreeList(List_t* pkglist) {
 	}
 }
 
-ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const void* to_addr) {
+ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const struct sockaddr* to_addr) {
 	ReuseCmd_t* cmd;
 	int sockaddrlen;
 	if ((channel->flag & CHANNEL_FLAG_SERVER) &&
@@ -1187,7 +1187,7 @@ ReactorCmd_t* reactorNewReuseFinishCmd(ChannelBase_t* src_channel, ReactorPacket
 	return NULL;
 }
 
-ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr) {
+ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr) {
 	ChannelBase_t* channel;
 	int sockaddrlen;
 	if (SOCK_STREAM == o->socktype) {

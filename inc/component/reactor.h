@@ -128,12 +128,12 @@ typedef struct ChannelBase_t {
 	unsigned int readcache_max_size;
 
 	union {
-		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const void* peer_addr, long long ts_msec); /* listener use */
+		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
 		void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
 	};
 	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec);
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec);
-	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const void* from_addr);
+	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr);
 	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
 	void(*on_detach)(struct ChannelBase_t* self);
 	void(*on_free)(struct ChannelBase_t* self);
@@ -158,7 +158,7 @@ __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
-__declspec_dll ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const void* to_addr);
+__declspec_dll ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const struct sockaddr* to_addr);
 __declspec_dll ReactorCmd_t* reactorNewReuseFinishCmd(ChannelBase_t* src_channel, ReactorPacket_t* retpkg);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
@@ -167,7 +167,7 @@ __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrle
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 __declspec_dll void reactorpacketFreeList(List_t* pkglist);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const void* addr);
+__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr);
 __declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
 __declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
 
