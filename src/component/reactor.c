@@ -880,11 +880,9 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	}
 	else if (REACTOR_CHANNEL_FREE_CMD == cmdnode->type) {
 		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, freecmd);
-		if (_xadd32(&channel->refcnt, -1) > 1)
-			return;
+		reactor = channel->reactor;
 		if (channel->on_free)
 			channel->on_free(channel);
-		reactor = channel->reactor;
 	}
 	else if (REACTOR_REUSE_CMD == cmdnode->type) {
 		ReuseCmd_t* cmd = pod_container_of(cmdnode, ReuseCmd_t, _);
@@ -1215,7 +1213,6 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 		return NULL;
 	channel->flag = flag;
 	channel->o = o;
-	channel->refcnt = 1;
 	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	if (flag & CHANNEL_FLAG_STREAM) {
 		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);

@@ -5,7 +5,6 @@
 #ifndef	UTIL_C_COMPONENT_REACTOR_H
 #define	UTIL_C_COMPONENT_REACTOR_H
 
-#include "../sysapi/atomic.h"
 #include "../sysapi/io.h"
 #include "../sysapi/ipc.h"
 #include "../sysapi/process.h"
@@ -96,10 +95,11 @@ typedef struct ReactorObject_t {
 } ReactorObject_t;
 
 struct ReactorPacket_t;
+struct MemRef_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	Atom32_t refcnt;
+	struct MemRef_t* memref;
 	ReactorObject_t* o;
 	Reactor_t* reactor;
 	Sockaddr_t to_addr;

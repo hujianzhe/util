@@ -6,6 +6,7 @@
 #define	UTIL_C_COMPONENT_CHANNEL_H
 
 #include "../component/reactor.h"
+#include "../sysapi/atomic.h"
 
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
