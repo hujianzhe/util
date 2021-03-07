@@ -30,13 +30,12 @@ struct MemRef_t* memrefCreate(void* p) {
 	return NULL;
 }
 
-void* memrefIncrStrong(struct MemRef_t* ref) {
+struct MemRef_t* memrefIncrStrong(struct MemRef_t* ref) {
 	if (ref) {
 		_xadd32(&ref->sp_cnt, 1);
 		_xadd32(&ref->wp_cnt, 1);
-		return ref->p;
 	}
-	return NULL;
+	return ref;
 }
 
 void* memrefDecrStrong(struct MemRef_t** p_ref) {
