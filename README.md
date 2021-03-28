@@ -65,6 +65,7 @@
 				time				提供统一的线程安全的时间接口  
 			cpp/  
 				array				给98标准的编译器提供std::array  
+				astar				基于格子和邻接点的A*寻路算法  
 				cpp_compiler_define	判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
 				exception			包含文件名称,行号,出错语句的异常  
 				lexical_cast		简陋但可用的通用类型转换接口  
