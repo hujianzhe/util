@@ -2,9 +2,12 @@
 // Created by hujianzhe on 20-11-9.
 //
 
+#ifdef	__cplusplus
+
 #include "astar.h"
 #include <algorithm>
 
+namespace util {
 AStarBase::Walkable AStarBase::def_walkable;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -284,3 +287,6 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 	idlist.splice(idlist.end(), templist);
 	return true;
 }
+}
+
+#endif

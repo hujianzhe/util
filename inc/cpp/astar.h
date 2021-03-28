@@ -2,14 +2,17 @@
 // Created by hujianzhe on 20-11-9.
 //
 
-#ifndef	ASTAR_H
-#define	ASTAR_H
+#ifndef	UTIL_CPP_ASTAR_H
+#define	UTIL_CPP_ASTAR_H
+
+#ifdef	__cplusplus
 
 #include <stddef.h>
 #include <list>
 #include <vector>
 #include <map>
 
+namespace util {
 class AStarBase {
 public:
 	typedef struct Point {
@@ -136,5 +139,8 @@ private:
 private:
 	std::map<int, Pos> m_poses;
 };
+}
+
+#endif
 
 #endif
