@@ -9,9 +9,29 @@
 #include "../datastruct/rbtree.h"
 #include "../sysapi/process.h"
 
-typedef struct RpcAsyncCore_t {
+struct RpcItem_t;
+
+typedef struct RpcBaseCore_t {
 	RBTree_t rpc_item_tree;
+} RpcBaseCore_t;
+
+typedef struct RpcAsyncCore_t {
+	RpcBaseCore_t base;
 } RpcAsyncCore_t;
+
+typedef struct RpcFiberCore_t {
+	RpcBaseCore_t base;
+	Fiber_t* msg_fiber;
+	Fiber_t* cur_fiber;
+	Fiber_t* sche_fiber;
+	Fiber_t* from_fiber;
+	int ret_flag;
+	size_t stack_size;
+	void* new_msg;
+	struct RpcItem_t* reply_item;
+	void(*msg_handler)(struct RpcFiberCore_t*, void*);
+	void* runthread; /* userdata, library isn't use this field */
+} RpcFiberCore_t;
 
 typedef struct RpcItem_t {
 	struct {
@@ -25,24 +45,10 @@ typedef struct RpcItem_t {
 	int id;
 	long long timestamp_msec;
 	void* async_req_arg;
-	void(*async_callback)(RpcAsyncCore_t*, struct RpcItem_t*);
+	void(*async_callback)(struct RpcAsyncCore_t*, struct RpcItem_t*);
 	Fiber_t* fiber;
 	void* ret_msg;
 } RpcItem_t;
-
-typedef struct RpcFiberCore_t {
-	Fiber_t* msg_fiber;
-	Fiber_t* cur_fiber;
-	Fiber_t* sche_fiber;
-	Fiber_t* from_fiber;
-	int ret_flag;
-	size_t stack_size;
-	void* new_msg;
-	RpcItem_t* reply_item;
-	void(*msg_handler)(struct RpcFiberCore_t*, void*);
-	RBTree_t rpc_item_tree;
-	void* runthread; /* userdata, library isn't use this field */
-} RpcFiberCore_t;
 
 #ifdef __cplusplus
 extern "C" {

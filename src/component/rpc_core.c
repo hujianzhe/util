@@ -11,8 +11,8 @@
 extern "C" {
 #endif
 
-static RpcItem_t* rpc_reg_item(RBTree_t* rpc_reg_tree, RpcItem_t* item) {
-	RBTreeNode_t* exist_node = rbtreeInsertNode(rpc_reg_tree, &item->m_treenode);
+static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
+	RBTreeNode_t* exist_node = rbtreeInsertNode(&rpc_base->rpc_item_tree, &item->m_treenode);
 	if (exist_node != &item->m_treenode) {
 		return NULL;
 	}
@@ -20,18 +20,27 @@ static RpcItem_t* rpc_reg_item(RBTree_t* rpc_reg_tree, RpcItem_t* item) {
 	return item;
 }
 
-static RpcItem_t* rpc_get_item(RBTree_t* rpc_reg_tree, int rpcid) {
-	RBTreeNode_t* node = rbtreeSearchKey(rpc_reg_tree, (const void*)(size_t)rpcid);
+static RpcItem_t* rpc_get_item(RpcBaseCore_t* rpc_base, int rpcid) {
+	RBTreeNode_t* node = rbtreeSearchKey(&rpc_base->rpc_item_tree, (const void*)(size_t)rpcid);
 	return node ? pod_container_of(node, RpcItem_t, m_treenode) : NULL;
 }
 
-static void rpc_remove_node(RBTree_t* rpc_reg_tree, RpcItem_t* item) {
-	rbtreeRemoveNode(rpc_reg_tree, &item->m_treenode);
+static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
+	rbtreeRemoveNode(&rpc_base->rpc_item_tree, &item->m_treenode);
 	item->m_has_reg = 0;
 }
 
-static int __keycmp(const void* node_key, const void* key) {
+static int __rbtree_keycmp(const void* node_key, const void* key) {
 	return ((int)(size_t)node_key) - (int)((size_t)key);
+}
+
+static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, RBTree_t* item_set) {
+	rbtreeInit(item_set, __rbtree_keycmp);
+	rbtreeSwap(item_set, &rpc_base->rpc_item_tree);
+}
+
+static void rpc_base_core_init(RpcBaseCore_t* rpc_base) {
+	rbtreeInit(&rpc_base->rpc_item_tree, __rbtree_keycmp);
 }
 
 /*****************************************************************************************/
@@ -55,7 +64,7 @@ RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
 /*****************************************************************************************/
 
 RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc) {
-	rbtreeInit(&rpc->rpc_item_tree, __keycmp);
+	rpc_base_core_init(&rpc->base);
 	return rpc;
 }
 
@@ -64,7 +73,7 @@ void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc) {
 }
 
 RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*)) {
-	if (rpc_reg_item(&rpc->rpc_item_tree, item)) {
+	if (rpc_reg_item(&rpc->base, item)) {
 		item->async_req_arg = req_arg;
 		item->async_callback = ret_callback;
 		return item;
@@ -74,19 +83,19 @@ RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_a
 
 RpcItem_t* rpcAsyncCoreUnregItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
-		rpc_remove_node(&rpc->rpc_item_tree, item);
+		rpc_remove_item(&rpc->base, item);
 	}
 	return item;
 }
 
 static void rpc_async_callback(RpcAsyncCore_t* rpc, RpcItem_t* item, void* ret_msg) {
-	rpc_remove_node(&rpc->rpc_item_tree, item);
+	rpc_remove_item(&rpc->base, item);
 	item->ret_msg = ret_msg;
 	item->async_callback(rpc, item);
 }
 
 RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
-	RpcItem_t* item = rpc_get_item(&rpc->rpc_item_tree, rpcid);
+	RpcItem_t* item = rpc_get_item(&rpc->base, rpcid);
 	if (item) {
 		rpc_async_callback(rpc, item, ret_msg);
 	}
@@ -102,8 +111,7 @@ RpcItem_t* rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 
 void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, RBTree_t* item_set) {
 	RBTreeNode_t* rbnode;
-	rbtreeInit(item_set, __keycmp);
-	rbtreeSwap(item_set, &rpc->rpc_item_tree);
+	rpc_remove_all_item(&rpc->base, item_set);
 	for (rbnode = rbtreeFirstNode(item_set); rbnode; rbnode = rbtreeNextNode(rbnode)) {
 		RpcItem_t* item = pod_container_of(rbnode, RpcItem_t, m_treenode);
 		item->m_has_reg = 0;
@@ -152,8 +160,8 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	rpc->new_msg = NULL;
 	rpc->reply_item = NULL;
 	rpc->msg_handler = msg_handler;
-	rbtreeInit(&rpc->rpc_item_tree, __keycmp);
 	rpc->runthread = NULL;
+	rpc_base_core_init(&rpc->base);
 	return rpc;
 }
 
@@ -164,12 +172,12 @@ void rpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
 RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (rpc->cur_fiber == rpc->sche_fiber)
 		return NULL;
-	if (!rpc_reg_item(&rpc->rpc_item_tree, item))
+	if (!rpc_reg_item(&rpc->base, item))
 		return NULL;
 	if (rpc->cur_fiber == rpc->msg_fiber) {
 		Fiber_t* new_fiber = fiberCreate(rpc->sche_fiber, rpc->stack_size, RpcFiberProcEntry);
 		if (!new_fiber) {
-			rpc_remove_node(&rpc->rpc_item_tree, item);
+			rpc_remove_item(&rpc->base, item);
 			return NULL;
 		}
 		new_fiber->arg = rpc;
@@ -181,7 +189,7 @@ RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 
 RpcItem_t* rpcFiberCoreUnregItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
-		rpc_remove_node(&rpc->rpc_item_tree, item);
+		rpc_remove_item(&rpc->base, item);
 	}
 	return item;
 }
@@ -207,9 +215,9 @@ RpcItem_t* rpcFiberCoreResume(RpcFiberCore_t* rpc, int rpcid, void* ret_msg) {
 	if (rpc->cur_fiber != rpc->sche_fiber)
 		return NULL;
 	else {
-		RpcItem_t* item = rpc_get_item(&rpc->rpc_item_tree, rpcid);
+		RpcItem_t* item = rpc_get_item(&rpc->base, rpcid);
 		if (item) {
-			rpc_remove_node(&rpc->rpc_item_tree, item);
+			rpc_remove_item(&rpc->base, item);
 			rpc_fiber_resume(rpc, item, ret_msg);
 		}
 		return item;
@@ -225,7 +233,7 @@ void rpcFiberCoreResumeMsg(RpcFiberCore_t* rpc, void* new_msg) {
 
 RpcItem_t* rpcFiberCoreCancel(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
-		rpc_remove_node(&rpc->rpc_item_tree, item);
+		rpc_remove_item(&rpc->base, item);
 		if (rpc->cur_fiber != item->fiber)
 			rpc_fiber_resume(rpc, item, NULL);
 	}
@@ -234,8 +242,7 @@ RpcItem_t* rpcFiberCoreCancel(RpcFiberCore_t* rpc, RpcItem_t* item) {
 
 void rpcFiberCoreCancelAll(RpcFiberCore_t* rpc, RBTree_t* item_set) {
 	RBTreeNode_t* rbnode;
-	rbtreeInit(item_set, __keycmp);
-	rbtreeSwap(item_set, &rpc->rpc_item_tree);
+	rpc_remove_all_item(&rpc->base, item_set);
 	for (rbnode = rbtreeFirstNode(item_set); rbnode; rbnode = rbtreeNextNode(rbnode)) {
 		RpcItem_t* item = pod_container_of(rbnode, RpcItem_t, m_treenode);
 		item->m_has_reg = 0;
