@@ -7,6 +7,11 @@
 #include "../../inc/sysapi/time.h"
 #include <stdlib.h>
 
+typedef struct RpcBatchNode_t {
+	RBTreeNode_t node;
+	List_t rpcitemlist;
+} RpcBatchNode_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16,8 +21,22 @@ static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
 	if (exist_node != &item->m_treenode) {
 		return NULL;
 	}
+	if (item->batch_node) {
+		RpcBatchNode_t* batch_node = item->batch_node;
+		listPushNodeBack(&batch_node->rpcitemlist, &item->m_listnode);
+	}
 	item->m_has_reg = 1;
 	return item;
+}
+
+static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
+	rbtreeRemoveNode(&rpc_base->rpc_item_tree, &item->m_treenode);
+	if (item->batch_node) {
+		RpcBatchNode_t* batch_node = item->batch_node;
+		listRemoveNode(&batch_node->rpcitemlist, &item->m_listnode);
+		item->batch_node = NULL;
+	}
+	item->m_has_reg = 0;
 }
 
 static RpcItem_t* rpc_get_item(RpcBaseCore_t* rpc_base, int rpcid) {
@@ -25,13 +44,16 @@ static RpcItem_t* rpc_get_item(RpcBaseCore_t* rpc_base, int rpcid) {
 	return node ? pod_container_of(node, RpcItem_t, m_treenode) : NULL;
 }
 
-static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
-	rbtreeRemoveNode(&rpc_base->rpc_item_tree, &item->m_treenode);
-	item->m_has_reg = 0;
-}
-
 static int __rbtree_keycmp(const void* node_key, const void* key) {
 	return ((int)(size_t)node_key) - (int)((size_t)key);
+}
+
+static int __rbtree_batch_keycmp(const void* node_key, const void* key) {
+	if (node_key > key)
+		return 1;
+	if (node_key < key)
+		return -1;
+	return 0;
 }
 
 static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, RBTree_t* item_set) {
@@ -41,6 +63,8 @@ static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, RBTree_t* item_set) {
 
 static void rpc_base_core_init(RpcBaseCore_t* rpc_base) {
 	rbtreeInit(&rpc_base->rpc_item_tree, __rbtree_keycmp);
+	rbtreeInit(&rpc_base->rpc_item_batch_tree, __rbtree_batch_keycmp);
+	rpc_base->runthread = NULL;
 }
 
 /*****************************************************************************************/
@@ -54,11 +78,46 @@ int rpcGenId(void) {
 
 RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
 	item->m_treenode.key = (const void*)(size_t)rpcid;
+	item->batch_node = NULL;
 	item->m_has_reg = 0;
 	item->id = rpcid;
 	item->ret_msg = NULL;
 	item->fiber = NULL;
 	return item;
+}
+
+struct RpcBatchNode_t* rpcAllocBatchNode(RpcBaseCore_t* rpc_base, const void* key) {
+	RpcBatchNode_t* batch_node;
+	RBTreeNode_t* exist_node = rbtreeSearchKey(&rpc_base->rpc_item_batch_tree, key);
+	if (exist_node) {
+		batch_node = pod_container_of(exist_node, RpcBatchNode_t, node);
+	}
+	else {
+		batch_node = (RpcBatchNode_t*)malloc(sizeof(RpcBatchNode_t));
+		if (!batch_node) {
+			return NULL;
+		}
+		listInit(&batch_node->rpcitemlist);
+		batch_node->node.key = key;
+		rbtreeInsertNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
+	}
+	return batch_node;
+}
+
+void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist) {
+	RBTreeNode_t* node = rbtreeRemoveKey(&rpc_base->rpc_item_batch_tree, key);
+	if (node) {
+		RpcBatchNode_t* batch_node = pod_container_of(node, RpcBatchNode_t, node);
+		ListNode_t* cur;
+		for (cur = batch_node->rpcitemlist.head; cur; cur = cur->next) {
+			RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_listnode);
+			item->batch_node = NULL;
+		}
+		if (rpcitemlist) {
+			listAppend(rpcitemlist, &batch_node->rpcitemlist);
+		}
+		free(batch_node);
+	}
 }
 
 /*****************************************************************************************/
@@ -160,7 +219,6 @@ RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_
 	rpc->new_msg = NULL;
 	rpc->reply_item = NULL;
 	rpc->msg_handler = msg_handler;
-	rpc->runthread = NULL;
 	rpc_base_core_init(&rpc->base);
 	return rpc;
 }

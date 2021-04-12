@@ -10,9 +10,12 @@
 #include "../sysapi/process.h"
 
 struct RpcItem_t;
+struct RpcBatchNode_t;
 
 typedef struct RpcBaseCore_t {
 	RBTree_t rpc_item_tree;
+	RBTree_t rpc_item_batch_tree;
+	void* runthread; /* userdata, library isn't use this field */
 } RpcBaseCore_t;
 
 typedef struct RpcAsyncCore_t {
@@ -30,17 +33,16 @@ typedef struct RpcFiberCore_t {
 	void* new_msg;
 	struct RpcItem_t* reply_item;
 	void(*msg_handler)(struct RpcFiberCore_t*, void*);
-	void* runthread; /* userdata, library isn't use this field */
 } RpcFiberCore_t;
 
 typedef struct RpcItem_t {
 	struct {
-		ListNode_t listnode;
-		void* originator;
 		void* timeout_ev;
 		size_t udata;
 	}; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
+	ListNode_t m_listnode;
+	struct RpcBatchNode_t* batch_node;
 	char m_has_reg;
 	int id;
 	long long timestamp_msec;
@@ -56,6 +58,8 @@ extern "C" {
 
 __declspec_dll int rpcGenId(void);
 __declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid);
+__declspec_dll struct RpcBatchNode_t* rpcAllocBatchNode(RpcBaseCore_t* rpc_base, const void* key);
+__declspec_dll void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 __declspec_dll void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
