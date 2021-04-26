@@ -25,10 +25,7 @@ public:
 	sp_refcnt(void) : m_share_refcnt (1), m_weak_refcnt(1) {}
 	virtual ~sp_refcnt(void) {}
 
-	void incr_share(int v) {
-		_xadd32(&m_share_refcnt, v);
-		_xadd32(&m_weak_refcnt, v);
-	}
+	void incr_share(int v) { _xadd32(&m_share_refcnt, v); }
 	int incr_weak(int v) { return _xadd32(&m_weak_refcnt, v); }
 	int count_share(void) { return m_share_refcnt; }
 	bool lock(void) {
@@ -37,7 +34,6 @@ public:
 			if (tmp < 1)
 				return false;
 			if (_cmpxchg32(&m_share_refcnt, tmp + 1, tmp) == tmp) {
-				_xadd32(&m_weak_refcnt, 1);
 				return true;
 			}
 		}

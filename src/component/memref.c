@@ -33,7 +33,6 @@ struct MemRef_t* memrefCreate(void* p) {
 struct MemRef_t* memrefIncrStrong(struct MemRef_t* ref) {
 	if (ref) {
 		_xadd32(&ref->sp_cnt, 1);
-		_xadd32(&ref->wp_cnt, 1);
 	}
 	return ref;
 }
@@ -43,12 +42,11 @@ void* memrefDecrStrong(struct MemRef_t** p_ref) {
 	if (ref) {
 		void* p;
 		Atom32_t sp_cnt = _xadd32(&ref->sp_cnt, -1);
-		if (sp_cnt <= 1) {
-			p = ref->p;
-			ref->p = NULL;
-		} else {
-			p = NULL;
+		if (sp_cnt > 1) {
+			return NULL;
 		}
+		p = ref->p;
+		ref->p = NULL;
 		if (_xadd32(&ref->wp_cnt, -1) <= 1) {
 			free(ref);
 			*p_ref = NULL;
@@ -68,7 +66,6 @@ void* memrefLock(struct MemRef_t* ref) {
 			return NULL;
 		}
 		if (_cmpxchg32(&ref->sp_cnt, tmp + 1, tmp) == tmp) {
-			_xadd32(&ref->wp_cnt, 1);
 			return ref->p;
 		}
 	}
