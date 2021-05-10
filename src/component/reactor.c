@@ -8,17 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define	allChannelDoAction(o, var_name, do_action)\
-do {\
-	ListNode_t* cur, *next;\
-	for (cur = (o)->m_channel_list.head; cur; cur = next) {\
-		var_name = pod_container_of(cur, ChannelBase_t, regcmd._);\
-		next = cur->next;\
-		do {\
-			do_action\
-		} while (0);\
-	}\
-} while (0)
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
@@ -124,6 +113,7 @@ static void channelobject_free(ChannelBase_t* channel) {
 }
 
 static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObject_t* o, long long now_msec) {
+	ListNode_t* cur, *next;
 	if (o->m_has_detached)
 		return;
 	o->m_has_detached = 1;
@@ -135,7 +125,9 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 	if (SOCK_STREAM == o->socktype)
 		free_io_resource(o);
 
-	allChannelDoAction(o, ChannelBase_t* channel,
+	for (cur = o->m_channel_list.head; cur; cur = next) {
+		ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
+		next = cur->next;
 		if (REACTOR_CONNECT_ERR == o->detach_error)
 			channel->detach_error = o->detach_error;
 		else if (REACTOR_IO_ERR == o->detach_error && 0 == channel->detach_error)
@@ -144,7 +136,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		channel->o = NULL;
 		channel->valid = 0;
 		channel->on_detach(channel);
-	);
+	}
 	listInit(&o->m_channel_list);
 
 	if (o->detach_timeout_msec <= 0) {
@@ -240,6 +232,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 	}
 	else {
+		ListNode_t* cur, *next;
 		BOOL bval;
 		if (!socketHasAddr(o->fd, &bval))
 			return 0;
@@ -252,10 +245,12 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 		if (!reactorobject_request_read(reactor, o))
 			return 0;
-		allChannelDoAction(o, ChannelBase_t* channel,
+		for (cur = o->m_channel_list.head; cur; cur = next) {
+			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
+			next = cur->next;
 			if (channel->flag & CHANNEL_FLAG_CLIENT)
 				channel->disable_send = 1;
-		);
+		}
 	}
 	return 1;
 }
@@ -278,14 +273,17 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long 
 
 static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	ChannelBase_t* channel;
-	allChannelDoAction(o, channel,
+	ListNode_t* cur, *next;
+	for (cur = o->m_channel_list.head; cur; cur = next) {
+		channel = pod_container_of(cur, ChannelBase_t, regcmd._);
+		next = cur->next;
 		channel->reactor = reactor;
 		if (channel->on_reg) {
 			channel->on_reg(channel, timestamp_msec);
 			channel->on_reg = NULL;
 			after_call_channel_interface(channel);
 		}
-	);
+	}
 	if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
 		return;
 	channel = streamChannel(o);
@@ -330,7 +328,10 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 		next = hashtableNextNode(cur);
 		if (o->m_valid) {
-			allChannelDoAction(o, ChannelBase_t* channel,
+			ListNode_t* lcur, *lnext;
+			for (lcur = o->m_channel_list.head; lcur; lcur = lnext) {
+				ChannelBase_t* channel = pod_container_of(lcur, ChannelBase_t, regcmd._);
+				lnext = lcur->next;
 				if (now_msec < channel->event_msec) {
 					reactor_set_event_timestamp(reactor, channel->event_msec);
 					continue;
@@ -338,7 +339,7 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 				channel->event_msec = 0;
 				channel->on_exec(channel, now_msec);
 				after_call_channel_interface(channel);
-			);
+			}
 			if (o->m_valid)
 				continue;
 		}
@@ -497,6 +498,7 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 		for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
 			int res;
 			unsigned char* ptr;
+			ListNode_t* cur, *next;
 			if (readtimes) {
 				if (!o->m_inbuf) {
 					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
@@ -525,13 +527,15 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 				return;
 			}
 			ptr[res] = 0; /* convienent for text data */
-			allChannelDoAction(o, ChannelBase_t* channel,
+			for (cur = o->m_channel_list.head; cur; cur = next) {
+				ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 				int disable_send = channel->disable_send;
+				next = cur->next;
 				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
 				if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
 					channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 				}
-			);
+			}
 		}
 	}
 }
@@ -863,7 +867,14 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		ReactorObject_t* o = pod_container_of(cmdnode, ReactorObject_t, regcmd);
 		if (_xchg8(&o->m_reghaspost, 1))
 			return;
-		allChannelDoAction(o, ChannelBase_t* channel, channel->reactor = reactor;);
+		else {
+			ListNode_t* cur, *next;
+			for (cur = o->m_channel_list.head; cur; cur = next) {
+				ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
+				next = cur->next;
+				channel->reactor = reactor;
+			}
+		}
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
 		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, stream_sendfincmd);
