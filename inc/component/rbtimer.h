@@ -14,6 +14,7 @@ typedef struct RBTimer_t {
 	char m_uselock;
 	CriticalSection_t m_lock;
 	RBTree_t m_rbtree;
+	long long m_min_timestamp;
 } RBTimer_t;
 
 typedef struct RBTimerEvent_t {
