@@ -49,6 +49,18 @@ void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct Lis
 	node->next = new_node;
 }
 
+void listInsertNodeSorted(struct List_t* list, struct ListNode_t* new_node, int(*cmp)(struct ListNode_t*, struct ListNode_t*)) {
+	struct ListNode_t* cur;
+	for (cur = list->head; cur; cur = cur->next) {
+		if (cmp(cur, new_node) > 0)
+			break;
+	}
+	if (cur)
+		listInsertNodeFront(list, cur, new_node);
+	else
+		listInsertNodeBack(list, list->tail, new_node);
+}
+
 void listRemoveNode(struct List_t* list, struct ListNode_t* node) {
 	if (list->head == node) {
 		list->head = node->next;
