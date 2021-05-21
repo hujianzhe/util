@@ -112,6 +112,12 @@ static void channelobject_free(ChannelBase_t* channel) {
 	free(channel);
 }
 
+static int cmp_sorted_reactor_object_invalid(ListNode_t* node, ListNode_t* new_node) {
+	ReactorObject_t* o = pod_container_of(node, ReactorObject_t, m_invalidnode);
+	ReactorObject_t* new_o = pod_container_of(new_node, ReactorObject_t, m_invalidnode);
+	return o->m_invalid_msec > new_o->m_invalid_msec;
+}
+
 static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObject_t* o, long long now_msec) {
 	ListNode_t* cur, *next;
 	if (o->m_has_detached)
@@ -145,8 +151,9 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		reactorobject_free(o);
 	}
 	else {
-		listInsertNodeBack(&reactor->m_invalidlist, reactor->m_invalidlist.tail, &o->m_invalidnode);
-		reactor_set_event_timestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
+		o->m_invalid_msec += o->detach_timeout_msec;
+		listInsertNodeSorted(&reactor->m_invalidlist, &o->m_invalidnode, cmp_sorted_reactor_object_invalid);
+		reactor_set_event_timestamp(reactor, o->m_invalid_msec);
 	}
 }
 
@@ -349,22 +356,14 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long lon
 
 static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 	ListNode_t* cur, *next;
-	List_t invalidfreelist;
-	listInit(&invalidfreelist);
 	for (cur = reactor->m_invalidlist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
 		next = cur->next;
-		if (o->m_invalid_msec + o->detach_timeout_msec > now_msec) {
-			reactor_set_event_timestamp(reactor, o->m_invalid_msec + o->detach_timeout_msec);
-			continue; /* not use timer heap, so continue,,,,this is temp... */
+		if (o->m_invalid_msec > now_msec) {
+			reactor_set_event_timestamp(reactor, o->m_invalid_msec);
+			break;
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
-		free_io_resource(o);
-		listInsertNodeBack(&invalidfreelist, invalidfreelist.tail, cur);
-	}
-	for (cur = invalidfreelist.head; cur; cur = next) {
-		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
-		next = cur->next;
 		reactorobject_free(o);
 	}
 }
