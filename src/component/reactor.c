@@ -118,6 +118,12 @@ static int cmp_sorted_reactor_object_invalid(ListNode_t* node, ListNode_t* new_n
 	return o->m_invalid_msec > new_o->m_invalid_msec;
 }
 
+static int cmp_sorted_reactor_object_stream_connect_timeout(ListNode_t* node, ListNode_t* new_node) {
+	ReactorObject_t* o = pod_container_of(node, ReactorObject_t, stream.m_connect_endnode);
+	ReactorObject_t* new_o = pod_container_of(new_node, ReactorObject_t, stream.m_connect_endnode);
+	return o->stream.m_connect_end_msec > new_o->stream.m_connect_end_msec;
+}
+
 static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObject_t* o, long long now_msec) {
 	ListNode_t* cur, *next;
 	if (o->m_has_detached)
@@ -146,8 +152,6 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 	listInit(&o->m_channel_list);
 
 	if (o->detach_timeout_msec <= 0) {
-		if (SOCK_STREAM != o->socktype)
-			free_io_resource(o);
 		reactorobject_free(o);
 	}
 	else {
@@ -198,7 +202,6 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 }
 
 static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o) {
-	o->stream.m_connected = 0;
 	if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 		if (!o->m_writeol)
@@ -213,7 +216,7 @@ static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o)
 	return 1;
 }
 
-static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
+static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	if (!nioReg(&reactor->m_nio, o->fd))
 		return 0;
 	if (SOCK_STREAM == o->socktype) {
@@ -233,9 +236,20 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 				return 0;
 		}
 		else {
+			o->stream.m_connected = 0;
 			channel->disable_send = 1;
 			if (!reactorobject_request_connect(reactor, o))
 				return 0;
+			if (o->stream.max_connect_timeout_sec > 0) {
+				o->stream.m_connect_end_msec = o->stream.max_connect_timeout_sec;
+				o->stream.m_connect_end_msec *= 1000;
+				o->stream.m_connect_end_msec += timestamp_msec;
+				listInsertNodeSorted(&reactor->m_connect_endlist, &o->stream.m_connect_endnode,
+					cmp_sorted_reactor_object_stream_connect_timeout);
+				reactor_set_event_timestamp(reactor, o->stream.m_connect_end_msec);
+			}
+			else
+				o->stream.m_connect_end_msec = 0;
 		}
 	}
 	else {
@@ -263,7 +277,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
 }
 
 static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	if (reactor_reg_object_check(reactor, o)) {
+	if (reactor_reg_object_check(reactor, o, timestamp_msec)) {
 		HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
 		if (htnode != &o->m_hashnode) {
 			ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
@@ -329,7 +343,7 @@ static void stream_recvfin_handler(ReactorObject_t* o) {
 	}
 }
 
-static void reactor_exec_object(Reactor_t* reactor, long long now_msec, long long ev_msec) {
+static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
@@ -365,6 +379,22 @@ static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
 		}
 		listRemoveNode(&reactor->m_invalidlist, cur);
 		reactorobject_free(o);
+	}
+}
+
+static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec) {
+	ListNode_t* cur, *next;
+	for (cur = reactor->m_connect_endlist.head; cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, stream.m_connect_endnode);
+		next = cur->next;
+		if (o->stream.m_connect_end_msec > now_msec) {
+			reactor_set_event_timestamp(reactor, o->stream.m_connect_end_msec);
+			break;
+		}
+		listRemoveNode(&reactor->m_connect_endlist, cur);
+		o->m_valid = 0;
+		o->detach_error = REACTOR_CONNECT_ERR;
+		reactorobject_invalid_inner_handler(reactor, o, now_msec);
 	}
 }
 
@@ -721,6 +751,9 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
 	}
+	if (o->stream.m_connect_end_msec > 0) {
+		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
+	}
 	do {
 		if (!nioConnectCheckSuccess(o->fd))
 			break;
@@ -849,6 +882,7 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	}
 	listInit(&reactor->m_cmdlist);
 	listInit(&reactor->m_invalidlist);
+	listInit(&reactor->m_connect_endlist);
 	hashtableInit(&reactor->m_objht,
 		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
 		objht_keycmp, objht_keyhash);
@@ -986,10 +1020,10 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 	}
 	reactor_exec_cmdlist(reactor, timestamp_msec);
 	if (reactor->m_event_msec > 0 && timestamp_msec >= reactor->m_event_msec) {
-		long long ev_msec = reactor->m_event_msec;
 		reactor->m_event_msec = 0;
-		reactor_exec_object(reactor, timestamp_msec, ev_msec);
+		reactor_exec_connect_timeout(reactor, timestamp_msec);
 		reactor_exec_invalidlist(reactor, timestamp_msec);
+		reactor_exec_object(reactor, timestamp_msec);
 	}
 	return n;
 }
@@ -1083,6 +1117,7 @@ static ReactorObject_t* reactorobject_dup(ReactorObject_t* o) {
 	dup_o->read_fragment_size = o->read_fragment_size;
 	if (SOCK_STREAM == dup_o->socktype) {
 		memset(&dup_o->stream, 0, sizeof(dup_o->stream));
+		dup_o->stream.max_connect_timeout_sec = o->stream.max_connect_timeout_sec;
 	}
 	reactorobject_init_comm(dup_o);
 	return dup_o;

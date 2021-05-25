@@ -50,6 +50,7 @@ typedef struct Reactor_t {
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
 	List_t m_invalidlist;
+	List_t m_connect_endlist;
 	Hashtable_t m_objht;
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
@@ -72,6 +73,9 @@ typedef struct ReactorObject_t {
 		Sockaddr_t m_connect_addr;
 		char m_connected;
 		char m_listened;
+		short max_connect_timeout_sec;
+		long long m_connect_end_msec;
+		ListNode_t m_connect_endnode;
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
