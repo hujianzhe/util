@@ -27,7 +27,6 @@ typedef struct RpcFiberCore_t {
 	Fiber_t* msg_fiber;
 	Fiber_t* cur_fiber;
 	Fiber_t* sche_fiber;
-	Fiber_t* from_fiber;
 	int ret_flag;
 	size_t stack_size;
 	void* new_msg;
