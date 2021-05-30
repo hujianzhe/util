@@ -32,10 +32,12 @@ __declspec_dll struct List_t* listPushNodeBack(struct List_t* list, struct ListN
 __declspec_dll struct ListNode_t* listPopNodeFront(struct List_t* list);
 __declspec_dll struct ListNode_t* listPopNodeBack(struct List_t* list);
 __declspec_dll struct ListNode_t* listAt(const struct List_t* list, ptrlen_t index);
+__declspec_dll struct ListNode_t* listAtMost(const struct List_t* list, ptrlen_t index);
 
 __declspec_dll void listAppend(struct List_t* to, struct List_t* from);
 __declspec_dll void listSwap(struct List_t* one, struct List_t* two);
 __declspec_dll void listReverse(struct List_t* list);
+__declspec_dll struct List_t listSplit(struct List_t* old_list, struct ListNode_t* head, struct ListNode_t* tail);
 __declspec_dll struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head);
 __declspec_dll struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_tail);
 

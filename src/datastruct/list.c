@@ -128,6 +128,12 @@ struct ListNode_t* listAt(const struct List_t* list, ptrlen_t index) {
 	return node;
 }
 
+struct ListNode_t* listAtMost(const struct List_t* list, ptrlen_t index) {
+	struct ListNode_t* node, *prev;
+	for (prev = node = list->head; node && index--; prev = node, node = node->next);
+	return node ? node : prev;
+}
+
 void listAppend(struct List_t* to, struct List_t* from) {
 	if (!to->head) {
 		to->head = from->head;
@@ -161,6 +167,31 @@ void listReverse(struct List_t* list) {
 		cur->prev = p;
 		cur = cur->prev;
 	}
+}
+
+struct List_t listSplit(struct List_t* old_list, struct ListNode_t* head, struct ListNode_t* tail) {
+	struct List_t new_list;
+	if (!head || !tail) {
+		new_list.head = new_list.tail = (struct ListNode_t*)0;
+		return new_list;
+	}
+	new_list.head = head;
+	new_list.tail = tail;
+	if (head->prev) {
+		head->prev->next = tail->next;
+	}
+	else {
+		old_list->head = tail->next;
+	}
+	if (tail->next) {
+		tail->next->prev = head->prev;
+	}
+	else {
+		old_list->tail = head->prev;
+	}
+	head->prev = (struct ListNode_t*)0;
+	tail->next = (struct ListNode_t*)0;
+	return new_list;
 }
 
 struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head) {
