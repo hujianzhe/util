@@ -174,11 +174,10 @@ RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg) {
 	return item;
 }
 
-RpcItem_t* rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item) {
+void rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
 		rpc_async_callback(rpc, item, NULL);
 	}
-	return item;
 }
 
 void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, List_t* rpcitemlist) {
@@ -302,13 +301,12 @@ void rpcFiberCoreResumeMsg(RpcFiberCore_t* rpc, void* new_msg) {
 	do_fiber_switch(rpc, rpc->msg_fiber);
 }
 
-RpcItem_t* rpcFiberCoreCancel(RpcFiberCore_t* rpc, RpcItem_t* item) {
+void rpcFiberCoreCancel(RpcFiberCore_t* rpc, RpcItem_t* item) {
 	if (item->m_has_reg) {
 		rpc_remove_item(&rpc->base, item);
 		if (rpc->cur_fiber != item->fiber)
 			rpc_fiber_resume(rpc, item, NULL);
 	}
-	return item;
 }
 
 void rpcFiberCoreCancelAll(RpcFiberCore_t* rpc, List_t* rpcitemlist) {
