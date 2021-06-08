@@ -1280,6 +1280,11 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	return channel;
 }
 
+ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
+	_xadd32(&channel->refcnt, 1);
+	return channel;
+}
+
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
 	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 	packet->channel = channel;
