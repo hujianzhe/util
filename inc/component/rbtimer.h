@@ -22,7 +22,16 @@ typedef struct RBTimerEvent_t {
 	long long timestamp_msec;
 	int(*callback)(RBTimer_t*, struct RBTimerEvent_t*);
 	void* arg;
+	long long interval_msec;
 } RBTimerEvent_t;
+
+#define	rbtimerEventSet(_e, _timestamp_msec, _callback, _arg, _interval_msec) do {\
+RBTimerEvent_t* e = _e;\
+e->timestamp_msec = _timestamp_msec;\
+e->callback = _callback;\
+e->arg = _arg;\
+e->interval_msec = _interval_msec;\
+} while (0)
 
 #ifdef __cplusplus
 extern "C" {
