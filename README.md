@@ -29,7 +29,7 @@
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 				consistent_hash		一致性hash算法  
 				cXML				用于解析XML  
-				dynbuf				自动扩容的线性数组  
+				dynarr				模拟泛型的动态数组  
 				math				一些实用的数学运算接口  
 			datastruct/  
 				arrheap				最小堆,最大堆  

@@ -30,6 +30,7 @@
 #include "crt/cJSON.h"
 #include "crt/collision_detection.h"
 #include "crt/consistent_hash.h"
+#include "crt/dynarr.h"
 #include "crt/dynbuf.h"
 #include "crt/export_free.h"
 #include "sysapi/assert.h"
