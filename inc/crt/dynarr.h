@@ -8,26 +8,26 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#define	dynarrReserve(dynarr, type, _capacity, ret_ok)\
+#define	dynarrReserve(dynarr, _capacity, ret_ok)\
 do {\
 	size_t __cap = _capacity;\
 	if ((dynarr)->capacity < __cap) {\
-		type* __p = (type*)realloc((dynarr)->buf, sizeof(type) * __cap);\
+		void* __p = realloc((dynarr)->buf, sizeof((dynarr)->buf[0]) * __cap);\
 		if (!__p) {\
 			ret_ok = 0;\
 			break;\
 		}\
-		(dynarr)->buf = __p;\
+		*(size_t*)&((dynarr)->buf) = (size_t)__p;\
 		(dynarr)->capacity = __cap;\
 	}\
 	ret_ok = 1;\
 } while (0)
 
-#define	dynarrResize(dynarr, type, _len, def_val, ret_ok)\
+#define	dynarrResize(dynarr, _len, def_val, ret_ok)\
 do {\
 	size_t __i;\
 	size_t __len = _len;\
-	dynarrReserve(dynarr, type, __len, ret_ok);\
+	dynarrReserve(dynarr, __len, ret_ok);\
 	if (!ret_ok) {\
 		break;\
 	}\
@@ -37,20 +37,18 @@ do {\
 	}\
 } while (0)
 
-#define	dynarrInsert(dynarr, type, idx, val, ret_ok)\
+#define	dynarrInsert(dynarr, idx, val, ret_ok)\
 do {\
 	size_t __i, __idx;\
-	type* __p;\
-	dynarrReserve(dynarr, type, (dynarr)->len + 1, ret_ok);\
+	dynarrReserve(dynarr, (dynarr)->len + 1, ret_ok);\
 	if (!ret_ok) {\
 		break;\
 	}\
-	__p = (dynarr)->buf;\
 	__idx = idx;\
 	for (__i = (dynarr)->len; __i > __idx; --__i) {\
-		__p[__i] = __p[__i - 1];\
+		(dynarr)->buf[__i] = (dynarr)->buf[__i - 1];\
 	}\
-	__p[__i] = val;\
+	(dynarr)->buf[__i] = val;\
 	++((dynarr)->len);\
 } while (0)
 
@@ -76,16 +74,15 @@ do {\
 	(dynarr)->capacity = 0;\
 } while (0)
 
-#define	dynarrSwap(a1, a2, type)\
+#define	dynarrSwap(a1, a2)\
 do {\
-	type* __p;\
 	size_t __v;\
 	if ((void*)a1 == (void*)a2) {\
 		break;\
 	}\
-	__p = (a1)->buf;\
+	__v = (size_t)(a1)->buf;\
 	(a1)->buf = (a2)->buf;\
-	(a2)->buf = __p;\
+	*(size_t*)&((a2)->buf) = __v;\
 	__v = (a1)->len;\
 	(a1)->len = (a2)->len;\
 	(a2)->len = __v;\
