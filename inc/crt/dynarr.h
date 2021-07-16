@@ -8,6 +8,13 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#define	DynArr_t(type)\
+struct {\
+	type* buf;\
+	size_t len;\
+	size_t capacity;\
+}
+
 #define	dynarrReserve(dynarr, _capacity, ret_ok)\
 do {\
 	size_t __cap = _capacity;\
@@ -91,11 +98,16 @@ do {\
 	(a2)->capacity = __v;\
 } while (0)
 
-#define	DynArr_t(type)\
-struct {\
-	type* buf;\
-	size_t len;\
-	size_t capacity;\
-}
+#define	dynarrFind(dynarr, ret_idx, val)\
+do {\
+	size_t __i;\
+	ret_idx = -1;\
+	for (__i = 0; __i < (dynarr)->len; ++__i) {\
+		if ((val) == (dynarr)->buf[__i]) {\
+			ret_idx = __i;\
+			break;\
+		}\
+	}\
+} while (0)
 
 #endif
