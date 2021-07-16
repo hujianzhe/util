@@ -13,7 +13,6 @@ typedef struct ListNode_t {
 typedef struct List_t {
 	struct ListNode_t *head, *tail;
 } List_t;
-#define	ListNodeTemplateDeclare(type, field)	struct { struct ListNode_t _; type field; }
 
 #ifdef	__cplusplus
 extern "C" {
