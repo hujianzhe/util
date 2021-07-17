@@ -15,6 +15,13 @@ struct {\
 	size_t capacity;\
 }
 
+#define	dynarrInitZero(dynarr)\
+do {\
+	(dynarr)->buf = NULL;\
+	(dynarr)->len = 0;\
+	(dynarr)->capacity = 0;\
+} while (0)
+
 #define	dynarrReserve(dynarr, _capacity, ret_ok)\
 do {\
 	size_t __cap = _capacity;\
@@ -76,9 +83,7 @@ do {\
 #define	dynarrFreeMemory(dynarr)\
 do {\
 	free((dynarr)->buf);\
-	(dynarr)->buf = NULL;\
-	(dynarr)->len = 0;\
-	(dynarr)->capacity = 0;\
+	dynarrInitZero(dynarr);
 } while (0)
 
 #define	dynarrSwap(a1, a2)\
