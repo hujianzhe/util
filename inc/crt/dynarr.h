@@ -37,6 +37,16 @@ do {\
 	ret_ok = 1;\
 } while (0)
 
+#define	dynarrResetLength(dynarr, _len, ret_ok)\
+do {\
+	size_t __len = _len;\
+	dynarrReserve(dynarr, __len, ret_ok);\
+	if (!ret_ok) {\
+		break;\
+	}\
+	(dynarr)->len = __len;\
+} while (0)
+
 #define	dynarrResize(dynarr, _len, def_val, ret_ok)\
 do {\
 	size_t __i;\
