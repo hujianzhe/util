@@ -83,7 +83,7 @@ do {\
 #define	dynarrFreeMemory(dynarr)\
 do {\
 	free((dynarr)->buf);\
-	dynarrInitZero(dynarr);
+	dynarrInitZero(dynarr);\
 } while (0)
 
 #define	dynarrSwap(a1, a2)\
