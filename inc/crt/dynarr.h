@@ -113,7 +113,7 @@ do {\
 	(a2)->capacity = __v;\
 } while (0)
 
-#define	dynarrFind(dynarr, ret_idx, val)\
+#define	dynarrFindValue(dynarr, val, ret_idx)\
 do {\
 	size_t __i;\
 	ret_idx = -1;\
