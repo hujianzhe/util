@@ -6,68 +6,57 @@
 #define	UTIL_C_CRT_DYNARR_H
 
 #include <stddef.h>
-#include <stdlib.h>
+
+typedef struct DynArrRaw_t {
+	void* buf;
+	size_t len;
+	size_t capacity;
+} DynArrRaw_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void* dynarrReserve_raw(DynArrRaw_t* dynarr, size_t capacity, size_t ele_size);
+void* dynarrResize_raw(DynArrRaw_t* dynarr, size_t len, size_t ele_size);
+void dynarrSwap_raw(DynArrRaw_t* a1, DynArrRaw_t* a2);
+void dynarrInitZero_raw(DynArrRaw_t* dynarr);
+void dynarrFreeMemory_raw(DynArrRaw_t* dynarr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define	DynArr_t(type)\
-struct {\
-	type* buf;\
-	size_t len;\
-	size_t capacity;\
+union {\
+	struct {\
+		type* buf;\
+		size_t len;\
+		size_t capacity;\
+	};\
+	DynArrRaw_t raw;\
 }
 
-#define	dynarrInitZero(dynarr)\
-do {\
-	(dynarr)->buf = NULL;\
-	(dynarr)->len = 0;\
-	(dynarr)->capacity = 0;\
-} while (0)
+#define	dynarrInitZero(dynarr)	dynarrInitZero_raw(&(dynarr)->raw)
 
-#define	dynarrReserve(dynarr, _capacity, ret_ok)\
-do {\
-	size_t __cap = _capacity;\
-	if ((dynarr)->capacity < __cap) {\
-		void* __p = realloc((dynarr)->buf, sizeof((dynarr)->buf[0]) * __cap);\
-		if (!__p) {\
-			ret_ok = 0;\
-			break;\
-		}\
-		*(size_t*)&((dynarr)->buf) = (size_t)__p;\
-		(dynarr)->capacity = __cap;\
-	}\
-	ret_ok = 1;\
-} while (0)
+#define	dynarrReserve(dynarr, capacity)	dynarrReserve_raw(&(dynarr)->raw, capacity, sizeof((dynarr)->buf[0]))
 
-#define	dynarrResetLength(dynarr, _len, ret_ok)\
-do {\
-	size_t __len = _len;\
-	dynarrReserve(dynarr, __len, ret_ok);\
-	if (!ret_ok) {\
-		break;\
-	}\
-	(dynarr)->len = __len;\
-} while (0)
+#define	dynarrResize(dynarr, len)	dynarrResize_raw(&(dynarr)->raw, len, sizeof((dynarr)->buf[0]))
 
-#define	dynarrResize(dynarr, _len, def_val, ret_ok)\
-do {\
-	size_t __i;\
-	size_t __len = _len;\
-	dynarrReserve(dynarr, __len, ret_ok);\
-	if (!ret_ok) {\
-		break;\
-	}\
-	(dynarr)->len = __len;\
-	for (__i = 0; __i < __len; ++__i) {\
-		(dynarr)->buf[__i] = (def_val);\
-	}\
-} while (0)
+#define	dynarrClearData(dynarr) ((dynarr)->len = 0)
+
+#define	dynarrFreeMemory(dynarr)	dynarrFreeMemory_raw(&(dynarr)->raw)
+
+#define	dynarrSwap(a1, a2)	dynarrSwap_raw(&(a1)->raw, &(a2)->raw)
 
 #define	dynarrInsert(dynarr, idx, val, ret_ok)\
 do {\
 	size_t __i, __idx;\
-	dynarrReserve(dynarr, (dynarr)->len + 1, ret_ok);\
-	if (!ret_ok) {\
+	if (!dynarrReserve(dynarr, (dynarr)->len + 1)) {\
+		ret_ok = 0;\
 		break;\
 	}\
+	ret_ok = 1;\
 	__idx = idx;\
 	for (__i = (dynarr)->len; __i > __idx; --__i) {\
 		(dynarr)->buf[__i] = (dynarr)->buf[__i - 1];\
@@ -86,31 +75,6 @@ do {\
 		(dynarr)->buf[__i] = (dynarr)->buf[__i + 1];\
 	}\
 	--((dynarr)->len);\
-} while (0)
-
-#define	dynarrClearData(dynarr) ((dynarr)->len = 0)
-
-#define	dynarrFreeMemory(dynarr)\
-do {\
-	free((dynarr)->buf);\
-	dynarrInitZero(dynarr);\
-} while (0)
-
-#define	dynarrSwap(a1, a2)\
-do {\
-	size_t __v;\
-	if ((void*)a1 == (void*)a2) {\
-		break;\
-	}\
-	__v = (size_t)(a1)->buf;\
-	(a1)->buf = (a2)->buf;\
-	*(size_t*)&((a2)->buf) = __v;\
-	__v = (a1)->len;\
-	(a1)->len = (a2)->len;\
-	(a2)->len = __v;\
-	__v = (a1)->capacity;\
-	(a1)->capacity = (a2)->capacity;\
-	(a2)->capacity = __v;\
 } while (0)
 
 #define	dynarrFindValue(dynarr, val, ret_idx)\
