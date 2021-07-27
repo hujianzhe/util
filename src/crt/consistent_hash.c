@@ -9,21 +9,13 @@ typedef struct VirtualNode_t {
 	RBTreeNode_t m_treenode;
 	void* value;
 } VirtualNode_t;
-static int __consthash_keycmp(const void* node_key, const void* key) {
-	if ((size_t)key < (size_t)node_key)
-		return -1;
-	else if ((size_t)key > (size_t)node_key)
-		return 1;
-	else
-		return 0;
-}
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void consistenthashInit(ConsistentHash_t* ch) {
-	rbtreeInit(ch, __consthash_keycmp);
+	rbtreeInit(ch, rbtreeDefaultKeyCmp);
 }
 
 int consistenthashReg(ConsistentHash_t* ch, unsigned int key, void* value) {

@@ -14,14 +14,6 @@
 extern "C" {
 #endif
 
-static int header_keycmp(const void* node_key, const void* key) {
-	return strcmp((const char*)node_key, (const char*)key);
-}
-
-static unsigned int header_keyhash(const void* key) {
-	return hashBKDR((const char*)key);
-}
-
 static void httpframe_clear_headers(Hashtable_t* tbl) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(tbl); cur; cur = next) {
@@ -49,7 +41,7 @@ HttpFrame_t* httpframeInit(HttpFrame_t* frame) {
 	frame->pathlen = 0;
 	hashtableInit(&frame->headers, frame->m_bulks,
 		sizeof(frame->m_bulks) / sizeof(frame->m_bulks[0]),
-		header_keycmp, header_keyhash);
+		hashtableDefaultKeyCmpStr, hashtableDefaultKeyHashStr);
 	frame->multipart_form_data_boundary = EMPTY_STRING;
 	listInit(&frame->multipart_form_datalist);
 	frame->content_length = 0;
@@ -372,7 +364,7 @@ static HttpMultipartFormData_t* new_http_multipart_form_data(const void* data, u
 	if (form_data) {
 		hashtableInit(&form_data->headers, form_data->m_headerbulks,
 			sizeof(form_data->m_headerbulks) / sizeof(form_data->m_headerbulks[0]),
-			header_keycmp, header_keyhash);
+			hashtableDefaultKeyCmpStr, hashtableDefaultKeyHashStr);
 		if (headers) {
 			if (!parse_and_add_header(&form_data->headers, headers)) {
 				free(form_data);
