@@ -26,6 +26,9 @@ typedef struct RBTree_t {
 extern "C" {
 #endif
 
+__declspec_dll int rbtreeDefaultKeyCmp(const void*, const void*);
+__declspec_dll int rbtreeDefaultKeyCmpStr(const void*, const void*);
+
 __declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const void*, const void*));
 
 __declspec_dll struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node);

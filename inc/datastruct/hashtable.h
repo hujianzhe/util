@@ -26,6 +26,11 @@ typedef struct Hashtable_t {
 extern "C" {
 #endif
 
+__declspec_dll int hashtableDefaultKeyCmp(const void*, const void*);
+__declspec_dll unsigned int hashtableDefaultKeyHash(const void*);
+__declspec_dll int hashtableDefaultKeyCmpStr(const void*, const void*);
+__declspec_dll unsigned int hashtableDefaultKeyHashStr(const void*);
+
 __declspec_dll struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
 		int (*keycmp)(const void*, const void*),

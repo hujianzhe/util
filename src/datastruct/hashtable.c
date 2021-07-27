@@ -8,15 +8,12 @@
 extern "C" {
 #endif
 
-static int __default_keycmp(const void* node_key, const void* key) { return node_key != key; }
-static unsigned int __default_keyhash(const void* key) { return (ptrlen_t)key; }
-
-struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const void* key) {
+static struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const void* key) {
 	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
 }
 
-struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, const void* key) {
+static struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, const void* key) {
 	if (*bucket_list_head) {
 		struct HashtableNode_t* node;
 		for (node = *bucket_list_head; node; node = node->next) {
@@ -27,6 +24,26 @@ struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, co
 		}
 	}
 	return (struct HashtableNode_t*)0;
+}
+
+int hashtableDefaultKeyCmp(const void* node_key, const void* key) { return node_key != key; }
+unsigned int hashtableDefaultKeyHash(const void* key) { return (ptrlen_t)key; }
+
+int hashtableDefaultKeyCmpStr(const void* node_key, const void* key) {
+	const unsigned char* s1 = (const unsigned char*)node_key;
+	const unsigned char* s2 = (const unsigned char*)key;
+	while (*s1 && *s1 == *s2) {
+		++s1;
+		++s2;
+	}
+	return *s1 != *s2;
+}
+unsigned int hashtableDefaultKeyHashStr(const void* key) {
+	const char* str = (const char*)key;
+	unsigned int hash = 0;
+	while (*str)
+		hash = hash * 131U + (*str++);
+	return hash & 0x7fffffff;
 }
 
 struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
@@ -40,8 +57,8 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 	}
 	hashtable->buckets = buckets;
 	hashtable->buckets_size = buckets_size;
-	hashtable->keycmp = keycmp ? keycmp : __default_keycmp;
-	hashtable->keyhash = keyhash ? keyhash : __default_keyhash;
+	hashtable->keycmp = keycmp;
+	hashtable->keyhash = keyhash;
 	return hashtable;
 }
 
