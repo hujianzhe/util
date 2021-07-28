@@ -48,6 +48,29 @@ unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t* key) {
 	return hash;
 }
 
+int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+	return node_key->ptr != key->ptr;
+}
+
+unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t* key) {
+	if (sizeof(key->ptr) <= sizeof(unsigned int)) {
+		return (ptrlen_t)key->ptr;
+	}
+	else {
+		unsigned int hash = 0, keylen = sizeof(key->ptr);
+		const char* p;
+		for (p = (const char*)(&key->ptr); keylen; --keylen, ++p) {
+			hash += *p;
+			hash += hash << 10;
+			hash ^= hash >> 6;
+		}
+		hash += hash << 3;
+		hash ^= hash >> 11;
+		hash += hash << 15;
+		return hash;
+	}
+}
+
 int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
 	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
 	const unsigned char* s2 = (const unsigned char*)key->ptr;

@@ -38,6 +38,8 @@ __declspec_dll int hashtableDefaultKeyCmp32(const HashtableNodeKey_t*, const Has
 __declspec_dll unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t*);
 __declspec_dll int hashtableDefaultKeyCmp64(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
 __declspec_dll unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t*);
+__declspec_dll int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
+__declspec_dll unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t*);
 __declspec_dll int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
 __declspec_dll unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t*);
 
