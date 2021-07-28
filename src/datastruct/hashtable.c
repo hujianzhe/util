@@ -8,16 +8,16 @@
 extern "C" {
 #endif
 
-static struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const void* key) {
+static struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const HashtableNodeKey_t* key) {
 	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
 }
 
-static struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, const void* key) {
+static struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_head, const HashtableNodeKey_t* key) {
 	if (*bucket_list_head) {
 		struct HashtableNode_t* node;
 		for (node = *bucket_list_head; node; node = node->next) {
-			if (node->table->keycmp(node->key, key)) {
+			if (node->table->keycmp(&node->key, key)) {
 				continue;
 			}
 			return node;
@@ -26,20 +26,39 @@ static struct HashtableNode_t* __get_node(struct HashtableNode_t** bucket_list_h
 	return (struct HashtableNode_t*)0;
 }
 
-int hashtableDefaultKeyCmp(const void* node_key, const void* key) { return node_key != key; }
-unsigned int hashtableDefaultKeyHash(const void* key) { return (ptrlen_t)key; }
+int hashtableDefaultKeyCmp32(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+	return node_key->u32 != key->u32;
+}
+unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t* key) { return key->u32; }
 
-int hashtableDefaultKeyCmpStr(const void* node_key, const void* key) {
-	const unsigned char* s1 = (const unsigned char*)node_key;
-	const unsigned char* s2 = (const unsigned char*)key;
+int hashtableDefaultKeyCmp64(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+	return node_key->u64 != key->u64;
+}
+unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t* key) {
+	unsigned int hash = 0, keylen = sizeof(key->u64);
+	const char* p;
+	for (p = (const char*)(&key->u64); keylen; --keylen, ++p) {
+		hash += *p;
+		hash += hash << 10;
+		hash ^= hash >> 6;
+	}
+	hash += hash << 3;
+	hash ^= hash >> 11;
+	hash += hash << 15;
+	return hash;
+}
+
+int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
+	const unsigned char* s2 = (const unsigned char*)key->ptr;
 	while (*s1 && *s1 == *s2) {
 		++s1;
 		++s2;
 	}
 	return *s1 != *s2;
 }
-unsigned int hashtableDefaultKeyHashStr(const void* key) {
-	const char* str = (const char*)key;
+unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t* key) {
+	const char* str = (const char*)key->ptr;
 	unsigned int hash = 0;
 	while (*str)
 		hash = hash * 131U + (*str++);
@@ -48,8 +67,8 @@ unsigned int hashtableDefaultKeyHashStr(const void* key) {
 
 struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(const void*, const void*),
-		unsigned int (*keyhash)(const void*))
+		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*),
+		unsigned int (*keyhash)(const HashtableNodeKey_t*))
 {
 	unsigned int i;
 	for (i = 0; i < buckets_size; ++i) {
@@ -63,8 +82,8 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 }
 
 struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) {
-	struct HashtableNode_t** bucket_list_head = __get_bucket_list_head(hashtable, node->key);
-	struct HashtableNode_t* exist_node = __get_node(bucket_list_head, node->key);
+	struct HashtableNode_t** bucket_list_head = __get_bucket_list_head(hashtable, &node->key);
+	struct HashtableNode_t* exist_node = __get_node(bucket_list_head, &node->key);
 	if (exist_node) {
 		return exist_node;
 	}
@@ -81,12 +100,12 @@ struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struc
 
 void hashtableReplaceNode(struct HashtableNode_t* old_node, struct HashtableNode_t* new_node) {
 	if (old_node && old_node != new_node) {
-		const void* key = new_node->key;
+		HashtableNodeKey_t key = new_node->key;
 		if (old_node->prev) {
 			old_node->prev->next = new_node;
 		}
 		else {
-			struct HashtableNode_t** bucket_list_head = __get_bucket_list_head(old_node->table, old_node->key);
+			struct HashtableNode_t** bucket_list_head = __get_bucket_list_head(old_node->table, &old_node->key);
 			*bucket_list_head = new_node;
 		}
 		if (old_node->next) {
@@ -113,11 +132,11 @@ void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* 
 	}
 }
 
-struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const void* key) {
-	return __get_node(__get_bucket_list_head(hashtable, key), key);
+struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key) {
+	return __get_node(__get_bucket_list_head(hashtable, &key), &key);
 }
 
-struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const void* key) {
+struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const HashtableNodeKey_t key) {
 	struct HashtableNode_t* exist_node = hashtableSearchKey(hashtable, key);
 	if (exist_node) {
 		hashtableRemoveNode(hashtable, exist_node);

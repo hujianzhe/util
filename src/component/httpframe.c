@@ -60,7 +60,10 @@ HttpFrame_t* httpframeReset(HttpFrame_t* frame) {
 }
 
 const char* httpframeGetHeader(Hashtable_t* headers, const char* key) {
-	HashtableNode_t* node = hashtableSearchKey(headers, key);
+	HashtableNodeKey_t hkey;
+	HashtableNode_t* node;
+	hkey.ptr = key;
+	node = hashtableSearchKey(headers, hkey);
 	return node ? pod_container_of(node, HttpFrameHeaderField_t, m_hashnode)->value : NULL;
 }
 
@@ -234,7 +237,7 @@ static int parse_and_add_header(Hashtable_t* tbl, const char* h) {
 			pkv[keylen + valuelen + 1] = 0;
 			field->value = pkv + keylen + 1;
 
-			field->m_hashnode.key = field->key;
+			field->m_hashnode.key.ptr = field->key;
 			exist_node = hashtableInsertNode(tbl, &field->m_hashnode);
 			if (exist_node != &field->m_hashnode) {
 				hashtableReplaceNode(exist_node, &field->m_hashnode);

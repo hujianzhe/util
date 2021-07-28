@@ -15,14 +15,14 @@ extern "C" {
 #endif
 
 void consistenthashInit(ConsistentHash_t* ch) {
-	rbtreeInit(ch, rbtreeDefaultKeyCmp);
+	rbtreeInit(ch, rbtreeDefaultKeyCmpU32);
 }
 
 int consistenthashReg(ConsistentHash_t* ch, unsigned int key, void* value) {
 	VirtualNode_t* vc = (VirtualNode_t*)malloc(sizeof(VirtualNode_t));
 	if (vc) {
 		RBTreeNode_t* exist_node;
-		vc->m_treenode.key = (void*)(size_t)key;
+		vc->m_treenode.key.u32 = key;
 		vc->value = value;
 		exist_node = rbtreeInsertNode(ch, &vc->m_treenode);
 		if (exist_node != &vc->m_treenode) {
@@ -35,7 +35,10 @@ int consistenthashReg(ConsistentHash_t* ch, unsigned int key, void* value) {
 }
 
 void* consistenthashSelect(ConsistentHash_t* ch, unsigned int key) {
-	RBTreeNode_t* exist_node = rbtreeUpperBoundKey(ch, (void*)(size_t)key);
+	RBTreeNodeKey_t rkey;
+	RBTreeNode_t* exist_node;
+	rkey.u32 = key;
+	exist_node = rbtreeUpperBoundKey(ch, rkey);
 	if (!exist_node) {
 		exist_node = rbtreeFirstNode(ch);
 		if (!exist_node) {
@@ -58,7 +61,10 @@ void consistenthashDelValue(ConsistentHash_t* ch, const void* value) {
 }
 
 void consistenthashDelKey(ConsistentHash_t* ch, unsigned int key) {
-	RBTreeNode_t* exist_node = rbtreeRemoveKey(ch, (void*)(size_t)key);
+	RBTreeNodeKey_t rkey;
+	RBTreeNode_t* exist_node;
+	rkey.u32 = key;
+	exist_node = rbtreeRemoveKey(ch, rkey);
 	if (exist_node) {
 		free(pod_container_of(exist_node, VirtualNode_t, m_treenode));
 	}

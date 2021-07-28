@@ -15,21 +15,11 @@ typedef struct RBTimerEvList {
 extern "C" {
 #endif
 
-static int rbtimer_keycmp(const void* node_key, const void* key) {
-	long long res = *(const long long*)key - *(const long long*)node_key;
-	if (res < 0)
-		return -1;
-	else if (res > 0)
-		return 1;
-	else
-		return 0;
-}
-
 RBTimer_t* rbtimerInit(RBTimer_t* timer, BOOL uselock) {
 	timer->m_initok = 0;
 	if (uselock && !criticalsectionCreate(&timer->m_lock))
 		return NULL;
-	rbtreeInit(&timer->m_rbtree, rbtimer_keycmp);
+	rbtreeInit(&timer->m_rbtree, rbtreeDefaultKeyCmpI64);
 	timer->m_initok = 1;
 	timer->m_uselock = uselock;
 	timer->m_min_timestamp = -1;
@@ -72,6 +62,7 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	int ok;
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
+	RBTreeNodeKey_t key;
 
 	if (e->timestamp_msec < 0)
 		return 1;
@@ -80,7 +71,8 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	if (timer->m_uselock)
 		criticalsectionEnter(&timer->m_lock);
 
-	exist_node = rbtreeSearchKey(&timer->m_rbtree, &e->timestamp_msec);
+	key.i64 = e->timestamp_msec;
+	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
 	if (exist_node) {
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
 		listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
@@ -92,7 +84,7 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	else {
 		evlist = (RBTimerEvList*)malloc(sizeof(RBTimerEvList));
 		if (evlist) {
-			evlist->m_rbtreenode.key = &evlist->timestamp_msec;
+			evlist->m_rbtreenode.key.i64 = e->timestamp_msec;
 			evlist->timestamp_msec = e->timestamp_msec;
 			listInit(&evlist->m_list);
 			listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
@@ -114,11 +106,13 @@ void rbtimerDelEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	int need_free;
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
+	RBTreeNodeKey_t key;
 
 	if (timer->m_uselock)
 		criticalsectionEnter(&timer->m_lock);
 
-	exist_node = rbtreeSearchKey(&timer->m_rbtree, &e->timestamp_msec);
+	key.i64 = e->timestamp_msec;
+	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
 	if (exist_node) {
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
 		listRemoveNode(&evlist->m_list, &e->m_listnode);
@@ -190,7 +184,7 @@ ListNode_t* rbtimerClean(RBTimer_t* timer) {
 		listAppend(&list, &evlist->m_list);
 		free(evlist);
 	}
-	rbtreeInit(&timer->m_rbtree, rbtimer_keycmp);
+	rbtreeInit(&timer->m_rbtree, rbtreeDefaultKeyCmpI64);
 	timer->m_min_timestamp = -1;
 
 	if (timer->m_uselock)

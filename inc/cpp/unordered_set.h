@@ -66,8 +66,8 @@ public:
 	typedef iterator	const_iterator;
 
 private:
-	static int keycmp(const void* node_key, const void* key) {
-		return *(key_type*)node_key != *(key_type*)key;
+	static int keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+		return *(key_type*)(node_key->ptr) != *(key_type*)(key->ptr);
 	}
 
 	static unsigned int __key_hash(const std::string& s) {
@@ -83,8 +83,8 @@ private:
 	static unsigned int __key_hash(size_t n) { return n; }
 	static unsigned int __key_hash(const void* p) { return (unsigned int)(size_t)p; }
 
-	static unsigned int keyhash(const void* key) {
-		return __key_hash(*(key_type*)key);
+	static unsigned int keyhash(const HashtableNodeKey_t* key) {
+		return __key_hash(*(key_type*)(key->ptr));
 	}
 
 public:
@@ -142,7 +142,9 @@ public:
 	}
 
 	size_t erase(const key_type& k) {
-		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, &k);
+		::HashtableNodeKey_t hkey;
+		hkey.ptr = &k;
+		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, hkey);
 		if (node) {
 			::hashtableRemoveNode(&m_table, node);
 			delete (Xnode*)node;
@@ -153,12 +155,16 @@ public:
 	}
 
 	iterator find(const key_type& k) const {
-		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, &k);
+		::HashtableNodeKey_t hkey;
+		hkey.ptr = &k;
+		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, hkey);
 		return iterator(node);
 	}
 
 	pair<iterator, bool> insert(const key_type& k) {
-		::HashtableNode_t* n = ::hashtableSearchKey(&m_table, &k);
+		::HashtableNodeKey_t hkey;
+		hkey.ptr = &k;
+		::HashtableNode_t* n = ::hashtableSearchKey(&m_table, hkey);
 		if (n) {
 			return pair<iterator, bool>(iterator(n), false);
 		}

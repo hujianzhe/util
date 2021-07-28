@@ -122,20 +122,60 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-int rbtreeDefaultKeyCmp(const void* node_key, const void* key)
+int rbtreeDefaultKeyCmpU32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
 {
-	if (key == node_key)
+	if (key->u32 == node_key->u32)
 		return 0;
-	else if (key < node_key)
+	else if (key->u32 < node_key->u32)
 		return -1;
 	else
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpStr(const void* node_key, const void* key)
+int rbtreeDefaultKeyCmpI32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
 {
-	const unsigned char* s1 = (const unsigned char*)node_key;
-	const unsigned char* s2 = (const unsigned char*)key;
+	if (key->i32 == node_key->i32)
+		return 0;
+	else if (key->i32 < node_key->i32)
+		return -1;
+	else
+		return 1;
+}
+
+int rbtreeDefaultKeyCmpU64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+{
+	if (key->u64 == node_key->u64)
+		return 0;
+	else if (key->u64 < node_key->u64)
+		return -1;
+	else
+		return 1;
+}
+
+int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+{
+	if (key->i64 == node_key->i64)
+		return 0;
+	else if (key->i64 < node_key->i64)
+		return -1;
+	else
+		return 1;
+}
+
+int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+{
+	if (key->ptr == node_key->ptr)
+		return 0;
+	else if (key->ptr < node_key->ptr)
+		return -1;
+	else
+		return 1;
+}
+
+int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+{
+	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
+	const unsigned char* s2 = (const unsigned char*)key->ptr;
 	while (*s1 && *s1 == *s2) {
 		++s1;
 		++s2;
@@ -148,7 +188,7 @@ int rbtreeDefaultKeyCmpStr(const void* node_key, const void* key)
 		return 0;
 }
 
-struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const void*, const void*))
+struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*))
 {
 	root->rb_tree_node = (struct RBTreeNode_t*)0;
 	root->keycmp = keycmp;
@@ -159,7 +199,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 {
 	struct RBTreeNode_t* parent = root->rb_tree_node;
 	while (parent) {
-		int res = root->keycmp(parent->key, node->key);
+		int res = root->keycmp(&parent->key, &node->key);
 		if (res < 0) {
 			if (parent->rb_left) {
 				parent = parent->rb_left;
@@ -195,7 +235,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 
 void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) {
 	if (old_node && old_node != new_node) {
-		const void* key = new_node->key;
+		RBTreeNodeKey_t key = new_node->key;
 		if (old_node->rb_left) {
 			old_node->rb_left->rb_parent = new_node;
 		}
@@ -365,11 +405,11 @@ color:
 		__rb_remove_color(child, parent, root);
 }
 
-struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
 {
 	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
-		int res = root->keycmp(node->key, key);
+		int res = root->keycmp(&node->key, &key);
 		if (res < 0) {
 			node = node->rb_left;
 		}
@@ -383,12 +423,12 @@ struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const void* ke
 	return node;
 }
 
-struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
 {
 	struct RBTreeNode_t *great_equal_node = (struct RBTreeNode_t*)0;
 	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
-		int res = root->keycmp(node->key, key);
+		int res = root->keycmp(&node->key, &key);
 		if (res < 0) {
 			great_equal_node = node;
 			node = node->rb_left;
@@ -404,12 +444,12 @@ struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const void
 	return great_equal_node;
 }
 
-struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
 {
 	struct RBTreeNode_t *great_node = (struct RBTreeNode_t*)0;
 	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
-		int res = root->keycmp(node->key, key);
+		int res = root->keycmp(&node->key, &key);
 		if (res < 0) {
 			great_node = node;
 			node = node->rb_left;
@@ -421,7 +461,7 @@ struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const void
 	return great_node;
 }
 
-struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const void* key)
+struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const RBTreeNodeKey_t key)
 {
 	struct RBTreeNode_t *node = rbtreeSearchKey(root, key);
 	if (node) {

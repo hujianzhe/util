@@ -866,11 +866,11 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	}
 }
 
-static int objht_keycmp(const void* node_key, const void* key) {
-	return *(FD_t*)node_key != *(FD_t*)key;
+static int objht_keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+	return *(FD_t*)(node_key->ptr) != *(FD_t*)(key->ptr);
 }
 
-static unsigned int objht_keyhash(const void* key) { return *(FD_t*)key; }
+static unsigned int objht_keyhash(const HashtableNodeKey_t* key) { return *(FD_t*)(key->ptr); }
 
 Reactor_t* reactorInit(Reactor_t* reactor) {
 	if (!nioCreate(&reactor->m_nio)) {
@@ -977,13 +977,15 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 		int i;
 		timestamp_msec = gmtimeMillisecond();
 		for (i = 0; i < n; ++i) {
+			HashtableNodeKey_t hkey;
 			HashtableNode_t* find_node;
 			ReactorObject_t* o;
 			FD_t fd;
 			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i))
 				continue;
-			fd = nioEventFD(e + i);
-			find_node = hashtableSearchKey(&reactor->m_objht, &fd);
+			fd = nioEventFD(e + i);			
+			hkey.ptr = &fd;
+			find_node = hashtableSearchKey(&reactor->m_objht, hkey);
 			if (!find_node)
 				continue;
 			o = pod_container_of(find_node, ReactorObject_t, m_hashnode);
@@ -1081,7 +1083,7 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 
 	listInit(&o->m_channel_list);
-	o->m_hashnode.key = &o->fd;
+	o->m_hashnode.key.ptr = &o->fd;
 	o->m_reghaspost = 0;
 	o->m_valid = 1;
 	o->m_has_inserted = 0;
