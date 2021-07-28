@@ -25,7 +25,7 @@ public:
 		value_type v;
 
 		Xnode(void) {
-			key = &v.first;
+			key.ptr = &v.first;
 		}
 	} Xnode;
 

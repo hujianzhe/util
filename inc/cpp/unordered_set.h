@@ -24,7 +24,7 @@ public:
 		key_type k;
 
 		Xnode(void) {
-			key = &k;
+			key.ptr = &k;
 		}
 	} Xnode;
 
