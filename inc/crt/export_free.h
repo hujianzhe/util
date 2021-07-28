@@ -6,7 +6,6 @@
 #define	UTIL_C_CRT_EXPORT_FREE_H
 
 #include "../compiler_define.h"
-#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

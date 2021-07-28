@@ -5,6 +5,7 @@
 #ifndef UTIL_C_CRT_DYNARR_H
 #define	UTIL_C_CRT_DYNARR_H
 
+#include "../compiler_define.h"
 #include <stddef.h>
 
 typedef struct DynArrRaw_t {
@@ -17,11 +18,11 @@ typedef struct DynArrRaw_t {
 extern "C" {
 #endif
 
-void* dynarrReserve_raw(DynArrRaw_t* dynarr, size_t capacity, size_t ele_size);
-void* dynarrResize_raw(DynArrRaw_t* dynarr, size_t len, size_t ele_size);
-void dynarrSwap_raw(DynArrRaw_t* a1, DynArrRaw_t* a2);
-void dynarrInitZero_raw(DynArrRaw_t* dynarr);
-void dynarrFreeMemory_raw(DynArrRaw_t* dynarr);
+__declspec_dll void* dynarrReserve_raw(DynArrRaw_t* dynarr, size_t capacity, size_t ele_size);
+__declspec_dll void* dynarrResize_raw(DynArrRaw_t* dynarr, size_t len, size_t ele_size);
+__declspec_dll void dynarrSwap_raw(DynArrRaw_t* a1, DynArrRaw_t* a2);
+__declspec_dll void dynarrInitZero_raw(DynArrRaw_t* dynarr);
+__declspec_dll void dynarrFreeMemory_raw(DynArrRaw_t* dynarr);
 
 #ifdef __cplusplus
 }
