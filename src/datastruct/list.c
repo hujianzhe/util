@@ -122,13 +122,13 @@ struct ListNode_t* listPopNodeBack(struct List_t* list) {
 	return tail;
 }
 
-struct ListNode_t* listAt(const struct List_t* list, ptrlen_t index) {
+struct ListNode_t* listAt(const struct List_t* list, UnsignedPtr_t index) {
 	struct ListNode_t* node;
 	for (node = list->head; node && index--; node = node->next);
 	return node;
 }
 
-struct ListNode_t* listAtMost(const struct List_t* list, ptrlen_t index) {
+struct ListNode_t* listAtMost(const struct List_t* list, UnsignedPtr_t index) {
 	struct ListNode_t* node, *prev;
 	for (prev = node = list->head; node && index--; prev = node, node = node->next);
 	return node ? node : prev;

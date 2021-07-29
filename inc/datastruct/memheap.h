@@ -13,13 +13,13 @@ struct MemHeap_t;
 extern "C" {
 #endif
 
-__declspec_dll struct MemHeap_t* memheapSetup(void* addr, ptrlen_t len);
-__declspec_dll void* memheapAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes);
-__declspec_dll void* memheapAlignAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes, ptrlen_t alignment);
+__declspec_dll struct MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len);
+__declspec_dll void* memheapAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes);
+__declspec_dll void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment);
 __declspec_dll void memheapFree(void* addr);
 
-__declspec_dll struct MemHeap_t* shmheapSetup(void* addr, ptrlen_t len);
-__declspec_dll void* shmheapAlloc(struct MemHeap_t* memheap, ptrlen_t nbytes);
+__declspec_dll struct MemHeap_t* shmheapSetup(void* addr, UnsignedPtr_t len);
+__declspec_dll void* shmheapAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes);
 __declspec_dll void shmheapFree(void* addr);
 
 #ifdef	__cplusplus

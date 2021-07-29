@@ -24,7 +24,7 @@ __declspec_dll unsigned long long mt19937_ull(RandMT19937_t* ctx);
 #define	mt19937_ll(ctx)	((long long)mt19937_ull(ctx))
 __declspec_dll long long mt19937Range(RandMT19937_t* ctx, long long start, long long end);
 /* random string */
-__declspec_dll char* randAlphabetNumber(int seedval, char* s, ptrlen_t length);
+__declspec_dll char* randAlphabetNumber(int seedval, char* s, UnsignedPtr_t length);
 
 #ifdef	__cplusplus
 }

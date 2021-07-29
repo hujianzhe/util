@@ -58,11 +58,14 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_noinline						__declspec(noinline)
 
 	#ifdef	_WIN64
-		typedef	unsigned __int64					ptrlen_t;
+		typedef __int64								SignedPtr_t;
+		typedef	unsigned __int64					UnsignedPtr_t;
 	#elif	_WIN32
-		typedef	unsigned __int32					ptrlen_t;
+		typedef	__int32								SignedPtr_t;
+		typedef	unsigned __int32					UnsignedPtr_t;
 	#endif
-	STATIC_ASSERT(sizeof(ptrlen_t) == sizeof(void*), "");
+	STATIC_ASSERT(sizeof(SignedPtr_t) == sizeof(void*), "");
+	STATIC_ASSERT(sizeof(UnsignedPtr_t) == sizeof(void*), "");
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
 	#ifndef NDEBUG	/* ANSI define */
@@ -85,7 +88,9 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#define	__declspec_noinline						__attribute__ ((noinline))
 
 	STATIC_ASSERT(sizeof(long) == sizeof(void*), "");
-	typedef	unsigned long							ptrlen_t;
+	STATIC_ASSERT(sizeof(unsigned long) == sizeof(void*), "");
+	typedef	long									SignedPtr_t;
+	typedef	unsigned long							UnsignedPtr_t;
 
 #else
 	#define	__declspec_noinline

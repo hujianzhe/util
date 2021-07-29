@@ -8,9 +8,9 @@
 #include "../compiler_define.h"
 
 typedef struct SortHeap_t {
-	ptrlen_t ecnt;
-	ptrlen_t esize;
-	ptrlen_t bufsize;
+	UnsignedPtr_t ecnt;
+	UnsignedPtr_t esize;
+	UnsignedPtr_t bufsize;
 	unsigned char* buf;
 	int(*cmp)(const void*, const void*);
 } SortHeap_t;
@@ -19,7 +19,7 @@ typedef struct SortHeap_t {
 extern "C" {
 #endif
 
-__declspec_dll SortHeap_t* sortheapInit(SortHeap_t* h, void* buf, ptrlen_t bufsize, ptrlen_t esize, int(*cmp)(const void*, const void*));
+__declspec_dll SortHeap_t* sortheapInit(SortHeap_t* h, void* buf, UnsignedPtr_t bufsize, UnsignedPtr_t esize, int(*cmp)(const void*, const void*));
 __declspec_dll int sortheapIsFull(SortHeap_t* h);
 __declspec_dll int sortheapIsEmpty(SortHeap_t* h);
 __declspec_dll const void* sortheapTop(SortHeap_t* h);

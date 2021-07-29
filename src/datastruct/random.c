@@ -93,9 +93,9 @@ long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) {
 }
 
 /* random string */
-char* randAlphabetNumber(int seedval, char* s, ptrlen_t length) {
+char* randAlphabetNumber(int seedval, char* s, UnsignedPtr_t length) {
 	static char table[] = "0123456789abcdefghigklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ";
-	ptrlen_t i;
+	UnsignedPtr_t i;
 	RandMT19937_t ctx;
 	mt19937Seed(&ctx, seedval);
 	for (i = 0; i < length; ++i) {

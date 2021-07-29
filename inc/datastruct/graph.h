@@ -18,7 +18,7 @@ typedef struct GraphNode_t {
 	ListNode_t node;
 	Graph_t* graph;
 	List_t edgelist[2];
-	ptrlen_t degree[2];
+	UnsignedPtr_t degree[2];
 	struct {
 		struct GraphEdge_t* visit_from_edgenode;
 		int dfs_visit;

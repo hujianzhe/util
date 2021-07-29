@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-static void* __byte_copy(void* dst, const void* src, ptrlen_t sz) {
+static void* __byte_copy(void* dst, const void* src, UnsignedPtr_t sz) {
 	unsigned char* pdst = (unsigned char*)dst;
 	unsigned char* psrc = (unsigned char*)src;
 	while (sz--) {
@@ -19,11 +19,11 @@ static void* __byte_copy(void* dst, const void* src, ptrlen_t sz) {
 	return dst;
 }
 
-void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, const void* p2_, ptrlen_t icnt2, ptrlen_t esize, const void*(*cmp)(const void*, const void*)) {
+void sortMergeOrder(void* p_, UnsignedPtr_t icnt, const void* p1_, UnsignedPtr_t icnt1, const void* p2_, UnsignedPtr_t icnt2, UnsignedPtr_t esize, const void*(*cmp)(const void*, const void*)) {
 	unsigned char* p = (unsigned char*)p_;
 	const unsigned char* p1 = (const unsigned char*)p1_;
 	const unsigned char* p2 = (const unsigned char*)p2_;
-	ptrlen_t i = 0, i1 = 0, i2 = 0;
+	UnsignedPtr_t i = 0, i1 = 0, i2 = 0;
 	while (i < icnt && i1 < icnt1 && i2 < icnt2) {
 		if (cmp(p1, p2) == p1) {
 			__byte_copy(p, p1, esize);
@@ -55,7 +55,7 @@ void sortMergeOrder(void* p_, ptrlen_t icnt, const void* p1_, ptrlen_t icnt1, co
 SortInsertTopN_t* sortInsertTopN(void* top, void* new_, SortInsertTopN_t* arg) {
 	unsigned char* p = (unsigned char*)top;
 	unsigned char* pp = p;
-	ptrlen_t i;
+	UnsignedPtr_t i;
 	for (i = 0; i < arg->ecnt; ++i, p += arg->esize) {
 		if (arg->cmp(p, new_) == new_)
 			break;

@@ -23,7 +23,7 @@ unsigned int hashDJB(const char *str) {
 	return hash & 0x7fffffff;
 }
 
-unsigned int hashJenkins(const char *key, ptrlen_t keylen) {
+unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen) {
 	const char *p;
 	unsigned int hash = 0;
 	for (p = key; keylen; --keylen, ++p) {
@@ -37,7 +37,7 @@ unsigned int hashJenkins(const char *key, ptrlen_t keylen) {
 	return hash;
 }
 
-unsigned int hashMurmur2(const char *key, ptrlen_t keylen) {
+unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen) {
 	unsigned int h, k;
 	h = 0 ^ keylen;
 

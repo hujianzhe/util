@@ -162,6 +162,15 @@ int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
+int rbtreeDefaultKeyCmpSSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) {
+	if (key->int_ptr == node_key->int_ptr)
+		return 0;
+	else if (key->int_ptr < node_key->int_ptr)
+		return -1;
+	else
+		return 1;
+}
+
 int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
 {
 	if (key->ptr == node_key->ptr)

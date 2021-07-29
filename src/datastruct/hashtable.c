@@ -54,7 +54,7 @@ int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t* node_key, const Hashtable
 
 unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t* key) {
 	if (sizeof(key->ptr) <= sizeof(unsigned int)) {
-		return (ptrlen_t)key->ptr;
+		return (UnsignedPtr_t)key->ptr;
 	}
 	else {
 		unsigned int hash = 0, keylen = sizeof(key->ptr);

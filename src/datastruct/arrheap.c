@@ -8,13 +8,13 @@
 extern "C" {
 #endif
 
-static void* _memcopy_(void* dst, const void* src, ptrlen_t n) {
+static void* _memcopy_(void* dst, const void* src, UnsignedPtr_t n) {
 	for (; n; --n)
 		((unsigned char*)dst)[n - 1] = ((unsigned char*)src)[n - 1];
 	return dst;
 }
 
-static void _swap_(void* one, void* two, ptrlen_t n) {
+static void _swap_(void* one, void* two, UnsignedPtr_t n) {
 	char* p1 = (char*)one;
 	char* p2 = (char*)two;
 	while (n--) {
@@ -25,7 +25,7 @@ static void _swap_(void* one, void* two, ptrlen_t n) {
 	}
 }
 
-SortHeap_t* sortheapInit(SortHeap_t* h, void* buf, ptrlen_t bufsize, ptrlen_t esize, int(*cmp)(const void*, const void*)) {
+SortHeap_t* sortheapInit(SortHeap_t* h, void* buf, UnsignedPtr_t bufsize, UnsignedPtr_t esize, int(*cmp)(const void*, const void*)) {
 	h->ecnt = 0;
 	h->esize = esize;
 	h->bufsize = bufsize;
@@ -39,7 +39,7 @@ int sortheapIsEmpty(SortHeap_t* h) { return h->ecnt == 0; }
 const void* sortheapTop(SortHeap_t* h) { return &h->buf[h->esize]; }
 
 SortHeap_t* sortheapInsert(SortHeap_t* h, void* ptr_data) {
-	ptrlen_t i = ++h->ecnt;
+	UnsignedPtr_t i = ++h->ecnt;
 	ptr_data = _memcopy_(h->buf + i * h->esize, ptr_data, h->esize);
 	while (i >>= 1) {
 		void* ptr_parent = h->buf + i * h->esize;
@@ -53,7 +53,7 @@ SortHeap_t* sortheapInsert(SortHeap_t* h, void* ptr_data) {
 }
 
 void sortheapPop(SortHeap_t* h) {
-	ptrlen_t i;
+	UnsignedPtr_t i;
 	void* ptr_select_data;
 	if (0 == h->ecnt) {
 		return;

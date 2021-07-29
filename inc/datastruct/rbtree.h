@@ -9,6 +9,8 @@
 
 typedef union {
 	const void* ptr;
+	SignedPtr_t int_ptr;
+	UnsignedPtr_t uint_ptr;
 	int i32;
 	unsigned int u32;
 	long long i64;
@@ -38,6 +40,7 @@ __declspec_dll int rbtreeDefaultKeyCmpU32(const RBTreeNodeKey_t*, const RBTreeNo
 __declspec_dll int rbtreeDefaultKeyCmpI32(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
 __declspec_dll int rbtreeDefaultKeyCmpU64(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
 __declspec_dll int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
+__declspec_dll int rbtreeDefaultKeyCmpSSZ(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
 __declspec_dll int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
 __declspec_dll int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
 

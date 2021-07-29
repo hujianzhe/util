@@ -13,8 +13,8 @@ extern "C" {
 
 __declspec_dll unsigned int hashBKDR(const char *str);
 __declspec_dll unsigned int hashDJB(const char *str);
-__declspec_dll unsigned int hashJenkins(const char *key, ptrlen_t keylen);
-__declspec_dll unsigned int hashMurmur2(const char *key, ptrlen_t keylen);
+__declspec_dll unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen);
+__declspec_dll unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen);
 
 #ifdef	__cplusplus
 }

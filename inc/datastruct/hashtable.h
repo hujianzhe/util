@@ -9,6 +9,8 @@
 
 typedef union {
 	const void* ptr;
+	SignedPtr_t int_ptr;
+	UnsignedPtr_t uint_ptr;
 	int i32;
 	unsigned int u32;
 	long long i64;
