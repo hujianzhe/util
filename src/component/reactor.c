@@ -11,18 +11,6 @@
 #define	streamChannel(o)\
 (o->m_channel_list.head ? pod_container_of(o->m_channel_list.head, ChannelBase_t, regcmd._) : NULL)
 
-typedef struct ReuseCmd_t {
-	ReactorCmd_t _;
-	ChannelBase_t* channel;
-	Sockaddr_t toaddr;
-} ReuseCmd_t;
-
-typedef struct ReuseFinishCmd_t {
-	ReactorCmd_t _;
-	ChannelBase_t* channel;
-	ReactorPacket_t* retpkg;
-} ReuseFinishCmd_t;
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -569,75 +557,6 @@ static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long tim
 	}
 }
 
-static ReactorObject_t* reactorobject_dup(ReactorObject_t* o);
-static void reactor_stream_client_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmdex, long long timestamp_msec) {
-	ChannelBase_t* src_channel;
-	ReactorObject_t* src_o;
-	ReactorObject_t* reconnect_o;
-	int sockaddrlen;
-	src_channel = cmdex->channel;
-	src_o = src_channel->o;
-	reconnect_o = reactorobject_dup(src_o);
-	if (!reconnect_o) {
-		return;
-	}
-	sockaddrlen = sockaddrLength(&cmdex->toaddr.sa);
-	if (sockaddrlen > 0) {
-		memcpy(&src_channel->to_addr, &cmdex->toaddr, sockaddrlen);
-		memcpy(&reconnect_o->stream.m_connect_addr, &cmdex->toaddr, sockaddrlen);
-	}
-	else {
-		sockaddrlen = sockaddrLength(&src_channel->to_addr.sa);
-		memcpy(&reconnect_o->stream.m_connect_addr, &src_channel->to_addr, sockaddrlen);
-	}
-	_xchg8(&reconnect_o->m_reghaspost, 1);
-	if (!reactor_reg_object(reactor, reconnect_o, timestamp_msec)) {
-		reactorobject_free(reconnect_o);
-		return;
-	}
-
-	src_channel->disable_send = 1;
-	packetlist_free_packet(&src_channel->stream_ctx.recvlist);
-	packetlist_free_packet(&src_channel->stream_ctx.sendlist);
-	streamtransportctxInit(&src_channel->stream_ctx, 0);
-
-	listRemoveNode(&src_o->m_channel_list, &src_channel->regcmd._);
-	listPushNodeBack(&reconnect_o->m_channel_list, &src_channel->regcmd._);
-	src_channel->o = reconnect_o;
-	src_o->m_valid = 0;
-	reactorobject_invalid_inner_handler(reactor, src_o, timestamp_msec);
-
-	reactor_exec_object_reg_callback(reactor, reconnect_o, timestamp_msec);
-	if (!reconnect_o->m_valid) {
-		reactorobject_invalid_inner_handler(reactor, reconnect_o, timestamp_msec);
-		return;
-	}
-}
-
-static void reactor_dgram_reuse_proc(Reactor_t* reactor, ReuseCmd_t* cmdex, long long timestamp_msec) {
-	ChannelBase_t* channel = cmdex->channel;
-	int sockaddrlen = sockaddrLength(&cmdex->toaddr.sa);
-	if (sockaddrlen > 0) {
-		memcpy(&channel->to_addr, &cmdex->toaddr, sockaddrlen);
-	}
-	channel->disable_send = 1;
-	packetlist_free_packet(&channel->dgram_ctx.recvlist);
-	packetlist_free_packet(&channel->dgram_ctx.sendlist);
-	dgramtransportctxInit(&channel->dgram_ctx, 0);
-
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		ReactorObject_t* o = channel->o;
-		if (~0 != channel->connected_times) {
-			++channel->connected_times;
-		}
-		channel->on_syn_ack(channel, timestamp_msec);
-		after_call_channel_interface(channel);
-		if (!o->m_valid) {
-			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-		}
-	}
-}
-
 static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet, long long timestamp_msec) {
 	int packet_allow_send;
 	ChannelBase_t* channel = packet->channel;
@@ -786,43 +705,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			reactor_packet_send_proc(reactor, packet, timestamp_msec);
 			continue;
 		}
-		else if (REACTOR_REUSE_CMD == cmd->type) {
-			ReuseCmd_t* cmdex = pod_container_of(cmd, ReuseCmd_t, _);
-			ChannelBase_t* channel = cmdex->channel;
-			if (channel->valid) {
-				if (channel->flag & CHANNEL_FLAG_STREAM) {
-					if (channel->flag & CHANNEL_FLAG_CLIENT)
-						reactor_stream_client_reuse_proc(reactor, cmdex, timestamp_msec);
-				}
-				else
-					reactor_dgram_reuse_proc(reactor, cmdex, timestamp_msec);
-			}
-			free(cmdex);
-			continue;
-		}
-		else if (REACTOR_REUSE_FINISH_CMD == cmd->type) {
-			ReuseFinishCmd_t* cmdex = pod_container_of(cmd, ReuseFinishCmd_t, _);
-			ChannelBase_t* channel = cmdex->channel;
-			ReactorPacket_t* retpkg = cmdex->retpkg;
-			ReactorObject_t* o;
-			free(cmdex);
-			if (!channel->valid) {
-				reactorpacketFree(retpkg);
-				continue;
-			}
-			if (!channel->disable_send) {
-				reactorpacketFree(retpkg);
-				continue;
-			}
-			o = channel->o;
-			channel->disable_send = 0;
-			if (retpkg) {
-				retpkg->channel = channel;
-				listPushNodeFront(&channel->m_cache_packet_list, &retpkg->_.node);
-			}
-			channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
-			continue;
-		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
 			ReactorObject_t* o;
 			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, stream_sendfincmd);
@@ -929,14 +811,6 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		reactor = channel->reactor;
 		if (channel->on_free)
 			channel->on_free(channel);
-	}
-	else if (REACTOR_REUSE_CMD == cmdnode->type) {
-		ReuseCmd_t* cmd = pod_container_of(cmdnode, ReuseCmd_t, _);
-		reactor = cmd->channel->reactor;
-	}
-	else if (REACTOR_REUSE_FINISH_CMD == cmdnode->type) {
-		ReuseFinishCmd_t* cmd = pod_container_of(cmdnode, ReuseFinishCmd_t, _);
-		reactor = cmd->channel->reactor;
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
@@ -1198,40 +1072,6 @@ void reactorpacketFreeList(List_t* pkglist) {
 		}
 		listInit(pkglist);
 	}
-}
-
-ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const struct sockaddr* to_addr) {
-	ReuseCmd_t* cmd;
-	int sockaddrlen;
-	if ((channel->flag & CHANNEL_FLAG_SERVER) &&
-		(channel->flag & CHANNEL_FLAG_STREAM))
-	{
-		return NULL;
-	}
-	sockaddrlen = sockaddrLength(to_addr);
-	if (sockaddrlen < 0)
-		return NULL;
-	cmd = (ReuseCmd_t*)calloc(1, sizeof(ReuseCmd_t));
-	if (!cmd)
-	return NULL;
-	cmd->_.type = REACTOR_REUSE_CMD;
-	cmd->channel = channel;
-	if (sockaddrlen > 0)
-		memcpy(&cmd->toaddr, to_addr, sockaddrlen);
-	else
-		cmd->toaddr.sa.sa_family = AF_UNSPEC;
-	return &cmd->_;
-}
-
-ReactorCmd_t* reactorNewReuseFinishCmd(ChannelBase_t* src_channel, ReactorPacket_t* retpkg) {
-	ReuseFinishCmd_t* cmd = (ReuseFinishCmd_t*)calloc(1, sizeof(ReuseFinishCmd_t));
-	if (cmd) {
-		cmd->_.type = REACTOR_REUSE_FINISH_CMD;
-		cmd->channel = src_channel;
-		cmd->retpkg = retpkg;
-		return &cmd->_;
-	}
-	return NULL;
 }
 
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr) {

@@ -19,8 +19,6 @@ enum {
 	REACTOR_CHANNEL_FREE_CMD,
 
 	REACTOR_STREAM_SENDFIN_CMD,
-	REACTOR_REUSE_CMD,
-	REACTOR_REUSE_FINISH_CMD,
 
 	REACTOR_SEND_PACKET_CMD,
 
@@ -160,9 +158,6 @@ __declspec_dll void reactorWake(Reactor_t* reactor);
 __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
-
-__declspec_dll ReactorCmd_t* reactorNewReuseCmd(ChannelBase_t* channel, const struct sockaddr* to_addr);
-__declspec_dll ReactorCmd_t* reactorNewReuseFinishCmd(ChannelBase_t* src_channel, ReactorPacket_t* retpkg);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 
