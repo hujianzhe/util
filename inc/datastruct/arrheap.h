@@ -7,27 +7,47 @@
 
 #include "../compiler_define.h"
 
-typedef struct SortHeap_t {
-	UnsignedPtr_t ecnt;
-	UnsignedPtr_t esize;
-	UnsignedPtr_t bufsize;
-	unsigned char* buf;
-	int(*cmp)(const void*, const void*);
-} SortHeap_t;
+#define	arrheapInsert(type, buf, len, cmp)\
+do {\
+	UnsignedPtr_t __ci;\
+	if (len <= 1) {\
+		break;\
+	}\
+	__ci = len - 1;\
+	while (__ci > 0) {\
+		UnsignedPtr_t __pi = ((__ci - 1) >> 1);\
+		if (cmp(&buf[__pi], &buf[__ci]) > 0) {\
+			type __temp = buf[__pi];\
+			buf[__pi] = buf[__ci];\
+			buf[__ci] = __temp;\
+			__ci = __pi;\
+		} else break;\
+	}\
+} while (0)
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-__declspec_dll SortHeap_t* sortheapInit(SortHeap_t* h, void* buf, UnsignedPtr_t bufsize, UnsignedPtr_t esize, int(*cmp)(const void*, const void*));
-__declspec_dll int sortheapIsFull(SortHeap_t* h);
-__declspec_dll int sortheapIsEmpty(SortHeap_t* h);
-__declspec_dll const void* sortheapTop(SortHeap_t* h);
-__declspec_dll SortHeap_t* sortheapInsert(SortHeap_t* h, void* ptr_data);
-__declspec_dll void sortheapPop(SortHeap_t* h);
-
-#ifdef	__cplusplus
-}
-#endif
+#define	arrheapPop(type, buf, len, cmp)\
+do {\
+	UnsignedPtr_t __pi, __ci;\
+	if (len <= 1) {\
+		break;\
+	}\
+	buf[0] = buf[len - 1];\
+	__pi = 0;\
+	__ci = (__pi << 1) + 1;\
+	while (__ci < len - 1) {\
+		if (__ci + 1 < len - 1) {\
+			if (cmp(&buf[__ci], &buf[__ci + 1]) > 0) {\
+				__ci += 1;\
+			}\
+		}\
+		if (cmp(&buf[__pi], &buf[__ci]) > 0) {\
+			type __temp = buf[__pi];\
+			buf[__pi] = buf[__ci];\
+			buf[__ci] = __temp;\
+			__pi = __ci;\
+			__ci = (__pi << 1) + 1;\
+		} else break;\
+	}\
+} while (0)
 
 #endif
