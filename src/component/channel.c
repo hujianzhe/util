@@ -175,6 +175,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
+				if (channel->_.readcache_max_size &&
+					channel->_.readcache_max_size < channel->_.stream_ctx.cache_recv_bytes + decode_result.bodylen)
+				{
+					return 0;
+				}
 				/*
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr.sa);

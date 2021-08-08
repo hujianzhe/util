@@ -151,6 +151,7 @@ int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* 
 
 StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned int initseq) {
 	ctx->send_all_acked = 1;
+	ctx->cache_recv_bytes = 0;
 	ctx->m_recvseq = ctx->m_sendseq = ctx->m_cwndseq = initseq;
 	listInit(&ctx->recvlist);
 	listInit(&ctx->sendlist);
@@ -174,6 +175,7 @@ void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* p
 	packet->cached = 1;
 	if (packet->type >= NETPACKET_STREAM_HAS_SEND_SEQ)
 		ctx->m_recvseq++;
+	ctx->cache_recv_bytes += (packet->hdrlen + packet->bodylen);
 }
 
 int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
@@ -187,8 +189,11 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 			continue;
 		}
 		*list = listSplitByTail(&ctx->recvlist, cur);
-		for (cur = list->head; cur; cur = cur->next)
-			pod_container_of(cur, NetPacket_t, node)->cached = 0;
+		for (cur = list->head; cur; cur = cur->next) {
+			packet = pod_container_of(cur, NetPacket_t, node);
+			packet->cached = 0;
+			ctx->cache_recv_bytes -= (packet->hdrlen + packet->bodylen);
+		}
 		return 1;
 	}
 	return 0;

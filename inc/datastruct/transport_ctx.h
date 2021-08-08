@@ -62,6 +62,7 @@ typedef struct StreamTransportCtx_t {
 	List_t recvlist;
 	List_t sendlist;
 	unsigned char send_all_acked;
+	unsigned int cache_recv_bytes;
 	/* private */
 	unsigned int m_sendseq;
 	unsigned int m_recvseq;
