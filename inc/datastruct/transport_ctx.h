@@ -8,18 +8,20 @@
 #include "list.h"
 
 enum {
-	NETPACKET_SYN = 1,				/* [reliable UDP client connect] or [client reconnect] use */
-	NETPACKET_SYN_ACK,				/* [reliable UDP listener] or [reconnect ack] use */
+	NETPACKET_SYN = 1,				/* reliable UDP client connect use */
+	NETPACKET_SYN_ACK,				/* reliable UDP listener use */
 	NETPACKET_ACK,
 	NETPACKET_NO_ACK_FRAGMENT,		/* only tcp use */
 	NETPACKET_NO_ACK_FRAGMENT_EOF,
 	NETPACKET_FIN,
-	NETPACKET_FRAGMENT,
-	NETPACKET_FRAGMENT_EOF
+	NETPACKET_FRAGMENT,				/* for tcp, same as NETPACKET_NO_ACK_FRAGMENT */
+	NETPACKET_FRAGMENT_EOF,
+	NETPACKET_ACK_FRAGMENT,			/* for reliable udp, same as NETPACKET_FRAGMENT */
+	NETPACKET_ACK_FRAGMENT_EOF
 };
 enum {
 	NETPACKET_DGRAM_HAS_SEND_SEQ = NETPACKET_FIN,
-	NETPACKET_STREAM_HAS_SEND_SEQ = NETPACKET_FRAGMENT
+	NETPACKET_STREAM_HAS_SEND_SEQ = NETPACKET_ACK_FRAGMENT
 };
 
 typedef struct NetPacket_t {

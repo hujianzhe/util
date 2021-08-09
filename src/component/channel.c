@@ -763,22 +763,16 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 		}
 		case NETPACKET_NO_ACK_FRAGMENT:
 		case NETPACKET_FRAGMENT:
+		case NETPACKET_ACK_FRAGMENT:
 		{
 			ReactorPacket_t* packet = NULL;
-			int no_ack;
-			if (channel->_.flag & CHANNEL_FLAG_STREAM)
-				no_ack = 1;
-			else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER))
-				no_ack = (pktype != NETPACKET_FRAGMENT && pktype != NETPACKET_FRAGMENT_EOF);
-			else
-				no_ack = 1;
-			pktype = (no_ack ? NETPACKET_NO_ACK_FRAGMENT : NETPACKET_FRAGMENT);
 			for (cur = pklist.head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
 				packet->_.type = pktype;
 			}
-			if (packet)
-				packet->_.type = (no_ack ? NETPACKET_NO_ACK_FRAGMENT_EOF : NETPACKET_FRAGMENT_EOF);
+			if (packet) {
+				packet->_.type = pktype + 1;
+			}
 			break;
 		}
 		default:
