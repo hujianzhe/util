@@ -49,15 +49,19 @@ static RpcItem_t* rpc_get_item(RpcBaseCore_t* rpc_base, int rpcid) {
 
 static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, List_t* rpcitemlist) {
 	RBTreeNode_t* cur, *next;
+
 	for (cur = rbtreeFirstNode(&rpc_base->rpc_item_batch_tree); cur; cur = next) {
 		RpcBatchNode_t* batch = pod_container_of(cur, RpcBatchNode_t, node);
 		next = rbtreeNextNode(cur);
+		rbtreeRemoveNode(&rpc_base->rpc_item_batch_tree, cur);
 		free(batch);
 	}
 	rbtreeInit(&rpc_base->rpc_item_batch_tree, rbtreeDefaultKeyCmpSZ);
+
 	for (cur = rbtreeFirstNode(&rpc_base->rpc_item_tree); cur; cur = next) {
 		RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_treenode);
 		next = rbtreeNextNode(cur);
+		rbtreeRemoveNode(&rpc_base->rpc_item_tree, cur);
 		item->m_has_reg = 0;
 		item->batch_node = NULL;
 		listPushNodeBack(rpcitemlist, &item->m_listnode);
