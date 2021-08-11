@@ -30,6 +30,7 @@ typedef struct RBTreeNode_t {
 typedef struct RBTree_t {
 	struct RBTreeNode_t *rb_tree_node;
 	int (*keycmp)(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*);
+	UnsignedPtr_t count;
 } RBTree_t;
 
 #ifdef	__cplusplus

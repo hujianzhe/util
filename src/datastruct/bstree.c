@@ -11,6 +11,7 @@ extern "C" {
 struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const void*, const void*)) {
 	tree->bs_root = (struct BSTreeNode_t*)0;
 	tree->keycmp = keycmp;
+	tree->count = 0;
 	return tree;
 }
 
@@ -37,6 +38,7 @@ struct BSTreeNode_t* bstreeInsertNode(struct BSTree_t* tree, struct BSTreeNode_t
 		else
 			return parent;
 	}
+	++(tree->count);
 	if (!parent)
 		tree->bs_root = node;
 	node->bs_parent = parent;
@@ -110,6 +112,7 @@ void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t* node) {
 	}
 	else
 		tree->bs_root = (struct BSTreeNode_t*)0;
+	--(tree->count);
 }
 
 struct BSTreeNode_t* bstreeMinNode(const struct BSTreeNode_t* node) {

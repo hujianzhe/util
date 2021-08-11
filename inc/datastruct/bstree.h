@@ -19,6 +19,7 @@ typedef struct BSTreeNode_t {
 typedef struct BSTree_t {
 	struct BSTreeNode_t* bs_root;
 	int (*keycmp)(const void*, const void*);
+	UnsignedPtr_t count;
 } BSTree_t;
 
 #ifdef	__cplusplus

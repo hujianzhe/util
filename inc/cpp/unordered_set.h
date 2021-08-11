@@ -88,21 +88,16 @@ private:
 	}
 
 public:
-	unordered_set(void) :
-		m_size(0)
-	{
+	unordered_set(void) {
 		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 	}
 
-	unordered_set(const unordered_set<K>& m) :
-		m_size(0)
-	{
+	unordered_set(const unordered_set<K>& m) {
 		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
 		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
 			Xnode* xnode = new Xnode();
 			xnode->k = *iter;
 			::hashtableInsertNode(&m_table, xnode);
-			++m_size;
 		}
 	}
 
@@ -115,7 +110,6 @@ public:
 			Xnode* xnode = new Xnode();
 			xnode->k = *iter;
 			::hashtableInsertNode(&m_table, xnode);
-			++m_size;
 		}
 		return *this;
 	}
@@ -129,14 +123,12 @@ public:
 			delete ((Xnode*)cur);
 		}
 		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
-		m_size = 0;
 	}
 
-	size_t size(void) const { return m_size; };
-	bool empty(void) const { return ::hashtableFirstNode(&m_table) == NULL; }
+	size_t size(void) const { return m_table.count; };
+	bool empty(void) const { return ::hashtableIsEmpty(&m_table); }
 
 	void erase(iterator iter) {
-		--m_size;
 		::hashtableRemoveNode(&m_table, iter.x);
 		delete (Xnode*)(iter.x);
 	}
@@ -148,7 +140,6 @@ public:
 		if (node) {
 			::hashtableRemoveNode(&m_table, node);
 			delete (Xnode*)node;
-			--m_size;
 			return 1;
 		}
 		return 0;
@@ -171,7 +162,6 @@ public:
 		Xnode* xnode = new Xnode();
 		xnode->k = k;
 		::hashtableInsertNode(&m_table, xnode);
-		++m_size;
 		return pair<iterator, bool>(iterator(xnode), true);
 	}
 
@@ -185,7 +175,6 @@ public:
 private:
 	::Hashtable_t m_table;
 	::HashtableNode_t* m_buckets[11];
-	size_t m_size;
 };
 }
 #endif

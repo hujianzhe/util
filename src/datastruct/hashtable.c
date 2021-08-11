@@ -101,6 +101,7 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 	hashtable->buckets_size = buckets_size;
 	hashtable->keycmp = keycmp;
 	hashtable->keyhash = keyhash;
+	hashtable->count = 0;
 	return hashtable;
 }
 
@@ -110,6 +111,7 @@ struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struc
 	if (exist_node) {
 		return exist_node;
 	}
+	++(hashtable->count);
 	if (*bucket_list_head) {
 		(*bucket_list_head)->prev = node;
 	}
@@ -152,6 +154,7 @@ void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* 
 		if (node->next) {
 			node->next->prev = node->prev;
 		}
+		--(hashtable->count);
 	}
 }
 
@@ -165,6 +168,10 @@ struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const 
 		hashtableRemoveNode(hashtable, exist_node);
 	}
 	return exist_node;
+}
+
+int hashtableIsEmpty(const struct Hashtable_t* hashtable) {
+	return 0 == hashtable->count;
 }
 
 struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable) {

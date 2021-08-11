@@ -201,6 +201,7 @@ struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNode
 {
 	root->rb_tree_node = (struct RBTreeNode_t*)0;
 	root->keycmp = keycmp;
+	root->count = 0;
 	return root;
 }
 
@@ -231,6 +232,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 			return (struct RBTreeNode_t*)parent;
 		}
 	}
+	++(root->count);
 	node->rb_color = RB_RED;
 	node->rb_left = node->rb_right = (struct RBTreeNode_t*)0;
 	node->rb_parent = parent;
@@ -412,6 +414,7 @@ void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node)
 color:
 	if (color == RB_BLACK)
 		__rb_remove_color(child, parent, root);
+	--(root->count);
 }
 
 struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
