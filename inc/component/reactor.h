@@ -71,6 +71,7 @@ typedef struct ReactorObject_t {
 		Sockaddr_t m_connect_addr;
 		char m_connected;
 		char m_listened;
+		char inbuf_saved;
 		short max_connect_timeout_sec;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;

@@ -175,7 +175,7 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
 			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
-				if (channel->_.readcache_max_size &&
+				if (channel->_.readcache_max_size > 0 &&
 					channel->_.readcache_max_size < channel->_.stream_ctx.cache_recv_bytes + decode_result.bodylen)
 				{
 					return 0;
@@ -401,7 +401,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
 			List_t list;
-			if (channel->_.readcache_max_size &&
+			if (channel->_.readcache_max_size > 0 &&
 				channel->_.readcache_max_size < channel->_.dgram_ctx.cache_recv_bytes + decode_result.bodylen)
 			{
 				return 0;

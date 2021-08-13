@@ -451,107 +451,115 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 	}
 }
 
-static void channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
-static void reactor_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
-	if (SOCK_STREAM == o->socktype) {
-		ChannelBase_t* channel;
-		int res = socketTcpReadableBytes(o->fd);
-		if (res < 0) {
+	ChannelBase_t* channel;
+	int res = socketTcpReadableBytes(o->fd);
+	if (res < 0) {
+		o->m_valid = 0;
+		return;
+	}
+	else if (0 == res) {
+		stream_recvfin_handler(o);
+		return;
+	}
+	channel = streamChannel(o);
+	if (channel->readcache_max_size > 0 && channel->readcache_max_size < o->m_inbuflen + res) {
+		o->m_valid = 0;
+		o->detach_error = REACTOR_ONREAD_ERR;
+		return;
+	}
+	if (o->m_inbufsize < o->m_inbuflen + res) {
+		unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
+		if (!ptr) {
 			o->m_valid = 0;
 			return;
 		}
-		else if (0 == res) {
-			stream_recvfin_handler(o);
-			return;
+		o->m_inbuf = ptr;
+		o->m_inbufsize = o->m_inbuflen + res;
+	}
+	res = socketRead(o->fd, o->m_inbuf + o->m_inbuflen, res, 0, &from_addr.st);
+	if (res < 0) {
+		if (errnoGet() != EWOULDBLOCK) {
+			o->m_valid = 0;
+			o->detach_error = REACTOR_IO_ERR;
+		}
+		return;
+	}
+	else if (0 == res) {
+		stream_recvfin_handler(o);
+		return;
+	}
+	o->m_inbuflen += res;
+	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
+	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr.sa);
+	if (!after_call_channel_interface(channel) || res < 0) {
+		o->m_valid = 0;
+		o->detach_error = REACTOR_ONREAD_ERR;
+		return;
+	}
+	o->m_inbufoff = res;
+	if (o->m_inbufoff >= o->m_inbuflen) {
+		if (o->stream.inbuf_saved) {
+			o->m_inbufoff = 0;
+			o->m_inbuflen = 0;
 		}
 		else {
-			channel = streamChannel(o);
-			if (channel->readcache_max_size && channel->readcache_max_size < o->m_inbuflen + res) {
-				o->m_valid = 0;
-				o->detach_error = REACTOR_ONREAD_ERR;
-				return;
-			}
-			if (o->m_inbufsize < o->m_inbuflen + res) {
-				unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
-				if (!ptr) {
+			free_inbuf(o);
+		}
+	}
+	if (!channel->m_stream_sendfinwait) {
+		return;
+	}
+	if (channel->stream_ctx.send_all_acked) {
+		reactor_stream_writeev(reactor, o);
+	}
+}
+
+static void channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
+static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+	Sockaddr_t from_addr;
+	unsigned int readtimes, readmaxtimes = 8;
+	for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
+		int res;
+		unsigned char* ptr;
+		ListNode_t* cur, * next;
+		if (readtimes) {
+			if (!o->m_inbuf) {
+				o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
+				if (!o->m_inbuf) {
 					o->m_valid = 0;
 					return;
 				}
-				o->m_inbuf = ptr;
-				o->m_inbufsize = o->m_inbuflen + res;
+				o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
 			}
-			res = socketRead(o->fd, o->m_inbuf + o->m_inbuflen, res, 0, &from_addr.st);
-			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK) {
-					o->m_valid = 0;
-					o->detach_error = REACTOR_IO_ERR;
-				}
-				return;
-			}
-			else if (0 == res) {
-				stream_recvfin_handler(o);
-				return;
-			}
-			o->m_inbuflen += res;
-			o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-			res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr.sa);
-			if (!after_call_channel_interface(channel) || res < 0) {
-				o->m_valid = 0;
-				o->detach_error = REACTOR_ONREAD_ERR;
-				return;
-			}
-			o->m_inbufoff = res;
-			if (o->m_inbufoff >= o->m_inbuflen)
-				free_inbuf(o);
-			if (!channel->m_stream_sendfinwait)
-				return;
-			if (channel->stream_ctx.send_all_acked)
-				reactor_stream_writeev(reactor, o);
+			ptr = o->m_inbuf;
+			res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
 		}
-	}
-	else {
-		unsigned int readtimes, readmaxtimes = 8;
-		for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
-			int res;
-			unsigned char* ptr;
-			ListNode_t* cur, *next;
-			if (readtimes) {
-				if (!o->m_inbuf) {
-					o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
-					if (!o->m_inbuf) {
-						o->m_valid = 0;
-						return;
-					}
-					o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
-				}
-				ptr = o->m_inbuf;
-				res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
+		else {
+			Iobuf_t iov;
+			if (0 == nioOverlappedData(o->m_readol, &iov, &from_addr.st)) {
+				++readmaxtimes;
+				continue;
 			}
-			else {
-				Iobuf_t iov;
-				if (0 == nioOverlappedData(o->m_readol, &iov, &from_addr.st)) {
-					++readmaxtimes;
-					continue;
-				}
-				ptr = (unsigned char*)iobufPtr(&iov);
-				res = iobufLen(&iov);
-			}
+			ptr = (unsigned char*)iobufPtr(&iov);
+			res = iobufLen(&iov);
+		}
 
-			if (res < 0) {
-				if (errnoGet() != EWOULDBLOCK)
-					o->m_valid = 0;
-				return;
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				o->m_valid = 0;
 			}
-			ptr[res] = 0; /* convienent for text data */
-			for (cur = o->m_channel_list.head; cur; cur = next) {
-				ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
-				int disable_send = channel->disable_send;
-				next = cur->next;
-				channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
-				if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
-					channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
-				}
+			return;
+		}
+		ptr[res] = 0; /* convienent for text data */
+		for (cur = o->m_channel_list.head; cur; cur = next) {
+			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
+			int disable_send = channel->disable_send;
+			next = cur->next;
+			channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
+			if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
+				channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			}
 		}
 	}
@@ -855,23 +863,33 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			HashtableNode_t* find_node;
 			ReactorObject_t* o;
 			FD_t fd;
-			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i))
+			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i)) {
 				continue;
-			fd = nioEventFD(e + i);			
+			}
+			fd = nioEventFD(e + i);
 			hkey.ptr = &fd;
 			find_node = hashtableSearchKey(&reactor->m_objht, hkey);
-			if (!find_node)
+			if (!find_node) {
 				continue;
+			}
 			o = pod_container_of(find_node, ReactorObject_t, m_hashnode);
-			if (!o->m_valid)
+			if (!o->m_valid) {
 				continue;
+			}
 			switch (nioEventOpcode(e + i)) {
 				case NIO_OP_READ:
 					o->m_readol_has_commit = 0;
-					if (SOCK_STREAM == o->socktype && o->stream.m_listened)
-						reactor_stream_accept(o, timestamp_msec);
-					else
-						reactor_readev(reactor, o, timestamp_msec);
+					if (SOCK_STREAM == o->socktype) {
+						if (o->stream.m_listened) {
+							reactor_stream_accept(o, timestamp_msec);
+						}
+						else {
+							reactor_stream_readev(reactor, o, timestamp_msec);
+						}
+					}
+					else {
+						reactor_dgram_readev(reactor, o, timestamp_msec);
+					}
 					if (o->m_valid && !reactorobject_request_read(reactor, o)) {
 						o->m_valid = 0;
 						o->detach_error = REACTOR_IO_ERR;
@@ -880,8 +898,9 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 				case NIO_OP_WRITE:
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
-						if (o->stream.m_connected)
+						if (o->stream.m_connected) {
 							reactor_stream_writeev(reactor, o);
+						}
 						else if (!reactor_stream_connect(reactor, o, timestamp_msec)) {
 							o->m_valid = 0;
 							o->detach_error = REACTOR_CONNECT_ERR;
@@ -891,8 +910,9 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 				default:
 					o->m_valid = 0;
 			}
-			if (o->m_valid)
+			if (o->m_valid) {
 				continue;
+			}
 			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 		}
 	}
@@ -1029,6 +1049,7 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	o->detach_timeout_msec = 0;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
+		o->stream.inbuf_saved = 1;
 		o->read_fragment_size = 1460;
 		o->write_fragment_size = ~0;
 	}
