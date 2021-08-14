@@ -16,13 +16,30 @@ typedef struct RpcBatchNode_t {
 extern "C" {
 #endif
 
-static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
+static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item, const void* batch_key) {
 	RBTreeNode_t* exist_node = rbtreeInsertNode(&rpc_base->rpc_item_tree, &item->m_treenode);
 	if (exist_node != &item->m_treenode) {
 		return NULL;
 	}
-	if (item->batch_node) {
-		RpcBatchNode_t* batch_node = item->batch_node;
+	if (batch_key) {
+		RBTreeNodeKey_t rkey;
+		RpcBatchNode_t* batch_node;
+		rkey.ptr = batch_key;
+		exist_node = rbtreeSearchKey(&rpc_base->rpc_item_batch_tree, rkey);
+		if (exist_node) {
+			batch_node = pod_container_of(exist_node, RpcBatchNode_t, node);
+		}
+		else {
+			batch_node = (RpcBatchNode_t*)malloc(sizeof(RpcBatchNode_t));
+			if (!batch_node) {
+				rbtreeRemoveNode(&rpc_base->rpc_item_tree, &item->m_treenode);
+				return NULL;
+			}
+			listInit(&batch_node->rpcitemlist);
+			batch_node->node.key.ptr = batch_key;
+			rbtreeInsertNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
+		}
+		item->batch_node = batch_node;
 		listPushNodeBack(&batch_node->rpcitemlist, &item->m_listnode);
 	}
 	item->m_has_reg = 1;
@@ -35,6 +52,10 @@ static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
 		RpcBatchNode_t* batch_node = item->batch_node;
 		listRemoveNode(&batch_node->rpcitemlist, &item->m_listnode);
 		item->batch_node = NULL;
+		if (!batch_node->rpcitemlist.head) {
+			rbtreeRemoveNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
+			free(batch_node);
+		}
 	}
 	item->m_has_reg = 0;
 }
@@ -94,27 +115,6 @@ RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
 	return item;
 }
 
-struct RpcBatchNode_t* rpcAllocBatchNode(RpcBaseCore_t* rpc_base, const void* key) {
-	RBTreeNodeKey_t rkey;
-	RpcBatchNode_t* batch_node;
-	RBTreeNode_t* exist_node;
-	rkey.ptr = key;
-	exist_node = rbtreeSearchKey(&rpc_base->rpc_item_batch_tree, rkey);
-	if (exist_node) {
-		batch_node = pod_container_of(exist_node, RpcBatchNode_t, node);
-	}
-	else {
-		batch_node = (RpcBatchNode_t*)malloc(sizeof(RpcBatchNode_t));
-		if (!batch_node) {
-			return NULL;
-		}
-		listInit(&batch_node->rpcitemlist);
-		batch_node->node.key.ptr = key;
-		rbtreeInsertNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
-	}
-	return batch_node;
-}
-
 void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist) {
 	RBTreeNodeKey_t rkey;
 	RBTreeNode_t* node;
@@ -145,13 +145,13 @@ void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc) {
 	// TODO
 }
 
-RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*)) {
-	if (rpc_reg_item(&rpc->base, item)) {
-		item->async_req_arg = req_arg;
-		item->async_callback = ret_callback;
-		return item;
+RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, const void* batch_key, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*)) {
+	if (!rpc_reg_item(&rpc->base, item, batch_key)) {
+		return NULL;
 	}
-	return NULL;
+	item->async_req_arg = req_arg;
+	item->async_callback = ret_callback;
+	return item;
 }
 
 RpcItem_t* rpcAsyncCoreUnregItem(RpcAsyncCore_t* rpc, RpcItem_t* item) {
@@ -240,11 +240,13 @@ void rpcFiberCoreDestroy(RpcFiberCore_t* rpc) {
 	fiberFree(rpc->msg_fiber);
 }
 
-RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item) {
-	if (rpc->cur_fiber == rpc->sche_fiber)
+RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, const void* batch_key) {
+	if (rpc->cur_fiber == rpc->sche_fiber) {
 		return NULL;
-	if (!rpc_reg_item(&rpc->base, item))
+	}
+	if (!rpc_reg_item(&rpc->base, item, batch_key)) {
 		return NULL;
+	}
 	if (rpc->cur_fiber == rpc->msg_fiber) {
 		Fiber_t* new_fiber = fiberCreate(rpc->sche_fiber, rpc->stack_size, RpcFiberProcEntry);
 		if (!new_fiber) {

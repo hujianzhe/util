@@ -57,12 +57,11 @@ extern "C" {
 
 __declspec_dll int rpcGenId(void);
 __declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid);
-__declspec_dll struct RpcBatchNode_t* rpcAllocBatchNode(RpcBaseCore_t* rpc_base, const void* key);
 __declspec_dll void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 __declspec_dll void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);
-__declspec_dll RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*));
+__declspec_dll RpcItem_t* rpcAsyncCoreRegItem(RpcAsyncCore_t* rpc, RpcItem_t* item, const void* batch_key, void* req_arg, void(*ret_callback)(RpcAsyncCore_t*, RpcItem_t*));
 __declspec_dll RpcItem_t* rpcAsyncCoreUnregItem(RpcAsyncCore_t* rpc, RpcItem_t* item);
 __declspec_dll RpcItem_t* rpcAsyncCoreCallback(RpcAsyncCore_t* rpc, int rpcid, void* ret_msg);
 __declspec_dll void rpcAsyncCoreCancel(RpcAsyncCore_t* rpc, RpcItem_t* item);
@@ -70,7 +69,7 @@ __declspec_dll void rpcAsyncCoreCancelAll(RpcAsyncCore_t* rpc, List_t* rpcitemli
 
 __declspec_dll RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size, void(*msg_handler)(RpcFiberCore_t*, void*));
 __declspec_dll void rpcFiberCoreDestroy(RpcFiberCore_t* rpc);
-__declspec_dll RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item);
+__declspec_dll RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, const void* batch_key);
 __declspec_dll RpcItem_t* rpcFiberCoreUnregItem(RpcFiberCore_t* rpc, RpcItem_t* item);
 __declspec_dll RpcItem_t* rpcFiberCoreYield(RpcFiberCore_t* rpc);
 __declspec_dll RpcItem_t* rpcFiberCoreResume(RpcFiberCore_t* rpc, int rpcid, void* ret_msg);
