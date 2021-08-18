@@ -41,7 +41,7 @@ typedef struct RpcItem_t {
 	}; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	ListNode_t m_listnode;
-	struct RpcBatchNode_t* batch_node;
+	struct RpcBatchNode_t* m_batch_node;
 	char m_has_reg;
 	int id;
 	long long timestamp_msec;

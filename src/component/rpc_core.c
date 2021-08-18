@@ -39,7 +39,7 @@ static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item, const v
 			batch_node->node.key.ptr = batch_key;
 			rbtreeInsertNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
 		}
-		item->batch_node = batch_node;
+		item->m_batch_node = batch_node;
 		listPushNodeBack(&batch_node->rpcitemlist, &item->m_listnode);
 	}
 	item->m_has_reg = 1;
@@ -48,10 +48,10 @@ static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item, const v
 
 static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
 	rbtreeRemoveNode(&rpc_base->rpc_item_tree, &item->m_treenode);
-	if (item->batch_node) {
-		RpcBatchNode_t* batch_node = item->batch_node;
+	if (item->m_batch_node) {
+		RpcBatchNode_t* batch_node = item->m_batch_node;
 		listRemoveNode(&batch_node->rpcitemlist, &item->m_listnode);
-		item->batch_node = NULL;
+		item->m_batch_node = NULL;
 		if (!batch_node->rpcitemlist.head) {
 			rbtreeRemoveNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
 			free(batch_node);
@@ -84,7 +84,7 @@ static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, List_t* rpcitemlist) {
 		next = rbtreeNextNode(cur);
 		rbtreeRemoveNode(&rpc_base->rpc_item_tree, cur);
 		item->m_has_reg = 0;
-		item->batch_node = NULL;
+		item->m_batch_node = NULL;
 		listPushNodeBack(rpcitemlist, &item->m_listnode);
 	}
 	rbtreeInit(&rpc_base->rpc_item_tree, rbtreeDefaultKeyCmpI32);
@@ -107,7 +107,7 @@ int rpcGenId(void) {
 
 RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
 	item->m_treenode.key.i32 = rpcid;
-	item->batch_node = NULL;
+	item->m_batch_node = NULL;
 	item->m_has_reg = 0;
 	item->id = rpcid;
 	item->ret_msg = NULL;
@@ -125,7 +125,7 @@ void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcite
 		ListNode_t* cur;
 		for (cur = batch_node->rpcitemlist.head; cur; cur = cur->next) {
 			RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_listnode);
-			item->batch_node = NULL;
+			item->m_batch_node = NULL;
 		}
 		if (rpcitemlist) {
 			listAppend(rpcitemlist, &batch_node->rpcitemlist);
