@@ -134,6 +134,15 @@ struct ListNode_t* listAtMost(const struct List_t* list, UnsignedPtr_t index) {
 	return node ? node : prev;
 }
 
+UnsignedPtr_t listNodeCount(const struct List_t* list) {
+	UnsignedPtr_t count;
+	struct ListNode_t* node;
+	for (count = 0, node = list->head; node; node = node->next, ++count);
+	return count;
+}
+
+int listIsEmpty(const struct List_t* list) { return !list->head; }
+
 void listAppend(struct List_t* to, struct List_t* from) {
 	if (!to->head) {
 		to->head = from->head;

@@ -32,6 +32,8 @@ __declspec_dll struct ListNode_t* listPopNodeFront(struct List_t* list);
 __declspec_dll struct ListNode_t* listPopNodeBack(struct List_t* list);
 __declspec_dll struct ListNode_t* listAt(const struct List_t* list, UnsignedPtr_t index);
 __declspec_dll struct ListNode_t* listAtMost(const struct List_t* list, UnsignedPtr_t index);
+__declspec_dll UnsignedPtr_t listNodeCount(const struct List_t* list);
+__declspec_dll int listIsEmpty(const struct List_t* list);
 
 __declspec_dll void listAppend(struct List_t* to, struct List_t* from);
 __declspec_dll void listSwap(struct List_t* one, struct List_t* two);

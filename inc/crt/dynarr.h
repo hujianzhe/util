@@ -78,6 +78,19 @@ do {\
 	--((dynarr)->len);\
 } while (0)
 
+#define	dynarrCopyAppend(dst, _buf, _len, ret_ok)\
+do {\
+	size_t __i;\
+	if (!dynarrReserve(dst, (dst)->len + _len)) {\
+		ret_ok = 0;\
+		break;\
+	}\
+	ret_ok = 1;\
+	for (__i = 0; __i < _len; ++__i) {\
+		(dst)->buf[((dst)->len)++] = _buf[__i];\
+	}\
+} while (0)
+
 #define	dynarrFindValue(dynarr, val, ret_idx)\
 do {\
 	size_t __i;\
