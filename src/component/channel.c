@@ -46,22 +46,10 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 }
 
 static void channel_set_timestamp(Channel_t* channel, long long timestamp_msec) {
-	if (timestamp_msec <= 0)
+	if (channel->_.event_msec > 0 && channel->_.event_msec <= timestamp_msec) {
 		return;
-	if (channel->_.event_msec <= 0 || channel->_.event_msec > timestamp_msec)
-		channel->_.event_msec = timestamp_msec;
-}
-
-static void channel_set_heartbeat_timestamp(Channel_t* channel, long long timestamp_msec) {
-	if (timestamp_msec <= 0)
-		return;
-	channel->m_heartbeat_msec = timestamp_msec;
-	if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += channel->m_heartbeat_msec;
-		channel_set_timestamp(channel, ts);
 	}
+	channel->_.event_msec = timestamp_msec;
 }
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
@@ -220,8 +208,6 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				return -1;
 		}
 	}
-	channel->m_heartbeat_times = 0;
-	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return off;
 }
 
@@ -326,8 +312,6 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 			channel->_.on_ack_halfconn(&channel->_, connfd, &addr.sa, timestamp_msec);
 		}
 	}
-	channel->m_heartbeat_times = 0;
-	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return 1;
 }
 
@@ -450,8 +434,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	else {
 		channel->on_recv(channel, from_saddr, &decode_result);
 	}
-	channel->m_heartbeat_times = 0;
-	channel_set_heartbeat_timestamp(channel, timestamp_msec);
 	return 1;
 }
 
@@ -520,46 +502,6 @@ static int on_pre_send(ChannelBase_t* base, ReactorPacket_t* packet, long long t
 
 static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-/* heartbeat */
-	if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->m_heartbeat_msec > 0 &&
-			channel->heartbeat_timeout_sec > 0 &&
-			channel->on_heartbeat)
-		{
-			long long ts = channel->heartbeat_timeout_sec;
-			ts *= 1000;
-			ts += channel->m_heartbeat_msec;
-			if (ts <= timestamp_msec) {
-				int ok = 0;
-				if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
-					ok = channel->on_heartbeat(channel, channel->m_heartbeat_times++);
-				}
-				else if (channel->on_heartbeat(channel, channel->m_heartbeat_times)) {
-					ok = 1;
-					channel->m_heartbeat_times = 0;
-				}
-				if (!ok) {
-					channel_invalid(base, REACTOR_ZOMBIE_ERR);
-					return;
-				}
-				channel->m_heartbeat_msec = timestamp_msec;
-				ts = channel->heartbeat_timeout_sec;
-				ts *= 1000;
-				ts += timestamp_msec;
-			}
-			channel_set_timestamp(channel, ts);
-		}
-	}
-	else if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += channel->m_heartbeat_msec;
-		if (ts <= timestamp_msec) {
-			channel_invalid(base, REACTOR_ZOMBIE_ERR);
-			return;
-		}
-		channel_set_timestamp(channel, ts);
-	}
 /* reliable dgram resend packet */
 	if (!(channel->_.flag & CHANNEL_FLAG_DGRAM))
 	{
@@ -616,16 +558,8 @@ static void on_exec(ChannelBase_t* base, long long timestamp_msec) {
 				continue;
 			}
 			if (packet->_.resend_times >= channel->dgram.resend_maxtimes) {
-				if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
-					if (channel->on_heartbeat(channel, channel->heartbeat_maxtimes)) {
-						channel->m_heartbeat_times = 0;
-						channel_set_heartbeat_timestamp(channel, timestamp_msec);
-					}
-					else {
-						int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
-						channel_invalid(base, err);
-					}
-				}
+				int err = (NETPACKET_FIN != packet->_.type ? REACTOR_ZOMBIE_ERR : 0);
+				channel_invalid(base, err);
 				return;
 			}
 			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
@@ -727,13 +661,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 	channel->_.on_read = on_read;
 	channel->_.on_pre_send = on_pre_send;
 	channel->_.on_free = on_free;
-	return channel;
-}
-
-Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec) {
-	Thread_t t = channel->_.reactor->m_runthread;
-	if (threadEqual(t, threadSelf()))
-		channel_set_heartbeat_timestamp(channel, now_msec);
 	return channel;
 }
 

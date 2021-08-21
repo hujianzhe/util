@@ -32,8 +32,6 @@ typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
 	void* userdata; /* user use, library not use these field */
-	int heartbeat_timeout_sec;
-	unsigned int heartbeat_maxtimes; /* client use */
 	struct {
 		union {
 			/* listener use */
@@ -55,13 +53,10 @@ typedef struct Channel_t {
 	/* interface */
 	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
 	void(*on_recv)(struct Channel_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
-	int(*on_heartbeat)(struct Channel_t* self, int heartbeat_times); /* optional */
 	unsigned int(*on_hdrsize)(struct Channel_t* self, unsigned int bodylen);
 	void(*on_encode)(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param);
 /* private */
-	long long m_heartbeat_msec;
 	unsigned int m_initseq;
-	unsigned int m_heartbeat_times;
 	Atom32_t m_has_sendfin;
 } Channel_t;
 
@@ -70,7 +65,6 @@ extern "C" {
 #endif
 
 __declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int extra_sz, const struct sockaddr* addr);
-__declspec_dll Channel_t* channelEnableHeartbeat(Channel_t* channel, long long now_msec);
 __declspec_dll List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);

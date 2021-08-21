@@ -121,6 +121,8 @@ typedef struct ChannelBase_t {
 	char has_recvfin;
 	char has_sendfin;
 	unsigned int connected_times; /* client use */
+	unsigned int heartbeat_maxtimes; /* client use */
+	int heartbeat_timeout_sec;
 	char disable_send;
 	char valid;
 	unsigned short flag;
@@ -131,15 +133,18 @@ typedef struct ChannelBase_t {
 
 	union {
 		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
-		void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use */
+		void(*on_syn_ack)(struct ChannelBase_t* self, long long ts_msec); /* client use, optional */
 	};
-	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec);
-	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec);
+	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
+	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr);
-	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec);
+	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec); /* optional */
+	int(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
 	void(*on_detach)(struct ChannelBase_t* self);
-	void(*on_free)(struct ChannelBase_t* self);
+	void(*on_free)(struct ChannelBase_t* self); /* optional */
 /* private */
+	long long m_heartbeat_msec;
+	unsigned int m_heartbeat_times; /* client use */
 	char m_has_detached;
 	List_t m_cache_packet_list;
 } ChannelBase_t;

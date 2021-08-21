@@ -16,10 +16,28 @@ extern "C" {
 #endif
 
 static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_msec) {
-	if (timestamp_msec <= 0)
+	if (reactor->m_event_msec > 0 && reactor->m_event_msec <= timestamp_msec) {
 		return;
-	else if (reactor->m_event_msec <= 0 || reactor->m_event_msec > timestamp_msec)
-		reactor->m_event_msec = timestamp_msec;
+	}
+	reactor->m_event_msec = timestamp_msec;
+}
+
+static void channel_set_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
+	if (channel->event_msec > 0 && channel->event_msec <= timestamp_msec) {
+		return;
+	}
+	channel->event_msec = timestamp_msec;
+	reactor_set_event_timestamp(channel->reactor, timestamp_msec);
+}
+
+static long long channel_next_heartbeat_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
+	if (channel->heartbeat_timeout_sec > 0) {
+		long long ts = channel->heartbeat_timeout_sec;
+		ts *= 1000;
+		ts += timestamp_msec;
+		return ts;
+	}
+	return 0;
 }
 
 static void channel_detach_handler(ChannelBase_t* channel, int error, long long timestamp_msec) {
@@ -293,15 +311,28 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 			after_call_channel_interface(channel);
 		}
 	}
-	if (SOCK_STREAM != o->socktype || o->stream.m_listened || !o->stream.m_connected)
+	if (SOCK_STREAM != o->socktype) {
+		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return;
+	}
+	if (o->stream.m_listened) {
+		return;
+	}
+	if (!o->stream.m_connected) {
+		return;
+	}
 	channel = streamChannel(o);
 	if (~0 != channel->connected_times) {
 		++channel->connected_times;
 	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		channel->on_syn_ack(channel, timestamp_msec);
-		after_call_channel_interface(channel);
+		if (channel->on_syn_ack) {
+			channel->on_syn_ack(channel, timestamp_msec);
+			after_call_channel_interface(channel);
+		}
+		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
 }
 
@@ -331,6 +362,35 @@ static void stream_recvfin_handler(ReactorObject_t* o) {
 	}
 }
 
+static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec) {
+	if (channel->m_heartbeat_msec <= 0) {
+		return 1;
+	}
+	if (channel->m_heartbeat_msec > now_msec) {
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		return 1;
+	}
+	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		int ok = 0;
+		if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
+			ok = channel->on_heartbeat(channel, channel->m_heartbeat_times++);
+		}
+		else if (channel->on_heartbeat(channel, channel->m_heartbeat_times)) {
+			ok = 1;
+			channel->m_heartbeat_times = 0;
+		}
+		if (!ok) {
+			return 0;
+		}
+		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, now_msec);
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	}
+	else if (channel->flag & CHANNEL_FLAG_SERVER) {
+		return 0;
+	}
+	return 1;
+}
+
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
@@ -341,16 +401,27 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 			for (lcur = o->m_channel_list.head; lcur; lcur = lnext) {
 				ChannelBase_t* channel = pod_container_of(lcur, ChannelBase_t, regcmd._);
 				lnext = lcur->next;
+				if (channel->event_msec <= 0) {
+					continue;
+				}
 				if (now_msec < channel->event_msec) {
 					reactor_set_event_timestamp(reactor, channel->event_msec);
 					continue;
 				}
 				channel->event_msec = 0;
-				channel->on_exec(channel, now_msec);
-				after_call_channel_interface(channel);
+				if (!channel_heartbeat_handler(channel, now_msec)) {
+					channel->valid = 0;
+					channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, now_msec);
+					continue;
+				}
+				if (channel->on_exec) {
+					channel->on_exec(channel, now_msec);
+					after_call_channel_interface(channel);
+				}
 			}
-			if (o->m_valid)
+			if (o->m_valid) {
 				continue;
+			}
 		}
 		reactorobject_invalid_inner_handler(reactor, o, now_msec);
 	}
@@ -493,7 +564,12 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
 	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr.sa);
-	if (!after_call_channel_interface(channel) || res < 0) {
+	if (res > 0) {
+		channel->m_heartbeat_times = 0;
+		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	}
+	if (res < 0 || !after_call_channel_interface(channel)) {
 		o->m_valid = 0;
 		o->detach_error = REACTOR_ONREAD_ERR;
 		return;
@@ -558,9 +634,15 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 			int disable_send = channel->disable_send;
 			next = cur->next;
 			channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
-			if (after_call_channel_interface(channel) && disable_send && !channel->disable_send) {
+			if (!after_call_channel_interface(channel)) {
+				continue;
+			}
+			if (disable_send && !channel->disable_send) {
 				channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			}
+			channel->m_heartbeat_times = 0;
+			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+			channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		}
 	}
 }
@@ -681,22 +763,27 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	if (o->stream.m_connect_end_msec > 0) {
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 	}
-	do {
-		if (!nioConnectCheckSuccess(o->fd))
-			break;
-		if (!reactorobject_request_read(reactor, o))
-			break;
-		o->stream.m_connected = 1;
-		if (~0 != channel->connected_times) {
-			++channel->connected_times;
-		}
-		channel->disable_send = 0;
+	if (!nioConnectCheckSuccess(o->fd)) {
+		return 0;
+	}
+	if (!reactorobject_request_read(reactor, o)) {
+		return 0;
+	}
+	o->stream.m_connected = 1;
+	if (~0 != channel->connected_times) {
+		++channel->connected_times;
+	}
+	channel->disable_send = 0;
+	if (channel->on_syn_ack) {
 		channel->on_syn_ack(channel, timestamp_msec);
-		after_call_channel_interface(channel);
-		channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
-		return 1;
-	} while (0);
-	return 0;
+		if (!after_call_channel_interface(channel)) {
+			return 0;
+		}
+	}
+	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+	channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
+	return 1;
 }
 
 static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
