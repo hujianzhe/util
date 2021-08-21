@@ -364,7 +364,9 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 						++channel->_.connected_times;
 					}
 					channel->_.disable_send = 0;
-					channel->_.on_syn_ack(&channel->_, timestamp_msec);
+					if (channel->_.on_syn_ack) {
+						channel->_.on_syn_ack(&channel->_, timestamp_msec);
+					}
 				}
 				channel->dgram.on_reply_ack(channel, 0, from_saddr);
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
