@@ -45,7 +45,6 @@
 				strings				一些安全的字符串操作接口  
 				transport_ctx		提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
 				tree				类型无关的普通树  
-				sort				合并有序数组,topN统计接口  
 				url					URL解析与编解码接口  
 				sha1				SHA1编解码,来源于Redis源码  
 			sysapi/  
