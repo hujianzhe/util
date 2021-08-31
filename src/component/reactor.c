@@ -42,14 +42,16 @@ static long long channel_next_heartbeat_timestamp(ChannelBase_t* channel, long l
 
 static void channel_detach_handler(ChannelBase_t* channel, int error, long long timestamp_msec) {
 	ReactorObject_t* o;
-	if (channel->m_has_detached)
+	if (channel->m_has_detached) {
 		return;
+	}
 	channel->m_has_detached = 1;
 	channel->detach_error = error;
 	o = channel->o;
 	listRemoveNode(&o->m_channel_list, &channel->regcmd._);
-	if (!o->m_channel_list.head)
+	if (!o->m_channel_list.head) {
 		o->m_valid = 0;
+	}
 	channel->o = NULL;
 	channel->on_detach(channel);
 }
@@ -223,8 +225,9 @@ static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o)
 }
 
 static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	if (!nioReg(&reactor->m_nio, o->fd))
+	if (!nioReg(&reactor->m_nio, o->fd)) {
 		return 0;
+	}
 	if (SOCK_STREAM == o->socktype) {
 		BOOL ret;
 		ChannelBase_t* channel = streamChannel(o);
@@ -258,25 +261,30 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 				o->stream.m_connect_end_msec = 0;
 		}
 	}
-	else {
+	else if (SOCK_DGRAM == o->socktype) {
 		ListNode_t* cur, *next;
 		BOOL bval;
-		if (!socketHasAddr(o->fd, &bval))
+		if (!socketHasAddr(o->fd, &bval)) {
 			return 0;
+		}
 		if (!bval) {
 			Sockaddr_t local_addr;
-			if (!sockaddrEncode(&local_addr.sa, o->domain, NULL, 0))
+			if (!sockaddrEncode(&local_addr.sa, o->domain, NULL, 0)) {
 				return 0;
-			if (!socketBindAddr(o->fd, &local_addr.sa, sockaddrLength(&local_addr.sa)))
+			}
+			if (bind(o->fd, &local_addr.sa, sockaddrLength(&local_addr.sa))) {
 				return 0;
+			}
 		}
-		if (!reactorobject_request_read(reactor, o))
+		if (!reactorobject_request_read(reactor, o)) {
 			return 0;
+		}
 		for (cur = o->m_channel_list.head; cur; cur = next) {
 			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 			next = cur->next;
-			if (channel->flag & CHANNEL_FLAG_CLIENT)
+			if (channel->flag & CHANNEL_FLAG_CLIENT) {
 				channel->disable_send = 1;
+			}
 		}
 	}
 	return 1;

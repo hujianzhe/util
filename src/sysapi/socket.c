@@ -651,17 +651,21 @@ BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value) {
 	return TRUE;
 }
 
-BOOL socketBindAddr(FD_t sockfd, const struct sockaddr* saddr, int addrlen) {
-	int on = 1;
-/*
+BOOL socketEnableReusePort(FD_t sockfd, int on) {
 #ifdef  SO_REUSEPORT
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on)) < 0)
-		return FALSE;
+	if (on != 0) {
+		on = 1;
+	}
+	return setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on)) == 0;
 #endif
-*/
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) < 0)
-		return FALSE;
-	return bind(sockfd, saddr, addrlen) == 0;
+	return FALSE;
+}
+
+BOOL socketEnableReuseAddr(FD_t sockfd, int on) {
+	if (on != 0) {
+		on = 1;
+	}
+	return setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) == 0;
 }
 
 BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr) {

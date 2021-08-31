@@ -228,8 +228,9 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 		ListNode_t* cur;
 		for (cur = channel->_.dgram_ctx.recvlist.head; cur; cur = cur->next) {
 			halfconn = pod_container_of(cur, DgramHalfConn_t, node);
-			if (sockaddrIsEqual(&halfconn->from_addr.sa, from_saddr))
+			if (sockaddrIsEqual(&halfconn->from_addr.sa, from_saddr)) {
 				break;
+			}
 		}
 		if (cur) {
 			socketWrite(channel->_.o->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
@@ -247,25 +248,32 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				unsigned int buflen, hdrlen;
 				ChannelOutbufEncodeParam_t encode_param;
 				memcpy(&local_saddr, &channel->_.listen_addr, sockaddrLength(&channel->_.listen_addr.sa));
-				if (!sockaddrSetPort(&local_saddr.sa, 0))
+				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
 					break;
+				}
 				o = channel->_.o;
 				new_sockfd = socket(o->domain, o->socktype, o->protocol);
-				if (INVALID_FD_HANDLE == new_sockfd)
+				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
-				if (!socketBindAddr(new_sockfd, &local_saddr.sa, sockaddrLength(&local_saddr.sa)))
+				}
+				if (bind(new_sockfd, &local_saddr.sa, sockaddrLength(&local_saddr.sa))) {
 					break;
-				if (!socketGetLocalAddr(new_sockfd, &local_saddr.st))
+				}
+				if (!socketGetLocalAddr(new_sockfd, &local_saddr.st)) {
 					break;
-				if (!sockaddrDecode(&local_saddr.sa, NULL, &local_port))
+				}
+				if (!sockaddrDecode(&local_saddr.sa, NULL, &local_port)) {
 					break;
-				if (!socketNonBlock(new_sockfd, TRUE))
+				}
+				if (!socketNonBlock(new_sockfd, TRUE)) {
 					break;
+				}
 				hdrlen = channel->on_hdrsize(channel, sizeof(local_port));
 				buflen = hdrlen + sizeof(local_port);
 				halfconn = (DgramHalfConn_t*)malloc(sizeof(DgramHalfConn_t) + buflen);
-				if (!halfconn)
+				if (!halfconn) {
 					break;
+				}
 				halfconn->sockfd = new_sockfd;
 				memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 				halfconn->local_port = local_port;
@@ -287,8 +295,9 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 			} while (0);
 			if (!halfconn) {
 				free(halfconn);
-				if (INVALID_FD_HANDLE != new_sockfd)
+				if (INVALID_FD_HANDLE != new_sockfd) {
 					socketClose(new_sockfd);
+				}
 				return 1;
 			}
 		}
@@ -300,11 +309,13 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 			FD_t connfd;
 			DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 			next = cur->next;
-			if (!sockaddrIsEqual(&halfconn->from_addr.sa, from_saddr))
+			if (!sockaddrIsEqual(&halfconn->from_addr.sa, from_saddr)) {
 				continue;
+			}
 			connfd = halfconn->sockfd;
-			if (socketRead(connfd, NULL, 0, 0, &addr.st))
+			if (socketRead(connfd, NULL, 0, 0, &addr.st)) {
 				continue;
+			}
 			listRemoveNode(&channel->_.dgram_ctx.recvlist, cur);
 			channel->dgram.m_halfconn_curwaitcnt--;
 			halfconn->sockfd = INVALID_FD_HANDLE;
