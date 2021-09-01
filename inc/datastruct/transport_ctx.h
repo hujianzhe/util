@@ -12,12 +12,9 @@ enum {
 	NETPACKET_SYN_ACK,				/* reliable UDP listener use */
 	NETPACKET_ACK,
 	NETPACKET_NO_ACK_FRAGMENT,		/* only tcp use */
-	NETPACKET_NO_ACK_FRAGMENT_EOF,
 	NETPACKET_FIN,
 	NETPACKET_FRAGMENT,				/* for tcp, same as NETPACKET_NO_ACK_FRAGMENT */
-	NETPACKET_FRAGMENT_EOF,
 	NETPACKET_ACK_FRAGMENT,			/* for reliable udp, same as NETPACKET_FRAGMENT */
-	NETPACKET_ACK_FRAGMENT_EOF
 };
 enum {
 	NETPACKET_DGRAM_HAS_SEND_SEQ = NETPACKET_FIN,
@@ -29,6 +26,7 @@ typedef struct NetPacket_t {
 	char type;
 	char wait_ack;
 	char cached;
+	char fragment_eof;
 	union {
 		/* dgram */
 		struct {

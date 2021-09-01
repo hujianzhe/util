@@ -462,7 +462,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				}
 			}
 		}
-		else if (NETPACKET_NO_ACK_FRAGMENT_EOF == pktype) {
+		else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
 			channel->on_recv(channel, from_saddr, &decode_result);
 		}
 		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
@@ -638,7 +638,7 @@ static void on_free_reliable_dgram(ChannelBase_t* base) {
 
 static unsigned int on_hdrsize(struct Channel_t* self, unsigned int bodylen) { return 0; }
 
-static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+static List_t* channel_shard_data(Channel_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	ReactorPacket_t* packet;
 	for (i = 0; i < iovcnt; ++i) {
@@ -659,15 +659,19 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 				memsz = shardsz;
 			}
 			hdrsz = channel->on_hdrsize(channel, memsz);
-			packet = reactorpacketMake(0, hdrsz, memsz);
+			packet = reactorpacketMake(pktype, hdrsz, memsz);
 			if (!packet) {
 				break;
 			}
+			packet->_.fragment_eof = 0;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
 			iobufSharedCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 		}
-		if (!packet) {
+		if (packet) {
+			packet->_.fragment_eof = 1;
+		}
+		else {
 			reactorpacketFreeList(packetlist);
 			listInit(packetlist);
 			return NULL;
@@ -679,7 +683,7 @@ static List_t* channel_shard_data(Channel_t* channel, const Iobuf_t iov[], unsig
 		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->_.flag))
 			return packetlist;
 		*/
-		packet = reactorpacketMake(0, hdrsize, 0);
+		packet = reactorpacketMake(pktype, hdrsize, 0);
 		if (!packet) {
 			return NULL;
 		}
@@ -733,46 +737,12 @@ List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcn
 	ListNode_t* cur;
 	List_t pklist;
 	listInit(&pklist);
-	if (!channel_shard_data(channel, iov, iovcnt, &pklist)) {
-		return NULL;
+	if (NETPACKET_FIN == pktype) {
+		iov = NULL;
+		iovcnt = 0;
 	}
-	switch (pktype) {
-		case NETPACKET_SYN:
-		case NETPACKET_SYN_ACK:
-		case NETPACKET_FIN:
-		case NETPACKET_ACK:
-		{
-			for (cur = pklist.head; cur; cur = cur->next) {
-				if (cur != pklist.head) {
-					reactorpacketFreeList(&pklist);
-					return NULL;
-				}
-				else {
-					ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-					packet->_.type = pktype;
-				}
-			}
-			break;
-		}
-		case NETPACKET_NO_ACK_FRAGMENT:
-		case NETPACKET_FRAGMENT:
-		case NETPACKET_ACK_FRAGMENT:
-		{
-			ReactorPacket_t* packet = NULL;
-			for (cur = pklist.head; cur; cur = cur->next) {
-				packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-				packet->_.type = pktype;
-			}
-			if (packet) {
-				packet->_.type = pktype + 1;
-			}
-			break;
-		}
-		default:
-		{
-			reactorpacketFreeList(&pklist);
-			return NULL;
-		}
+	if (!channel_shard_data(channel, pktype, iov, iovcnt, &pklist)) {
+		return NULL;
 	}
 	listAppend(packetlist, &pklist);
 	return packetlist;

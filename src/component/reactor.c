@@ -1185,6 +1185,7 @@ ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int
 		pkg->_.type = pktype;
 		pkg->_.wait_ack = 0;
 		pkg->_.cached = 0;
+		pkg->_.fragment_eof = 1;
 		pkg->_.hdrlen = hdrlen;
 		pkg->_.bodylen = bodylen;
 		pkg->_.seq = 0;

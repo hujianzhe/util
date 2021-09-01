@@ -71,10 +71,7 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 		ListNode_t* cur;
 		for (cur = ctx->recvlist.head; cur && cur != ctx->m_recvnode->next; cur = cur->next) {
 			NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-			if (NETPACKET_FRAGMENT_EOF != packet->type &&
-				NETPACKET_ACK_FRAGMENT_EOF != packet->type &&
-				NETPACKET_FIN != packet->type)
-			{
+			if (!packet->fragment_eof) {
 				continue;
 			}
 			*list = listSplitByTail(&ctx->recvlist, cur);
@@ -186,11 +183,7 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 	ListNode_t* cur;
 	for (cur = ctx->recvlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (NETPACKET_FRAGMENT_EOF != packet->type &&
-			NETPACKET_FIN != packet->type &&
-			NETPACKET_NO_ACK_FRAGMENT_EOF != packet->type &&
-			NETPACKET_ACK_FRAGMENT_EOF != packet->type)
-		{
+		if (!packet->fragment_eof) {
 			continue;
 		}
 		*list = listSplitByTail(&ctx->recvlist, cur);
