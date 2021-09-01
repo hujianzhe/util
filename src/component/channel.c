@@ -734,7 +734,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 }
 
 List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
-	ListNode_t* cur;
 	List_t pklist;
 	listInit(&pklist);
 	if (NETPACKET_FIN == pktype) {
