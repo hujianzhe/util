@@ -253,14 +253,14 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 			return 0;
 		}
 		else if (ret) {
-			o->stream.m_connected = 1;
+			o->m_connected = 1;
 			channel->disable_send = 0;
 			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
 		}
 		else {
-			o->stream.m_connected = 0;
+			o->m_connected = 0;
 			channel->disable_send = 1;
 			if (!reactorobject_request_connect(reactor, o)) {
 				return 0;
@@ -303,6 +303,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 				channel->disable_send = 1;
 			}
 		}
+		o->m_connected = (socketHasPeerAddr(o->fd, &bval) && bval);
 	}
 	return 1;
 }
@@ -344,7 +345,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	if (o->stream.m_listened) {
 		return;
 	}
-	if (!o->stream.m_connected) {
+	if (!o->m_connected) {
 		return;
 	}
 	channel = streamChannel(o);
@@ -683,7 +684,7 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 		return;
 	}
 	o = channel->o;
-	if (SOCK_STREAM == o->socktype && !o->stream.m_connected) {
+	if (SOCK_STREAM == o->socktype && !o->m_connected) {
 		packet_allow_send = 0;
 	}
 	else if (!channel->disable_send ||
@@ -761,12 +762,21 @@ static void reactor_packet_send_proc(Reactor_t* reactor, ReactorPacket_t* packet
 		}
 	}
 	else {
+		struct sockaddr* paddr;
+		int addrlen;
 		if (!packet_allow_send) {
 			listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
 			return;
 		}
-		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-			&channel->to_addr.sa, sockaddrLength(&channel->to_addr.sa));
+		if (o->m_connected) {
+			paddr = NULL;
+			addrlen = 0;
+		}
+		else {
+			paddr = &channel->to_addr.sa;
+			addrlen = sockaddrLength(paddr);
+		}
+		socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
 		if (packet->_.cached) {
 			return;
 		}
@@ -800,7 +810,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	if (!reactorobject_request_read(reactor, o)) {
 		return 0;
 	}
-	o->stream.m_connected = 1;
+	o->m_connected = 1;
 	if (~0 != channel->connected_times) {
 		++channel->connected_times;
 	}
@@ -1025,7 +1035,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 				{
 					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
-						if (o->stream.m_connected) {
+						if (o->m_connected) {
 							reactor_stream_writeev(reactor, o);
 						}
 						else if (!reactor_stream_connect(reactor, o, timestamp_msec)) {
@@ -1106,6 +1116,7 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->regcmd.type = REACTOR_OBJECT_REG_CMD;
 	o->freecmd.type = REACTOR_OBJECT_FREE_CMD;
 
+	o->m_connected = 0;
 	listInit(&o->m_channel_list);
 	o->m_hashnode.key.ptr = &o->fd;
 	o->m_reghaspost = 0;
@@ -1121,35 +1132,6 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
-}
-
-static ReactorObject_t* reactorobject_dup(ReactorObject_t* o) {
-	ReactorObject_t* dup_o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
-	if (!dup_o) {
-		return NULL;
-	}
-	dup_o->fd = socket(o->domain, o->socktype, o->protocol);
-	if (INVALID_FD_HANDLE == dup_o->fd) {
-		free(dup_o);
-		return NULL;
-	}
-	if (!socketNonBlock(dup_o->fd, TRUE)) {
-		socketClose(dup_o->fd);
-		free(dup_o);
-		return NULL;
-	}
-	dup_o->domain = o->domain;
-	dup_o->socktype = o->socktype;
-	dup_o->protocol = o->protocol;
-	dup_o->detach_timeout_msec = o->detach_timeout_msec;
-	dup_o->write_fragment_size = o->write_fragment_size;
-	dup_o->read_fragment_size = o->read_fragment_size;
-	if (SOCK_STREAM == dup_o->socktype) {
-		memset(&dup_o->stream, 0, sizeof(dup_o->stream));
-		dup_o->stream.max_connect_timeout_sec = o->stream.max_connect_timeout_sec;
-	}
-	reactorobject_init_comm(dup_o);
-	return dup_o;
 }
 
 ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {

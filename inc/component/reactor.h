@@ -57,6 +57,7 @@ typedef struct ReactorCmd_t {
 	struct ListNode_t _;
 	int type;
 } ReactorCmd_t;
+
 typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
@@ -69,7 +70,6 @@ typedef struct ReactorObject_t {
 	unsigned int write_fragment_size;
 	struct {
 		Sockaddr_t m_connect_addr;
-		char m_connected;
 		char m_listened;
 		char inbuf_saved;
 		short max_connect_timeout_sec;
@@ -78,6 +78,8 @@ typedef struct ReactorObject_t {
 	} stream;
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
+/* protected */
+	int m_connected;
 /* private */
 	List_t m_channel_list;
 	HashtableNode_t m_hashnode;

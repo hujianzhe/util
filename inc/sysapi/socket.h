@@ -136,6 +136,7 @@ __declspec_dll BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, un
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port);
 /* SOCKET */
 __declspec_dll BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value);
+__declspec_dll BOOL socketHasPeerAddr(FD_t sockfd, BOOL* bool_value);
 __declspec_dll BOOL socketEnableReusePort(FD_t sockfd, int on);
 __declspec_dll BOOL socketEnableReuseAddr(FD_t sockfd, int on);
 __declspec_dll BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);

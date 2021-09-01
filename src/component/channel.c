@@ -333,6 +333,10 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 			channel->dgram.m_halfconn_curwaitcnt--;
 			halfconn->sockfd = INVALID_FD_HANDLE;
 			free_halfconn(halfconn);
+			if (connect(connfd, &addr.sa, sockaddrLength(&addr.sa)) != 0) {
+				socketClose(connfd);
+				continue;
+			}
 			channel->_.on_ack_halfconn(&channel->_, connfd, &addr.sa, timestamp_msec);
 		}
 	}
@@ -383,37 +387,28 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			channel->on_recv(channel, from_saddr, &decode_result);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
-			if (from_listen) {
-				if (decode_result.bodylen < sizeof(unsigned short)) {
-					return 1;
-				}
-				if (channel->dgram.m_synpacket) {
-					unsigned short port = *(unsigned short*)decode_result.bodyptr;
-					port = ntohs(port);
-					sockaddrSetPort(&channel->_.to_addr.sa, port);
-					reactorpacketFree(channel->dgram.m_synpacket);
-					channel->dgram.m_synpacket = NULL;
-					if (~0 != channel->_.connected_times) {
-						++channel->_.connected_times;
-					}
-					channel->_.disable_send = 0;
-					if (channel->_.on_syn_ack) {
-						channel->_.on_syn_ack(&channel->_, timestamp_msec);
-					}
-				}
-				channel->dgram.on_reply_ack(channel, 0, from_saddr);
-				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+			if (!from_listen) {
+				return 1;
 			}
-			else if (from_peer && channel->dgram.m_synpacket) {
+			if (decode_result.bodylen < sizeof(unsigned short)) {
+				return 1;
+			}
+			if (channel->dgram.m_synpacket) {
+				unsigned short port = *(unsigned short*)decode_result.bodyptr;
+				port = ntohs(port);
+				sockaddrSetPort(&channel->_.to_addr.sa, port);
 				reactorpacketFree(channel->dgram.m_synpacket);
 				channel->dgram.m_synpacket = NULL;
-				if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
-					channel->on_recv(channel, from_saddr, &decode_result);
+				if (~0 != channel->_.connected_times) {
+					++channel->_.connected_times;
 				}
-				else {
-					return 1;
+				channel->_.disable_send = 0;
+				if (channel->_.on_syn_ack) {
+					channel->_.on_syn_ack(&channel->_, timestamp_msec);
 				}
 			}
+			channel->dgram.on_reply_ack(channel, 0, from_saddr);
+			socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
 		}
 		else if (!from_peer || from_listen) {
 			return 1;

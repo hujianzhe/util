@@ -642,12 +642,29 @@ BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value) {
 	struct sockaddr_storage saddr;
 	socklen_t slen = sizeof(saddr);
 	if (getsockname(sockfd, (struct sockaddr*)&saddr, &slen)) {
-		if (SOCKET_ERROR_VALUE(EINVAL) != __GetErrorCode())
+		if (SOCKET_ERROR_VALUE(EINVAL) != __GetErrorCode()) {
 			return FALSE;
+		}
 		*bool_value = FALSE;
 	}
-	else
+	else {
 		*bool_value = TRUE;
+	}
+	return TRUE;
+}
+
+BOOL socketHasPeerAddr(FD_t sockfd, BOOL* bool_value) {
+	struct sockaddr_storage saddr;
+	socklen_t slen = sizeof(saddr);
+	if (getpeername(sockfd, (struct sockaddr*)&saddr, &slen)) {
+		if (SOCKET_ERROR_VALUE(ENOTCONN) != __GetErrorCode()) {
+			return FALSE;
+		}
+		*bool_value = FALSE;
+	}
+	else {
+		*bool_value = TRUE;
+	}
 	return TRUE;
 }
 
