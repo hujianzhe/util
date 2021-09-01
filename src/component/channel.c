@@ -27,6 +27,7 @@ static const ChannelOutbufEncodeParam_t* netpacket2encodeparam(NetPacket_t* pkg,
 	param->bodylen = pkg->bodylen;
 	param->hdrlen = pkg->hdrlen;
 	param->pkseq = pkg->seq;
+	param->fragment_eof = pkg->fragment_eof;
 	param->pktype = pkg->type;
 	param->buf = pkg->buf;
 	return param;
@@ -149,25 +150,6 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		if (0 == pktype) {
 			channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
 		}
-		else if (NETPACKET_SYN == pktype) {
-			if (channel->_.flag & CHANNEL_FLAG_SERVER) {
-				channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
-			}
-			else {
-				continue;
-			}
-		}
-		else if (NETPACKET_SYN_ACK == pktype) {
-			if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
-				channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
-			}
-			else {
-				continue;
-			}
-		}
-		else if (NETPACKET_FIN == pktype) {
-			continue;
-		}
 		else {
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
@@ -181,18 +163,21 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr.sa);
 				*/
-				if (ctx->recvlist.head) {
+				if (ctx->recvlist.head || !decode_result.fragment_eof) {
 					List_t list;
 					ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 					if (!packet) {
 						return -1;
 					}
 					packet->_.seq = pkseq;
+					packet->_.fragment_eof = decode_result.fragment_eof;
 					memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
 					streamtransportctxCacheRecvPacket(ctx, &packet->_);
-					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
-						if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
-							return -1;
+					if (decode_result.fragment_eof) {
+						while (streamtransportctxMergeRecvPacket(ctx, &list)) {
+							if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
+								return -1;
+							}
 						}
 					}
 				}
@@ -297,6 +282,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				encode_param.bodylen = sizeof(local_port);
 				encode_param.hdrlen = hdrlen;
 				encode_param.pkseq = 0;
+				encode_param.fragment_eof = 1;
 				encode_param.pktype = NETPACKET_SYN_ACK;
 				encode_param.buf = halfconn->buf;
 				channel->on_encode(channel, &encode_param);
@@ -423,6 +409,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				return 0;
 			}
 			packet->_.seq = pkseq;
+			packet->_.fragment_eof = decode_result.fragment_eof;
 			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
 			dgramtransportctxCacheRecvPacket(&channel->_.dgram_ctx, &packet->_);
 			while (dgramtransportctxMergeRecvPacket(&channel->_.dgram_ctx, &list)) {

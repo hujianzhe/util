@@ -11,8 +11,9 @@
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
 	char incomplete;
-	char ignore;
+	char fragment_eof;
 	char pktype;
+	char ignore;
 	unsigned int pkseq;
 	unsigned int decodelen;
 	unsigned int bodylen;
@@ -22,6 +23,7 @@ typedef struct ChannelInbufDecodeResult_t {
 
 typedef struct ChannelOutbufEncodeParam_t {
 	char pktype;
+	char fragment_eof;
 	unsigned int pkseq;
 	unsigned int hdrlen;
 	unsigned int bodylen;
