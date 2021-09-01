@@ -160,7 +160,7 @@ StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx, unsigned
 }
 
 int streamtransportctxRecvCheck(StreamTransportCtx_t* ctx, unsigned int seq, int pktype) {
-	if (NETPACKET_NO_ACK_FRAGMENT <= pktype && pktype <= NETPACKET_FIN)
+	if (NETPACKET_NO_ACK_FRAGMENT <= pktype && pktype <= NETPACKET_FRAGMENT)
 		return 1;
 	if (pktype <= NETPACKET_ACK)
 		return 0;

@@ -181,24 +181,21 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
 					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr.sa);
 				*/
-				if (ctx->recvlist.head || NETPACKET_NO_ACK_FRAGMENT == pktype || NETPACKET_FRAGMENT == pktype) {
+				if (ctx->recvlist.head) {
 					List_t list;
 					ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
-					if (!packet)
+					if (!packet) {
 						return -1;
+					}
 					packet->_.seq = pkseq;
 					memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
 					streamtransportctxCacheRecvPacket(ctx, &packet->_);
 					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
-						if (!channel_merge_packet_handler(channel, &list, &decode_result))
+						if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
 							return -1;
+						}
 					}
 				}
-				/*
-				else if (NETPACKET_FIN == pktype) {
-					channel_recv_fin_handler(channel);
-				}
-				*/
 				else {
 					channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
 				}
