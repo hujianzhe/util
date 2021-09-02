@@ -490,9 +490,6 @@ static int on_read_dgram(ChannelBase_t* base, unsigned char* buf, unsigned int l
 
 static int on_pre_send_stream(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	if (NETPACKET_FIN == packet->_.type) {
-		return 1;
-	}
 	packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
 	if (channel->on_encode) {
 		ChannelOutbufEncodeParam_t encode_param;
