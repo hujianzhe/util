@@ -1311,7 +1311,6 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 }
 
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
-	packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 	packet->channel = channel;
 	reactorCommitCmd(channel->reactor, &packet->cmd);
 }
@@ -1323,7 +1322,6 @@ void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 	}
 	for (cur = packetlist->head; cur; cur = cur->next) {
 		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-		packet->cmd.type = REACTOR_SEND_PACKET_CMD;
 		packet->channel = channel;
 	}
 	reactor_commit_cmdlist(channel->reactor, packetlist);
