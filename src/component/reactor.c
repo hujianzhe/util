@@ -144,6 +144,10 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 	}
 	if (SOCK_STREAM == o->socktype) {
+		if (o->stream.m_connect_end_msec > 0) {
+			listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
+			o->stream.m_connect_end_msec = 0;
+		}
 		free_io_resource(o);
 	}
 
@@ -477,7 +481,6 @@ static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec)
 			reactor_set_event_timestamp(reactor, o->stream.m_connect_end_msec);
 			break;
 		}
-		listRemoveNode(&reactor->m_connect_endlist, cur);
 		o->m_valid = 0;
 		o->detach_error = REACTOR_CONNECT_ERR;
 		reactorobject_invalid_inner_handler(reactor, o, now_msec);
@@ -839,6 +842,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 	if (o->stream.m_connect_end_msec > 0) {
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
+		o->stream.m_connect_end_msec = 0;
 	}
 	if (!nioConnectCheckSuccess(o->fd)) {
 		return 0;
