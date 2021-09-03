@@ -15,8 +15,8 @@ ifeq ($(COMPILER), gcc)
 SOURCE_CPP_FILE :=
 endif
 
-DEBUG_TARGET := $(TARGET_PATH)/libutil_dynamic_debug.so
-RELEASE_TARGET := $(TARGET_PATH)/libutil_dynamic_release.so
+DEBUG_TARGET := $(TARGET_PATH)/libUtilDynamicDebug.so
+RELEASE_TARGET := $(TARGET_PATH)/libUtilDynamic.so
 
 all:
 
