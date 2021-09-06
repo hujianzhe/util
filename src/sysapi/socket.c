@@ -928,27 +928,34 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 
 /* SOCKET */
 int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
+	/*
 	Iobuf_t iov = iobufStaticInit(buf, nbytes);
 	return socketReadv(sockfd, &iov, 1, flags, from);
-	/* windows core dump here,,,but memory is ok......
-	return recvfrom(sockfd, (char*)buf, nbytes, flags, (struct sockaddr*)from, &slen);
 	*/
+	if (from) {
+		socklen_t slen = sizeof(*from);
+		return recvfrom(sockfd, buf, nbytes, flags, (struct sockaddr*)from, &slen);
+	}
+	else {
+		return recvfrom(sockfd, buf, nbytes, flags, NULL, NULL);
+	}
 }
 
 int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen) {
+	/*
 	Iobuf_t iov;
 	if (tolen < 0) {
 		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
 		return -1;
 	}
-	else if (0 == tolen)
+	else if (0 == tolen) {
 		to = NULL;
+	}
 	iobufPtr(&iov) = (char*)buf;
 	iobufLen(&iov) = nbytes;
 	return socketWritev(sockfd, &iov, 1, flags, to, tolen);
-	/* windows core dump here,,,but memory is ok......
-	return sendto(sockfd, (const char*)buf, nbytes, flags, (const struct sockaddr*)to, tolen);
 	*/
+	return sendto(sockfd, (const char*)buf, nbytes, flags, to, tolen);
 }
 
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* from) {
@@ -957,11 +964,11 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 	int slen;
 	if (from) {
 		slen = sizeof(*from);
-		memset(from, 0, sizeof(*from));
+		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, &slen, NULL, NULL) ? -1 : realbytes;
 	}
-	else
-		slen = 0;
-	return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, &slen, NULL, NULL) ? -1 : realbytes;
+	else {
+		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, NULL, NULL, NULL, NULL) ? -1 : realbytes;
+	}
 #else
 	struct msghdr msghdr = { 0 };
 	if (from) {
