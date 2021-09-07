@@ -427,7 +427,18 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			}
 			reactorpacketFree(pod_container_of(ackpkg, ReactorPacket_t, _));
 			if (cwndskip) {
+				ReactorObject_t* o = channel->_.o;
+				const struct sockaddr* addr;
+				int addrlen;
 				ListNode_t* cur;
+				if (o->m_connected) {
+					addr = NULL;
+					addrlen = 0;
+				}
+				else {
+					addr = &channel->_.to_addr.sa;
+					addrlen = sockaddrLength(addr);
+				}
 				for (cur = channel->_.dgram_ctx.sendlist.head; cur; cur = cur->next) {
 					packet = pod_container_of(cur, ReactorPacket_t, _.node);
 					if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_)) {
@@ -442,8 +453,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					packet->_.wait_ack = 1;
 					packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 					channel_set_timestamp(channel, packet->_.resend_msec);
-					socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-						&channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, addr, addrlen);
 				}
 			}
 		}
@@ -549,6 +559,7 @@ static void on_exec_dgram_listener(ChannelBase_t* base, long long timestamp_msec
 
 static void on_exec_reliable_dgram(ChannelBase_t* base, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	ReactorObject_t* o = base->o;
 	if (channel->dgram.m_synpacket) {
 		ReactorPacket_t* packet = channel->dgram.m_synpacket;
 		if (packet->_.resend_msec > timestamp_msec) {
@@ -561,7 +572,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* base, long long timestamp_msec
 			return;
 		}
 		else {
-			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
+			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
 				&channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
@@ -569,7 +580,17 @@ static void on_exec_reliable_dgram(ChannelBase_t* base, long long timestamp_msec
 		}
 	}
 	else {
+		const struct sockaddr* addr;
+		int addrlen;
 		ListNode_t* cur;
+		if (o->m_connected) {
+			addr = NULL;
+			addrlen = 0;
+		}
+		else {
+			addr = &base->to_addr.sa;
+			addrlen = sockaddrLength(addr);
+		}
 		for (cur = channel->_.dgram_ctx.sendlist.head; cur; cur = cur->next) {
 			ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 			if (!packet->_.wait_ack) {
@@ -584,8 +605,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* base, long long timestamp_msec
 				channel_invalid(base, err);
 				return;
 			}
-			socketWrite(channel->_.o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+			socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, addr, addrlen);
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 			channel_set_timestamp(channel, packet->_.resend_msec);
