@@ -328,7 +328,6 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	ReactorPacket_t* packet;
 	unsigned char pktype;
 	unsigned int pkseq;
-	int from_listen, from_peer;
 	ChannelInbufDecodeResult_t decode_result;
 
 	memset(&decode_result, 0, sizeof(decode_result));
@@ -347,6 +346,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		channel->on_recv(channel, from_saddr, &decode_result);
 	}
 	else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER)) {
+		int from_listen, from_peer;
 		pkseq = decode_result.pkseq;
 		if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
 			from_listen = sockaddrIsEqual(&channel->_.connect_addr.sa, from_saddr);
@@ -354,6 +354,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 		else {
 			from_listen = 0;
 		}
+
 		if (from_listen) {
 			from_peer = 0;
 		}
@@ -361,13 +362,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			from_peer = sockaddrIsEqual(&channel->_.to_addr.sa, from_saddr);
 		}
 
-		if (NETPACKET_SYN == pktype) {
-			if (!(channel->_.flag & CHANNEL_FLAG_SERVER) || from_listen) {
-				return 1;
-			}
-			channel->on_recv(channel, from_saddr, &decode_result);
-		}
-		else if (NETPACKET_SYN_ACK == pktype) {
+		if (NETPACKET_SYN_ACK == pktype) {
 			int i;
 			if (!from_listen) {
 				return 1;
@@ -394,7 +389,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
 			}
 		}
-		else if (!from_peer || from_listen) {
+		else if (!from_peer) {
 			return 1;
 		}
 		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
