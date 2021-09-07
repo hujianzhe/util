@@ -10,8 +10,7 @@
 
 typedef struct DgramHalfConn_t {
 	ListNode_t node;
-	unsigned char resend_times;
-	long long resend_msec;
+	long long expire_time_msec;
 	FD_t sockfd;
 	Sockaddr_t from_addr;
 	unsigned short local_port;
@@ -272,12 +271,11 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				halfconn->sockfd = new_sockfd;
 				memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 				halfconn->local_port = local_port;
-				halfconn->resend_times = 0;
-				halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
+				halfconn->expire_time_msec = timestamp_msec + channel->dgram.rto;
 				halfconn->len = buflen;
 				listPushNodeBack(&channel->_.dgram_ctx.recvlist, &halfconn->node);
 				channel->dgram.m_halfconn_curwaitcnt++;
-				channel_set_timestamp(channel, halfconn->resend_msec);
+				channel_set_timestamp(channel, halfconn->expire_time_msec);
 
 				encode_param.bodylen = sizeof(local_port);
 				encode_param.hdrlen = hdrlen;
@@ -286,7 +284,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				encode_param.pktype = NETPACKET_SYN_ACK;
 				encode_param.buf = halfconn->buf;
 				channel->on_encode(channel, &encode_param);
-				*(unsigned short*)(halfconn->buf + buflen - sizeof(local_port)) = htons(local_port);
+				*(unsigned short*)(halfconn->buf + hdrlen) = htons(local_port);
 				socketWrite(o->fd, halfconn->buf, halfconn->len, 0, &halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
 			} while (0);
 			if (!halfconn) {
@@ -370,6 +368,7 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 			channel->on_recv(channel, from_saddr, &decode_result);
 		}
 		else if (NETPACKET_SYN_ACK == pktype) {
+			int i;
 			if (!from_listen) {
 				return 1;
 			}
@@ -390,8 +389,10 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 					channel->_.on_syn_ack(&channel->_, timestamp_msec);
 				}
 			}
-			channel->dgram.on_reply_ack(channel, 0, from_saddr);
-			socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+			for (i = 0; i < 5; ++i) {
+				channel->dgram.on_reply_ack(channel, 0, from_saddr);
+				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+			}
 		}
 		else if (!from_peer || from_listen) {
 			return 1;
@@ -536,21 +537,13 @@ static void on_exec_dgram_listener(ChannelBase_t* base, long long timestamp_msec
 	for (cur = channel->_.dgram_ctx.recvlist.head; cur; cur = next) {
 		DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
 		next = cur->next;
-		if (halfconn->resend_msec > timestamp_msec) {
-			channel_set_timestamp(channel, halfconn->resend_msec);
-			continue;
+		if (halfconn->expire_time_msec > timestamp_msec) {
+			channel_set_timestamp(channel, halfconn->expire_time_msec);
+			break;
 		}
-		if (halfconn->resend_times >= channel->dgram.resend_maxtimes) {
-			listRemoveNode(&channel->_.dgram_ctx.recvlist, cur);
-			channel->dgram.m_halfconn_curwaitcnt--;
-			free_halfconn(halfconn);
-			continue;
-		}
-		socketWrite(channel->_.o->fd, halfconn->buf, halfconn->len, 0,
-					&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
-		halfconn->resend_times++;
-		halfconn->resend_msec = timestamp_msec + channel->dgram.rto;
-		channel_set_timestamp(channel, halfconn->resend_msec);
+		listRemoveNode(&channel->_.dgram_ctx.recvlist, cur);
+		channel->dgram.m_halfconn_curwaitcnt--;
+		free_halfconn(halfconn);
 	}
 }
 
