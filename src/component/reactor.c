@@ -682,7 +682,9 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	StreamTransportCtx_t* ctx;
 
 	if (!channel->valid) {
-		reactorpacketFree(packet);
+		if (!packet->_.cached) {
+			reactorpacketFree(packet);
+		}
 		return;
 	}
 	o = channel->o;
@@ -700,7 +702,9 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
 			if (!after_call_channel_interface(channel)) {
-				reactorpacketFree(packet);
+				if (!packet->_.cached) {
+					reactorpacketFree(packet);
+				}
 				if (!o->m_valid) {
 					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 				}
@@ -770,7 +774,9 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 	int addrlen;
 
 	if (!channel->valid) {
-		reactorpacketFree(packet);
+		if (!packet->_.cached) {
+			reactorpacketFree(packet);
+		}
 		return;
 	}
 	o = channel->o;
@@ -788,7 +794,9 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		if (channel->on_pre_send) {
 			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
 			if (!after_call_channel_interface(channel)) {
-				reactorpacketFree(packet);
+				if (!packet->_.cached) {
+					reactorpacketFree(packet);
+				}
 				if (!o->m_valid) {
 					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 				}
