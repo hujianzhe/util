@@ -1212,6 +1212,15 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 		free(o);
 		return NULL;
 	}
+	if (SOCK_DGRAM == socktype) {
+		if (!socketUdpConnectReset(fd)) {
+			if (fd_create) {
+				socketClose(fd);
+			}
+			free(o);
+			return NULL;
+		}
+	}
 	o->fd = fd;
 	o->domain = domain;
 	o->socktype = socktype;

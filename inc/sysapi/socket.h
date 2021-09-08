@@ -149,6 +149,7 @@ __declspec_dll BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* sadd
 __declspec_dll int socketError(FD_t sockfd);
 #define socketUdpConnect(sockfd, saddr, addrlen)	(connect(sockfd, saddr, addrlen) == 0)
 __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);
+__declspec_dll BOOL socketUdpConnectReset(FD_t sockfd);
 __declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, int msec);
 __declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
