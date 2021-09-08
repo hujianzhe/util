@@ -324,10 +324,11 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 	return 1;
 }
 
-static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const struct sockaddr* from_saddr) {
+static int channel_reliable_dgram_recv_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const struct sockaddr* from_saddr) {
 	ReactorPacket_t* packet;
 	unsigned char pktype;
 	unsigned int pkseq;
+	int from_listen, from_peer;
 	ChannelInbufDecodeResult_t decode_result;
 
 	memset(&decode_result, 0, sizeof(decode_result));
@@ -344,123 +345,118 @@ static int channel_dgram_recv_handler(Channel_t* channel, unsigned char* buf, in
 	pktype = decode_result.pktype;
 	if (0 == pktype) {
 		channel->on_recv(channel, from_saddr, &decode_result);
+		return 1;
 	}
-	else if ((channel->_.flag & CHANNEL_FLAG_CLIENT) || (channel->_.flag & CHANNEL_FLAG_SERVER)) {
-		int from_listen, from_peer;
-		pkseq = decode_result.pkseq;
-		if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
-			from_listen = sockaddrIsEqual(&channel->_.connect_addr.sa, from_saddr);
-		}
-		else {
-			from_listen = 0;
-		}
-
-		if (from_listen) {
-			from_peer = 0;
-		}
-		else {
-			from_peer = sockaddrIsEqual(&channel->_.to_addr.sa, from_saddr);
-		}
-
-		if (NETPACKET_SYN_ACK == pktype) {
-			int i;
-			if (!from_listen) {
-				return 1;
-			}
-			if (decode_result.bodylen < sizeof(unsigned short)) {
-				return 1;
-			}
-			if (channel->dgram.m_synpacket) {
-				unsigned short port = *(unsigned short*)decode_result.bodyptr;
-				port = ntohs(port);
-				sockaddrSetPort(&channel->_.to_addr.sa, port);
-				reactorpacketFree(channel->dgram.m_synpacket);
-				channel->dgram.m_synpacket = NULL;
-				if (~0 != channel->_.connected_times) {
-					++channel->_.connected_times;
-				}
-				channel->_.disable_send = 0;
-				if (channel->_.on_syn_ack) {
-					channel->_.on_syn_ack(&channel->_, timestamp_msec);
-				}
-			}
-			for (i = 0; i < 5; ++i) {
-				channel->dgram.on_reply_ack(channel, 0, from_saddr);
-				socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
-			}
-		}
-		else if (!from_peer) {
-			return 1;
-		}
-		else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
-			List_t list;
-			if (channel->_.readcache_max_size > 0 &&
-				channel->_.readcache_max_size < channel->_.dgram_ctx.cache_recv_bytes + decode_result.bodylen)
-			{
-				return 0;
-			}
-			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
-			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
-			if (!packet) {
-				return 0;
-			}
-			packet->_.seq = pkseq;
-			packet->_.fragment_eof = decode_result.fragment_eof;
-			memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
-			dgramtransportctxCacheRecvPacket(&channel->_.dgram_ctx, &packet->_);
-			while (dgramtransportctxMergeRecvPacket(&channel->_.dgram_ctx, &list)) {
-				if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
-					return 0;
-				}
-			}
-		}
-		else if (NETPACKET_ACK == pktype) {
-			NetPacket_t* ackpkg;
-			int cwndskip = dgramtransportctxAckSendPacket(&channel->_.dgram_ctx, pkseq, &ackpkg);
-			if (!ackpkg) {
-				return 1;
-			}
-			reactorpacketFree(pod_container_of(ackpkg, ReactorPacket_t, _));
-			if (cwndskip) {
-				ReactorObject_t* o = channel->_.o;
-				const struct sockaddr* addr;
-				int addrlen;
-				ListNode_t* cur;
-				if (o->m_connected) {
-					addr = NULL;
-					addrlen = 0;
-				}
-				else {
-					addr = &channel->_.to_addr.sa;
-					addrlen = sockaddrLength(addr);
-				}
-				for (cur = channel->_.dgram_ctx.sendlist.head; cur; cur = cur->next) {
-					packet = pod_container_of(cur, ReactorPacket_t, _.node);
-					if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_)) {
-						break;
-					}
-					if (NETPACKET_FIN == packet->_.type) {
-						channel->_.has_sendfin = 1;
-					}
-					if (packet->_.wait_ack && packet->_.resend_msec > timestamp_msec) {
-						continue;
-					}
-					packet->_.wait_ack = 1;
-					packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
-					channel_set_timestamp(channel, packet->_.resend_msec);
-					socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, addr, addrlen);
-				}
-			}
-		}
-		else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
-			channel->on_recv(channel, from_saddr, &decode_result);
-		}
-		else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
-			channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
-		}
+	pkseq = decode_result.pkseq;
+	if (channel->_.flag & CHANNEL_FLAG_CLIENT) {
+		from_listen = sockaddrIsEqual(&channel->_.connect_addr.sa, from_saddr);
 	}
 	else {
+		from_listen = 0;
+	}
+
+	if (from_listen) {
+		from_peer = 0;
+	}
+	else {
+		from_peer = sockaddrIsEqual(&channel->_.to_addr.sa, from_saddr);
+	}
+
+	if (NETPACKET_SYN_ACK == pktype) {
+		int i;
+		if (!from_listen) {
+			return 1;
+		}
+		if (decode_result.bodylen < sizeof(unsigned short)) {
+			return 1;
+		}
+		if (channel->dgram.m_synpacket) {
+			unsigned short port = *(unsigned short*)decode_result.bodyptr;
+			port = ntohs(port);
+			sockaddrSetPort(&channel->_.to_addr.sa, port);
+			reactorpacketFree(channel->dgram.m_synpacket);
+			channel->dgram.m_synpacket = NULL;
+			if (~0 != channel->_.connected_times) {
+				++channel->_.connected_times;
+			}
+			channel->_.disable_send = 0;
+			if (channel->_.on_syn_ack) {
+				channel->_.on_syn_ack(&channel->_, timestamp_msec);
+			}
+		}
+		for (i = 0; i < 5; ++i) {
+			channel->dgram.on_reply_ack(channel, 0, from_saddr);
+			socketWrite(channel->_.o->fd, NULL, 0, 0, &channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+		}
+	}
+	else if (!from_peer) {
+		return 1;
+	}
+	else if (dgramtransportctxRecvCheck(&channel->_.dgram_ctx, pkseq, pktype)) {
+		List_t list;
+		if (channel->_.readcache_max_size > 0 &&
+			channel->_.readcache_max_size < channel->_.dgram_ctx.cache_recv_bytes + decode_result.bodylen)
+		{
+			return 0;
+		}
+		channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
+		packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+		if (!packet) {
+			return 0;
+		}
+		packet->_.seq = pkseq;
+		packet->_.fragment_eof = decode_result.fragment_eof;
+		memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
+		dgramtransportctxCacheRecvPacket(&channel->_.dgram_ctx, &packet->_);
+		while (dgramtransportctxMergeRecvPacket(&channel->_.dgram_ctx, &list)) {
+			if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
+				return 0;
+			}
+		}
+	}
+	else if (NETPACKET_ACK == pktype) {
+		NetPacket_t* ackpkg;
+		int cwndskip = dgramtransportctxAckSendPacket(&channel->_.dgram_ctx, pkseq, &ackpkg);
+		if (!ackpkg) {
+			return 1;
+		}
+		reactorpacketFree(pod_container_of(ackpkg, ReactorPacket_t, _));
+		if (cwndskip) {
+			ReactorObject_t* o = channel->_.o;
+			const struct sockaddr* addr;
+			int addrlen;
+			ListNode_t* cur;
+			if (o->m_connected) {
+				addr = NULL;
+				addrlen = 0;
+			}
+			else {
+				addr = &channel->_.to_addr.sa;
+				addrlen = sockaddrLength(addr);
+			}
+			for (cur = channel->_.dgram_ctx.sendlist.head; cur; cur = cur->next) {
+				packet = pod_container_of(cur, ReactorPacket_t, _.node);
+				if (!dgramtransportctxSendWindowHasPacket(&channel->_.dgram_ctx, &packet->_)) {
+					break;
+				}
+				if (NETPACKET_FIN == packet->_.type) {
+					channel->_.has_sendfin = 1;
+				}
+				if (packet->_.wait_ack && packet->_.resend_msec > timestamp_msec) {
+					continue;
+				}
+				packet->_.wait_ack = 1;
+				packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
+				channel_set_timestamp(channel, packet->_.resend_msec);
+				socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, addr, addrlen);
+			}
+		}
+	}
+	else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
 		channel->on_recv(channel, from_saddr, &decode_result);
+	}
+	else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
+		channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 	}
 	return 1;
 }
@@ -483,14 +479,33 @@ static int on_read_dgram_listener(ChannelBase_t* base, unsigned char* buf, unsig
 	return 1;
 }
 
-static int on_read_dgram(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
+static int on_read_reliable_dgram(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	if (!channel_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr)) {
+	if (!channel_reliable_dgram_recv_handler(channel, buf, len, timestamp_msec, from_addr)) {
 		channel_invalid(base, REACTOR_ONREAD_ERR);
 	}
 	else if (base->has_recvfin && base->has_sendfin) {
 		channel_invalid(base, 0);
 	}
+	return 1;
+}
+
+static int on_read_dgram(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	ChannelInbufDecodeResult_t decode_result;
+
+	memset(&decode_result, 0, sizeof(decode_result));
+	channel->on_decode(channel, buf, len, &decode_result);
+	if (decode_result.err) {
+		return 1;
+	}
+	else if (decode_result.incomplete) {
+		return 1;
+	}
+	else if (decode_result.ignore) {
+		return 1;
+	}
+	channel->on_recv(channel, from_addr, &decode_result);
 	return 1;
 }
 
@@ -532,6 +547,16 @@ static int on_pre_send_reliable_dgram(ChannelBase_t* base, ReactorPacket_t* pack
 		packet->_.wait_ack = 1;
 		packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 		channel_set_timestamp(channel, packet->_.resend_msec);
+	}
+	return 1;
+}
+
+static int on_pre_send_dgram(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
+	if (channel->on_encode) {
+		ChannelOutbufEncodeParam_t encode_param;
+		netpacket2encodeparam(&packet->_, &encode_param);
+		channel->on_encode(channel, &encode_param);
 	}
 	return 1;
 }
@@ -712,11 +737,15 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 			channel->_.on_exec = on_exec_dgram_listener;
 			channel->_.on_read = on_read_dgram_listener;
 		}
-		else {
+		else if ((flag & CHANNEL_FLAG_CLIENT) || (flag & CHANNEL_FLAG_SERVER)) {
 			channel->_.on_free = on_free_reliable_dgram;
 			channel->_.on_exec = on_exec_reliable_dgram;
-			channel->_.on_read = on_read_dgram;
+			channel->_.on_read = on_read_reliable_dgram;
 			channel->_.on_pre_send = on_pre_send_reliable_dgram;
+		}
+		else {
+			channel->_.on_read = on_read_dgram;
+			channel->_.on_pre_send = on_pre_send_dgram;
 		}
 	}
 	return channel;
