@@ -1040,10 +1040,14 @@ int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes) {
 int socketTcpCanRecvOOB(FD_t sockfd){
 #if defined(_WIN32) || defined(_WIN64)
     u_long ok;
-	return !ioctlsocket(sockfd,SIOCATMARK,&ok) ? ok:-1;
+	return !ioctlsocket(sockfd, SIOCATMARK, &ok) ? ok : -1;
 #else
     return sockatmark(sockfd);
 #endif
+}
+
+BOOL socketTcpSendOOB(FD_t sockfd, unsigned char oob) {
+	return send(sockfd, (char*)&oob, 1, MSG_OOB) == 1;
 }
 
 BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* p_oob) {

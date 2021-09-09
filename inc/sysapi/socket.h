@@ -163,8 +163,8 @@ __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, 
 __declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
-#define socketTcpSendOOB(sockfd, oob) (send(sockfd, (char*)&(oob), 1, MSG_OOB) == 1)
 __declspec_dll int socketTcpCanRecvOOB(FD_t sockfd);
+__declspec_dll BOOL socketTcpSendOOB(FD_t sockfd, unsigned char oob);
 __declspec_dll BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* oob);
 __declspec_dll int socketSelect(int nfds, fd_set* rset, fd_set* wset, fd_set* xset, int msec);
 __declspec_dll int socketPoll(struct pollfd* fdarray, unsigned long nfds, int msec);
