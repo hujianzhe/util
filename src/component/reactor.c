@@ -959,7 +959,6 @@ Reactor_t* reactorInit(Reactor_t* reactor) {
 	hashtableInit(&reactor->m_objht,
 		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
 		objht_keycmp, objht_keyhash);
-	reactor->m_runthreadhasbind = 0;
 	reactor->m_event_msec = 0;
 	return reactor;
 }
@@ -1022,11 +1021,6 @@ static void reactor_commit_cmdlist(Reactor_t* reactor, List_t* cmdlist) {
 }
 
 int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
-	if (!reactor->m_runthreadhasbind) {
-		reactor->m_runthread = threadSelf();
-		reactor->m_runthreadhasbind = 1;
-	}
-
 	if (reactor->m_event_msec > timestamp_msec) {
 		int checkexpire_wait_msec = reactor->m_event_msec - timestamp_msec;
 		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
