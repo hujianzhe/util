@@ -528,9 +528,8 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		SetLastError(ERROR_INVALID_PARAMETER);
 		return FALSE;
 	}
-#else
+#elif defined(__linux__)
 	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
-	#ifdef __linux__
 		struct epoll_event e;
 		e.data.fd = fd;
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLIN;
@@ -541,13 +540,9 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			return epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
 		return TRUE;
-	#elif defined(__FreeBSD__) || defined(__APPLE__)
-		struct kevent e;
-		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
-		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
-	#endif
 	}
 	else if (NIO_OP_WRITE == opcode || NIO_OP_CONNECT == opcode) {
+		struct epoll_event e;
 		if (NIO_OP_CONNECT == opcode) {/* try connect... */
 			if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
 				return FALSE;
@@ -557,8 +552,6 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			 * because I need Unified handle event
 			 */
 		}
-	#ifdef __linux__
-		struct epoll_event e;
 		e.data.fd = fd | 0x80000000;
 		e.events = EPOLLET | EPOLLONESHOT | EPOLLOUT;
 		if (epoll_ctl(nio->__epfd, EPOLL_CTL_MOD, fd, &e)) {
@@ -568,11 +561,30 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			return epoll_ctl(nio->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
 		}
 		return TRUE;
-	#elif defined(__FreeBSD__) || defined(__APPLE__)
+	}
+	else {
+		errno = EINVAL;
+		return FALSE;
+	}
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
 		struct kevent e;
+		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
+		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
+	}
+	else if (NIO_OP_WRITE == opcode || NIO_OP_CONNECT == opcode) {
+		struct kevent e;
+		if (NIO_OP_CONNECT == opcode) {/* try connect... */
+			if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
+				return FALSE;
+			}
+			/* 
+			 * fd always add __epfd when connect immediately finish or not...
+			 * because I need Unified handle event
+			 */
+		}
 		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
-	#endif
 	}
 	else {
 		errno = EINVAL;
