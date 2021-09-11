@@ -349,6 +349,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			}
 			return ol;
 		}
+		case NIO_OP_CONNECT:
 		case NIO_OP_WRITE:
 		{
 			IocpWriteOverlapped* ol = (IocpWriteOverlapped*)malloc(sizeof(IocpWriteOverlapped) + appendsize);
@@ -364,14 +365,6 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 					ol->wsabuf.len = appendsize;
 					ol->append_data[appendsize] = 0;
 				}
-			}
-			return ol;
-		}
-		case NIO_OP_CONNECT:
-		{
-			IocpOverlapped* ol = (IocpOverlapped*)calloc(1, sizeof(IocpOverlapped));
-			if (ol) {
-				ol->opcode = NIO_OP_CONNECT;
 			}
 			return ol;
 		}
@@ -507,6 +500,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 	else if (NIO_OP_CONNECT == opcode) {
 		struct sockaddr_storage st;
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
+		IocpWriteOverlapped* iocp_ol = (IocpWriteOverlapped*)ol;
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
 		if (!lpfnConnectEx){
 			DWORD dwBytes;
@@ -524,12 +518,13 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
 			return FALSE;
 		}
-		if (lpfnConnectEx((SOCKET)fd, saddr, addrlen, NULL, 0, NULL, (LPWSAOVERLAPPED)ol)) {
-			((IocpOverlapped*)ol)->commit = 1;
+		iocp_ol->base.opcode = NIO_OP_CONNECT;
+		if (lpfnConnectEx((SOCKET)fd, saddr, addrlen, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
+			iocp_ol->base.commit = 1;
 			return TRUE;
 		}
 		else if (WSAGetLastError() == ERROR_IO_PENDING) {
-			((IocpOverlapped*)ol)->commit = 1;
+			iocp_ol->base.commit = 1;
 			return TRUE;
 		}
 		return FALSE;
