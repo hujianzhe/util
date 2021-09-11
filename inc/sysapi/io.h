@@ -71,17 +71,15 @@ typedef struct Nio_t {
 } Nio_t;
 __declspec_dll BOOL nioCreate(Nio_t* nio);
 __declspec_dll BOOL nioReg(Nio_t* nio, FD_t fd);
-__declspec_dll BOOL nioUnRegIsSupported(void);
-__declspec_dll BOOL nioUnReg(Nio_t* nio, FD_t fd);
 __declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void nioFreeOverlapped(void* ol);
-__declspec_dll int nioOverlappedData(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
 __declspec_dll BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen);
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
 __declspec_dll void nioWakeup(Nio_t* nio);
 __declspec_dll void* nioEventOverlappedCheck(Nio_t* nio, const NioEv_t* e);
 __declspec_dll FD_t nioEventFD(const NioEv_t* e);
 __declspec_dll int nioEventOpcode(const NioEv_t* e);
+__declspec_dll int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr);
 __declspec_dll BOOL nioConnectCheckSuccess(FD_t sockfd);
 __declspec_dll FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr);
 __declspec_dll FD_t nioAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr);

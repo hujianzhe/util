@@ -366,17 +366,6 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	}
 }
 
-static int reactor_unreg_object_check(Reactor_t* reactor, ReactorObject_t* o) {
-	if (!nioUnReg(&reactor->m_nio, o->fd)) {
-		return 0;
-	}
-	o->m_has_inserted = 0;
-	hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
-	o->m_readol_has_commit = 0;
-	o->m_writeol_has_commit = 0;
-	return 1;
-}
-
 static void stream_recvfin_handler(ReactorObject_t* o) {
 	ChannelBase_t* channel = streamChannel(o);
 	channel->has_recvfin = 1;
@@ -642,7 +631,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		}
 		else {
 			Iobuf_t iov;
-			if (0 == nioOverlappedData(o->m_readol, &iov, &from_addr.st)) {
+			if (0 == nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st)) {
 				++readmaxtimes;
 				continue;
 			}
