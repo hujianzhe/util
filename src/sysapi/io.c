@@ -355,7 +355,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			IocpWriteOverlapped* ol = (IocpWriteOverlapped*)malloc(sizeof(IocpWriteOverlapped) + appendsize);
 			if (ol) {
 				memset(ol, 0, sizeof(IocpWriteOverlapped));
-				ol->base.opcode = NIO_OP_WRITE;
+				ol->base.opcode = opcode;
 				if (refbuf && refsize) {
 					ol->wsabuf.buf = (char*)refbuf;
 					ol->wsabuf.len = refsize;
@@ -385,10 +385,11 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 	return (void*)(size_t)-1;
 #endif
 }
+
 void nioFreeOverlapped(void* ol) {
 #if defined(_WIN32) || defined(_WIN64)
-	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
-	if (iocp_ol) {
+	if (ol) {
+		IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 		if (NIO_OP_ACCEPT == iocp_ol->opcode) {
 			IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
 			if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
@@ -408,53 +409,56 @@ void nioFreeOverlapped(void* ol) {
 
 BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
+	if (iocp_ol->commit) {
+		return TRUE;
+	}
 	if (NIO_OP_READ == opcode) {
-		IocpReadOverlapped* iocp_ol = (IocpReadOverlapped*)ol;
+		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
-			int slen = sizeof(iocp_ol->saddr);
+			int slen = sizeof(read_ol->saddr);
 			DWORD Flags = 0;
-			if (!WSARecvFrom((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&iocp_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL)) {
-				iocp_ol->base.commit = 1;
+			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&read_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL)) {
+				read_ol->base.commit = 1;
 				return TRUE;
 			}
 			else if (WSAGetLastError() == WSA_IO_PENDING) {
-				iocp_ol->base.commit = 1;
+				read_ol->base.commit = 1;
 				return TRUE;
 			}
 			/* note: UDP socket need bind a address before call this function, otherwise WSAGetLastError return WSAINVALID */
 		}
 		else {
-			if (ReadFile((HANDLE)fd, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, NULL, (LPOVERLAPPED)ol)) {
-				iocp_ol->base.commit = 1;
+			if (ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)ol)) {
+				read_ol->base.commit = 1;
 				return TRUE;
 			}
 			else if (GetLastError() == ERROR_IO_PENDING) {
-				iocp_ol->base.commit = 1;
+				read_ol->base.commit = 1;
 				return TRUE;
 			}
 		}
 		return FALSE;
 	}
 	else if (NIO_OP_WRITE == opcode) {
-		IocpWriteOverlapped* iocp_ol = (IocpWriteOverlapped*)ol;
-		iocp_ol->base.opcode = NIO_OP_WRITE;
+		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
 		if (saddr) {
-			if (!WSASendTo((SOCKET)fd, &iocp_ol->wsabuf, 1, NULL, 0, saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
-				iocp_ol->base.commit = 1;
+			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
+				write_ol->base.commit = 1;
 				return TRUE;
 			}
 			else if (WSAGetLastError() == WSA_IO_PENDING) {
-				iocp_ol->base.commit = 1;
+				write_ol->base.commit = 1;
 				return TRUE;
 			}
 		}
 		else {
 			if (WriteFile((HANDLE)fd, NULL, 0, NULL, (LPOVERLAPPED)ol)) {
-				iocp_ol->base.commit = 1;
+				write_ol->base.commit = 1;
 				return TRUE;
 			}
 			else if (GetLastError() == ERROR_IO_PENDING) {
-				iocp_ol->base.commit = 1;
+				write_ol->base.commit = 1;
 				return TRUE;
 			}
 		}
@@ -462,7 +466,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 	}
 	else if (NIO_OP_ACCEPT == opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
-		IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
+		IocpAcceptExOverlapped* accept_ol = (IocpAcceptExOverlapped*)ol;
 		if (!lpfnAcceptEx) {
 			DWORD dwBytes;
 			GUID GuidAcceptEx = WSAID_ACCEPTEX;
@@ -474,33 +478,33 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 				return FALSE;
 			}
 		}
-		if (INVALID_SOCKET == iocp_ol->acceptsocket) {
-			iocp_ol->acceptsocket = socket(saddr->sa_family, SOCK_STREAM, 0);
-			if (INVALID_SOCKET == iocp_ol->acceptsocket) {
+		if (INVALID_SOCKET == accept_ol->acceptsocket) {
+			accept_ol->acceptsocket = socket(saddr->sa_family, SOCK_STREAM, 0);
+			if (INVALID_SOCKET == accept_ol->acceptsocket) {
 				return FALSE;
 			}
 		}
-		if (lpfnAcceptEx((SOCKET)fd, iocp_ol->acceptsocket, iocp_ol->saddrs, 0,
+		if (lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
 			NULL, (LPOVERLAPPED)ol))
 		{
-			iocp_ol->base.commit = 1;
+			accept_ol->base.commit = 1;
 			return TRUE;
 		}
 		else if (WSAGetLastError() == ERROR_IO_PENDING) {
-			iocp_ol->base.commit = 1;
+			accept_ol->base.commit = 1;
 			return TRUE;
 		}
 		else {
-			closesocket(iocp_ol->acceptsocket);
-			iocp_ol->acceptsocket = INVALID_SOCKET;
+			closesocket(accept_ol->acceptsocket);
+			accept_ol->acceptsocket = INVALID_SOCKET;
 			return FALSE;
 		}
 	}
 	else if (NIO_OP_CONNECT == opcode) {
 		struct sockaddr_storage st;
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
-		IocpWriteOverlapped* iocp_ol = (IocpWriteOverlapped*)ol;
+		IocpWriteOverlapped* conn_ol = (IocpWriteOverlapped*)ol;
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
 		if (!lpfnConnectEx){
 			DWORD dwBytes;
@@ -518,13 +522,12 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
 			return FALSE;
 		}
-		iocp_ol->base.opcode = NIO_OP_CONNECT;
-		if (lpfnConnectEx((SOCKET)fd, saddr, addrlen, iocp_ol->wsabuf.buf, iocp_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
-			iocp_ol->base.commit = 1;
+		if (lpfnConnectEx((SOCKET)fd, saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
+			conn_ol->base.commit = 1;
 			return TRUE;
 		}
 		else if (WSAGetLastError() == ERROR_IO_PENDING) {
-			iocp_ol->base.commit = 1;
+			conn_ol->base.commit = 1;
 			return TRUE;
 		}
 		return FALSE;
