@@ -635,7 +635,7 @@ FD_t nioEventFD(const NioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	return e->lpCompletionKey;
 #elif __linux__
-	return e->data.fd & 0x7fffffff;
+	return e->data.fd;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	return (size_t)(e->udata);
 #endif
