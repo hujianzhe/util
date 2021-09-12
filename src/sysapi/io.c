@@ -413,7 +413,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 	if (iocp_ol->commit) {
 		return TRUE;
 	}
-	if (NIO_OP_READ == opcode) {
+	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
 			int slen = sizeof(read_ol->saddr);
@@ -440,7 +440,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_WRITE == opcode) {
+	else if (NIO_OP_WRITE == iocp_ol->opcode) {
 		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
 		if (saddr) {
 			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
@@ -464,7 +464,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_ACCEPT == opcode) {
+	else if (NIO_OP_ACCEPT == iocp_ol->opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
 		IocpAcceptExOverlapped* accept_ol = (IocpAcceptExOverlapped*)ol;
 		if (!lpfnAcceptEx) {
@@ -501,7 +501,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			return FALSE;
 		}
 	}
-	else if (NIO_OP_CONNECT == opcode) {
+	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
 		struct sockaddr_storage st;
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		IocpWriteOverlapped* conn_ol = (IocpWriteOverlapped*)ol;
