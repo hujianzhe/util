@@ -382,7 +382,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			return NULL;
 	}
 #else
-	return (void*)(size_t)-1;
+	return (void*)(size_t)opcode;
 #endif
 }
 
