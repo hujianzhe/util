@@ -16,6 +16,9 @@ extern "C" {
 #endif
 
 static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_msec) {
+	if (timestamp_msec <= 0) {
+		return;
+	}
 	if (reactor->m_event_msec > 0 && reactor->m_event_msec <= timestamp_msec) {
 		return;
 	}
@@ -23,6 +26,9 @@ static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_
 }
 
 static void channel_set_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
+	if (timestamp_msec <= 0) {
+		return;
+	}
 	if (channel->event_msec > 0 && channel->event_msec <= timestamp_msec) {
 		return;
 	}
@@ -196,7 +202,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, opcode, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa))) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -218,7 +224,7 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 	}
 	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_WRITE, o->m_writeol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, &saddr.sa, sockaddrLength(&saddr.sa))) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -231,7 +237,7 @@ static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o)
 		if (!o->m_writeol)
 			return 0;
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, NIO_OP_CONNECT, o->m_writeol,
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol,
 		&o->stream.m_connect_addr.sa, sockaddrLength(&o->stream.m_connect_addr.sa)))
 	{
 		return 0;
@@ -361,9 +367,9 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 			channel->on_syn_ack(channel, timestamp_msec);
 			after_call_channel_interface(channel);
 		}
-		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
+	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+	channel_set_timestamp(channel, channel->m_heartbeat_msec);
 }
 
 static void stream_recvfin_handler(ReactorObject_t* o) {
@@ -1034,6 +1040,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			HashtableNode_t* find_node;
 			ReactorObject_t* o;
 			FD_t fd;
+			int ev_mask;
 			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i)) {
 				continue;
 			}
@@ -1047,9 +1054,9 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 			if (!o->m_valid) {
 				continue;
 			}
-			switch (nioEventOpcode(e + i)) {
-				case NIO_OP_READ:
-				{
+			ev_mask = nioEventOpcode(e + i, &o->m_io_event_mask);
+			do {
+				if (ev_mask & NIO_OP_READ) {
 					o->m_readol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
 						if (o->stream.m_listened) {
@@ -1065,28 +1072,24 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					if (o->m_valid && !reactorobject_request_read(reactor, o)) {
 						o->m_valid = 0;
 						o->detach_error = REACTOR_IO_ERR;
+						break;
 					}
-					break;
 				}
-				case NIO_OP_WRITE:
-				{
+				if (ev_mask & NIO_OP_WRITE) {
 					o->m_writeol_has_commit = 0;
-					if (SOCK_STREAM == o->socktype) {
-						if (o->m_connected) {
-							reactor_stream_writeev(reactor, o);
-						}
-						else if (!reactor_stream_connect(reactor, o, timestamp_msec)) {
-							o->m_valid = 0;
-							o->detach_error = REACTOR_CONNECT_ERR;
-						}
+					if (SOCK_STREAM != o->socktype) {
+						break;
 					}
-					break;
+					if (o->m_connected) {
+						reactor_stream_writeev(reactor, o);
+					}
+					else if (!reactor_stream_connect(reactor, o, timestamp_msec)) {
+						o->m_valid = 0;
+						o->detach_error = REACTOR_CONNECT_ERR;
+						break;
+					}
 				}
-				default:
-				{
-					o->m_valid = 0;
-				}
-			}
+			} while (0);
 			if (o->m_valid) {
 				continue;
 			}
@@ -1164,6 +1167,7 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->m_writeol_has_commit = 0;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
+	o->m_io_event_mask = 0;
 	o->m_invalid_msec = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;

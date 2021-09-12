@@ -158,7 +158,7 @@ BOOL nioCreate(Nio_t* nio) {
 	nio->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
 	return nio->__hNio != 0;
 #elif __linux__
-	int nio_ok = 0, epfd_ok = 0, pair_ok = 0;
+	int nio_ok = 0, pair_ok = 0;
 	do {
 		int nb = 1;
 		struct epoll_event e = { 0 };
@@ -167,16 +167,6 @@ BOOL nioCreate(Nio_t* nio) {
 			break;
 		}
 		nio_ok = 1;
-		nio->__epfd = epoll_create1(EPOLL_CLOEXEC);
-		if (nio->__epfd < 0) {
-			break;
-		}
-		epfd_ok = 1;
-		e.data.fd = nio->__epfd;
-		e.events = EPOLLIN;
-		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__epfd, &e)) {
-			break;
-		}
 		if (socketpair(AF_UNIX, SOCK_STREAM, 0, nio->__socketpair)) {
 			break;
 		}
@@ -197,9 +187,6 @@ BOOL nioCreate(Nio_t* nio) {
 	} while (0);
 	if (nio_ok) {
 		assertTRUE(0 == close(nio->__hNio));
-	}
-	if (epfd_ok) {
-		assertTRUE(0 == close(nio->__epfd));
 	}
 	if (pair_ok) {
 		assertTRUE(0 == close(nio->__socketpair[0]));
@@ -261,9 +248,6 @@ BOOL nioUnReg(Nio_t* nio, FD_t fd) {
 	if (epoll_ctl(nio->__hNio, EPOLL_CTL_DEL, fd, &e) && ENOENT != errno) {
 		return FALSE;
 	}
-	if (epoll_ctl(nio->__epfd, EPOLL_CTL_DEL, fd, &e) && ENOENT != errno) {
-		return FALSE;
-	}
 	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	struct kevent e[2];
@@ -286,9 +270,6 @@ BOOL nioCancel(Nio_t* nio, FD_t fd) {
 #elif __linux__
 	struct epoll_event e = { 0 };
 	if (epoll_ctl(nio->__hNio, EPOLL_CTL_DEL, fd, &e)) {
-		return FALSE;
-	}
-	if (epoll_ctl(nio->__epfd, EPOLL_CTL_DEL, fd, &e)) {
 		return FALSE;
 	}
 	return TRUE;
@@ -407,13 +388,13 @@ void nioFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr, int addrlen) {
+BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, struct sockaddr* saddr, int addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol->commit) {
 		return TRUE;
 	}
-	if (NIO_OP_READ == opcode) {
+	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
 			int slen = sizeof(read_ol->saddr);
@@ -440,7 +421,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_WRITE == opcode) {
+	else if (NIO_OP_WRITE == iocp_ol->opcode) {
 		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
 		if (saddr) {
 			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
@@ -464,7 +445,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_ACCEPT == opcode) {
+	else if (NIO_OP_ACCEPT == iocp_ol->opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
 		IocpAcceptExOverlapped* accept_ol = (IocpAcceptExOverlapped*)ol;
 		if (!lpfnAcceptEx) {
@@ -501,7 +482,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			return FALSE;
 		}
 	}
-	else if (NIO_OP_CONNECT == opcode) {
+	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
 		struct sockaddr_storage st;
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		IocpWriteOverlapped* conn_ol = (IocpWriteOverlapped*)ol;
@@ -537,53 +518,52 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 		return FALSE;
 	}
 #elif defined(__linux__)
-	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
-		struct epoll_event e;
-		e.data.fd = fd;
-		e.events = EPOLLET | EPOLLONESHOT | EPOLLIN;
-		if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, fd, &e)) {
-			if (ENOENT != errno) {
-				return FALSE;
-			}
-			return epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
-		}
-		return TRUE;
+	struct epoll_event e;
+	unsigned int event_mask = *ptr_event_mask;
+	unsigned int sys_event_mask = 0;
+	if (event_mask & NIO_OP_READ) {
+		sys_event_mask |= EPOLLIN;
 	}
-	else if (NIO_OP_WRITE == opcode) {
-		struct epoll_event e;
-		e.data.fd = fd | 0x80000000;
-		e.events = EPOLLET | EPOLLONESHOT | EPOLLOUT;
-		if (epoll_ctl(nio->__epfd, EPOLL_CTL_MOD, fd, &e)) {
-			if (ENOENT != errno) {
-				return FALSE;
-			}
-			return epoll_ctl(nio->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
-		}
-		return TRUE;
+	if (event_mask & NIO_OP_WRITE) {
+		sys_event_mask |= EPOLLOUT;
 	}
-	else if (NIO_OP_CONNECT == opcode) {
-		struct epoll_event e;
+
+	if (NIO_OP_READ == (size_t)ol || NIO_OP_ACCEPT == (size_t)ol) {
+		event_mask |= NIO_OP_READ;
+		sys_event_mask |= EPOLLIN;
+	}
+	else if (NIO_OP_WRITE == (size_t)ol) {
+		event_mask |= NIO_OP_WRITE;
+		sys_event_mask |= EPOLLOUT;
+	}
+	else if (NIO_OP_CONNECT == (size_t)ol) {
 		if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
+		event_mask |= NIO_OP_WRITE;
+		sys_event_mask |= EPOLLOUT;
 		/* 
-		 * fd always add __epfd when connect immediately finish or not...
+		 * fd always add epoll when connect immediately finish or not...
 		 * because I need Unified handle event
 		 */
-		e.data.fd = fd | 0x80000000;
-		e.events = EPOLLET | EPOLLONESHOT | EPOLLOUT;
-		if (epoll_ctl(nio->__epfd, EPOLL_CTL_MOD, fd, &e)) {
-			if (ENOENT != errno) {
-				return FALSE;
-			}
-			return epoll_ctl(nio->__epfd, EPOLL_CTL_ADD, fd, &e) == 0 || EEXIST == errno;
-		}
-		return TRUE;
 	}
 	else {
 		errno = EINVAL;
 		return FALSE;
 	}
+
+	e.data.fd = fd;
+	e.events = EPOLLET | EPOLLONESHOT | sys_event_mask;
+	if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, fd, &e)) {
+		if (ENOENT != errno) {
+			return FALSE;
+		}
+		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, fd, &e) && EEXIST != errno) {
+			return FALSE;
+		}
+	}
+	*ptr_event_mask = event_mask;
+	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
 		struct kevent e;
@@ -601,7 +581,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, int opcode, void* ol, struct sockaddr* saddr
 			return FALSE;
 		}
 		/* 
-		 * fd always add __epfd when connect immediately finish or not...
+		 * fd always add kevent when connect immediately finish or not...
 		 * because I need Unified handle event
 		 */
 		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
@@ -622,22 +602,8 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 #elif __linux__
 	int res;
 	do {
-		res = epoll_wait(nio->__hNio, e, count / 2 + 1, msec);
+		res = epoll_wait(nio->__hNio, e, count, msec);
 	} while (res < 0 && EINTR == errno);
-	if (res > 0) {
-		int i;
-		for (i = 0; i < res && nio->__epfd != e[i].data.fd; ++i);
-		if (i < res) {/* has EPOLLOUT */
-			int out_res;
-			e[i] = e[--res];
-			do {
-				out_res = epoll_wait(nio->__epfd, e + res, count - res, 0);
-			} while (out_res < 0 && EINTR == errno);
-			if (out_res > 0) {
-				res += out_res;
-			}
-		}
-	}
 	return res;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	int res;
@@ -702,7 +668,7 @@ void* nioEventOverlappedCheck(Nio_t* nio, const NioEv_t* e) {
 #endif
 }
 
-int nioEventOpcode(const NioEv_t* e) {
+int nioEventOpcode(const NioEv_t* e, unsigned int* ptr_event_mask) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (NIO_OP_ACCEPT == iocp_ol->opcode) {
@@ -721,27 +687,32 @@ int nioEventOpcode(const NioEv_t* e) {
 		iocp_write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		return NIO_OP_WRITE;
 	}
-	else {
-		return NIO_OP_NONE;
-	}
+	return 0;
 #elif __linux__
+	int result_event_mask = 0;
 	/* epoll must catch this event */
-	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP))
-		return (e->data.fd & 0x80000000) ? NIO_OP_WRITE : NIO_OP_READ;
-	/* we use __epfd to filter EPOLLOUT event */
-	else if (e->events & EPOLLIN)
+	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {
+		*ptr_event_mask = 0;
 		return NIO_OP_READ;
-	else if (e->events & EPOLLOUT)
-		return NIO_OP_WRITE;
-	else
-		return NIO_OP_NONE;
+	}
+	if (e->events & EPOLLIN) {
+		(*ptr_event_mask) &= ~NIO_OP_READ;
+		result_event_mask |= NIO_OP_READ;
+	}
+	if (e->events & EPOLLOUT) {
+		(*ptr_event_mask) &= ~NIO_OP_WRITE;
+		result_event_mask |= NIO_OP_WRITE;
+	}
+	return result_event_mask;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (EVFILT_READ == e->filter)
 		return NIO_OP_READ;
 	else if (EVFILT_WRITE == e->filter)
 		return NIO_OP_WRITE;
 	else /* program don't run here... */
-		return NIO_OP_NONE;
+		return 0;
+#else
+	return 0;
 #endif
 }
 
@@ -859,12 +830,6 @@ BOOL nioClose(Nio_t* nio) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle((HANDLE)(nio->__hNio));
 #else
-	#ifdef	__linux__
-	if (nio->__epfd >= 0 && close(nio->__epfd)) {
-		return FALSE;
-	}
-	nio->__epfd = -1;
-	#endif
 	close(nio->__socketpair[0]);
 	close(nio->__socketpair[1]);
 	return close(nio->__hNio) == 0;
