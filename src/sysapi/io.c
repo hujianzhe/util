@@ -404,6 +404,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, stru
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
+			read_ol->dwFlags = 0;
 			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)ol, NULL)) {
 				read_ol->base.commit = 1;
 				return TRUE;
