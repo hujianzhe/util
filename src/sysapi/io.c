@@ -291,12 +291,15 @@ typedef struct IocpOverlapped {
 typedef struct IocpReadOverlapped {
 	IocpOverlapped base;
 	struct sockaddr_storage saddr;
+	int saddrlen;
+	DWORD dwFlags;
 	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
 	unsigned char append_data[1]; /* convienent for text data */
 } IocpReadOverlapped;
 typedef struct IocpWriteOverlapped {
 	IocpOverlapped base;
+	struct sockaddr_storage saddr;
 	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
 	unsigned char append_data[1]; /* convienent for text data */
@@ -318,6 +321,8 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 				memset(ol, 0, sizeof(IocpReadOverlapped));
 				ol->base.opcode = NIO_OP_READ;
 				ol->saddr.ss_family = AF_UNSPEC;
+				ol->saddrlen = sizeof(ol->saddr);
+				ol->dwFlags = 0;
 				if (refbuf && refsize) {
 					ol->wsabuf.buf = (char*)refbuf;
 					ol->wsabuf.len = refsize;
@@ -337,6 +342,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			if (ol) {
 				memset(ol, 0, sizeof(IocpWriteOverlapped));
 				ol->base.opcode = opcode;
+				ol->saddr.ss_family = AF_UNSPEC;
 				if (refbuf && refsize) {
 					ol->wsabuf.buf = (char*)refbuf;
 					ol->wsabuf.len = refsize;
@@ -397,9 +403,8 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, stru
 	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (saddr) {
-			int slen = sizeof(read_ol->saddr);
-			DWORD Flags = 0;
-			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &Flags, (struct sockaddr*)&read_ol->saddr, &slen, (LPWSAOVERLAPPED)ol, NULL)) {
+			read_ol->saddrlen = sizeof(read_ol->saddr);
+			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)ol, NULL)) {
 				read_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -424,7 +429,8 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, stru
 	else if (NIO_OP_WRITE == iocp_ol->opcode) {
 		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
 		if (saddr) {
-			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
+			memcpy(&write_ol->saddr, saddr, addrlen);
+			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, (struct sockaddr*)&write_ol->saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
 				write_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -503,7 +509,8 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, stru
 		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
 			return FALSE;
 		}
-		if (lpfnConnectEx((SOCKET)fd, saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
+		memcpy(&conn_ol->saddr, saddr, addrlen);
+		if (lpfnConnectEx((SOCKET)fd, (struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
 			conn_ol->base.commit = 1;
 			return TRUE;
 		}
