@@ -195,15 +195,18 @@ static int httpframe_save_special_header(HttpFrame_t* frame) {
 				static const char BOUNDARY[] = "boundary=";
 				v += sizeof(MULTIPART_FORM_DATA) - 1;
 				v = strstr(v, BOUNDARY);
-				if (!v)
+				if (!v) {
 					return 0;
+				}
 				v += sizeof(BOUNDARY) - 1;
 				frame->multipart_form_data_boundary = v;
+				return 1;
 			}
 		}
-		else if (0 == strcmp(k, "Content-Length")) {
-			if (sscanf(v, "%u", &frame->content_length) != 1)
+		if (0 == strcmp(k, "Content-Length")) {
+			if (sscanf(v, "%u", &frame->content_length) != 1) {
 				return 0;
+			}
 		}
 	}
 	return 1;
