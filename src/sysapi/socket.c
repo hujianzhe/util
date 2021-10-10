@@ -653,21 +653,6 @@ BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value) {
 	return TRUE;
 }
 
-BOOL socketHasPeerAddr(FD_t sockfd, BOOL* bool_value) {
-	struct sockaddr_storage saddr;
-	socklen_t slen = sizeof(saddr);
-	if (getpeername(sockfd, (struct sockaddr*)&saddr, &slen)) {
-		if (SOCKET_ERROR_VALUE(ENOTCONN) != __GetErrorCode()) {
-			return FALSE;
-		}
-		*bool_value = FALSE;
-	}
-	else {
-		*bool_value = TRUE;
-	}
-	return TRUE;
-}
-
 BOOL socketEnableReusePort(FD_t sockfd, int on) {
 #ifdef  SO_REUSEPORT
 	if (on != 0) {
@@ -938,59 +923,40 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 }
 
 /* SOCKET */
-int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from) {
-	/*
-	Iobuf_t iov = iobufStaticInit(buf, nbytes);
-	return socketReadv(sockfd, &iov, 1, flags, from);
-	*/
-	if (from) {
-		socklen_t slen = sizeof(*from);
-		return recvfrom(sockfd, buf, nbytes, flags, (struct sockaddr*)from, &slen);
-	}
-	else {
-		return recvfrom(sockfd, buf, nbytes, flags, NULL, NULL);
-	}
-}
-
-int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen) {
-	/*
-	Iobuf_t iov;
-	if (tolen < 0) {
-		__SetErrorCode(SOCKET_ERROR_VALUE(EINVAL));
-		return -1;
-	}
-	else if (0 == tolen) {
-		to = NULL;
-	}
-	iobufPtr(&iov) = (char*)buf;
-	iobufLen(&iov) = nbytes;
-	return socketWritev(sockfd, &iov, 1, flags, to, tolen);
-	*/
-	return sendto(sockfd, (const char*)buf, nbytes, flags, to, tolen);
-}
-
-int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* from) {
+int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes, Flags = flags;
-	int slen;
 	if (from) {
-		slen = sizeof(*from);
-		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, &slen, NULL, NULL) ? -1 : realbytes;
+		int flen;
+		if (!p_slen) {
+			flen = sizeof(struct sockaddr_storage);
+			p_slen = &flen;
+		}
+		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, p_slen, NULL, NULL) ? -1 : realbytes;
 	}
 	else {
 		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, NULL, NULL, NULL, NULL) ? -1 : realbytes;
 	}
 #else
+	ssize_t ret;
 	struct msghdr msghdr = { 0 };
 	if (from) {
-		msghdr.msg_name = (struct sockaddr*)from;
-		msghdr.msg_namelen = sizeof(*from);
-		memset(from, 0, sizeof(*from));
+		msghdr.msg_name = from;
+		if (p_slen) {
+			msghdr.msg_namelen = *p_slen;
+		}
+		else {
+			msghdr.msg_namelen = sizeof(struct sockaddr_storage);
+		}
 	}
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
-	return recvmsg(sockfd, &msghdr, flags);
-#endif	
+	ret = recvmsg(sockfd, &msghdr, flags);
+	if (p_slen) {
+		*p_slen = msghdr.msg_namelen;
+	}
+	return ret;
+#endif
 }
 
 int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {

@@ -313,7 +313,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 				channel->disable_send = 1;
 			}
 		}
-		o->m_connected = (socketHasPeerAddr(o->fd, &bval) && bval);
+		o->m_connected = (socketIsConnected(o->fd, &bval) && bval);
 	}
 	return 1;
 }
@@ -504,7 +504,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
 			continue;
 		}
-		res = socketWrite(o->fd, packet->buf + packet->off, packet->hdrlen + packet->bodylen - packet->off, 0, NULL, 0);
+		res = send(o->fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				o->m_valid = 0;
@@ -546,7 +546,6 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 }
 
 static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	Sockaddr_t from_addr;
 	ChannelBase_t* channel;
 	int res = socketTcpReadableBytes(o->fd);
 	if (res < 0) {
@@ -572,7 +571,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		o->m_inbuf = ptr;
 		o->m_inbufsize = o->m_inbuflen + res;
 	}
-	res = socketRead(o->fd, o->m_inbuf + o->m_inbuflen, res, 0, &from_addr.st);
+	res = recv(o->fd, (char*)(o->m_inbuf + o->m_inbuflen), res, 0);
 	if (res < 0) {
 		if (errnoGet() != EWOULDBLOCK) {
 			o->m_valid = 0;
@@ -586,7 +585,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &from_addr.sa);
+	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
 	if (res > 0) {
 		channel->m_heartbeat_times = 0;
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
@@ -624,6 +623,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		unsigned char* ptr;
 		ListNode_t* cur, * next;
 		if (readtimes) {
+			socklen_t slen = sizeof(from_addr.st);
 			if (!o->m_inbuf) {
 				o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
 				if (!o->m_inbuf) {
@@ -633,7 +633,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
 			}
 			ptr = o->m_inbuf;
-			res = socketRead(o->fd, o->m_inbuf, o->m_inbuflen, 0, &from_addr.st);
+			res = recvfrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		}
 		else {
 			Iobuf_t iov;
@@ -736,7 +736,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		return;
 	}
 	if (!streamtransportctxSendCheckBusy(ctx)) {
-		int res = socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, NULL, 0);
+		int res = send(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				o->m_valid = 0;
@@ -814,7 +814,7 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		paddr = &channel->to_addr.sa;
 		addrlen = sockaddrLength(paddr);
 	}
-	socketWrite(o->fd, packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
+	sendto(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
 	if (packet->_.cached) {
 		return;
 	}

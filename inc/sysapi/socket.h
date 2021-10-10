@@ -136,7 +136,6 @@ __declspec_dll BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, un
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port);
 /* SOCKET */
 __declspec_dll BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value);
-__declspec_dll BOOL socketHasPeerAddr(FD_t sockfd, BOOL* bool_value);
 __declspec_dll BOOL socketEnableReusePort(FD_t sockfd, int on);
 __declspec_dll BOOL socketEnableReuseAddr(FD_t sockfd, int on);
 __declspec_dll BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
@@ -157,9 +156,7 @@ __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
 __declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from);
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
 __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
-__declspec_dll int socketRead(FD_t sockfd, void* buf, unsigned int nbytes, int flags, struct sockaddr_storage* from);
-__declspec_dll int socketWrite(FD_t sockfd, const void* buf, unsigned int nbytes, int flags, const struct sockaddr* to, int tolen);
-__declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr_storage* from);
+__declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen);
 __declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
