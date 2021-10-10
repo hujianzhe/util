@@ -310,7 +310,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				continue;
 			}
 			connfd = halfconn->sockfd;
-			if (recvfrom(connfd, NULL, 0, 0, &addr.sa, &slen)) {
+			if (socketRecvFrom(connfd, NULL, 0, 0, &addr.sa, &slen)) {
 				continue;
 			}
 			listRemoveNode(&channel->_.dgram_ctx.recvlist, cur);

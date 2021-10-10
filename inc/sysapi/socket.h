@@ -156,6 +156,7 @@ __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
 __declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from);
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
 __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
+__declspec_dll int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, int flags, struct sockaddr* from, socklen_t* p_slen);
 __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen);
 __declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);

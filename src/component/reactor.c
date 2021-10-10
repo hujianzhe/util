@@ -633,7 +633,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
 			}
 			ptr = o->m_inbuf;
-			res = recvfrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
+			res = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		}
 		else {
 			Iobuf_t iov;

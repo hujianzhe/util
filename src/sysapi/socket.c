@@ -923,20 +923,46 @@ BOOL socketPair(int type, FD_t sockfd[2]) {
 }
 
 /* SOCKET */
+int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, int flags, struct sockaddr* from, socklen_t* p_slen) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD dwBytes, dwFlags = flags;
+	WSABUF wsabuf;
+	wsabuf.buf = (char*)buf;
+	wsabuf.len = buflen;
+	if (!WSARecvFrom(sockfd, &wsabuf, 1, &dwBytes, &dwFlags, from, p_slen, NULL, NULL)) {
+		return dwBytes;
+	}
+	if (WSAGetLastError() == WSAEMSGSIZE) {
+		return dwBytes;
+	}
+	return -1;
+#else
+	return recvfrom(sockfd, buf, buflen, flags, from, p_slen);
+#endif
+}
+
 int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD realbytes, Flags = flags;
+	int res;
+	DWORD dwBytes, dwFlags = flags;
 	if (from) {
 		int flen;
 		if (!p_slen) {
 			flen = sizeof(struct sockaddr_storage);
 			p_slen = &flen;
 		}
-		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, (struct sockaddr*)from, p_slen, NULL, NULL) ? -1 : realbytes;
+		res = WSARecvFrom(sockfd, iov, iovcnt, &dwBytes, &dwFlags, (struct sockaddr*)from, p_slen, NULL, NULL);
 	}
 	else {
-		return WSARecvFrom(sockfd, iov, iovcnt, &realbytes, &Flags, NULL, NULL, NULL, NULL) ? -1 : realbytes;
+		res = WSARecvFrom(sockfd, iov, iovcnt, &dwBytes, &dwFlags, NULL, NULL, NULL, NULL);
 	}
+	if (!res) {
+		return dwBytes;
+	}
+	if (WSAGetLastError() == WSAEMSGSIZE) {
+		return dwBytes;
+	}
+	return -1;
 #else
 	ssize_t ret;
 	struct msghdr msghdr = { 0 };
