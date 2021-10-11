@@ -138,8 +138,6 @@ __declspec_dll BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port)
 __declspec_dll BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value);
 __declspec_dll BOOL socketEnableReusePort(FD_t sockfd, int on);
 __declspec_dll BOOL socketEnableReuseAddr(FD_t sockfd, int on);
-__declspec_dll BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr);
-__declspec_dll BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr);
 #if defined(_WIN32) || defined(_WIN64)
 #define	socketClose(sockfd)	(closesocket((SOCKET)(sockfd)) == 0)
 #else
@@ -153,7 +151,7 @@ __declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, i
 __declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
 __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
-__declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from);
+__declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* p_slen);
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
 __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
 __declspec_dll int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, int flags, struct sockaddr* from, socklen_t* p_slen);

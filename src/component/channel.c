@@ -240,6 +240,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				ReactorObject_t* o;
 				unsigned short local_port;
 				Sockaddr_t local_saddr;
+				socklen_t local_slen;
 				unsigned int buflen, hdrlen;
 				ChannelOutbufEncodeParam_t encode_param;
 				memcpy(&local_saddr, &channel->_.listen_addr, sockaddrLength(&channel->_.listen_addr.sa));
@@ -251,10 +252,11 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
 				}
-				if (bind(new_sockfd, &local_saddr.sa, sockaddrLength(&local_saddr.sa))) {
+				local_slen = sockaddrLength(&local_saddr.sa);
+				if (bind(new_sockfd, &local_saddr.sa, local_slen)) {
 					break;
 				}
-				if (!socketGetLocalAddr(new_sockfd, &local_saddr.st)) {
+				if (getsockname(new_sockfd, &local_saddr.sa, &local_slen)) {
 					break;
 				}
 				if (!sockaddrDecode(&local_saddr.sa, NULL, &local_port)) {

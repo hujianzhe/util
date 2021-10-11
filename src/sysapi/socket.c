@@ -670,16 +670,6 @@ BOOL socketEnableReuseAddr(FD_t sockfd, int on) {
 	return setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) == 0;
 }
 
-BOOL socketGetLocalAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
-	socklen_t slen = sizeof(*saddr);
-	return getsockname(sockfd, (struct sockaddr*)saddr, &slen) == 0;
-}
-
-BOOL socketGetPeerAddr(FD_t sockfd, struct sockaddr_storage* saddr) {
-	socklen_t slen = sizeof(*saddr);
-	return getpeername(sockfd, (struct sockaddr*)saddr, &slen) == 0;
-}
-
 /* SOCKET */
 static int sock_Family(FD_t sockfd) {
 	struct sockaddr_storage ss; 
@@ -813,10 +803,8 @@ BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
 	return TRUE;
 }
 
-FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from) {
+FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* p_slen) {
 	FD_t confd = INVALID_SOCKET;
-	socklen_t slen = sizeof(*from);
-	socklen_t* p_slen = from ? &slen : NULL;
 	if (msec < 0) {
 		do {
 			confd = accept(listenfd, from, p_slen);
@@ -946,11 +934,6 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 	int res;
 	DWORD dwBytes, dwFlags = flags;
 	if (from) {
-		int flen;
-		if (!p_slen) {
-			flen = sizeof(struct sockaddr_storage);
-			p_slen = &flen;
-		}
 		res = WSARecvFrom(sockfd, iov, iovcnt, &dwBytes, &dwFlags, (struct sockaddr*)from, p_slen, NULL, NULL);
 	}
 	else {
@@ -968,19 +951,12 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 	struct msghdr msghdr = { 0 };
 	if (from) {
 		msghdr.msg_name = from;
-		if (p_slen) {
-			msghdr.msg_namelen = *p_slen;
-		}
-		else {
-			msghdr.msg_namelen = sizeof(struct sockaddr_storage);
-		}
+		msghdr.msg_namelen = *p_slen;
 	}
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
 	ret = recvmsg(sockfd, &msghdr, flags);
-	if (p_slen) {
-		*p_slen = msghdr.msg_namelen;
-	}
+	*p_slen = msghdr.msg_namelen;
 	return ret;
 #endif
 }
