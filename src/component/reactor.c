@@ -536,12 +536,14 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
 	ChannelBase_t* channel = streamChannel(o);
 	Sockaddr_t saddr;
+	socklen_t slen = sizeof(saddr.st);
 	FD_t connfd;
-	for (connfd = nioAcceptFirst(o->fd, o->m_readol, &saddr.st);
+	for (connfd = nioAcceptFirst(o->fd, o->m_readol, &saddr.sa, &slen);
 		connfd != INVALID_FD_HANDLE;
-		connfd = nioAcceptNext(o->fd, &saddr.st))
+		connfd = accept(o->fd, &saddr.sa, &slen))
 	{
 		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
+		slen = sizeof(saddr.st);
 	}
 }
 
@@ -622,8 +624,8 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		int res;
 		unsigned char* ptr;
 		ListNode_t* cur, * next;
+		socklen_t slen = sizeof(from_addr.st);
 		if (readtimes) {
-			socklen_t slen = sizeof(from_addr.st);
 			if (!o->m_inbuf) {
 				o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
 				if (!o->m_inbuf) {
@@ -637,7 +639,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		}
 		else {
 			Iobuf_t iov;
-			if (0 == nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st)) {
+			if (0 == nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st, &slen)) {
 				++readmaxtimes;
 				continue;
 			}

@@ -394,7 +394,7 @@ void nioFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, struct sockaddr* saddr, int addrlen) {
+BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, struct sockaddr* saddr, socklen_t addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol->commit) {
@@ -724,7 +724,7 @@ int nioEventOpcode(const NioEv_t* e, unsigned int* ptr_event_mask) {
 #endif
 }
 
-int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr) {
+int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (NIO_OP_READ == iocp_ol->opcode) {
@@ -732,7 +732,8 @@ int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* sad
 		iov->buf = iocp_read_ol->wsabuf.buf;
 		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
 		if (saddr) {
-			*saddr = iocp_read_ol->saddr;
+			memcpy(saddr, &iocp_read_ol->saddr, iocp_read_ol->saddrlen);
+			*p_slen = iocp_read_ol->saddrlen;
 		}
 		return 1;
 	}
@@ -741,6 +742,7 @@ int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* sad
 	iobufLen(iov) = 0;
 	if (saddr) {
 		saddr->ss_family = AF_UNSPEC;
+		*p_slen = 0;
 	}
 	return 0;
 }
@@ -770,19 +772,17 @@ BOOL nioConnectCheckSuccess(FD_t sockfd) {
 #endif
 }
 
-FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr) {
+FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr* peer_saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
 	SOCKET acceptfd = iocp_ol->acceptsocket;
 	iocp_ol->acceptsocket = INVALID_SOCKET;
 	do {
-		int slen;
 		if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&listenfd, sizeof(listenfd))) {
 			closesocket(acceptfd);
 			break;
 		}
-		slen = sizeof(*peer_saddr);
-		if (getpeername(acceptfd, (struct sockaddr*)peer_saddr, &slen)) {
+		if (getpeername(acceptfd, peer_saddr, p_slen)) {
 			closesocket(acceptfd);
 			break;
 		}
@@ -790,48 +790,8 @@ FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr_storage* peer_saddr
 	} while (0);
 	return INVALID_FD_HANDLE;
 #else
-	socklen_t slen = sizeof(*peer_saddr);
-	return accept(listenfd, (struct sockaddr*)peer_saddr, &slen);
+	return accept(listenfd, peer_saddr, p_slen);
 #endif
-}
-
-FD_t nioAcceptNext(FD_t listenfd, struct sockaddr_storage* peer_saddr) {
-#if defined(_WIN32) || defined(_WIN64)
-	int slen = sizeof(*peer_saddr);
-#else
-	socklen_t slen = sizeof(*peer_saddr);
-#endif
-	return accept(listenfd, (struct sockaddr*)peer_saddr, &slen);
-/*
-#if defined(_WIN32) || defined(_WIN64)
-	switch (WSAGetLastError()) {
-		case WSAEMFILE:
-		case WSAENOBUFS:
-		case WSAEWOULDBLOCK:
-			return TRUE;
-		case WSAECONNRESET:
-		case WSAEINTR:
-			return TRUE;
-	}
-#else
-	switch (errno) {
-		case EAGAIN:
-	#if	EAGAIN != EWOULDBLOCK
-		case EWOULDBLOCK:
-	#endif
-		case ENFILE:
-		case EMFILE:
-		case ENOBUFS:
-		case ENOMEM:
-			return TRUE;
-		case ECONNABORTED:
-		case EPERM:
-		case EINTR:
-			return TRUE;
-	}
-#endif
-	return FALSE;
-*/
 }
 
 BOOL nioClose(Nio_t* nio) {

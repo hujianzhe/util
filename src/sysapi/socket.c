@@ -708,7 +708,7 @@ BOOL socketUdpConnectReset(FD_t sockfd) {
 #endif
 }
 
-FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, int msec) {
+FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec) {
 	int res, error;
 	/* create a TCP socket */
 	FD_t sockfd = socket(addr->sa_family, SOCK_STREAM, 0);
@@ -961,7 +961,7 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif
 }
 
-int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen) {
+int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
 	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;

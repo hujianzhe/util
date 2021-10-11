@@ -147,7 +147,7 @@ __declspec_dll int socketError(FD_t sockfd);
 #define socketUdpConnect(sockfd, saddr, addrlen)	(connect(sockfd, saddr, addrlen) == 0)
 __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);
 __declspec_dll BOOL socketUdpConnectReset(FD_t sockfd);
-__declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, int addrlen, int msec);
+__declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec);
 __declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
 __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
@@ -156,7 +156,7 @@ __declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* fr
 __declspec_dll BOOL socketPair(int type, FD_t sockfd[2]);
 __declspec_dll int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, int flags, struct sockaddr* from, socklen_t* p_slen);
 __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen);
-__declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, int tolen);
+__declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpCanRecvOOB(FD_t sockfd);
