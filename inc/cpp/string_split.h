@@ -8,6 +8,7 @@
 #ifdef __cplusplus
 
 #include "cpp_compiler_define.h"
+#include <stdarg.h>
 #include <string.h>
 #include <string>
 #include <vector>
@@ -36,6 +37,27 @@ void string_splits(const char* str, const char* delim, std::vector<std::string>&
 	}
 	if (*str)
 		v.push_back(str);
+}
+
+std::string string_format(const char* format, ...) {
+	char test_buf;
+	int len;
+	va_list varg;
+	va_start(varg, format);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	if (len <= 0) {
+		return std::string();
+	}
+	std::string s(len + 1);
+	va_start(varg, format);
+	len = vsnprintf(s.data(), s.size(), format, varg);
+	va_end(varg);
+	if (len <= 0) {
+		return std::string();
+	}
+	s[len] = 0;
+	return s;
 }
 }
 
