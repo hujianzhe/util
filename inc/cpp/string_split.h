@@ -41,6 +41,7 @@ void string_splits(const char* str, const char* delim, std::vector<std::string>&
 
 std::string string_format(const char* format, ...) {
 	char test_buf;
+	char* buf;
 	int len;
 	va_list varg;
 	va_start(varg, format);
@@ -49,14 +50,19 @@ std::string string_format(const char* format, ...) {
 	if (len <= 0) {
 		return std::string();
 	}
-	std::string s(len + 1);
-	va_start(varg, format);
-	len = vsnprintf(s.data(), s.size(), format, varg);
-	va_end(varg);
-	if (len <= 0) {
+	buf = (char*)malloc(len + 1);
+	if (!buf) {
 		return std::string();
 	}
-	s[len] = 0;
+	va_start(varg, format);
+	len = vsnprintf(buf, len + 1, format, varg);
+	va_end(varg);
+	if (len <= 0) {
+		free(buf);
+		return std::string();
+	}
+	std::string s(buf, len);
+	free(buf);
 	return s;
 }
 }
