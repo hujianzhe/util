@@ -7,7 +7,7 @@
 
 #ifdef __cplusplus
 
-#include "../compiler_define.h"
+#include "../inc/compiler_define.h"
 
 #ifdef _MSC_VER
 	#if	_MSC_VER >= 1900

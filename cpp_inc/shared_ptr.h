@@ -11,7 +11,7 @@
 #if __CPP_VERSION >= 2011
 #include <memory>
 #else
-#include "../sysapi/atomic.h"
+#include "../inc/sysapi/atomic.h"
 #include "unique_ptr.h"
 #include <ostream>
 namespace std {

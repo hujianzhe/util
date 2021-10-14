@@ -4,7 +4,7 @@
 
 #ifdef	__cplusplus
 
-#include "string_split.h"
+#include "../cpp_inc/string_split.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

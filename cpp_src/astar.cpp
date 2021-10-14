@@ -4,7 +4,7 @@
 
 #ifdef	__cplusplus
 
-#include "astar.h"
+#include "../cpp_inc/astar.h"
 #include <algorithm>
 
 namespace util {
