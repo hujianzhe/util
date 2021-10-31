@@ -80,7 +80,7 @@ char* strFormat(int* out_len, const char* format, ...) {
 	return buf;
 }
 
-unsigned int iobufSharedCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n) {
+unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n) {
 	unsigned int off = 0;
 	unsigned char* ptr_buf = (unsigned char*)buf;
 	while (*iov_i < iovcnt) {

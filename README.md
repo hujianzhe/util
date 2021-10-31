@@ -25,10 +25,10 @@ mac笔记本没了,有段时间没在上面编译测试代码了(-.-),等有钱�
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 				rpc_core			基于协程/回调的RPC调度核心机制  
 			crt/
-				cJSON				用于解析JSON,修改了内部原cJSON的代码和一些BUG  
 				collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/胶囊/平面/三角形之间的方向投射检测  
 				cXML				用于解析XML  
 				dynarr				模拟泛型的动态数组  
+				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  
 				math				一些实用的数学运算接口  
 			datastruct/  
 				arrheap				最小堆,最大堆  

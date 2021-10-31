@@ -686,7 +686,7 @@ static List_t* channel_shard_data(Channel_t* channel, int pktype, const Iobuf_t 
 			packet->_.fragment_eof = 0;
 			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
 			off += memsz;
-			iobufSharedCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 		}
 		if (packet) {
 			packet->_.fragment_eof = 1;
