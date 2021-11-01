@@ -299,7 +299,7 @@ size_t cJSON_ChildNum(cJSON* root) {
 long long cJSON_GetInteger(cJSON* node) {
 	long long v;
 	size_t i;
-	if (!node && node->type != cJSON_Value) {
+	if (!node || node->type != cJSON_Value) {
 		return 0;
 	}
 	if (cJSON_ValueType_Integer == node->value_type) {
@@ -387,6 +387,9 @@ double cJSON_GetDouble(cJSON* node) {
 }
 
 const char* cJSON_GetStringPtr(cJSON* node) {
+	if (!node) {
+		return NULL;
+	}
 	if (cJSON_ValueType_String == node->value_type ||
 		cJSON_ValueType_WeakString == node->value_type)
 	{
@@ -396,6 +399,9 @@ const char* cJSON_GetStringPtr(cJSON* node) {
 }
 
 size_t cJSON_GetStringLength(cJSON* node) {
+	if (!node) {
+		return 0;
+	}
 	if (cJSON_ValueType_String == node->value_type ||
 		cJSON_ValueType_WeakString == node->value_type)
 	{
