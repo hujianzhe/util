@@ -782,9 +782,6 @@ size_t cJSON_BytesNum(cJSON* root) {
 			len += node->value_strlen;
 		}
 	}
-	if (len > 0) {
-		++len;
-	}
 	return len;
 }
 
@@ -878,7 +875,6 @@ char* cJSON_ToString(cJSON* root, char* buf) {
 			p = cJSON_NoLeafNodeToStringEnd(node, p);
 		}
 	}
-	*p = 0;
 	return buf;
 }
 
