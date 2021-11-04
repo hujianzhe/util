@@ -509,36 +509,6 @@ cJSON* cJSON_AppendString(cJSON* parent, const char* name, const char* v) {
 	return node;
 }
 
-cJSON* cJSON_AppendNode(cJSON* parent, const char* node_name, cJSON* node) {
-	if (cJSON_Value == parent->type) {
-		return NULL;
-	}
-	else if (cJSON_Array == parent->type) {
-		if (node_name && node_name[0]) {
-			return NULL;
-		}
-	}
-	else if (cJSON_Object == parent->type) {
-		char* new_name;
-		size_t new_name_length;
-		if (!node_name || !node_name[0]) {
-			return NULL;
-		}
-		new_name_length = strlen(node_name);
-		new_name = cJSON_strndup(node_name, new_name_length);
-		if (!new_name) {
-			return NULL;
-		}
-		if (node->name && node->name_deep_copy) {
-			cJSON_free(node->name);
-		}
-		node->name_deep_copy = 1;
-		node->name_length = new_name_length;
-		node->name = new_name;
-	}
-	return cJSON_Append(parent, node);
-}
-
 cJSON* cJSON_Detach(cJSON* node) {
 	if (node) {
 		cJSON *parent = node->parent;
