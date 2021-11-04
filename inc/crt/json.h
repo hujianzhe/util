@@ -64,6 +64,7 @@ __declspec_dll cJSON* cJSON_AppendArray(cJSON* parent, const char* name);
 __declspec_dll cJSON* cJSON_AppendInteger(cJSON* parent, const char* name, long long v);
 __declspec_dll cJSON* cJSON_AppendDouble(cJSON* parent, const char* name, double v);
 __declspec_dll cJSON* cJSON_AppendString(cJSON* parent, const char* name, const char* v);
+__declspec_dll cJSON* cJSON_AppendNode(cJSON* parent, const char* node_name, cJSON* node);
 
 __declspec_dll cJSON* cJSON_Detach(cJSON* node);
 __declspec_dll void cJSON_Delete(cJSON* node);
