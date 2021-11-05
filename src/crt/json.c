@@ -184,23 +184,6 @@ err:
 	return NULL;
 }
 
-static cJSON* cJSON_Append(cJSON* parent, cJSON* node) {
-	cJSON* c = parent->child;
-	if (!c) {
-		parent->child = node;
-	}
-	else {
-		while (c->next) {
-			c = c->next;
-		}
-		c->next = node;
-		node->prev = c;
-	}
-	node->parent = parent;
-	parent->child_num++;
-	return node;
-}
-
 static cJSON* cJSON_TreeBegin(cJSON* node) {
 	if (node) {
 		while (node->child) {
@@ -445,6 +428,23 @@ cJSON* cJSON_SetString(cJSON* node, const char* s, size_t slen) {
 	node->value_deep_copy = 1;
 	cJSON_AssignValue(node, s, slen);
 	node->value_type = cJSON_ValueType_String;
+	return node;
+}
+
+cJSON* cJSON_Append(cJSON* parent, cJSON* node) {
+	cJSON* c = parent->child;
+	if (!c) {
+		parent->child = node;
+	}
+	else {
+		while (c->next) {
+			c = c->next;
+		}
+		c->next = node;
+		node->prev = c;
+	}
+	node->parent = parent;
+	parent->child_num++;
 	return node;
 }
 
