@@ -764,7 +764,7 @@ size_t cJSON_BytesNum(cJSON* root) {
 			if (node->child_num > 1) {
 				len += node->child_num - 1; /* , */
 			}
-			if (node->name) {
+			if (node->name && node->name_length > 0) {
 				len += node->name_length + 3; /* \"name_length\": */
 			}
 			continue;
