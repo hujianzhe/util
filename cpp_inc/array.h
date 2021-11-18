@@ -5,7 +5,6 @@
 #ifndef	UTIL_CPP_ARRAY_H
 #define UTIL_CPP_ARRAY_H
 
-#ifdef	__cplusplus
 #include "cpp_compiler_define.h"
 #if	__CPP_VERSION >= 2011
 #include <array>
@@ -13,6 +12,7 @@
 #include <stdio.h>
 #include <exception>
 #include <stdexcept>
+
 namespace std {
 template <typename T, size_t N>
 struct array {
@@ -97,8 +97,6 @@ bool operator==(const array<T, N>& lhs, const array<T, N>& rhs) {
 template <typename T, size_t N>
 bool operator!=(const array<T, N>& lhs, const array<T, N>& rhs) { return !(lhs == rhs); }
 }
-#endif
-
 #endif
 
 #endif

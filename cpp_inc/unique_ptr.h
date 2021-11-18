@@ -5,13 +5,12 @@
 #ifndef UTIL_CPP_UNIQUE_PTR_H
 #define	UTIL_CPP_UNIQUE_PTR_H
 
-#ifdef __cplusplus
-
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <memory>
 #else
 #include "nullptr.h"
+
 namespace std {
 template<typename T>
 struct default_delete {
@@ -201,8 +200,6 @@ unique_ptr<T, D> move(unique_ptr<T, D>& p) { return std::unique_ptr<T, D>(p.rele
 template <class T, class D>
 void swap(unique_ptr<T, D>& x, unique_ptr<T, D>& y) { x.swap(y); }
 }
-#endif
-
 #endif
 
 #endif

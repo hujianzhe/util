@@ -2,8 +2,6 @@
 // Created by hujianzhe on 20-2-22.
 //
 
-#ifdef	__cplusplus
-
 #include "../cpp_inc/string_split.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -63,5 +61,3 @@ std::string string_format(const char* format, ...) {
 	return s;
 }
 }
-
-#endif

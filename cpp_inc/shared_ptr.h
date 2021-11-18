@@ -5,8 +5,6 @@
 #ifndef	UTIL_CPP_SHARED_PTR_H
 #define	UTIL_CPP_SHARED_PTR_H
 
-#ifdef	__cplusplus
-
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <memory>
@@ -14,6 +12,7 @@
 #include "../inc/sysapi/atomic.h"
 #include "unique_ptr.h"
 #include <ostream>
+
 namespace std {
 template <typename T>
 class enable_shared_from_this;
@@ -311,8 +310,6 @@ private:
 	sp_refcnt* m_refcnt;
 };
 }
-#endif
-
 #endif
 
 #endif

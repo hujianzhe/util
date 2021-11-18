@@ -5,8 +5,6 @@
 #ifndef UTIL_CPP_CONTAINER_UTILITY_H
 #define	UTIL_CPP_CONTAINER_UTILITY_H
 
-#ifdef __cplusplus
-
 #include "unordered_set.h"
 #include "unordered_map.h"
 #include <vector>
@@ -66,7 +64,5 @@ ContainerTo& container_shift(const ContainerFrom& from, ContainerTo& to) {
 }
 
 }
-
-#endif
 
 #endif // !UTIL_CPP_CONTAINER_UTILITY_H

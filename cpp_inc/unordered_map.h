@@ -5,8 +5,6 @@
 #ifndef UTIL_CPP_UNORDERED_MAP_H
 #define	UTIL_CPP_UNORDERED_MAP_H
 
-#ifdef __cplusplus
-
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <unordered_map>
@@ -15,6 +13,7 @@
 #include <cstddef>
 #include <utility>
 #include <string>
+
 namespace std {
 template <typename K, typename V>
 class unordered_map {
@@ -193,8 +192,6 @@ private:
 	::HashtableNode_t* m_buckets[11];
 };
 }
-#endif
-
 #endif
 
 #endif

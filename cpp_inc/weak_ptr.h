@@ -5,14 +5,13 @@
 #ifndef	UTIL_CPP_WEAK_PTR_H
 #define	UTIL_CPP_WEAK_PTR_H
 
-#ifdef	__cplusplus
-
 #include "cpp_compiler_define.h"
 #if __CPP_VERSION >= 2011
 #include <memory>
 #else
 #include "shared_ptr.h"
 #include <exception>
+
 namespace std {
 class bad_weak_ptr : public std::exception {
 public:
@@ -129,8 +128,6 @@ void swap(weak_ptr<T>& x, weak_ptr<T>& y) {
 	x.swap(y);
 }
 }
-#endif
-
 #endif
 
 #endif

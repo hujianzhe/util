@@ -2,8 +2,6 @@
 // Created by hujianzhe on 20-11-9.
 //
 
-#ifdef	__cplusplus
-
 #include "../cpp_inc/astar.h"
 #include <algorithm>
 
@@ -288,5 +286,3 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 	return true;
 }
 }
-
-#endif

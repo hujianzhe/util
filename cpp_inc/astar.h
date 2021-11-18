@@ -5,8 +5,6 @@
 #ifndef	UTIL_CPP_ASTAR_H
 #define	UTIL_CPP_ASTAR_H
 
-#ifdef	__cplusplus
-
 #include <stddef.h>
 #include <list>
 #include <vector>
@@ -140,7 +138,5 @@ private:
 	std::map<int, Pos> m_poses;
 };
 }
-
-#endif
 
 #endif

@@ -5,8 +5,6 @@
 #ifndef UTIL_CPP_LEXICAL_CAST_H
 #define	UTIL_CPP_LEXICAL_CAST_H
 
-#ifdef __cplusplus
-
 #include "cpp_compiler_define.h"
 #include <sstream>
 #include <typeinfo>
@@ -57,7 +55,5 @@ bool lexical_cast(const F& f, T& t) {
 	return true;
 }
 }
-
-#endif
 
 #endif // !UTIL_CPP_LEXICAL_CAST_H

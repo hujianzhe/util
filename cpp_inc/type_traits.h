@@ -5,8 +5,8 @@
 #ifndef	UTIL_CPP_TYPE_TRAITS_H
 #define	UTIL_CPP_TYPE_TRAITS_H
 
-#ifdef	__cplusplus
 #include "cpp_compiler_define.h"
+
 namespace util {
 // is_same
 template <typename T, typename U>
@@ -101,6 +101,5 @@ struct is_base_of {
 	enum { value =  is_inherit_impl<Parent>::template Check<Sub>::value };
 };
 }
-#endif
 
 #endif
