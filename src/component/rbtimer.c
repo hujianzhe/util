@@ -15,29 +15,14 @@ typedef struct RBTimerEvList {
 extern "C" {
 #endif
 
-RBTimer_t* rbtimerInit(RBTimer_t* timer, BOOL uselock) {
-	timer->m_initok = 0;
-	if (uselock && !criticalsectionCreate(&timer->m_lock))
-		return NULL;
+RBTimer_t* rbtimerInit(RBTimer_t* timer) {
 	rbtreeInit(&timer->m_rbtree, rbtreeDefaultKeyCmpI64);
-	timer->m_initok = 1;
-	timer->m_uselock = uselock;
 	timer->m_min_timestamp = -1;
 	return timer;
 }
 
 long long rbtimerMiniumTimestamp(RBTimer_t* timer) {
-	long long min_timestamp;
-
-	if (timer->m_uselock)
-		criticalsectionEnter(&timer->m_lock);
-
-	min_timestamp = timer->m_min_timestamp;
-
-	if (timer->m_uselock)
-		criticalsectionLeave(&timer->m_lock);
-
-	return min_timestamp;
+	return timer->m_min_timestamp;
 }
 
 RBTimer_t* rbtimerDueFirst(RBTimer_t* timers[], size_t timer_cnt, long long* min_timestamp) {
@@ -46,30 +31,25 @@ RBTimer_t* rbtimerDueFirst(RBTimer_t* timers[], size_t timer_cnt, long long* min
 	size_t i;
 	for (i = 0; i < timer_cnt; ++i) {
 		long long this_timeout_ts = rbtimerMiniumTimestamp(timers[i]);
-		if (this_timeout_ts < 0)
+		if (this_timeout_ts < 0) {
 			continue;
+		}
 		if (!timer_result || min_timestamp_result > this_timeout_ts) {
 			timer_result = timers[i];
 			min_timestamp_result = this_timeout_ts;
 		}
 	}
-	if (min_timestamp)
+	if (min_timestamp) {
 		*min_timestamp = min_timestamp_result;
+	}
 	return timer_result;
 }
 
 int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
-	int ok;
+	int ok = 0;
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
 	RBTreeNodeKey_t key;
-
-	if (e->timestamp_msec < 0)
-		return 1;
-	ok = 0;
-
-	if (timer->m_uselock)
-		criticalsectionEnter(&timer->m_lock);
 
 	key.i64 = e->timestamp_msec;
 	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
@@ -96,9 +76,6 @@ int rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 		}
 	}
 
-	if (timer->m_uselock)
-		criticalsectionLeave(&timer->m_lock);
-
 	return ok;
 }
 
@@ -108,16 +85,14 @@ void rbtimerDelEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	RBTreeNode_t* exist_node;
 	RBTreeNodeKey_t key;
 
-	if (timer->m_uselock)
-		criticalsectionEnter(&timer->m_lock);
-
 	key.i64 = e->timestamp_msec;
 	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
 	if (exist_node) {
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
 		listRemoveNode(&evlist->m_list, &e->m_listnode);
-		if (evlist->m_list.head)
+		if (evlist->m_list.head) {
 			need_free = 0;
+		}
 		else {
 			rbtreeRemoveNode(&timer->m_rbtree, exist_node);
 			need_free = 1;
@@ -127,18 +102,18 @@ void rbtimerDelEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 				RBTimerEvList* evlist2 = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
 				timer->m_min_timestamp = evlist2->timestamp_msec;
 			}
-			else
+			else {
 				timer->m_min_timestamp = -1;
+			}
 		}
 	}
-	else
+	else {
 		need_free = 0;
+	}
 
-	if (timer->m_uselock)
-		criticalsectionLeave(&timer->m_lock);
-
-	if (need_free)
+	if (need_free) {
 		free(evlist);
+	}
 }
 
 ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec) {
@@ -146,9 +121,6 @@ ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec) {
 	RBTreeNode_t *rbcur, *rbnext;
 	List_t list;
 	listInit(&list);
-
-	if (timer->m_uselock)
-		criticalsectionEnter(&timer->m_lock);
 
 	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
@@ -163,9 +135,6 @@ ListNode_t* rbtimerTimeout(RBTimer_t* timer, long long timestamp_msec) {
 	}
 	timer->m_min_timestamp = min_timestamp;
 
-	if (timer->m_uselock)
-		criticalsectionLeave(&timer->m_lock);
-
 	return list.head;
 }
 
@@ -173,9 +142,6 @@ ListNode_t* rbtimerClean(RBTimer_t* timer) {
 	RBTreeNode_t *rbcur, *rbnext;
 	List_t list;
 	listInit(&list);
-
-	if (timer->m_uselock)
-		criticalsectionEnter(&timer->m_lock);
 
 	for (rbcur = rbtreeFirstNode(&timer->m_rbtree); rbcur; rbcur = rbnext) {
 		RBTimerEvList* evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
@@ -187,20 +153,14 @@ ListNode_t* rbtimerClean(RBTimer_t* timer) {
 	rbtreeInit(&timer->m_rbtree, rbtreeDefaultKeyCmpI64);
 	timer->m_min_timestamp = -1;
 
-	if (timer->m_uselock)
-		criticalsectionLeave(&timer->m_lock);
-
 	return list.head;
 }
 
 ListNode_t* rbtimerDestroy(RBTimer_t* timer) {
-	if (timer && timer->m_initok) {
-		ListNode_t* head = rbtimerClean(timer);
-		if (timer->m_uselock)
-			criticalsectionClose(&timer->m_lock);
-		return head;
+	if (!timer) {
+		return NULL;
 	}
-	return NULL;
+	return rbtimerClean(timer);
 }
 
 #ifdef __cplusplus
