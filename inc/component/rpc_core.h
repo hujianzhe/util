@@ -15,6 +15,7 @@ struct RpcBatchNode_t;
 typedef struct RpcBaseCore_t {
 	RBTree_t rpc_item_tree;
 	RBTree_t rpc_item_batch_tree;
+	List_t timeout_list;
 	void* runthread; /* userdata, library isn't use this field */
 } RpcBaseCore_t;
 
@@ -36,15 +37,16 @@ typedef struct RpcFiberCore_t {
 
 typedef struct RpcItem_t {
 	struct {
-		void* timeout_ev;
 		size_t udata;
 	}; /* user use, library not use this field */
 	RBTreeNode_t m_treenode;
 	ListNode_t m_listnode;
+	ListNode_t m_listnode_timeout;
 	struct RpcBatchNode_t* m_batch_node;
 	char m_has_reg;
 	int id;
 	long long timestamp_msec;
+	int timeout_msec;
 	void* async_req_arg;
 	void(*async_callback)(struct RpcItem_t*);
 	Fiber_t* fiber;
@@ -56,8 +58,10 @@ extern "C" {
 #endif
 
 __declspec_dll int rpcGenId(void);
-__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid);
+__declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timestamp_msec, int timeout_msec);
 __declspec_dll void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist);
+__declspec_dll long long rpcGetMiniumTimeoutTimestamp(RpcBaseCore_t* rpc_base);
+__declspec_dll int rpcGetTimeoutItems(RpcBaseCore_t* rpc_base, long long timestamp_msec, RpcItem_t* items[], int maxcnt);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
 __declspec_dll void rpcAsyncCoreDestroy(RpcAsyncCore_t* rpc);

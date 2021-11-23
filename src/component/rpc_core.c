@@ -42,6 +42,21 @@ static RpcItem_t* rpc_reg_item(RpcBaseCore_t* rpc_base, RpcItem_t* item, const v
 		item->m_batch_node = batch_node;
 		listPushNodeBack(&batch_node->rpcitemlist, &item->m_listnode);
 	}
+	if (item->timeout_msec > 0) {
+		ListNode_t* cur;
+		for (cur = rpc_base->timeout_list.tail; cur; cur = cur->prev) {
+			RpcItem_t* exist_item = pod_container_of(cur, RpcItem_t, m_listnode_timeout);
+			if (exist_item->timeout_msec + exist_item->timestamp_msec <= item->timeout_msec + item->timestamp_msec) {
+				break;
+			}
+		}
+		if (cur) {
+			listInsertNodeBack(&rpc_base->timeout_list, cur, &item->m_listnode_timeout);
+		}
+		else {
+			listPushNodeFront(&rpc_base->timeout_list, &item->m_listnode_timeout);
+		}
+	}
 	item->m_has_reg = 1;
 	return item;
 }
@@ -56,6 +71,9 @@ static void rpc_remove_item(RpcBaseCore_t* rpc_base, RpcItem_t* item) {
 			rbtreeRemoveNode(&rpc_base->rpc_item_batch_tree, &batch_node->node);
 			free(batch_node);
 		}
+	}
+	if (item->timeout_msec > 0) {
+		listRemoveNode(&rpc_base->timeout_list, &item->m_listnode_timeout);
 	}
 	item->m_has_reg = 0;
 }
@@ -88,11 +106,14 @@ static void rpc_remove_all_item(RpcBaseCore_t* rpc_base, List_t* rpcitemlist) {
 		listPushNodeBack(rpcitemlist, &item->m_listnode);
 	}
 	rbtreeInit(&rpc_base->rpc_item_tree, rbtreeDefaultKeyCmpI32);
+
+	listInit(&rpc_base->timeout_list);
 }
 
 static void rpc_base_core_init(RpcBaseCore_t* rpc_base) {
 	rbtreeInit(&rpc_base->rpc_item_tree, rbtreeDefaultKeyCmpI32);
 	rbtreeInit(&rpc_base->rpc_item_batch_tree, rbtreeDefaultKeyCmpSZ);
+	listInit(&rpc_base->timeout_list);
 	rpc_base->runthread = NULL;
 }
 
@@ -105,15 +126,17 @@ int rpcGenId(void) {
 	return id;
 }
 
-RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid) {
+RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timestamp_msec, int timeout_msec) {
 	item->m_treenode.key.i32 = rpcid;
 	item->m_batch_node = NULL;
 	item->m_has_reg = 0;
 	item->id = rpcid;
-	item->ret_msg = NULL;
-	item->fiber = NULL;
+	item->timestamp_msec = timestamp_msec;
+	item->timeout_msec = timeout_msec;
 	item->async_req_arg = NULL;
 	item->async_callback = NULL;
+	item->fiber = NULL;
+	item->ret_msg = NULL;
 	return item;
 }
 
@@ -134,6 +157,27 @@ void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcite
 		}
 		free(batch_node);
 	}
+}
+
+long long rpcGetMiniumTimeoutTimestamp(RpcBaseCore_t* rpc_base) {
+	if (!listIsEmpty(&rpc_base->timeout_list)) {
+		RpcItem_t* rpc_item = pod_container_of(rpc_base->timeout_list.head, RpcItem_t, m_listnode_timeout);
+		return rpc_item->timestamp_msec + rpc_item->timeout_msec;
+	}
+	return -1;
+}
+
+int rpcGetTimeoutItems(RpcBaseCore_t* rpc_base, long long timestamp_msec, RpcItem_t* items[], int maxcnt) {
+	int i = 0;
+	ListNode_t* cur;
+	for (cur = rpc_base->timeout_list.head; cur && i < maxcnt; cur = cur->next, ++i) {
+		RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_listnode_timeout);
+		if (item->timestamp_msec + item->timeout_msec > timestamp_msec) {
+			break;
+		}
+		items[i] = item;
+	}
+	return i;
 }
 
 /*****************************************************************************************/
