@@ -140,31 +140,27 @@ RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timestamp_msec, int 
 	return item;
 }
 
-void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist) {
-	RBTreeNodeKey_t rkey;
-	RBTreeNode_t* node;
-	rkey.ptr = key;
-	node = rbtreeRemoveKey(&rpc_base->rpc_item_batch_tree, rkey);
-	if (node) {
-		RpcBatchNode_t* batch_node = pod_container_of(node, RpcBatchNode_t, node);
-		ListNode_t* cur;
-		for (cur = batch_node->rpcitemlist.head; cur; cur = cur->next) {
-			RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_listnode);
-			item->m_batch_node = NULL;
-		}
-		if (rpcitemlist) {
-			listAppend(rpcitemlist, &batch_node->rpcitemlist);
-		}
-		free(batch_node);
-	}
-}
-
 long long rpcGetMiniumTimeoutTimestamp(RpcBaseCore_t* rpc_base) {
 	if (!listIsEmpty(&rpc_base->timeout_list)) {
 		RpcItem_t* rpc_item = pod_container_of(rpc_base->timeout_list.head, RpcItem_t, m_listnode_timeout);
 		return rpc_item->timestamp_msec + rpc_item->timeout_msec;
 	}
 	return -1;
+}
+
+RpcItem_t* rpcGetBatchNodeItem(RpcBaseCore_t* rpc_base, const void* key) {
+	RBTreeNodeKey_t rkey;
+	RBTreeNode_t* node;
+	rkey.ptr = key;
+	node = rbtreeSearchKey(&rpc_base->rpc_item_batch_tree, rkey);
+	if (node) {
+		RpcBatchNode_t* batch_node = pod_container_of(node, RpcBatchNode_t, node);
+		if (listIsEmpty(&batch_node->rpcitemlist)) {
+			return NULL;
+		}
+		return pod_container_of(batch_node->rpcitemlist.head, RpcItem_t, m_listnode);
+	}
+	return NULL;
 }
 
 RpcItem_t* rpcGetTimeoutItem(RpcBaseCore_t* rpc_base, long long timestamp_msec) {

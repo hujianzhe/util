@@ -59,8 +59,8 @@ extern "C" {
 
 __declspec_dll int rpcGenId(void);
 __declspec_dll RpcItem_t* rpcItemSet(RpcItem_t* item, int rpcid, long long timestamp_msec, int timeout_msec);
-__declspec_dll void rpcRemoveBatchNode(RpcBaseCore_t* rpc_base, const void* key, List_t* rpcitemlist);
 __declspec_dll long long rpcGetMiniumTimeoutTimestamp(RpcBaseCore_t* rpc_base);
+__declspec_dll RpcItem_t* rpcGetBatchNodeItem(RpcBaseCore_t* rpc_base, const void* key);
 __declspec_dll RpcItem_t* rpcGetTimeoutItem(RpcBaseCore_t* rpc_base, long long timestamp_msec);
 
 __declspec_dll RpcAsyncCore_t* rpcAsyncCoreInit(RpcAsyncCore_t* rpc);
