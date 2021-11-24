@@ -167,17 +167,16 @@ long long rpcGetMiniumTimeoutTimestamp(RpcBaseCore_t* rpc_base) {
 	return -1;
 }
 
-int rpcGetTimeoutItems(RpcBaseCore_t* rpc_base, long long timestamp_msec, RpcItem_t* items[], int maxcnt) {
-	int i = 0;
-	ListNode_t* cur;
-	for (cur = rpc_base->timeout_list.head; cur && i < maxcnt; cur = cur->next, ++i) {
-		RpcItem_t* item = pod_container_of(cur, RpcItem_t, m_listnode_timeout);
-		if (item->timestamp_msec + item->timeout_msec > timestamp_msec) {
-			break;
-		}
-		items[i] = item;
+RpcItem_t* rpcGetTimeoutItem(RpcBaseCore_t* rpc_base, long long timestamp_msec) {
+	RpcItem_t* item;
+	if (listIsEmpty(&rpc_base->timeout_list)) {
+		return NULL;
 	}
-	return i;
+	item = pod_container_of(rpc_base->timeout_list.head, RpcItem_t, m_listnode_timeout);
+	if (item->timestamp_msec + item->timeout_msec > timestamp_msec) {
+		return NULL;
+	}
+	return item;
 }
 
 /*****************************************************************************************/
