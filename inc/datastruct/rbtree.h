@@ -24,7 +24,6 @@ typedef struct RBTreeNode_t {
 	struct RBTreeNode_t *rb_parent;
 	struct RBTreeNode_t *rb_right;
 	struct RBTreeNode_t *rb_left;
-	struct RBTree_t* rb_tree;
 } RBTreeNode_t;
 
 typedef struct RBTree_t {
@@ -48,7 +47,7 @@ __declspec_dll int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t*, const RBTreeNo
 __declspec_dll struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*));
 
 __declspec_dll struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node);
-__declspec_dll void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node);
+__declspec_dll void rbtreeReplaceNode(struct RBTree_t* root, struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node);
 __declspec_dll void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node);
 
 __declspec_dll struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNodeKey_t key);

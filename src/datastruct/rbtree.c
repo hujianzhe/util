@@ -236,7 +236,6 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 	node->rb_color = RB_RED;
 	node->rb_left = node->rb_right = (struct RBTreeNode_t*)0;
 	node->rb_parent = parent;
-	node->rb_tree = root;
 	if (!parent) {
 		root->rb_tree_node = node;
 	}
@@ -244,7 +243,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 	return node;
 }
 
-void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) {
+void rbtreeReplaceNode(struct RBTree_t* root, struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) {
 	if (old_node && old_node != new_node) {
 		RBTreeNodeKey_t key = new_node->key;
 		if (old_node->rb_left) {
@@ -262,7 +261,7 @@ void rbtreeReplaceNode(struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_n
 			}
 		}
 		else {
-			old_node->rb_tree->rb_tree_node = new_node;
+			root->rb_tree_node = new_node;
 		}
 		*new_node = *old_node;
 		new_node->key = key;
@@ -564,13 +563,6 @@ struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node)
 void rbtreeSwap(struct RBTree_t* root1, struct RBTree_t* root2)
 {
 	struct RBTree_t temp_root1 = *root1;
-	struct RBTreeNode_t *cur;
-	for (cur = rbtreeFirstNode(root1); cur; cur = rbtreeNextNode(cur)) {
-		cur->rb_tree = root2;
-	}
-	for (cur = rbtreeFirstNode(root2); cur; cur = rbtreeNextNode(cur)) {
-		cur->rb_tree = root1;
-	}
 	*root1 = *root2;
 	*root2 = temp_root1;
 }
