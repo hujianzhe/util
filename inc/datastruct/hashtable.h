@@ -63,6 +63,7 @@ __declspec_dll struct HashtableNode_t* hashtableFirstNode(const struct Hashtable
 __declspec_dll struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node);
 
 __declspec_dll void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size);
+__declspec_dll void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2);
 
 #ifdef	__cplusplus
 }

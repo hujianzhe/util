@@ -213,6 +213,25 @@ void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buc
 	hashtable->buckets_size = buckets_size;
 }
 
+void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2) {
+	struct Hashtable_t temp_h = *h1;
+	unsigned int i;
+	for (i = 0; i < h1->buckets_size; ++i) {
+		HashtableNode_t* cur;
+		for (cur = h1->buckets[i]; cur; cur = cur->next) {
+			cur->table = h2;
+		}
+	}
+	for (i = 0; i < h2->buckets_size; ++i) {
+		HashtableNode_t* cur;
+		for (cur = h2->buckets[i]; cur; cur = cur->next) {
+			cur->table = h1;
+		}
+	}
+	*h1 = *h2;
+	*h2 = temp_h;
+}
+
 #ifdef	__cplusplus
 }
 #endif
