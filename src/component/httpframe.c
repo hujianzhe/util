@@ -243,7 +243,7 @@ static int parse_and_add_header(Hashtable_t* tbl, const char* h) {
 			field->m_hashnode.key.ptr = field->key;
 			exist_node = hashtableInsertNode(tbl, &field->m_hashnode);
 			if (exist_node != &field->m_hashnode) {
-				hashtableReplaceNode(exist_node, &field->m_hashnode);
+				hashtableReplaceNode(tbl, exist_node, &field->m_hashnode);
 				free(pod_container_of(exist_node, HttpFrameHeaderField_t, m_hashnode));
 			}
 		}

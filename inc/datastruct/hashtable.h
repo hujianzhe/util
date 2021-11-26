@@ -20,8 +20,8 @@ typedef union {
 struct Hashtable_t;
 typedef struct HashtableNode_t {
 	HashtableNodeKey_t key;
-	struct Hashtable_t* table;
 	struct HashtableNode_t *prev, *next;
+	struct HashtableNode_t *ele_prev, *ele_next;
 	unsigned int bucket_index;
 } HashtableNode_t;
 
@@ -30,6 +30,7 @@ typedef struct Hashtable_t {
 	unsigned int buckets_size;
 	int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
 	unsigned int (*keyhash)(const HashtableNodeKey_t*);
+	struct HashtableNode_t* head;
 	UnsignedPtr_t count;
 } Hashtable_t;
 
@@ -52,7 +53,7 @@ __declspec_dll struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		unsigned int (*keyhash)(const HashtableNodeKey_t*));
 
 __declspec_dll struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
-__declspec_dll void hashtableReplaceNode(struct HashtableNode_t* old_node, struct HashtableNode_t* new_node);
+__declspec_dll void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node);
 __declspec_dll void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
 
 __declspec_dll struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key);

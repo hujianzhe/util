@@ -323,7 +323,7 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long 
 		HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
 		if (htnode != &o->m_hashnode) {
 			ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
-			hashtableReplaceNode(htnode, &o->m_hashnode);
+			hashtableReplaceNode(&reactor->m_objht, htnode, &o->m_hashnode);
 			exist_o->m_valid = 0;
 			exist_o->m_has_inserted = 0;
 			reactorobject_invalid_inner_handler(reactor, exist_o, timestamp_msec);
