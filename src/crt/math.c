@@ -13,21 +13,26 @@ extern "C" {
 a == b return =0, a > b return >0, a < b return <0;
 */
 int fcmpf(float a, float b, float epsilon) {
-	float v = a - b;
-	/* a == b */
-	if (v > -epsilon && v < epsilon)
-		return 0;
-	return v >= epsilon ? 1 : -1;
+	if (a > b + epsilon) {
+		return 1;
+	}
+	if (a < b - epsilon) {
+		return -1;
+	}
+	return 0;
 }
+
 /*
 a == b return 0, a > b return >0, a < b return <0;
 */
 int fcmp(double a, double b, double epsilon) {
-	double v = a - b;
-	/* a == b */
-	if (v > -epsilon && v < epsilon)
-		return 0;
-	return v >= epsilon ? 1 : -1;
+	if (a > b + epsilon) {
+		return 1;
+	}
+	if (a < b - epsilon) {
+		return -1;
+	}
+	return 0;
 }
 
 float finvsqrtf(float x) {
@@ -40,7 +45,6 @@ float finvsqrtf(float x) {
 	x = x * (1.5f - xhalf * x * x);
 	return x;
 }
-float fsqrtf(float x) { return 1.0f / finvsqrtf(x); }
 
 double finvsqrt(double x) {
 	double xhalf = 0.5 * x;
@@ -52,6 +56,9 @@ double finvsqrt(double x) {
 	x = x * (1.5 - xhalf * x * x);
 	return x;
 }
+
+float fsqrtf(float x) { return 1.0f / finvsqrtf(x); }
+
 double fsqrt(double x) { return 1.0 / finvsqrt(x); }
 
 int mathQuadraticEquation(float a, float b, float c, float r[2]) {
