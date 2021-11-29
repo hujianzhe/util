@@ -12,22 +12,6 @@
 #endif
 #include <float.h>
 #include <math.h>
-typedef	float		float32_t;
-typedef double		float64_t;
-#if REAL_FLOAT_BIT == 64
-	typedef	float64_t					real_t;
-	#define	REAL_EPSILON				DBL_EPSILON
-	#define	REAL_MIN					DBL_MIN
-	#define	REAL_MAX					DBL_MAX
-	#define	REAL_MATH_FUNC(fn)			fn
-#else
-	#define	REAL_FLOAT_BIT				32
-	typedef	float32_t					real_t;
-	#define	REAL_EPSILON				FLT_EPSILON
-	#define	REAL_MIN					FLT_MIN
-	#define	REAL_MAX					FLT_MAX
-	#define	REAL_MATH_FUNC(fn)			fn##f
-#endif
 #ifndef CCT_EPSILON
 	#define	CCT_EPSILON					1E-5f
 #endif
