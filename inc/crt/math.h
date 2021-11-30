@@ -23,9 +23,6 @@ extern "C" {
 __declspec_dll int fcmpf(float a, float b, float epsilon);
 __declspec_dll int fcmp(double a, double b, double epsilon);
 
-__declspec_dll int fequf(float a, float b, float epsilon);
-__declspec_dll int fequ(double a, double b, double epsilon);
-
 __declspec_dll float finvsqrtf(float x);
 __declspec_dll double finvsqrt(double x);
 
