@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/crt/math.h"
+#include "../../inc/crt/math_vec3.h"
 #include "../../inc/crt/collision_detection.h"
 #include <stddef.h>
 
@@ -562,8 +563,8 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	}
 	mathVec3Normalized(new_axies[1], new_axies[1]);
 	mathVec3Cross(new_axies[0], new_axies[1], new_axies[2]);
-	mathCoordinateSystemTransform(ls_v, cp, new_axies, new_o);
-	mathCoordinateSystemTransform(lsdir, NULL, new_axies, new_dir);
+	mathCoordinateSystemTransformPoint(ls_v, cp, new_axies, new_o);
+	mathCoordinateSystemTransformNormalVec3(lsdir, new_axies, new_dir);
 	A = new_dir[0] * new_dir[0] + new_dir[1] * new_dir[1];
 	B = 2.0f * (new_o[0] * new_dir[0] + new_o[1] * new_dir[1]);
 	C = new_o[0] * new_o[0] + new_o[1] * new_o[1] - radius_sq;

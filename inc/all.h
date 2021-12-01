@@ -31,6 +31,7 @@
 #include "crt/export_free.h"
 #include "crt/json.h"
 #include "crt/math.h"
+#include "crt/math_vec3.h"
 #include "sysapi/assert.h"
 #include "sysapi/atomic.h"
 #include "sysapi/error.h"
