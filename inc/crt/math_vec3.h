@@ -21,6 +21,7 @@ __declspec_dll float* mathCoordinateSystemTransformNormalVec3(const float v[3], 
 
 __declspec_dll int mathVec3IsZero(const float v[3]);
 __declspec_dll int mathVec3Equal(const float v1[3], const float v2[3]);
+__declspec_dll float* mathVec3Set(float r[3], float x, float y, float z);
 __declspec_dll float* mathVec3Copy(float r[3], const float v[3]);
 __declspec_dll float mathVec3LenSq(const float v[3]);
 __declspec_dll float mathVec3Len(const float v[3]);

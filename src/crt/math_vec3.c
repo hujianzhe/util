@@ -40,6 +40,13 @@ float* mathCoordinateSystemTransformPoint(const float v[3], const float new_orig
 	return new_v;
 }
 
+float* mathVec3Set(float r[3], float x, float y, float z) {
+	r[0] = x;
+	r[1] = y;
+	r[2] = z;
+	return r;
+}
+
 float* mathCoordinateSystemTransformNormalVec3(const float v[3], float new_axies[3][3], float new_v[3]) {
 	float t[3];
 	mathVec3Copy(t, v);
