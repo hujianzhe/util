@@ -11,14 +11,16 @@
 extern "C" {
 #endif
 
-static void copy_result(CCTResult_t* dst, CCTResult_t* src) {
-	if (dst == src)
-		return;
+static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
+	if (dst == src) {
+		return dst;
+	}
 	dst->distance = src->distance;
 	dst->hit_point_cnt = src->hit_point_cnt;
 	if (1 == src->hit_point_cnt) {
 		mathVec3Copy(dst->hit_point, src->hit_point);
 	}
+	return dst;
 }
 
 static void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np_to_p[3], float np[3]) {
@@ -1435,18 +1437,26 @@ static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], con
 		float v[8][3];
 		int i;
 		AABBVertices(o, half, v);
-		for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 3) {
+		for (i = 0; i < sizeof(v) / sizeof(v[0]); ++i) {
+			int cmp;
 			CCTResult_t result_temp;
-			float tri[3][3];
-			mathVec3Copy(tri[0], v[Box_Triangle_Vertices_Indices[i]]);
-			mathVec3Copy(tri[1], v[Box_Triangle_Vertices_Indices[i + 1]]);
-			mathVec3Copy(tri[2], v[Box_Triangle_Vertices_Indices[i + 2]]);
-			if (mathTrianglecastPlane(tri, dir, vertice, normal, &result_temp) &&
-				(!p_result || p_result->distance > result_temp.distance))
-			{
+			if (!mathRaycastPlane(v[i], dir, vertice, normal, &result_temp)) {
+				break;
+			}
+			if (!p_result) {
 				copy_result(result, &result_temp);
 				p_result = result;
+				continue;
 			}
+			cmp = fcmpf(p_result->distance, result_temp.distance, CCT_EPSILON);
+			if (cmp < 0) {
+				continue;
+			}
+			if (0 == cmp) {
+				p_result->hit_point_cnt = -1;
+				continue;
+			}
+			copy_result(result, &result_temp);
 		}
 		return p_result;
 	}
