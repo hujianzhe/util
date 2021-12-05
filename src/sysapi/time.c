@@ -62,6 +62,34 @@ long long gmtimeMillisecond(void) {
 #endif
 }
 
+struct tm* gmtimeTM(time_t value, struct tm* datetime) {
+#if defined(WIN32) || defined(_WIN64)
+	int res = gmtime_s(datetime, &value);
+	if (res) {
+		errno = res;
+		return NULL;
+	}
+#else
+	if (gmtime_r(&value, datetime) == NULL)
+		return NULL;
+#endif
+	return datetime;
+}
+
+struct tm* gmtimeLocalTM(time_t value, struct tm* datetime) {
+#if defined(WIN32) || defined(_WIN64)
+	int res = localtime_s(datetime, &value);
+	if (res) {
+		errno = res;
+		return NULL;
+	}
+#else
+	if (localtime_r(&value, datetime) == NULL)
+		return NULL;
+#endif
+	return datetime;
+}
+
 char* structtmText(struct tm* datetime, char* buf, size_t len) {
 	char* c;
 #if defined(WIN32) || defined(_WIN64)
@@ -78,20 +106,6 @@ char* structtmText(struct tm* datetime, char* buf, size_t len) {
 		*c = 0;
 	}
 	return buf;
-}
-
-struct tm* structtmMake(time_t value, struct tm* datetime) {
-#if defined(WIN32) || defined(_WIN64)
-	int res = localtime_s(datetime, &value);
-	if (res) {
-		errno = res;
-		return NULL;
-	}
-#else
-	if (localtime_r(&value, datetime) == NULL)
-		return NULL;
-#endif
-	return datetime;
 }
 
 struct tm* structtmNormal(struct tm* datetime) {

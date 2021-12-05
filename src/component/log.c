@@ -117,7 +117,7 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		return;\
 	if (log->fn_priority_filter && log->fn_priority_filter(priority))\
 		return;\
-	if (!structtmMake(gmtimeSecond(), &dt))\
+	if (!gmtimeLocalTM(gmtimeSecond(), &dt))\
 		return;\
 	structtmNormal(&dt);\
 	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%s|",\
