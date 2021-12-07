@@ -590,8 +590,10 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
 	if (res > 0) {
 		channel->m_heartbeat_times = 0;
-		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		if (channel->flag & CHANNEL_FLAG_SERVER) {
+			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+			channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		}
 	}
 	if (res < 0 || !after_call_channel_interface(channel)) {
 		o->m_valid = 0;
@@ -666,8 +668,10 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			}
 			channel->m_heartbeat_times = 0;
-			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-			channel_set_timestamp(channel, channel->m_heartbeat_msec);
+			if (channel->flag & CHANNEL_FLAG_SERVER) {
+				channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+				channel_set_timestamp(channel, channel->m_heartbeat_msec);
+			}
 		}
 	}
 }
