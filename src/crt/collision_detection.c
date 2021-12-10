@@ -527,11 +527,12 @@ static int mathAABBIntersectPlane(const float o[3], const float half[3], const f
 	for (i = 0; i < 8; ++i) {
 		float d;
 		mathPointProjectionPlane(vertices[i], plane_v, plane_n, NULL, &d);
-		if (i && prev_d * d <= -CCT_EPSILON)
-			return 0;
+		if (i && prev_d * d <= -CCT_EPSILON) {
+			return 1;
+		}
 		prev_d = d;
 	}
-	return 1;
+	return 0;
 }
 
 static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
