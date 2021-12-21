@@ -1809,6 +1809,44 @@ static CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+CollisionBodyAABB_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb) {
+	switch (b->type) {
+		case COLLISION_BODY_AABB:
+		{
+			*aabb = b->aabb;
+			break;
+		}
+		case COLLISION_BODY_SPHERE:
+		{
+			mathVec3Copy(aabb->pos, b->sphere.pos);
+			mathVec3Set(aabb->half, b->sphere.radius, b->sphere.radius, b->sphere.radius);
+			break;
+		}
+		case COLLISION_BODY_CAPSULE:
+		{
+			float half_d = b->capsule.half_height + b->capsule.radius;
+			mathVec3Copy(aabb->pos, b->capsule.pos);
+			mathVec3Set(aabb->half, half_d, half_d, half_d);
+		}
+
+		default:
+			return NULL;
+	}
+	aabb->type = COLLISION_BODY_AABB;
+	if (delta_half_v) {
+		int i;
+		mathVec3Add(aabb->pos, aabb->pos, delta_half_v);
+		for (i = 0; i < 3; ++i) {
+			aabb->half[i] += (delta_half_v[i] > 0.0f ? delta_half_v[i] : -delta_half_v[i]);
+		}
+	}
+	return aabb;
+}
+
 int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2) {
 	if (b1 == b2)
 		return 0;
