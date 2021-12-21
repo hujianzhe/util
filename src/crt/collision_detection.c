@@ -1813,7 +1813,7 @@ static CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-CollisionBodyAABB_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb) {
+CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb) {
 	switch (b->type) {
 		case COLLISION_BODY_AABB:
 		{
@@ -1844,7 +1844,7 @@ CollisionBodyAABB_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, cons
 			aabb->half[i] += (delta_half_v[i] > 0.0f ? delta_half_v[i] : -delta_half_v[i]);
 		}
 	}
-	return aabb;
+	return (CollisionBody_t*)aabb;
 }
 
 int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2) {

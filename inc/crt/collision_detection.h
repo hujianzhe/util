@@ -75,7 +75,7 @@ typedef union CollisionBody_t {
 extern "C" {
 #endif
 
-__declspec_dll CollisionBodyAABB_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb);
+__declspec_dll CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb);
 
 __declspec_dll int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2);
 __declspec_dll CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3], const CollisionBody_t* b2, CCTResult_t* result);
