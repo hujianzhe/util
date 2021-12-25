@@ -507,6 +507,10 @@ static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[6][0] = o[0] + half[0], v[6][1] = o[1] + half[1], v[6][2] = o[2] + half[2];
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
 }
+static void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]) {
+	mathVec3MultiplyScalar(new_half, half, 0.5f);
+	AABBVertices(o, new_half, new_o);
+}
 
 static int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
 	/*
