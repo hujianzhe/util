@@ -29,7 +29,7 @@ void treeInsertChild(struct Tree_t* parent_node, struct Tree_t* new_node) {
 	new_node->parent = parent_node;
 }
 
-void treeInsertBrother(struct Tree_t* node, struct Tree_t* new_node) {
+void treeInsertRight(struct Tree_t* node, struct Tree_t* new_node) {
 	new_node->left = node;
 	new_node->right = node->right;
 	new_node->parent = node->parent;
@@ -37,6 +37,16 @@ void treeInsertBrother(struct Tree_t* node, struct Tree_t* new_node) {
 		node->right->left = new_node;
 	}
 	node->right = new_node;
+}
+
+void treeInsertLeft(struct Tree_t* node, struct Tree_t* new_node) {
+	new_node->left = node->left;
+	new_node->right = node;
+	new_node->parent = node->parent;
+	if (node->left) {
+		node->left->right = new_node;
+	}
+	node->left = new_node;
 }
 
 void treeRemove(struct Tree_t* node) {
@@ -56,6 +66,7 @@ struct Tree_t* treeBegin(struct Tree_t* node) {
 	for (; node && node->child; node = node->child);
 	return node;
 }
+
 struct Tree_t* treeNext(struct Tree_t* node) {
 	if (node->right) {
 		node = node->right;
@@ -63,6 +74,43 @@ struct Tree_t* treeNext(struct Tree_t* node) {
 		return node;
 	}
 	return node->parent;
+}
+
+struct Tree_t* treeLevelBegin(struct Tree_t* node) {
+	struct Tree_t* up_node = node->parent;
+	if (up_node) {
+		struct Tree_t* dst_node = (struct Tree_t*)0;
+		do {
+			if (up_node->child) {
+				dst_node = up_node->child;
+			}
+			up_node = up_node->left;
+		} while (up_node);
+		return dst_node;
+	}
+	else {
+		while (node->left) {
+			node = node->left;
+		}
+		return node;
+	}
+}
+
+struct Tree_t* treeLevelNext(struct Tree_t* node) {
+	if (node->right) {
+		return node->right;
+	}
+	node = node->parent;
+	if (!node) {
+		return (struct Tree_t*)0;
+	}
+	while (node->right) {
+		node = node->right;
+		if (node->child) {
+			return node->child;
+		}
+	}
+	return (struct Tree_t*)0;
 }
 
 #ifdef	__cplusplus
