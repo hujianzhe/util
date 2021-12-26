@@ -511,6 +511,14 @@ static void mathAABBSplit(const float o[3], const float half[3], float new_o[8][
 	mathVec3MultiplyScalar(new_half, half, 0.5f);
 	AABBVertices(o, new_half, new_o);
 }
+static float* AABBMinVertice(const float o[3], const float half[3], float v[3]) {
+	v[0] = o[0] - half[0], v[1] = o[1] - half[1], v[2] = o[2] - half[2];
+	return v;
+}
+static float* AABBMaxVertice(const float o[3], const float half[3], float v[3]) {
+	v[0] = o[0] + half[0], v[1] = o[1] + half[1], v[2] = o[2] + half[2];
+	return v;
+}
 
 static int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
 	/*
@@ -522,6 +530,16 @@ static int mathAABBIntersectAABB(const float o1[3], const float half1[3], const 
 	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
 		o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
 		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
+}
+
+static int mathAABBContainAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
+	float v[3];
+	AABBMinVertice(o2, half2, v);
+	if (!mathAABBHasPoint(o1, half1, v)) {
+		return 0;
+	}
+	AABBMaxVertice(o2, half2, v);
+	return mathAABBHasPoint(o1, half1, v);
 }
 
 static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3]) {
