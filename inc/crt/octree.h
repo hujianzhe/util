@@ -23,7 +23,6 @@ typedef struct OctreeObject_t {
 	float* pos;
 	float* half;
 	OctreeNode_t* oct;
-	void* udata;
 } OctreeObject_t;
 
 typedef struct Octree_t {
