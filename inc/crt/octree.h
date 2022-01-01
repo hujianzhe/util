@@ -23,6 +23,10 @@ typedef struct OctreeObject_t {
 	float* pos;
 	float* half;
 	OctreeNode_t* oct;
+	union {
+		void* ptr;
+		unsigned long long u64;
+	} udata;
 } OctreeObject_t;
 
 typedef struct Octree_t {
