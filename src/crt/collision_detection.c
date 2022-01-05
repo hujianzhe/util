@@ -1857,7 +1857,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 		}
 		case COLLISION_BODY_TRIANGLES_PLANE:
 		{
-			float min[3], max[3], pos[3];
+			float min[3], max[3];
 			int i, init;
 			if (b->triangles_plane.verticescnt < 3) {
 				return NULL;
@@ -1884,7 +1884,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			}
 			mathVec3Add(aabb->pos, min, max);
 			mathVec3MultiplyScalar(aabb->pos, aabb->pos, 0.5f);
-			mathVec3Sub(aabb->half, max, pos);
+			mathVec3Sub(aabb->half, max, aabb->pos);
 		}
 		default:
 		{
