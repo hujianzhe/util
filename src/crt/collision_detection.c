@@ -1867,7 +1867,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 				float* v = b->triangles_plane.vertices[i];
 				if (init) {
 					int j;
-					for (j = 0; j < 3; ++i) {
+					for (j = 0; j < 3; ++j) {
 						if (min[j] > v[j]) {
 							min[j] = v[j];
 						}
