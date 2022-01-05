@@ -1855,9 +1855,41 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			mathVec3Copy(aabb->pos, b->capsule.pos);
 			mathVec3Set(aabb->half, half_d, half_d, half_d);
 		}
-
+		case COLLISION_BODY_TRIANGLES_PLANE:
+		{
+			float min[3], max[3], pos[3];
+			int i, init;
+			if (b->triangles_plane.verticescnt < 3) {
+				return NULL;
+			}
+			init = 0;
+			for (i = 0; i < b->triangles_plane.verticescnt; ++i) {
+				float* v = b->triangles_plane.vertices[i];
+				if (init) {
+					int j;
+					for (j = 0; j < 3; ++i) {
+						if (min[j] > v[j]) {
+							min[j] = v[j];
+						}
+						if (max[j] < v[j]) {
+							max[j] = v[j];
+						}
+					}
+				}
+				else {
+					mathVec3Copy(min, v);
+					mathVec3Copy(max, v);
+					init = 1;
+				}
+			}
+			mathVec3Add(aabb->pos, min, max);
+			mathVec3MultiplyScalar(aabb->pos, aabb->pos, 0.5f);
+			mathVec3Sub(aabb->half, max, pos);
+		}
 		default:
+		{
 			return NULL;
+		}
 	}
 	aabb->type = COLLISION_BODY_AABB;
 	if (delta_half_v) {

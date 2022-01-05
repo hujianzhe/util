@@ -58,6 +58,7 @@ typedef struct CollisionBodyTrianglesPlane_t {
 	int type;
 	float normal[3];
 	float(*vertices)[3];
+	int verticescnt;
 	int* indices;
 	int indicescnt;
 } CollisionBodyTrianglesPlane_t;
