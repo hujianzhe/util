@@ -660,7 +660,7 @@ BOOL socketEnableReusePort(FD_t sockfd, int on) {
 	}
 	return setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on)) == 0;
 #endif
-	return FALSE;
+	return TRUE;
 }
 
 BOOL socketEnableReuseAddr(FD_t sockfd, int on) {
