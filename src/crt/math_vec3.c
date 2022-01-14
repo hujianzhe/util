@@ -145,7 +145,7 @@ float mathVec3Dot(const float v1[3], const float v2[3]) {
 }
 
 float mathVec3Radian(const float v1[3], const float v2[3]) {
-	return acosf(mathVec3Dot(v1, v2) / mathVec3Len(v1) * mathVec3Len(v2));
+	return acosf(mathVec3Dot(v1, v2) / sqrtf(mathVec3LenSq(v1) * mathVec3LenSq(v2)));
 }
 
 /* r = v1 X v2 */
