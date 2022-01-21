@@ -1130,7 +1130,7 @@ void reactorDestroy(Reactor_t* reactor) {
 			}
 			else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
 				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
-				free(channel);
+				channelobject_free(channel);
 			}
 			else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
 				reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
@@ -1138,10 +1138,16 @@ void reactorDestroy(Reactor_t* reactor) {
 		}
 	} while (0);
 	do {
+		ListNode_t* lcur, *lnext;
 		HashtableNode_t *cur, *next;
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
 			next = hashtableNextNode(cur);
+			for (lcur = o->m_channel_list.head; lcur; lcur = lnext) {
+				ChannelBase_t* channel = pod_container_of(lcur, ChannelBase_t, regcmd._);
+				lnext = lcur->next;
+				channelobject_free(channel);
+			}
 			reactorobject_free(o);
 		}
 	} while (0);
