@@ -347,6 +347,15 @@ static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
 	Fiber_t* fiber = (Fiber_t*)lpFiberParameter;
 	fiber->m_entry(fiber);
 }
+#else
+static int volatile __fiber_object_spinlock;
+static Fiber_t* volatile __fiber_last_create_object;
+static void __fiber_start_routine(void) {
+	Fiber_t* fiber = __fiber_last_create_object;
+	__sync_lock_test_and_set(&__fiber_object_spinlock, 0);
+	swapcontext(&fiber->m_ctx, &fiber->m_creater->m_ctx);
+	fiber->m_entry(fiber);
+}
 #endif
 
 Fiber_t* fiberFromThread(void) {
@@ -362,20 +371,20 @@ Fiber_t* fiberFromThread(void) {
 	}
 	fiber->arg = NULL;
 	fiber->m_entry = NULL;
-	fiber->m_threadfiber = fiber;
+	fiber->m_creater = fiber;
 	return fiber;
 #else
-	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	fiber = (Fiber_t*)calloc(1, sizeof(Fiber_t));
 	if (!fiber)
 		return NULL;
 	fiber->arg = NULL;
 	fiber->m_ctx.uc_link = NULL;
-	fiber->m_threadfiber = fiber;
+	fiber->m_creater = fiber;
 	return fiber;
 #endif
 }
 
-Fiber_t* fiberCreate(Fiber_t* threadfiber, size_t stack_size, void (*entry)(Fiber_t*)) {
+Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_t*)) {
 	Fiber_t* fiber;
 #if defined(_WIN32) || defined(_WIN64)
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
@@ -388,7 +397,7 @@ Fiber_t* fiberCreate(Fiber_t* threadfiber, size_t stack_size, void (*entry)(Fibe
 	}
 	fiber->arg = NULL;
 	fiber->m_entry = entry;
-	fiber->m_threadfiber = threadfiber;
+	fiber->m_creater = cur_fiber;
 	return fiber;
 #else
 	if (0 == stack_size)
@@ -403,9 +412,17 @@ Fiber_t* fiberCreate(Fiber_t* threadfiber, size_t stack_size, void (*entry)(Fibe
 	fiber->m_ctx.uc_stack.ss_size = stack_size;
 	fiber->m_ctx.uc_stack.ss_sp = fiber->m_stack;
 	fiber->m_ctx.uc_link = NULL;
-	makecontext(&fiber->m_ctx, (void(*)(void))entry, 1, fiber);
 	fiber->arg = NULL;
-	fiber->m_threadfiber = threadfiber;
+	fiber->m_entry = entry;
+	fiber->m_creater = cur_fiber;
+	makecontext(&fiber->m_ctx, __fiber_start_routine, 0);
+	/* makecontext,, argc -- the number of argument, but sizeof every argument is sizeof(int)
+	   so pass pointer is hard,,,use some int merge???,,,forget it.
+	   so, use a urgly solution to avoid...\o/
+	 */
+	while (__sync_lock_test_and_set(&__fiber_object_spinlock, 1));
+	__fiber_last_create_object = fiber;
+	swapcontext(&cur_fiber->m_ctx, &fiber->m_ctx);
 	return fiber;
 #endif
 }
@@ -422,7 +439,7 @@ void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 
 void fiberFree(Fiber_t* fiber) {
 #if defined(_WIN32) || defined(_WIN64)
-	if (fiber->m_threadfiber == fiber) {
+	if (fiber->m_creater == fiber) {
 		assertTRUE(ConvertFiberToThread());
 	}
 	else {
