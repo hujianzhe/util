@@ -300,7 +300,7 @@ RpcItem_t* rpcFiberCoreRegItem(RpcFiberCore_t* rpc, RpcItem_t* item, const void*
 		return item;
 	}
 	if (rpc->cur_fiber == rpc->msg_fiber) {
-		Fiber_t* new_fiber = fiberCreate(rpc->sche_fiber, rpc->stack_size, RpcFiberProcEntry);
+		Fiber_t* new_fiber = fiberCreate(rpc->cur_fiber, rpc->stack_size, RpcFiberProcEntry);
 		if (!new_fiber) {
 			rpc_remove_item(&rpc->base, item);
 			return NULL;
