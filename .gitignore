@@ -4,3 +4,4 @@
 .xmake
 build
 tags
+/*.dSYM

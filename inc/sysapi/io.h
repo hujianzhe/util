@@ -17,6 +17,7 @@
 	#pragma comment(lib, "ws2_32.lib")
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	#include <sys/event.h>
+	#include <sys/socket.h>
 	#include <aio.h>
 	typedef struct kevent		NioEv_t;
 #elif __linux__

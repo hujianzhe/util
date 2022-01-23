@@ -299,7 +299,7 @@ static unsigned int __vt_char2vkey(unsigned char charcode[8], int len) {
 		if (0x1b == charcode[0])
 			return VKEY_ESC;
 		else if (0x8 == charcode[0])
-			return KEY_BACKSPACE;
+			return VKEY_BACKSPACE;
 		else if (' ' == charcode[0])
 			return VKEY_SPACE;
 		else if ('\t' == charcode[0])

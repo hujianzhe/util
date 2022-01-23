@@ -86,9 +86,49 @@ enum {
 	VKEY_ALT		= 0x10001,
 	VKEY_SHIFT		= 0x10002,
 };
-#else
-	// TODO MAC
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+enum {
+	VKEY_F1			= 0x7a,
+	VKEY_F2			= 0x78,
+	VKEY_F3			= 0x63,
+	VKEY_F4			= 0x76,
+	VKEY_F5			= 0x60,
+	VKEY_F6			= 0x61,
+	VKEY_F7			= 0x62,
+	VKEY_F8			= 0x64,
+	VKEY_F9			= 0x65,
+	VKEY_F10		= 0x6d,
+	VKEY_F11		= 0x67,
+	VKEY_F12		= 0x6f,
 
+	VKEY_LBUTTON	= 0,
+	VKEY_RBUTTON	= 0,
+	VKEY_MBUTTON	= 0,
+
+	VKEY_UP			= 0x7e,
+	VKEY_DOWN		= 0x7d,
+	VKEY_LEFT		= 0x7b,
+	VKEY_RIGHT		= 0x7c,
+	VKEY_ENTER		= 0x24,
+	VKEY_SPACE		= 0x31,
+	VKEY_TAB		= 0x30,
+
+	VKEY_PAGEUP		= 0x74,
+	VKEY_PAGEDOWN	= 0x79,
+
+	VKEY_HOME		= 0x73,
+	VKEY_END		= 0x77,
+	VKEY_ESC		= 0x35,
+	VKEY_DELETE		= 0x33,
+	VKEY_INSERT 	= 0,
+	VKEY_BACKSPACE	= 0,
+	VKEY_SCROLLLOCK	= 0,
+	VKEY_NUMLOCK	= 0,
+	VKEY_CAPSLOCK	= 0x39,
+	VKEY_CTRL		= 0x3b,
+	VKEY_ALT		= 0,
+	VKEY_SHIFT		= 0x38,
+};
 #endif
 
 #endif
