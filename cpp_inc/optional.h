@@ -38,12 +38,31 @@ public:
 		new (m_value) T(v);
 	}
 
+	optional(const optional& other) {
+		set_value(other.has_value());
+		if (other.has_value()) {
+			new (m_value) T(*reinterpret_cast<T*>(other.m_value));
+		}
+	}
+
 	template <typename U>
 	optional(const optional<U>& other) {
 		set_value(other.has_value());
 		if (other.has_value()) {
 			new (m_value) T(*reinterpret_cast<T*>(other.m_value));
 		}
+	}
+
+	optional& operator=(const optional& other) {
+		if (this == &other) {
+			return *this;
+		}
+		reset();
+		set_value(other.has_value());
+		if (other.has_value()) {
+			new (m_value) T(*reinterpret_cast<T*>(other.m_value));
+		}
+		return *this;
 	}
 
 	template <typename U>
@@ -115,7 +134,7 @@ private:
 	};
 
 private:
-	__declspec_align(sizeof(__align) - sizeof(T)) char m_value[sizeof(T) + 1];
+	__declspec_align(sizeof(__align) - sizeof(T)) mutable char m_value[sizeof(T) + 1];
 };
 }
 #endif
