@@ -10,17 +10,33 @@
 #include "../inc/compiler_define.h"
 
 #ifdef _MSC_VER
-	#if	_MSC_VER >= 1900
+	#if		_MSVC_LANG > 201402L
+		#define	__CPP_VERSION	2017
+
+	#elif	_MSVC_LANG > 201103L
+		#define	__CPP_VERSION	2014
+
+	#elif	_MSVC_LANG > 199711L
 		#define	__CPP_VERSION	2011
+
 	#else
 		#define	__CPP_VERSION	1998
+
 	#endif
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
-	#if	__cplusplus > 199711L
+	#if		__cplusplus > 201402L
+		#define	__CPP_VERSION	2017
+
+	#elif	__cplusplus > 201103L
+		#define	__CPP_VERSION	2014
+
+	#elif	__cplusplus > 199711L
 		#define	__CPP_VERSION	2011
+
 	#else
 		#define	__CPP_VERSION	1998
+
 	#endif
 
 #else
