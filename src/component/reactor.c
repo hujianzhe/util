@@ -335,7 +335,7 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long 
 }
 
 static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel;
+	ChannelBase_t* channel = NULL;
 	ListNode_t* cur, *next;
 	for (cur = o->m_channel_list.head; cur; cur = next) {
 		channel = pod_container_of(cur, ChannelBase_t, regcmd._);
