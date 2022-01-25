@@ -29,18 +29,20 @@ class optional {
 public:
 	typedef T value_type;
 
-	optional() : m_hasValue(false) {}
-	optional(nullopt_t v) : m_hasValue(false) {}
+	optional() { set_value(false); }
+	optional(nullopt_t v) { set_value(false); }
 
 	template <typename U>
-	optional(const U& v) : m_value(v), m_hasValue(true) {}
+	optional(const U& v) {
+		set_value(true);
+		new (m_value) T(v);
+	}
 
 	template <typename U>
-	optional(const optional<U>& other) :
-		m_hasValue(other.m_hasValue)
-	{
-		if (m_hasValue) {
-			m_value = other.m_value;
+	optional(const optional<U>& other) {
+		set_value(other.has_value());
+		if (other.has_value()) {
+			new (m_value) T(*reinterpret_cast<T*>(other.m_value));
 		}
 	}
 
@@ -50,9 +52,9 @@ public:
 			return *this;
 		}
 		reset();
-		m_hasValue = other.m_hasValue;
-		if (other.m_hasValue) {
-			m_value = other.m_value;
+		set_value(other.has_value());
+		if (other.has_value()) {
+			new (m_value) T(*reinterpret_cast<T*>(other.m_value));
 		}
 		return *this;
 	}
@@ -63,50 +65,52 @@ public:
 	}
 
 	void reset() {
-		if (!m_hasValue) {
+		if (!has_value()) {
 			return;
 		}
-		m_hasValue = false;
-		m_value.~T();
+		set_value(false);
+		(*reinterpret_cast<T*>(m_value)).~T();
 	}
 
-	bool has_value() const { return m_hasValue; }
-	operator bool() const { return m_hasValue; }
+	inline bool has_value() const { return m_value[sizeof(T)]; }
+	inline operator bool() const { return m_value[sizeof(T)]; }
 
 	T& value() {
-		if (m_hasValue) {
-			return m_value;
+		if (has_value()) {
+			return *reinterpret_cast<T*>(m_value);
 		}
 		throw bad_optional_access();
 	}
 	const T& value() const {
-		if (m_hasValue) {
-			return m_value;
+		if (has_value()) {
+			return *reinterpret_cast<T*>(m_value);
 		}
 		throw bad_optional_access();
 	}
 
 	template <typename U>
 	T value_or(const U& v) const {
-		if (m_hasValue) {
-			return m_value;
+		if (has_value()) {
+			return *reinterpret_cast<T*>(m_value);
 		}
 		return v;
 	}
 
-	T& operator*() { return m_value; }
-	const T& operator*() const { return m_value; }
+	T& operator*() { return *reinterpret_cast<T*>(m_value); }
+	const T& operator*() const { return *reinterpret_cast<T*>(m_value); }
 
 	T* operator->() {
-		return m_hasValue ? &m_value : (T*)0;
+		return has_value() ? reinterpret_cast<T*>(m_value) : (T*)0;
 	}
 	const T* operator->() const {
-		return m_hasValue ? &m_value : (const T*)0;
+		return has_value() ? reinterpret_cast<T*>(m_value) : (const T*)0;
 	}
 
 private:
-	T m_value;
-	bool m_hasValue;
+	void set_value(bool v) { m_value[sizeof(T)] = v; }
+
+private:
+	__declspec_align(16) char m_value[sizeof(T) + 1];
 };
 }
 #endif
