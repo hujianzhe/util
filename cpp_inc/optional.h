@@ -110,8 +110,8 @@ private:
 	void set_value(bool v) { m_value[sizeof(T)] = v; }
 
 	struct __align {
-		char __reserved;
-		T __value;
+		char __r;
+		T __v;
 	};
 
 private:
