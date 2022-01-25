@@ -109,8 +109,13 @@ public:
 private:
 	void set_value(bool v) { m_value[sizeof(T)] = v; }
 
+	struct __align {
+		char __reserved;
+		T __value;
+	};
+
 private:
-	__declspec_align(16) char m_value[sizeof(T) + 1];
+	__declspec_align(sizeof(__align) - sizeof(T)) char m_value[sizeof(T) + 1];
 };
 }
 #endif
