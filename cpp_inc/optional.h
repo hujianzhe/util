@@ -30,6 +30,8 @@ public:
 	typedef T value_type;
 
 	optional() { set_value(false); }
+	~optional() { reset(); }
+
 	optional(nullopt_t v) { set_value(false); }
 
 	template <typename U>
