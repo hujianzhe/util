@@ -46,18 +46,28 @@ public:
 
 	template <typename U>
 	optional& operator=(const optional<U>& other) {
-		if (this != &other) {
-			m_hasValue = other.m_hasValue;
-			if (other.m_hasValue) {
-				m_value = other.m_value;
-			}
+		if (this == &other) {
+			return *this;
+		}
+		reset();
+		m_hasValue = other.m_hasValue;
+		if (other.m_hasValue) {
+			m_value = other.m_value;
 		}
 		return *this;
 	}
 
 	optional& operator=(nullopt_t v) {
-		m_hasValue = false;
+		reset();
 		return *this;
+	}
+
+	void reset() {
+		if (!m_hasValue) {
+			return;
+		}
+		m_hasValue = false;
+		m_value.~T();
 	}
 
 	bool has_value() const { return m_hasValue; }
