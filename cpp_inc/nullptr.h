@@ -8,7 +8,7 @@
 #include "cpp_compiler_define.h"
 #include <cstddef>
 
-#if	__CPP_VERSION < 2011 && !defined(__clang__)
+#if	__CPP_VERSION < 2011
 namespace std {
 typedef struct nullptr_t {
 	nullptr_t(void) : __p((void*)0) {}
