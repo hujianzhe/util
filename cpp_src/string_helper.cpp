@@ -2,7 +2,7 @@
 // Created by hujianzhe on 20-2-22.
 //
 
-#include "../cpp_inc/string_split.h"
+#include "../cpp_inc/string_helper.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,8 +2,8 @@
 // Created by hujianzhe on 20-2-22.
 //
 
-#ifndef UTIL_CPP_STRING_SPLIT_H
-#define	UTIL_CPP_STRING_SPLIT_H
+#ifndef UTIL_CPP_STRING_HELPER_H
+#define	UTIL_CPP_STRING_HELPER_H
 
 #include "cpp_compiler_define.h"
 #include <string>
@@ -27,4 +27,4 @@ std::string to_string(const char* value);
 std::string to_string(const std::string& value);
 }
 
-#endif // !UTIL_CPP_STRING_SPLIT_H
+#endif // !UTIL_CPP_STRING_HELPER_H
