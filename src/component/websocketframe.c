@@ -120,11 +120,24 @@ unsigned int websocketframeEncodeHeadLength(unsigned long long datalen) {
 		return 10;
 }
 
-void websocketframeEncode(void* headbuf, int is_fin, int type, unsigned long long datalen) {
+void websocketframeEncode(void* headbuf, int is_fin, int prev_is_fin, int type, unsigned long long datalen) {
 	unsigned char* phead = (unsigned char*)headbuf;
-	phead[0] = type | (is_fin ? 0x80 : 0);
-	if (datalen < 126)
+	if (prev_is_fin && is_fin) {
+		phead[0] = type | 0x80;
+	}
+	else if (prev_is_fin) {
+		phead[0] = type;
+	}
+	else if (is_fin) {
+		phead[0] = WEBSOCKET_CONTINUE_FRAME | 0x80;
+	}
+	else {
+		phead[0] = WEBSOCKET_CONTINUE_FRAME;
+	}
+
+	if (datalen < 126) {
 		phead[1] = datalen;
+	}
 	else if (datalen <= 0xffff) {
 		phead[1] = 126;
 		*(unsigned short*)&phead[2] = htons(datalen);
