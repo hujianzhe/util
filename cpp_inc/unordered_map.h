@@ -19,7 +19,7 @@ template <typename K, typename V>
 class unordered_map {
 public:
 	typedef K			key_type;
-	typedef pair<K, V>	value_type;
+	typedef std::pair<K, V>	value_type;
 	typedef struct Xnode : public ::HashtableNode_t {
 		value_type v;
 
