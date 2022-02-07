@@ -13,7 +13,7 @@
 #include <cstddef>
 #include <string>
 
-namespace std {
+namespace std11 {
 template <typename K>
 class unordered_set {
 public:

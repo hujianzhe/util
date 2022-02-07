@@ -11,12 +11,13 @@
 #else
 #include <stdio.h>
 #include <exception>
+#include <iterator>
 #include <stdexcept>
 
-namespace std {
+namespace std11 {
 template <typename T, size_t N>
-struct array {
-// public:
+class array {
+public:
 	typedef T value_type;
 	typedef size_t size_type;
 	typedef ptrdiff_t difference_type;
@@ -82,7 +83,7 @@ struct array {
 	size_t size(void) const { return N; }
 	size_t max_size(void) const { return N; }
 
-// private:
+private:
 	T e[N?N:1];
 };
 

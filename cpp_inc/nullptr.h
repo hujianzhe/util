@@ -9,7 +9,7 @@
 #include <cstddef>
 
 #if	__CPP_VERSION < 2011
-namespace std {
+namespace std11 {
 typedef struct nullptr_t {
 	nullptr_t(void) : __p((void*)0) {}
 	nullptr_t(const nullptr_t& p) : __p((void*)0) {}
@@ -24,7 +24,10 @@ private:
 	void* __p;
 } nullptr_t;
 }
-#define	nullptr		(std::nullptr_t())
+#ifndef	nullptr
+#define	nullptr		(::std11::nullptr_t())
+#endif
+
 #endif
 
 #endif

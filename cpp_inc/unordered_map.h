@@ -14,7 +14,7 @@
 #include <utility>
 #include <string>
 
-namespace std {
+namespace std11 {
 template <typename K, typename V>
 class unordered_map {
 public:

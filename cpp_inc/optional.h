@@ -13,7 +13,7 @@
 #include <exception>
 #include <stdexcept>
 
-namespace std {
+namespace std17 {
 class bad_optional_access : public std::exception {
 public:
 	virtual const char* what(void) const throw() {

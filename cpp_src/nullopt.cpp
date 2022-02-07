@@ -4,7 +4,7 @@
 
 #include "../cpp_inc/optional.h"
 #if	__CPP_VERSION < 2017
-namespace std {
+namespace std17 {
 const nullopt_t nullopt;
 }
 #endif

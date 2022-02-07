@@ -13,7 +13,7 @@
 #include "unique_ptr.h"
 #include <ostream>
 
-namespace std {
+namespace std11 {
 template <typename T>
 class enable_shared_from_this;
 template <typename T>
@@ -233,7 +233,7 @@ public:
 
 private:
 	template <typename E>
-	void set_enable_shared_from_this(sp_refcnt* refcnt, std::enable_shared_from_this<E>* pe) {
+	void set_enable_shared_from_this(sp_refcnt* refcnt, enable_shared_from_this<E>* pe) {
 		pe->__assign_refcnt(refcnt);
 	}
 	void set_enable_shared_from_this(sp_refcnt* refcnt, ...) {}
@@ -283,7 +283,7 @@ template <class T>
 void swap(shared_ptr<T>& x, shared_ptr<T>& y) { x.swap(y); }
 
 template <class charT, class traits, class T>
-basic_ostream<charT, traits>& operator<< (basic_ostream<charT, traits>& os, const shared_ptr<T>& x) { os << x.get(); }
+std::basic_ostream<charT, traits>& operator<< (std::basic_ostream<charT, traits>& os, const shared_ptr<T>& x) { os << x.get(); }
 
 template <typename T>
 class enable_shared_from_this {

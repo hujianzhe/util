@@ -12,7 +12,7 @@
 #include "shared_ptr.h"
 #include <exception>
 
-namespace std {
+namespace std11 {
 class bad_weak_ptr : public std::exception {
 public:
 	virtual const char* what(void) const throw() {

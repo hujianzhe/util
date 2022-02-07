@@ -60,7 +60,10 @@ std::string string_format(const char* format, ...) {
 	free(buf);
 	return s;
 }
+}
 
+#if	__CPP_VERSION < 2011
+namespace std11 {
 std::string to_string(int value) {
 	char test_buf;
 	int len = snprintf(&test_buf, 0, "%d", value);
@@ -127,3 +130,4 @@ std::string to_string(long double value) {
 std::string to_string(const char* value) { return value; }
 std::string to_string(const std::string& value) { return value; }
 }
+#endif
