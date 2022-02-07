@@ -12,6 +12,7 @@
 #include "../inc/datastruct/hashtable.h"
 #include <cstddef>
 #include <string>
+#include <utility>
 
 namespace std11 {
 template <typename K>
@@ -151,17 +152,17 @@ public:
 		return iterator(node);
 	}
 
-	pair<iterator, bool> insert(const key_type& k) {
+	std::pair<iterator, bool> insert(const key_type& k) {
 		::HashtableNodeKey_t hkey;
 		hkey.ptr = &k;
 		::HashtableNode_t* n = ::hashtableSearchKey(&m_table, hkey);
 		if (n) {
-			return pair<iterator, bool>(iterator(n), false);
+			return std::pair<iterator, bool>(iterator(n), false);
 		}
 		Xnode* xnode = new Xnode();
 		xnode->k = k;
 		::hashtableInsertNode(&m_table, xnode);
-		return pair<iterator, bool>(iterator(xnode), true);
+		return std::pair<iterator, bool>(iterator(xnode), true);
 	}
 
 	iterator begin(void) const {
