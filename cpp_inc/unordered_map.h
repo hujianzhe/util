@@ -37,6 +37,25 @@ public:
 		}
 	}
 
+	unordered_map(const unordered_map& other) :
+		m_count(other.m_count),
+		m_maxLoadFactor(other.m_maxLoadFactor),
+		m_elements(other.m_elements)
+	{
+		rehash(other.m_buckets.size());
+	}
+
+	unordered_map& operator=(const unordered_map& other) {
+		if (this == &other) {
+			return *this;
+		}
+		m_count = other.m_count;
+		m_maxLoadFactor = other.m_maxLoadFactor;
+		m_elements = other.m_elements;
+		m_buckets.clear();
+		rehash(other.m_buckets.size());
+	}
+
 	float load_factor() const { return m_count / (float)m_buckets.size(); }
 	float max_load_factor() const { return m_maxLoadFactor; }
 	void max_load_factor(float v) { m_maxLoadFactor = v; }
