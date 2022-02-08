@@ -200,13 +200,6 @@ unique_ptr<T, D> move(unique_ptr<T, D>& p) { return unique_ptr<T, D>(p.release()
 
 template <class T, class D>
 void swap(unique_ptr<T, D>& x, unique_ptr<T, D>& y) { x.swap(y); }
-
-template <class T, class D>
-struct hash<unique_ptr<T, D> > {
-	size_t operator()(const unique_ptr<T, D>& p) const {
-		return (size_t)p.get();
-	}
-};
 }
 #endif
 

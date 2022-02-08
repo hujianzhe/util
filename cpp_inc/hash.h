@@ -14,7 +14,7 @@
 #include <string>
 
 namespace std11 {
-template <typename T, typename Y = void>
+template <typename T>
 struct hash {
 	size_t operator()(T v) const {
 		return (size_t)v;
