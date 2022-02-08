@@ -9,173 +9,218 @@
 #if	__CPP_VERSION >= 2011
 #include <unordered_set>
 #else
-#include "../inc/datastruct/hashtable.h"
+#include "hash.h"
 #include <cstddef>
+#include <functional>
+#include <list>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace std11 {
-template <typename K>
+template <typename K, typename Hash = hash<K>, typename Eq = std::equal_to<K>, typename Alloc = std::allocator<K> >
 class unordered_set {
 public:
-	typedef	K			key_type;	
+	typedef	K			key_type;
 	typedef	K			value_type;
-	typedef struct Xnode : public ::HashtableNode_t {
-		key_type k;
+	typedef size_t									size_type;
+	typedef typename std::list<K, Alloc>::iterator 		iterator;
+	typedef typename std::list<K, Alloc>::const_iterator 	const_iterator;
 
-		Xnode(void) {
-			key.ptr = &k;
+	unordered_set() : m_count(0), m_maxLoadFactor(1.0f), m_buckets(11) {
+		for (size_t i = 0; i < m_buckets.size(); ++i) {
+			m_buckets[i].p_container = &m_elements;
 		}
-	} Xnode;
+	}
 
-	class iterator {
-	friend class unordered_set;
-	public:
-		iterator(::HashtableNode_t* p = NULL) : x(p) {}
-		iterator(const iterator& i) : x(i.x) {}
-		iterator& operator=(const iterator& i) {
-			x = i.x;
+	unordered_set(const unordered_set& other) :
+		m_count(other.m_count),
+		m_maxLoadFactor(other.m_maxLoadFactor),
+		m_elements(other.m_elements)
+	{
+		rehash(other.m_buckets.size());
+	}
+
+	unordered_set& operator=(const unordered_set& other) {
+		if (this == &other) {
 			return *this;
 		}
-
-		bool operator==(const iterator& i) {
-			return i.x == x;
-		}
-
-		bool operator!=(const iterator& i) {
-			return !operator==(i);
-		}
-
-		key_type& operator*(void) {
-			return ((Xnode*)x)->k;
-		}
-
-		iterator& operator++(void) {
-			x = ::hashtableNextNode(x);
-			return *this;
-		}
-		iterator operator++(int unused) {
-			iterator it = *this;
-			x = ::hashtableNextNode(x);
-			return it;
-		}
-
-	private:
-		::HashtableNode_t* x;	
-	};
-	typedef iterator	const_iterator;
-
-private:
-	static int keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
-		return *(key_type*)(node_key->ptr) != *(key_type*)(key->ptr);
+		m_count = other.m_count;
+		m_maxLoadFactor = other.m_maxLoadFactor;
+		m_elements = other.m_elements;
+		m_buckets.clear();
+		rehash(other.m_buckets.size());
 	}
 
-	static unsigned int __key_hash(const std::string& s) {
-		const char* str = s.empty() ? "" : s.c_str();
-		/* BKDR hash */
-		unsigned int seed = 131;
-		unsigned int hash = 0;
-		while (*str) {
-			hash = hash * seed + (*str++);
+	float load_factor() const { return m_count / (float)m_buckets.size(); }
+	float max_load_factor() const { return m_maxLoadFactor; }
+	void max_load_factor(float v) { m_maxLoadFactor = v; }
+
+	size_t bucket(const K& k) const {
+		Hash h;
+		return h(k) % m_buckets.size();
+	}
+	size_t bucket_count() const { return m_buckets.size(); }
+	size_t bucket_size(size_t idx) const {
+		if (idx >= m_buckets.size()) {
+			return 0;
 		}
-		return hash & 0x7fffffff;
+		return m_buckets[idx].size();
 	}
-	static unsigned int __key_hash(size_t n) { return n; }
-	static unsigned int __key_hash(const void* p) { return (unsigned int)(size_t)p; }
+	size_t max_bucket_count() const { return 1000000; }
 
-	static unsigned int keyhash(const HashtableNodeKey_t* key) {
-		return __key_hash(*(key_type*)(key->ptr));
+	iterator begin() { return m_elements.begin(); }
+	iterator end() { return m_elements.end(); }
+	const_iterator begin() const { return m_elements.begin(); }
+	const_iterator end() const { return m_elements.end(); }
+	const_iterator cbegin() const { return m_elements.begin(); }
+	const_iterator cend() const { return m_elements.end(); }
+
+	iterator find(const K& k) {
+		size_t idx = bucket(k);
+		return m_buckets[idx].find(k);
 	}
-
-public:
-	unordered_set(void) {
-		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
-	}
-
-	unordered_set(const unordered_set<K>& m) {
-		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
-		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
-			Xnode* xnode = new Xnode();
-			xnode->k = *iter;
-			::hashtableInsertNode(&m_table, xnode);
-		}
+	const_iterator find(const K& k) const {
+		size_t idx = bucket(k);
+		return m_buckets[idx].find(k);
 	}
 
-	unordered_set<K>& operator=(const unordered_set<K>& m) {
-		if (this == &m) {
-			return *this;
-		}
-		clear();
-		for (iterator iter = m.begin(); iter != m.end(); ++iter) {
-			Xnode* xnode = new Xnode();
-			xnode->k = *iter;
-			::hashtableInsertNode(&m_table, xnode);
-		}
-		return *this;
+	size_t count(const K& k) const {
+		return find(k) != end() ? 1 : 0;
 	}
-
-	~unordered_set(void) { clear(); }
-
-	void clear(void) {
-		::HashtableNode_t *cur, *next;
-		for (cur = ::hashtableFirstNode(&m_table); cur; cur = next) {
-			next = ::hashtableNextNode(cur);
-			delete ((Xnode*)cur);
-		}
-		::hashtableInit(&m_table, m_buckets, sizeof(m_buckets) / sizeof(m_buckets[0]), keycmp, keyhash);
-	}
-
-	size_t size(void) const { return m_table.count; };
-	bool empty(void) const { return ::hashtableIsEmpty(&m_table); }
 
 	void erase(iterator iter) {
-		::hashtableRemoveNode(&m_table, iter.x);
-		delete (Xnode*)(iter.x);
+		size_t idx = bucket(*iter);
+		m_buckets[idx].erase(iter);
+		m_elements.erase(iter);
+		--m_count;
 	}
-
-	size_t erase(const key_type& k) {
-		::HashtableNodeKey_t hkey;
-		hkey.ptr = &k;
-		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, hkey);
-		if (node) {
-			::hashtableRemoveNode(&m_table, node);
-			delete (Xnode*)node;
-			return 1;
+	size_t erase(const K& k) {
+		iterator iter = find(k);
+		if (iter == end()) {
+			return 0;
 		}
-		return 0;
+		erase(iter);
+		return 1;
 	}
 
-	iterator find(const key_type& k) const {
-		::HashtableNodeKey_t hkey;
-		hkey.ptr = &k;
-		::HashtableNode_t* node = ::hashtableSearchKey(&m_table, hkey);
-		return iterator(node);
-	}
-
-	std::pair<iterator, bool> insert(const key_type& k) {
-		::HashtableNodeKey_t hkey;
-		hkey.ptr = &k;
-		::HashtableNode_t* n = ::hashtableSearchKey(&m_table, hkey);
-		if (n) {
-			return std::pair<iterator, bool>(iterator(n), false);
+	std::pair<iterator, bool> insert(const K& k) {
+		iterator iter = find(k);
+		if (iter == end()) {
+			iter = insert_impl(k);
+			return std::pair<iterator, bool>(iter, true);
 		}
-		Xnode* xnode = new Xnode();
-		xnode->k = k;
-		::hashtableInsertNode(&m_table, xnode);
-		return std::pair<iterator, bool>(iterator(xnode), true);
+		return std::pair<iterator, bool>(iter, false);
 	}
 
-	iterator begin(void) const {
-		return iterator(::hashtableFirstNode(&m_table));
+	size_t size(void) const { return m_count; };
+	bool empty(void) const { return 0 == m_count; }
+
+	void clear() {
+		m_count = 0;
+		for (size_t i = 0; i < m_buckets.size(); ++i) {
+			m_buckets[i].clear();
+		}
+		m_elements.clear();
 	}
-	iterator end(void) const {
-		return iterator();
+
+	void rehash(size_t n) {
+		if (n <= m_buckets.size()) {
+			return;
+		}
+		std::vector<Bucket> bks(n);
+		Hash h;
+		for (iterator it = m_elements.begin(); it != m_elements.end(); ++it) {
+			bks[h(*it) % n].insert(it);
+		}
+		for (size_t i = 0; i < bks.size(); ++i) {
+			bks[i].p_container = &m_elements;
+		}
+		m_buckets.swap(bks);
+	}
+
+	void swap(unordered_set& other) {
+		if (this == &other) {
+			return;
+		}
+		size_t temp_count = m_count;
+		float temp_max_load_factor = m_maxLoadFactor;
+		m_elements.swap(other.m_elements);
+		m_buckets.swap(other.m_buckets);
+		for (size_t i = 0; i < m_buckets.size(); ++i) {
+			m_buckets[i].p_container = &m_elements;
+		}
+		for (size_t i = 0; i < other.m_buckets.size(); ++i) {
+			other.m_buckets[i].p_container = &other.m_elements;
+		}
+		m_count = other.m_count;
+		m_maxLoadFactor = other.m_maxLoadFactor;
+		other.m_count = temp_count;
+		other.m_maxLoadFactor = temp_max_load_factor;
+	}
+
+protected:
+	struct Bucket {
+		std::list<K, Alloc>* p_container;
+		std::vector<iterator> nodes;
+
+		Bucket() : p_container(NULL) {}
+
+		const_iterator find(const K& k) const {
+			Eq eq;
+			for (size_t i = 0; i < nodes.size(); ++i) {
+				if (eq(*(nodes[i]), k)) {
+					return nodes[i];
+				}
+			}
+			return p_container->end();
+		}
+		iterator find(const K& k) {
+			Eq eq;
+			for (size_t i = 0; i < nodes.size(); ++i) {
+				if (eq(*(nodes[i]), k)) {
+					return nodes[i];
+				}
+			}
+			return p_container->end();
+		}
+
+		void insert(iterator iter) {
+			nodes.push_back(iter);
+		}
+
+		void erase(iterator iter) {
+			for (size_t i = 0; i < nodes.size(); ++i) {
+				if (nodes[i] == iter) {
+					nodes[i] = nodes.back();
+					nodes.pop_back();
+					return;
+				}
+			}
+		}
+
+		void clear() { nodes.clear(); }
+		size_t size() const { return nodes.size(); }
+	};
+
+	iterator insert_impl(const K& k) {
+		++m_count;
+		m_elements.push_front(k);
+		iterator iter = m_elements.begin();
+		size_t idx = bucket(k);
+		m_buckets[idx].insert(iter);
+		return iter;
 	}
 
 private:
-	::Hashtable_t m_table;
-	::HashtableNode_t* m_buckets[11];
+	size_t m_count;
+	float m_maxLoadFactor;
+	std::vector<Bucket> m_buckets;
+	std::list<K, Alloc> m_elements;
 };
+
+template <class K, class Hash, class Eq, class Alloc>
+void swap(unordered_set<K,Hash,Eq,Alloc>& lhs, unordered_set<K,Hash,Eq,Alloc>& rhs) { lhs.swap(rhs); }
 }
 #endif
 
