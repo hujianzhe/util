@@ -9,8 +9,7 @@
 #if	__CPP_VERSION >= 2011
 #include <functional>
 #else
-#include "unique_ptr.h"
-#include "shared_ptr.h"
+#include <cstddef>
 #include <string>
 
 namespace std11 {
