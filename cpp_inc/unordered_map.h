@@ -156,7 +156,7 @@ public:
 		if (n <= m_buckets.size()) {
 			return;
 		}
-		std::vector<Bucket, Alloc> bks(n);
+		std::vector<Bucket> bks(n);
 		Hash h;
 		for (iterator it = m_elements.begin(); it != m_elements.end(); ++it) {
 			bks[h(it->first) % n].insert(it);
@@ -190,7 +190,7 @@ public:
 protected:
 	struct Bucket {
 		std::list<value_type, Alloc>* p_container;
-		std::vector<iterator, Alloc> nodes;
+		std::vector<iterator> nodes;
 
 		Bucket() : p_container(NULL) {}
 
@@ -243,7 +243,7 @@ protected:
 private:
 	size_t m_count;
 	float m_maxLoadFactor;
-	std::vector<Bucket, Alloc> m_buckets;
+	std::vector<Bucket> m_buckets;
 	std::list<value_type, Alloc> m_elements;
 };
 
