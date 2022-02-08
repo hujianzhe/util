@@ -28,6 +28,7 @@ class unordered_map {
 public:
 	typedef K										key_type;
 	typedef std::pair<const K, V>					value_type;
+	typedef size_t									size_type;
 	typedef typename std::list<value_type>::iterator 		iterator;
 	typedef typename std::list<value_type>::const_iterator 	const_iterator;
 
@@ -87,6 +88,10 @@ public:
 	const_iterator find(const K& k) const {
 		size_t idx = bucket(k);
 		return m_buckets[idx].find(k);
+	}
+
+	size_t count(const K& k) const {
+		return find(k) != end() ? 1 : 0;
 	}
 
 	void erase(iterator iter) {
@@ -162,6 +167,26 @@ public:
 		m_buckets.swap(bks);
 	}
 
+	void swap(unordered_map& other) {
+		if (this == &other) {
+			return;
+		}
+		size_t temp_count = m_count;
+		float temp_max_load_factor = m_maxLoadFactor;
+		m_elements.swap(other.m_elements);
+		m_buckets.swap(other.m_buckets);
+		for (size_t i = 0; i < m_buckets.size(); ++i) {
+			m_buckets[i].p_container = &m_elements;
+		}
+		for (size_t i = 0; i < other.m_buckets.size(); ++i) {
+			other.m_buckets[i].p_container = &other.m_elements;
+		}
+		m_count = other.m_count;
+		m_maxLoadFactor = other.m_maxLoadFactor;
+		other.m_count = temp_count;
+		other.m_maxLoadFactor = temp_max_load_factor;
+	}
+
 protected:
 	struct Bucket {
 		std::list<value_type>* p_container;
@@ -221,6 +246,9 @@ private:
 	std::vector<Bucket> m_buckets;
 	std::list<value_type> m_elements;
 };
+
+template <class K, class V, class Hash, class Eq, class Alloc>
+void swap(unordered_map<K,V,Hash,Eq,Alloc>& lhs, unordered_map<K,V,Hash,Eq,Alloc>& rhs) { lhs.swap(rhs); }
 }
 #endif
 
