@@ -285,6 +285,13 @@ void swap(shared_ptr<T>& x, shared_ptr<T>& y) { x.swap(y); }
 template <class charT, class traits, class T>
 std::basic_ostream<charT, traits>& operator<< (std::basic_ostream<charT, traits>& os, const shared_ptr<T>& x) { os << x.get(); }
 
+template <class T, class D>
+struct hash<shared_ptr<T, D> > {
+	size_t operator()(const shared_ptr<T, D>& p) const {
+		return (size_t)p.get();
+	}
+};
+
 template <typename T>
 class enable_shared_from_this {
 friend class shared_ptr<T>;
