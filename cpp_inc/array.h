@@ -9,6 +9,7 @@
 #if	__CPP_VERSION >= 2011
 #include <array>
 #else
+#include <cstddef>
 #include <stdio.h>
 #include <exception>
 #include <iterator>
