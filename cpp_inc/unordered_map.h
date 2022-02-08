@@ -29,8 +29,8 @@ public:
 	typedef K										key_type;
 	typedef std::pair<const K, V>					value_type;
 	typedef size_t									size_type;
-	typedef typename std::list<value_type>::iterator 		iterator;
-	typedef typename std::list<value_type>::const_iterator 	const_iterator;
+	typedef typename std::list<value_type, Alloc>::iterator 		iterator;
+	typedef typename std::list<value_type, Alloc>::const_iterator 	const_iterator;
 
 	unordered_map() : m_count(0), m_maxLoadFactor(1.0f), m_buckets(11) {
 		for (size_t i = 0; i < m_buckets.size(); ++i) {
@@ -156,7 +156,7 @@ public:
 		if (n <= m_buckets.size()) {
 			return;
 		}
-		std::vector<Bucket> bks(n);
+		std::vector<Bucket, Alloc> bks(n);
 		Hash h;
 		for (iterator it = m_elements.begin(); it != m_elements.end(); ++it) {
 			bks[h(it->first) % n].insert(it);
@@ -189,8 +189,8 @@ public:
 
 protected:
 	struct Bucket {
-		std::list<value_type>* p_container;
-		std::vector<iterator> nodes;
+		std::list<value_type, Alloc>* p_container;
+		std::vector<iterator, Alloc> nodes;
 
 		Bucket() : p_container(NULL) {}
 
@@ -243,8 +243,8 @@ protected:
 private:
 	size_t m_count;
 	float m_maxLoadFactor;
-	std::vector<Bucket> m_buckets;
-	std::list<value_type> m_elements;
+	std::vector<Bucket, Alloc> m_buckets;
+	std::list<value_type, Alloc> m_elements;
 };
 
 template <class K, class V, class Hash, class Eq, class Alloc>
