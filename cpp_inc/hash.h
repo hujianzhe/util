@@ -21,28 +21,6 @@ struct hash {
 };
 
 template <>
-struct hash<char*> {
-	size_t operator()(const char* __s) const {
-		unsigned long __h = 0;
-		for ( ; *__s; ++__s) {
-			__h = 5 * __h + *__s;
-		}
-		return size_t(__h);
-	}
-};
-
-template<>
-struct hash<const char*> {
-	size_t operator()(const char* __s) const {
-		unsigned long __h = 0;
-		for ( ; *__s; ++__s) {
-			__h = 5 * __h + *__s;
-		}
-		return size_t(__h);
-	}
-};
-
-template <>
 struct hash<std::string> {
 	size_t operator()(const std::string& v) const {
 		const char* __s = v.data();
