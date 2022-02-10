@@ -806,13 +806,13 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], flo
 	lslen = mathVec3Normalized(lsdir, lsdir);
 	res = mathLineIntersectLine(o, dir, ls[0], lsdir, d);
 	if (0 == res)
-		return 0;
+		return NULL;
 	else if (1 == res) {
 		float p[3];
 		if (fcmpf(d[0], 0.0f, CCT_EPSILON) < 0)
-			return 0;
+			return NULL;
 		if (fcmpf(d[1], 0.0f, CCT_EPSILON) < 0 || fcmpf(d[1], lslen, CCT_EPSILON) > 0)
-			return 0;
+			return NULL;
 		result->distance = d[0];
 		result->hit_point_cnt = 1;
 		mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d[0]);
