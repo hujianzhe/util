@@ -20,8 +20,8 @@ typedef struct OctreeNode_t {
 
 typedef struct OctreeObject_t {
 	ListNode_t _node;
-	const float* pos; // point to your float[3]
-	const float* half;	// point to your float[3]
+	float* pos; // point to your float[3]
+	float* half;	// point to your float[3]
 	OctreeNode_t* oct;
 	union {
 		void* ptr;
