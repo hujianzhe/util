@@ -400,11 +400,12 @@ Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_
 	fiber->m_creater = cur_fiber;
 	return fiber;
 #else
-	if (0 == stack_size)
-		stack_size = 0xffff;
+	if (stack_size < MINSIGSTKSZ) // or SIGSTKSZ
+		stack_size = MINSIGSTKSZ;
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t) + stack_size);
 	if (!fiber)
 		return NULL;
+	memset(&fiber->m_ctx, 0, sizeof(fiber->m_ctx));
 	if (-1 == getcontext(&fiber->m_ctx)) {
 		free(fiber);
 		return NULL;
