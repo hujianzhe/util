@@ -400,8 +400,8 @@ Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_
 	fiber->m_creater = cur_fiber;
 	return fiber;
 #else
-	if (stack_size < MINSIGSTKSZ) // or SIGSTKSZ
-		stack_size = MINSIGSTKSZ;
+	if (stack_size < SIGSTKSZ) // or MINSIGSTKSZ
+		stack_size = SIGSTKSZ;
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t) + stack_size);
 	if (!fiber)
 		return NULL;
