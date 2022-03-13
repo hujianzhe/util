@@ -21,7 +21,6 @@ typedef struct RBTimerEvent_t {
 	long long interval;
 	void(*callback)(RBTimer_t*, struct RBTimerEvent_t*);
 	void* arg;
-	void(*on_free)(struct RBTimerEvent_t*);
 } RBTimerEvent_t;
 
 #ifdef __cplusplus
@@ -33,7 +32,6 @@ __declspec_dll long long rbtimerMiniumTimestamp(RBTimer_t* timer);
 __declspec_dll RBTimer_t* rbtimerDueFirst(RBTimer_t* timers[], size_t timer_cnt, long long* min_timestamp);
 __declspec_dll RBTimerEvent_t* rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e);
 __declspec_dll void rbtimerDetachEvent(RBTimerEvent_t* e);
-__declspec_dll void rbtimerDelEvent(RBTimerEvent_t* e);
 __declspec_dll RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp);
 __declspec_dll void rbtimerDestroy(RBTimer_t* timer);
 
