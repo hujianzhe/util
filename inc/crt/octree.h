@@ -48,6 +48,10 @@ extern "C" {
 __declspec_dll Octree_t* octreeInit(Octree_t* tree, const float pos[3], const float half[3], unsigned int max_deep_num);
 __declspec_dll void octreeUpdateObject(Octree_t* tree, OctreeObject_t* obj);
 __declspec_dll void octreeRemoveObject(OctreeObject_t* obj);
+
+__declspec_dll OctreeFinder_t* octreeFinderInit(const Octree_t* tree, OctreeFinder_t* finder);
+__declspec_dll void octreeFinderDestroy(OctreeFinder_t* finder);
+
 __declspec_dll void octreeFindNodes(OctreeNode_t* root, const float pos[3], const float half[3], OctreeFinder_t* finder);
 __declspec_dll void octreeClear(Octree_t* tree);
 __declspec_dll void octreeDestroy(Octree_t* tree);
