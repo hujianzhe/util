@@ -79,6 +79,8 @@ RBTimerEvent_t* rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 	return e;
 }
 
+BOOL rbtimerCheckEventScheduled(RBTimerEvent_t* e) { return e->m_timer != NULL; }
+
 void rbtimerDetachEvent(RBTimerEvent_t* e) {
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
