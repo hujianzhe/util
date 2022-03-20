@@ -1854,6 +1854,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			float half_d = b->capsule.half_height + b->capsule.radius;
 			mathVec3Copy(aabb->pos, b->capsule.pos);
 			mathVec3Set(aabb->half, half_d, half_d, half_d);
+			break;
 		}
 		case COLLISION_BODY_TRIANGLES_PLANE:
 		{
@@ -1885,6 +1886,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			mathVec3Add(aabb->pos, min, max);
 			mathVec3MultiplyScalar(aabb->pos, aabb->pos, 0.5f);
 			mathVec3Sub(aabb->half, max, aabb->pos);
+			break;
 		}
 		default:
 		{
