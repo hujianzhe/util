@@ -296,6 +296,12 @@ template <typename T>
 class enable_shared_from_this {
 friend class shared_ptr<T>;
 protected:
+	enable_shared_from_this(void) : m_refcnt((sp_refcnt*)0) {}
+	enable_shared_from_this(enable_shared_from_this&) {}
+	enable_shared_from_this& operator=(const enable_shared_from_this&) { return *this; }
+	~enable_shared_from_this(void) {}
+
+public:
 	shared_ptr<T> shared_from_this(void) const {
 		shared_ptr<T> p;
 		p.m_ptr = (T*)this;
@@ -303,11 +309,6 @@ protected:
 		m_refcnt->incr_share(1);
 		return p;
 	}
-
-	enable_shared_from_this(void) : m_refcnt((sp_refcnt*)0) {}
-	enable_shared_from_this(enable_shared_from_this&) {}
-	enable_shared_from_this& operator=(const enable_shared_from_this&) { return *this; }
-	~enable_shared_from_this(void) {}
 
 public:
 	// dont't call this function...(for construct shared_ptr)
