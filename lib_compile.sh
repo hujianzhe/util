@@ -3,7 +3,7 @@ OBJECT_FILE=`find . -name "*.o"`
 SOURCE_C_FILE=`find . -name "*.c"`
 SOURCE_CPP_FILE=`find . -name "*.cpp"`
 MACRO="-D_REENTRANT"
-COMPILE_OPTION="-Wno-deprecated -Wno-parentheses"
+COMPILE_OPTION="-Wno-deprecated -Wno-parentheses -pthread"
 
 COMPILER="gcc"
 if [ $COMPILER == "gcc" ];then

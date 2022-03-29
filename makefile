@@ -5,7 +5,7 @@ TARGET_PATH += .
 COMPILE_OPTION := -fPIC -shared -Wno-deprecated -Wno-parentheses
 MACRO := -D_REENTRANT
 
-DEFAULT_LINK := -lpthread -lm -ldl
+DEFAULT_LINK := -pthread -lm -ldl
 ifeq ($(shell uname), Linux)
 DEFAULT_LINK += -lrt
 endif
