@@ -14,7 +14,6 @@
 			component/  
 				channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存,断线重连自动重发等实现细节  
 				dataqueue			用于线程间通信的消息队列  
-				db					用于与数据库交互的通用接口,屏蔽了不同数据库的CRUD接口,目前内部实现只支持MYSQL  
 				httpframe			用于解析与组装HTTP协议报文  
 				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
