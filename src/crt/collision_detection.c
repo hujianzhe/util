@@ -93,12 +93,9 @@ static int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
 	else if (mathVec3Equal(ls[1], p))
 		return 2;
 	else {
-		int i;
-		for (i = 0; i < 3; ++i) {
-			float min_v, max_v;
-			v1[i] < v2[i] ? (min_v = v1[i], max_v = v2[i]) : (min_v = v2[i], max_v = v1[i]);
-			if (fcmpf(p[i], min_v, CCT_EPSILON) < 0 || fcmpf(p[i], max_v, CCT_EPSILON) > 0)
-				return 0;
+		float dot = mathVec3Dot(pv1, pv2);
+		if (fcmpf(dot, 0.0f, CCT_EPSILON) > 0) {
+			return 0;
 		}
 		return 3;
 	}
