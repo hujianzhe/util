@@ -494,6 +494,22 @@ static float AABB_Plane_Normal[][3] = {
 	{ 1.0f, 0.0f, 0.0f },{ -1.0f, 0.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },{ 0.0f, -1.0f, 0.0f }
 };
+static void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
+	mathVec3Copy(v[0], o);
+	v[0][2] += half[2];
+	mathVec3Copy(v[1], o);
+	v[1][2] -= half[2];
+
+	mathVec3Copy(v[2], o);
+	v[2][0] += half[0];
+	mathVec3Copy(v[3], o);
+	v[3][0] -= half[0];
+
+	mathVec3Copy(v[4], o);
+	v[4][1] += half[1];
+	mathVec3Copy(v[5], o);
+	v[5][1] -= half[1];
+}
 static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
 	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
@@ -519,15 +535,14 @@ void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], flo
 }
 
 int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
-	/*
-	!(o2[0] - half2[0] > o1[0] + half1[0] || o1[0] - half1[0] > o2[0] + half2[0] ||
-	o2[1] - half2[1] > o1[1] + half1[1] || o1[1] - half1[1] > o2[1] + half2[1] ||
-	o2[2] - half2[2] > o1[2] + half1[2] || o1[2] - half1[2] > o2[2] + half2[2]);
-	*/
-
-	return !(o2[0] - o1[0] > half1[0] + half2[0] || o1[0] - o2[0] > half1[0] + half2[0] ||
-		o2[1] - o1[1] > half1[1] + half2[1] || o1[1] - o2[1] > half1[1] + half2[1] ||
-		o2[2] - o1[2] > half1[2] + half2[2] || o1[2] - o2[2] > half1[2] + half2[2]);
+	int i;
+	for (i = 0; i < 3; ++i) {
+		float half = half1[i] + half2[i] + CCT_EPSILON;
+		if (o2[i] - o1[i] > half || o1[i] - o2[i] > half) {
+			return 0;
+		}
+	}
+	return 1;
 }
 
 int mathAABBContainAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
@@ -1492,6 +1507,34 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 	else {
 		CCTResult_t *p_result = NULL;
 		int i;
+		float v1[6][3], v2[6][3];
+		AABBPlaneVertices(o1, half1, v1);
+		AABBPlaneVertices(o2, half2, v2);
+		for (i = 0; i < 6; ++i) {
+			float new_o1[3];
+			CCTResult_t result_temp;
+			if (i & 1) {
+				if (!mathRaycastPlane(v1[i], dir, v2[i-1], AABB_Plane_Normal[i], &result_temp)) {
+					continue;
+				}
+			}
+			else {
+				if (!mathRaycastPlane(v1[i], dir, v2[i+1], AABB_Plane_Normal[i], &result_temp)) {
+					continue;
+				}
+			}
+			mathVec3Copy(new_o1, o1);
+			mathVec3AddScalar(new_o1, dir, result_temp.distance);
+			if (!mathAABBIntersectAABB(new_o1, half1, o2, half2)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		return p_result;
+/*
 		float v1[8][3], v2[8][3];
 		AABBVertices(o1, half1, v1);
 		AABBVertices(o2, half2, v2);
@@ -1518,6 +1561,7 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 			}
 		}
 		return p_result;
+*/
 	}
 }
 
