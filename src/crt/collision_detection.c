@@ -102,9 +102,9 @@ static int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
 }
 
 static int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
-	return p[0] >= o[0] - half[0] && p[0] <= o[0] + half[0] &&
-		p[1] >= o[1] - half[1] && p[1] <= o[1] + half[1] &&
-		p[2] >= o[2] - half[2] && p[2] <= o[2] + half[2];
+	return p[0] >= o[0] - half[0] - CCT_EPSILON && p[0] <= o[0] + half[0] + CCT_EPSILON &&
+		   p[1] >= o[1] - half[1] - CCT_EPSILON && p[1] <= o[1] + half[1] + CCT_EPSILON &&
+		   p[2] >= o[2] - half[2] - CCT_EPSILON && p[2] <= o[2] + half[2] + CCT_EPSILON;
 }
 
 static int mathSphereHasPoint(const float o[3], float radius, const float p[3]) {
