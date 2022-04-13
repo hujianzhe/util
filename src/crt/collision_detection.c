@@ -81,6 +81,20 @@ static int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3]
 	return fcmpf(mathVec3Dot(plane_normal, v), 0.0f, CCT_EPSILON) == 0;
 }
 
+static int mathRectHasPoint(const float center_o[3], const float axis[3], const float plane_normal[3], float half_w, float half_h, const float p[3]) {
+	float v[3], dot;
+	mathVec3Sub(v, p, center_o);
+	dot = mathVec3Dot(plane_normal, v);
+	if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
+		return 0;
+	}
+	dot = mathVec3Dot(axis, v);
+	if (dot > half_h + CCT_EPSILON || dot < -half_h - CCT_EPSILON) {
+		return 0;
+	}
+	return mathVec3LenSq(v) - dot * dot <= half_w * half_w + CCT_EPSILON;
+}
+
 static int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
 	const float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
