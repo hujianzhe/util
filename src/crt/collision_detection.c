@@ -1217,6 +1217,44 @@ static CCTResult_t* mathSegmentcastSegment(float ls1[2][3], const float dir[3], 
 	}
 }
 
+static CCTResult_t* mathSegmentcastAABB(float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
+	if (mathAABBIntersectSegment(o, half, ls)) {
+		result->distance = 0.0f;
+		result->hit_point_cnt = -1;
+		return result;
+	}
+	else {
+		CCTResult_t* p_result = NULL;
+		int i;
+		float v[6][3];
+		AABBVertices(o, half, v);
+		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
+			float edge[2][3];
+			CCTResult_t result_temp;
+			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
+			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
+			if (!mathSegmentcastSegment(ls, dir, edge, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		for (i = 0; i < 2; ++i) {
+			CCTResult_t result_temp;
+			if (!mathRaycastAABB(ls[i], dir, o, half, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		return p_result;
+	}
+}
+
 static CCTResult_t* mathSegmentcastTriangle(float ls[2][3], const float dir[3], float tri[3][3], CCTResult_t* result) {
 	int i;
 	CCTResult_t results[3], *p_result = NULL;
