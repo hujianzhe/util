@@ -949,20 +949,52 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 	}
 	else {
 		CCTResult_t *p_result = NULL;
-		int i, j;
-		float v[8][3];
-		AABBVertices(aabb_o, aabb_half, v);
-		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
+		int i;
+		float v[6][3];
+		float axis[][3] = {
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 0.0f, 1.0f, 0.0f },
+			{ 1.0f, 0.0f, 0.0f },
+			{ 1.0f, 0.0f, 0.0f }
+		};
+		float half_w[] = {
+			aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
+		};
+		float half_h[] = {
+			aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[0], aabb_half[0]
+		};
+		AABBPlaneVertices(aabb_o, aabb_half, v);
+		for (i = 0; i < 6; ) {
 			CCTResult_t result_temp;
-			if (mathRaycastTrianglesPlane(o, dir, AABB_Plane_Normal[j], v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
-				(!p_result || p_result->distance > result_temp.distance))
-			{
+			if (!mathRaycastPlane(o, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
+				i += 2;
+				continue;
+			}
+			if (!mathRectHasPoint(v[i], axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
+				++i;
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
 				copy_result(result, &result_temp);
 				p_result = result;
 			}
+			++i;
 		}
 		return p_result;
 	}
+}
+
+static int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
+	CCTResult_t result;
+	float ls_dir[3], ls_len;
+	mathVec3Sub(ls_dir, ls[1], ls[0]);
+	ls_len = mathVec3Normalized(ls_dir, ls_dir);
+	if (!mathRaycastAABB(ls[0], ls_dir, o, half, &result)) {
+		return 0;
+	}
+	return ls_len >= result.distance - CCT_EPSILON;
 }
 
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
