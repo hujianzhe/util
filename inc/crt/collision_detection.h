@@ -15,18 +15,24 @@ typedef struct CCTResult_t {
 } CCTResult_t;
 
 enum {
-	COLLISION_BODY_RAY,
+	COLLISION_BODY_POINT,
 	COLLISION_BODY_AABB,
 	COLLISION_BODY_SPHERE,
 	COLLISION_BODY_CAPSULE,
 	COLLISION_BODY_PLANE,
-	COLLISION_BODY_TRIANGLES_PLANE
+	COLLISION_BODY_TRIANGLES_PLANE,
+	COLLISION_BODY_LINE_SEGMENT
 };
 
-typedef struct CollisionBodyRay_t {
+typedef struct CollisionBodyPoint_t {
 	int type;
 	float pos[3];
-} CollisionBodyRay_t;
+} CollisionBodyPoint_t;
+
+typedef struct CollisionBodyLineSegment_t {
+	int type;
+	float vertices[2][3];
+} CollisionBodyLineSegment_t;
 
 typedef struct CollisionBodySphere_t {
 	int type;

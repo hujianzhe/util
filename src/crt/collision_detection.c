@@ -81,6 +81,15 @@ static int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3]
 	return fcmpf(mathVec3Dot(plane_normal, v), 0.0f, CCT_EPSILON) == 0;
 }
 
+static int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2[3], const float n2[3]) {
+	float n[3];
+	mathVec3Cross(n, n1, n2);
+	if (!mathVec3IsZero(n)) {
+		return 1;
+	}
+	return mathPlaneHasPoint(v1, n1, v2);
+}
+
 static int mathRectHasPoint(const float center_o[3], const float axis[3], const float plane_normal[3], float half_w, float half_h, const float p[3]) {
 	float v[3], dot;
 	mathVec3Sub(v, p, center_o);
@@ -2034,10 +2043,92 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 
 int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2) {
 	if (b1 == b2)
-		return 0;
+		return 1;
+	else if (COLLISION_BODY_POINT == b1->type) {
+		const CollisionBodyPoint_t* one = (const CollisionBodyPoint_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{	const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathVec3Equal(one->pos, two->pos);
+			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				return mathSegmentHasPoint(two->vertices, one->pos);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathPlaneHasPoint(two->vertice, two->normal, one->pos);
+			}
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBHasPoint(two->pos, two->half, one->pos);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathSphereHasPoint(two->pos, two->radius, one->pos);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathCapsuleHasPoint(two->pos, two->axis, two->radius, two->half_height, one->pos);
+			}
+			default:
+				return 0;
+		}
+	}
+	else if (COLLISION_BODY_LINE_SEGMENT == b1->type) {
+		const CollisionBodyLineSegment_t* one = (const CollisionBodyLineSegment_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{
+				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathSegmentHasPoint(one->vertices, two->pos);
+			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				float p[3];
+				return mathSegmentIntersectSegment(one->vertices, two->vertices, p);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				float p[3];
+				return mathSegmentIntersectPlane(one->vertices, two->vertice, two->normal, p);
+			}
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathAABBIntersectSegment(two->pos, two->half, one->vertices);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				float p[3];
+				return mathSphereIntersectSegment(two->pos, two->radius, one->vertices, p);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				float p[3];
+				return mathSegmentIntersectCapsule(one->vertices, two->pos, two->axis, two->radius, two->half_height, p);
+			}
+			default:
+				return 0;
+		}
+	}
 	else if (COLLISION_BODY_AABB == b1->type) {
 		const CollisionBodyAABB_t* one = (const CollisionBodyAABB_t*)b1;
 		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{
+				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathAABBHasPoint(one->pos, one->half, two->pos);
+			}
 			case COLLISION_BODY_AABB:
 			{
 				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
@@ -2058,6 +2149,11 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathAABBIntersectPlane(one->pos, one->half, two->vertice, two->normal);
 			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				return mathAABBIntersectSegment(one->pos, one->half, two->vertices);
+			}
 			default:
 				return 0;
 		}
@@ -2065,6 +2161,11 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 	else if (COLLISION_BODY_SPHERE == b1->type) {
 		const CollisionBodySphere_t* one = (const CollisionBodySphere_t*)b1;
 		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{
+				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathSphereHasPoint(one->pos, one->radius, two->pos);
+			}
 			case COLLISION_BODY_AABB:
 			{
 				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
@@ -2085,6 +2186,12 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathSphereIntersectPlane(one->pos, one->radius, two->vertice, two->normal, NULL, NULL);
 			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				float p[3];
+				return mathSphereIntersectSegment(one->pos, one->radius, two->vertices, p);
+			}
 			default:
 				return 0;
 		}
@@ -2092,6 +2199,11 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 	else if (COLLISION_BODY_CAPSULE == b1->type) {
 		const CollisionBodyCapsule_t* one = (const CollisionBodyCapsule_t*)b1;
 		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{
+				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathCapsuleHasPoint(one->pos, one->axis, one->radius, one->half_height, one->pos);
+			}
 			case COLLISION_BODY_AABB:
 			{
 				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
@@ -2112,6 +2224,12 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathCapsuleIntersectPlane(one->pos, one->axis, one->radius, one->half_height, two->vertice, two->normal, NULL);
 			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				float p[3];
+				return mathSegmentIntersectCapsule(two->vertices, one->pos, one->axis, one->radius, one->half_height, p);
+			}
 			default:
 				return 0;
 		}
@@ -2119,6 +2237,11 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 	else if (COLLISION_BODY_PLANE == b1->type) {
 		const CollisionBodyPlane_t* one = (const CollisionBodyPlane_t*)b1;
 		switch (b2->type) {
+			case COLLISION_BODY_POINT:
+			{
+				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
+				return mathPlaneHasPoint(one->vertice, one->normal, two->pos);
+			}
 			case COLLISION_BODY_AABB:
 			{
 				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
@@ -2134,6 +2257,17 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
 				return mathCapsuleIntersectPlane(two->pos, two->axis, two->radius, two->half_height, one->vertice, one->normal, NULL);
 			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathPlaneIntersectPlane(one->vertice, one->normal, two->vertice, two->normal);
+			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				float p[3];
+				return mathSegmentIntersectPlane(two->vertices, one->vertice, one->normal, p);
+			}
 			default:
 				return 0;
 		}
@@ -2145,8 +2279,8 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 	if (b1 == b2 || mathVec3IsZero(dir)) {
 		return NULL;
 	}
-	else if (COLLISION_BODY_RAY == b1->type) {
-		const CollisionBodyRay_t* one = (const CollisionBodyRay_t*)b1;
+	else if (COLLISION_BODY_POINT == b1->type) {
+		const CollisionBodyPoint_t* one = (const CollisionBodyPoint_t*)b1;
 		switch (b2->type) {
 			case COLLISION_BODY_AABB:
 			{
@@ -2168,10 +2302,47 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathRaycastPlane(one->pos, dir, two->vertice, two->normal, result);
 			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				return mathRaycastSegment(one->pos, dir, two->vertices, result);
+			}
 			case COLLISION_BODY_TRIANGLES_PLANE:
 			{
 				const CollisionBodyTrianglesPlane_t* two = (const CollisionBodyTrianglesPlane_t*)b2;
 				return mathRaycastTrianglesPlane(one->pos, dir, two->normal, two->vertices, two->indices, two->indicescnt, result);
+			}
+			default:
+				return NULL;
+		}
+	}
+	else if (COLLISION_BODY_LINE_SEGMENT == b1->type) {
+		const CollisionBodyLineSegment_t* one = (const CollisionBodyLineSegment_t*)b1;
+		switch (b2->type) {
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				return mathSegmentcastSegment(one->vertices, dir, two->vertices, result);
+			}
+			case COLLISION_BODY_PLANE:
+			{
+				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
+				return mathSegmentcastPlane(one->vertices, dir, two->vertice, two->normal, result);
+			}
+			case COLLISION_BODY_AABB:
+			{
+				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
+				return mathSegmentcastAABB(one->vertices, dir, two->pos, two->half, result);
+			}
+			case COLLISION_BODY_SPHERE:
+			{
+				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
+				return mathSegmentcastSphere(one->vertices, dir, two->pos, two->radius, result);
+			}
+			case COLLISION_BODY_CAPSULE:
+			{
+				const CollisionBodyCapsule_t* two = (const CollisionBodyCapsule_t*)b2;
+				return mathSegmentcastCapsule(one->vertices, dir, two->pos, two->axis, two->radius, two->half_height, result);
 			}
 			default:
 				return NULL;
@@ -2212,6 +2383,18 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathAABBcastPlane(one->pos, one->half, dir, two->vertice, two->normal, result);
 			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				float neg_dir[3];
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				if (mathSegmentcastAABB(two->vertices, mathVec3Negate(neg_dir, dir), one->pos, one->half, result)) {
+					if (result->hit_point_cnt > 0) {
+						mathVec3AddScalar(result->hit_point, dir, result->distance);
+					}
+					return result;
+				}
+				return NULL;
+			}
 			default:
 				return NULL;
 		}
@@ -2238,6 +2421,18 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 			{
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathSpherecastPlane(one->pos, one->radius, dir, two->vertice, two->normal, result);
+			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				float neg_dir[3];
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				if (mathSegmentcastSphere(two->vertices, mathVec3Negate(neg_dir, dir), one->pos, one->radius, result)) {
+					if (result->hit_point_cnt > 0) {
+						mathVec3AddScalar(result->hit_point, dir, result->distance);
+					}
+					return result;
+				}
+				return NULL;
 			}
 			case COLLISION_BODY_TRIANGLES_PLANE:
 			{
@@ -2275,6 +2470,18 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 			{
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
 				return mathCapsulecastPlane(one->pos, one->axis, one->radius, one->half_height, dir, two->vertice, two->normal, result);
+			}
+			case COLLISION_BODY_LINE_SEGMENT:
+			{
+				float neg_dir[3];
+				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
+				if (mathSegmentcastCapsule(two->vertices, mathVec3Negate(neg_dir, dir), one->pos, one->axis, one->radius, one->half_height, result)) {
+					if (result->hit_point_cnt > 0) {
+						mathVec3AddScalar(result->hit_point, dir, result->distance);
+					}
+					return result;
+				}
+				return NULL;
 			}
 			case COLLISION_BODY_TRIANGLES_PLANE:
 			{
