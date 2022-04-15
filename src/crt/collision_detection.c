@@ -66,7 +66,7 @@ static void mathPointProjectionPlane(const float p[3], const float plane_v[3], c
 		mathVec3AddScalar(mathVec3Copy(np, p), plane_n, d);
 }
 
-static float* mathPlaneNormalByVertices3(float vertices[3][3], float normal[3]) {
+static float* mathPlaneNormalByVertices3(const float vertices[3][3], float normal[3]) {
 	float v0v1[3], v0v2[3];
 	mathVec3Sub(v0v1, vertices[1], vertices[0]);
 	mathVec3Sub(v0v2, vertices[2], vertices[0]);
@@ -95,7 +95,7 @@ static int mathRectHasPoint(const float center_o[3], const float axis[3], const 
 	return mathVec3LenSq(v) - dot * dot <= half_w * half_w + CCT_EPSILON;
 }
 
-static int mathSegmentHasPoint(float ls[2][3], const float p[3]) {
+static int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
 	const float *v1 = ls[0], *v2 = ls[1];
 	float pv1[3], pv2[3], N[3];
 	mathVec3Sub(pv1, v1, p);
@@ -132,7 +132,7 @@ static int mathSphereHasPoint(const float o[3], float radius, const float p[3]) 
 		return 2;
 }
 
-static float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]) {
+static float* mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]) {
 	float v0[3], v1[3], v2[3];
 	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
 	mathVec3MultiplyScalar(v1, tri[1], u);
@@ -140,7 +140,7 @@ static float* mathTriangleGetPoint(float tri[3][3], float u, float v, float p[3]
 	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
 }
 
-static int mathTriangleHasPoint(float tri[3][3], const float p[3], float* p_u, float* p_v) {
+static int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
 	float ap[3], ab[3], ac[3], N[3];
 	mathVec3Sub(ap, p, tri[0]);
 	mathVec3Sub(ab, tri[1], tri[0]);
@@ -231,7 +231,7 @@ static int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], con
 	}
 }
 
-static int overlapSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
+static int overlapSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
 	int res = mathSegmentHasPoint(ls1, ls2[0]);
 	if (3 == res)
 		return 2;
@@ -261,7 +261,7 @@ static int overlapSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], floa
 	return 0;
 }
 
-static int mathSegmentIntersectSegment(float ls1[2][3], float ls2[2][3], float p[3]) {
+static int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
 	int res;
 	float lsdir1[3], lsdir2[3], d[2], lslen1, lslen2;
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
@@ -295,7 +295,7 @@ static int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], con
 	}
 }
 
-static int mathSegmentIntersectPlane(float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]) {
+static int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]) {
 	int cmp[2];
 	float d[2];
 	mathPointProjectionPlane(ls[0], plane_v, plane_normal, NULL, &d[0]);
@@ -348,7 +348,7 @@ static int mathSphereIntersectLine(const float o[3], float radius, const float l
 	}
 }
 
-static int mathSphereIntersectSegment(const float o[3], float radius, float ls[2][3], float p[3]) {
+static int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]) {
 	int c[2];
 	c[0] = mathSphereHasPoint(o, radius, ls[0]);
 	c[1] = mathSphereHasPoint(o, radius, ls[1]);
@@ -400,7 +400,7 @@ static int mathSphereIntersectPlane(const float o[3], float radius, const float 
 	}
 }
 
-static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
+static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, const float plane_n[3], const float vertices[][3], const int indices[], int indicescnt) {
 	float new_o[3], new_radius;
 	int i, res = mathSphereIntersectPlane(o, radius, vertices[indices[0]], plane_n, new_o, &new_radius);
 	if (0 == res)
@@ -679,7 +679,7 @@ static int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], c
 	}
 }
 
-static int mathSegmentIntersectCapsule(float ls[2][3], const float o[3], const float axis[3], float radius, float half_height, float p[3]) {
+static int mathSegmentIntersectCapsule(const float ls[2][3], const float o[3], const float axis[3], float radius, float half_height, float p[3]) {
 	int res[2];
 	res[0] = mathCapsuleHasPoint(o, axis, radius, half_height, ls[0]);
 	if (2 == res[0])
@@ -728,7 +728,8 @@ static int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3]
 	return cmp[0] * cmp[1] > 0 ? 0 : 2;
 }
 
-static int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3], float vertices[][3], const int indices[], int indicescnt) {
+static int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_n[3],
+												const float vertices[][3], const int indices[], int indicescnt) {
 	float p[3];
 	int i, res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, vertices[indices[0]], plane_n, p);
 	if (0 == res)
@@ -825,7 +826,7 @@ static int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axi
 	}
 }
 
-static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], float ls[2][3], CCTResult_t* result) {
+static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	int res;
 	float lsdir[3], lslen, d[2];
 	mathVec3Sub(lsdir, ls[1], ls[0]);
@@ -895,7 +896,7 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 	return result;
 }
 
-static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], float tri[3][3], CCTResult_t* result) {
+static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
 	float N[3];
 	if (!mathRaycastPlane(o, dir, tri[0], mathPlaneNormalByVertices3(tri, N), result))
 		return NULL;
@@ -924,7 +925,7 @@ static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], fl
 	}
 }
 
-static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicecnt, CCTResult_t* result) {
+static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[3], const float plane_n[3], const float vertices[][3], const int indices[], int indicecnt, CCTResult_t* result) {
 	int i;
 	if (!mathRaycastPlane(o, dir, vertices[indices[0]], plane_n, result))
 		return NULL;
@@ -1066,7 +1067,7 @@ static CCTResult_t* mathRaycastCapsule(const float o[3], const float dir[3], con
 	}
 }
 
-static CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	int res = mathSegmentIntersectPlane(ls, vertice, normal, result->hit_point);
 	if (2 == res) {
 		result->distance = 0.0f;
@@ -1079,7 +1080,8 @@ static CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], con
 		return result;
 	}
 	else {
-		float d[2], min_d, *p = NULL;
+		float d[2], min_d;
+		const float *p = NULL;
 		float cos_theta = mathVec3Dot(normal, dir);
 		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
 			return NULL;
@@ -1123,7 +1125,7 @@ static CCTResult_t* mathSegmentcastPlane(float ls[2][3], const float dir[3], con
 	}
 }
 
-static CCTResult_t* mathSegmentcastSegment(float ls1[2][3], const float dir[3], float ls2[2][3], CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float dir[3], const float ls2[2][3], CCTResult_t* result) {
 	int res = mathSegmentIntersectSegment(ls1, ls2, result->hit_point);
 	if (1 == res) {
 		result->distance = 0.0f;
@@ -1217,7 +1219,7 @@ static CCTResult_t* mathSegmentcastSegment(float ls1[2][3], const float dir[3], 
 	}
 }
 
-static CCTResult_t* mathSegmentcastAABB(float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
 	if (mathAABBIntersectSegment(o, half, ls)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
@@ -1255,7 +1257,7 @@ static CCTResult_t* mathSegmentcastAABB(float ls[2][3], const float dir[3], cons
 	}
 }
 
-static CCTResult_t* mathSegmentcastTriangle(float ls[2][3], const float dir[3], float tri[3][3], CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastTriangle(const float ls[2][3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
 	int i;
 	CCTResult_t results[3], *p_result = NULL;
 	float N[3];
@@ -1306,7 +1308,7 @@ static CCTResult_t* mathSegmentcastTriangle(float ls[2][3], const float dir[3], 
 	return NULL;
 }
 
-static CCTResult_t* mathSegmentcastSphere(float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
 	int c = mathSphereIntersectSegment(center, radius, ls, result->hit_point);
 	if (1 == c) {
 		result->distance = 0.0f;
@@ -1388,7 +1390,7 @@ static CCTResult_t* mathSegmentcastSphere(float ls[2][3], const float dir[3], co
 	}
 }
 
-static CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastCapsule(const float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
 	int i, res = mathSegmentIntersectCapsule(ls, cp_o, cp_axis, cp_radius, cp_half_height, result->hit_point);
 	if (1 == res) {
 		result->distance = 0.0f;
@@ -1470,7 +1472,7 @@ static CCTResult_t* mathSegmentcastCapsule(float ls[2][3], const float dir[3], c
 	}
 }
 
-static CCTResult_t* mathTrianglecastPlane(float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
+static CCTResult_t* mathTrianglecastPlane(const float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
 	int i;
 	for (i = 0; i < 3; ++i) {
@@ -1502,7 +1504,7 @@ static CCTResult_t* mathTrianglecastPlane(float tri[3][3], const float dir[3], c
 	return NULL;
 }
 
-static CCTResult_t* mathTrianglecastTriangle(float tri1[3][3], const float dir[3], float tri2[3][3], CCTResult_t* result) {
+static CCTResult_t* mathTrianglecastTriangle(const float tri1[3][3], const float dir[3], const float tri2[3][3], CCTResult_t* result) {
 	float neg_dir[3];
 	CCTResult_t results[6], *p_result = NULL;
 	int i, cmp;
@@ -1695,7 +1697,8 @@ static CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const floa
 	return result;
 }
 
-static CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], const float plane_n[3], float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result) {
+static CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], const float plane_n[3],
+													const float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result) {
 	if (mathSphereIntersectTrianglesPlane(o, radius, plane_n, vertices, indices, indicescnt)) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
