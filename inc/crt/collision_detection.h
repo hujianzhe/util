@@ -71,6 +71,8 @@ typedef struct CollisionBodyTrianglesPlane_t {
 
 typedef union CollisionBody_t {
 	int type;
+	CollisionBodyPoint_t point;
+	CollisionBodyLineSegment_t line_segment;
 	CollisionBodySphere_t sphere;
 	CollisionBodyCapsule_t capsule;
 	CollisionBodyAABB_t aabb;
