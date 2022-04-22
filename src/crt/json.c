@@ -36,7 +36,6 @@ extern "C" {
 
 static void *(*cJSON_malloc)(size_t sz) = malloc;
 static void (*cJSON_free)(void *ptr) = free;
-static unsigned int cJSON_precision = 6;
 
 static const char* skip(const char* s) {
 	while (*s && (unsigned char)*s <= 32) {
@@ -235,7 +234,6 @@ static size_t cJSON_DoubleStrlen(double v) {
 cJSON_Setting* cJSON_GetSetting(cJSON_Setting* s) {
 	s->malloc_fn = cJSON_malloc;
 	s->free_fn = cJSON_free;
-	s->precision = cJSON_precision;
 	return s;
 }
 
@@ -245,7 +243,6 @@ void cJSON_SetSetting(const cJSON_Setting* s) {
 	}
 	cJSON_malloc = s->malloc_fn;
 	cJSON_free = s->free_fn;
-	cJSON_precision = s->precision;
 }
 
 cJSON* cJSON_GetField(cJSON* root, const char* name) {
@@ -318,7 +315,7 @@ long long cJSON_GetInteger(cJSON* node) {
 
 double cJSON_GetDouble(cJSON* node) {
 	double v;
-	int div_num;
+	int dot_num, e_sign, e;
 	size_t i, dot_i;
 	if (!node || node->type != cJSON_Value) {
 		return 0.0;
@@ -337,25 +334,49 @@ double cJSON_GetDouble(cJSON* node) {
 		i = 0;
 	}
 	v = 0.0;
-	dot_i = 0;
-	div_num = 1;
+	dot_i = -1;
+	dot_num = 0;
+	e = 0;
+	e_sign = 0;
 	for (; i < node->value_strlen; ++i) {
 		char c = node->value_string[i];
 		if ('.' == c) {
-			if (dot_i) {
+			if (dot_i != -1) {
 				break;
 			}
 			dot_i = i;
 			continue;
 		}
 		if (c < '0' || c > '9') {
+			if (!e_sign && ('e' == c || 'E' == c)) {
+				if (i + 1 >= node->value_strlen) {
+					break;
+				}
+				c = node->value_string[i + 1];
+				if ('-' == c) {
+					i++;
+					e_sign = -1;
+					continue;
+				}
+				else if ('+' == c) {
+					i++;
+					e_sign = 1;
+					continue;
+				}
+				else if (c >= '0' && c <= '9') {
+					e_sign = 1;
+					continue;
+				}
+			}
 			break;
 		}
-		if (dot_i) {
-			if (i - dot_i > cJSON_precision) {
-				break;
-			}
-			div_num *= 10;
+		if (e_sign) {
+			e *= 10;
+			e += c - '0';
+			continue;
+		}
+		if (dot_i != -1) {
+			dot_num++;
 		}
 		v *= 10.0;
 		v += c - '0';
@@ -363,8 +384,18 @@ double cJSON_GetDouble(cJSON* node) {
 	if ('-' == node->value_string[0]) {
 		v *= -1.0;
 	}
-	if (div_num > 1) {
-		v /= div_num;
+	for (i = 0; i < dot_num; ++i) {
+		v /= 10;
+	}
+	if (e_sign > 0) {
+		for (i = 0; i < e; ++i) {
+			v *= 10;
+		}
+	}
+	else if (e_sign < 0) {
+		for (i = 0; i < e; ++i) {
+			v /= 10;
+		}
 	}
 	return v;
 }
