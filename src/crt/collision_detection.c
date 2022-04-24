@@ -629,18 +629,19 @@ static int mathAABBIntersectPlane(const float o[3], const float half[3], const f
 }
 
 static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
-	if (mathAABBHasPoint(aabb_o, aabb_half, sp_o) || mathSphereHasPoint(sp_o, sp_radius, aabb_o))
-		return 1;
-	else {
-		int i, j;
-		float v[8][3];
-		AABBVertices(aabb_o, aabb_half, v);
-		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
-			if (mathSphereIntersectTrianglesPlane(sp_o, sp_radius, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6))
-				return 1;
+	int i;
+	float min_v[3], max_v[3], closest_v[3];
+	AABBMinVertice(aabb_o, aabb_half, min_v);
+	AABBMaxVertice(aabb_o, aabb_half, max_v);
+	for (i = 0; i < 3; ++i) {
+		float v = (max_v[i] < sp_o[i] ? max_v[i] : sp_o[i]);
+		if (min_v[i] > v) {
+			v = min_v[i];
 		}
-		return 0;
+		closest_v[i] = v;
 	}
+	mathVec3Sub(closest_v, closest_v, sp_o);
+	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius + CCT_EPSILON;
 }
 
 static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
@@ -1781,17 +1782,43 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		return result;
 	}
 	else {
-		CCTResult_t *p_result = NULL;
-		int i, j;
-		float v[8][3];
-		AABBVertices(center, half, v);
-		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
+		CCTResult_t* p_result = NULL;
+		int i;
+		float v[8][3], half_w[6], half_h[6], neg_dir[3];
+		AABBPlaneVertices(center, half, v);
+		AABBPlaneRectSizes(half, half_w, half_h);
+		for (i = 0; i < 6; ++i) {
 			CCTResult_t result_temp;
-			if (mathSpherecastTrianglesPlane(o, radius, dir, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
-				(!p_result || p_result->distance > result_temp.distance))
-			{
-				copy_result(result, &result_temp);
+			if (!mathSpherecastPlane(o, radius, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
+				continue;
+			}
+			if (fcmpf(result_temp.distance, 0.0, CCT_EPSILON) == 0) {
+				continue;
+			}
+			if (!mathRectHasPoint(v[i], AABB_Rect_Axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
 				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		if (p_result) {
+			return p_result;
+		}
+		AABBVertices(center, half, v);
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
+			float edge[2][3];
+			CCTResult_t result_temp;
+			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
+			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
+			if (!mathSegmentcastSphere(edge, neg_dir, o, radius, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
 			}
 		}
 		return p_result;
