@@ -517,6 +517,14 @@ static float AABB_Plane_Normal[][3] = {
 	{ 1.0f, 0.0f, 0.0f },{ -1.0f, 0.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },{ 0.0f, -1.0f, 0.0f }
 };
+static float AABB_Rect_Axis[][3] = {
+	{ 0.0f, 1.0f, 0.0f },
+	{ 0.0f, 1.0f, 0.0f },
+	{ 0.0f, 1.0f, 0.0f },
+	{ 0.0f, 1.0f, 0.0f },
+	{ 1.0f, 0.0f, 0.0f },
+	{ 1.0f, 0.0f, 0.0f }
+};
 static void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
 	mathVec3Copy(v[0], o);
 	v[0][2] += half[2];
@@ -532,6 +540,33 @@ static void AABBPlaneVertices(const float o[3], const float half[3], float v[6][
 	v[4][1] += half[1];
 	mathVec3Copy(v[5], o);
 	v[5][1] -= half[1];
+}
+static void AABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
+	/*
+	float half_w[] = {
+		aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
+	};
+	float half_h[] = {
+		aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[0], aabb_half[0]
+	};
+	*/
+	half_w[0] = aabb_half[0];
+	half_h[0] = aabb_half[1];
+
+	half_w[1] = aabb_half[0];
+	half_h[1] = aabb_half[1];
+
+	half_w[2] = aabb_half[0];
+	half_h[2] = aabb_half[1];
+
+	half_w[3] = aabb_half[0];
+	half_h[3] = aabb_half[1];
+
+	half_w[4] = aabb_half[2];
+	half_h[4] = aabb_half[0];
+
+	half_w[5] = aabb_half[2];
+	half_h[5] = aabb_half[0];
 }
 static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
@@ -960,29 +995,16 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 	else {
 		CCTResult_t *p_result = NULL;
 		int i;
-		float v[6][3];
-		float axis[][3] = {
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-			{ 0.0f, 1.0f, 0.0f },
-			{ 1.0f, 0.0f, 0.0f },
-			{ 1.0f, 0.0f, 0.0f }
-		};
-		float half_w[] = {
-			aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
-		};
-		float half_h[] = {
-			aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[0], aabb_half[0]
-		};
+		float v[6][3], half_w[6], half_h[6];
 		AABBPlaneVertices(aabb_o, aabb_half, v);
+		AABBPlaneRectSizes(aabb_half, half_w, half_h);
 		for (i = 0; i < 6; ) {
 			CCTResult_t result_temp;
 			if (!mathRaycastPlane(o, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
 				i += 2;
 				continue;
 			}
-			if (!mathRectHasPoint(v[i], axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
+			if (!mathRectHasPoint(v[i], AABB_Rect_Axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
 				++i;
 				continue;
 			}
