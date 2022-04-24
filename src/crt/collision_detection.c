@@ -1271,22 +1271,22 @@ static CCTResult_t* mathSegmentcastTriangle(const float ls[2][3], const float di
 	CCTResult_t results[3], *p_result = NULL;
 	float N[3];
 	mathPlaneNormalByVertices3(tri, N);
-	if (!mathSegmentcastPlane(ls, dir, tri[0], N, result))
+	if (!mathSegmentcastPlane(ls, dir, tri[0], N, result)) {
 		return NULL;
+	}
 	else if (result->hit_point_cnt < 0) {
-		int c[2];
 		for (i = 0; i < 2; ++i) {
 			float test_p[3];
 			mathVec3Copy(test_p, ls[i]);
 			mathVec3AddScalar(test_p, dir, result->distance);
-			c[i] = mathTriangleHasPoint(tri, test_p, NULL, NULL);
+			if (mathTriangleHasPoint(tri, test_p, NULL, NULL)) {
+				return result;
+			}
 		}
-		if (c[0] && c[1])
-			return result;
 	}
-	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
+	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
 		return result;
-
+	}
 	for (i = 0; i < 3; ++i) {
 		float edge[2][3];
 		mathVec3Copy(edge[0], tri[i % 3]);
