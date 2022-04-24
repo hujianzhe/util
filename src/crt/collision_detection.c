@@ -1813,7 +1813,7 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 			CCTResult_t result_temp;
 			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
 			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
-			if (!mathSegmentcastSphere(edge, neg_dir, o, radius, &result_temp)) {
+			if (!mathSegmentcastSphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
