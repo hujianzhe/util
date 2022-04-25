@@ -579,12 +579,34 @@ static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
 }
 static float* AABBMinVertice(const float o[3], const float half[3], float v[3]) {
-	v[0] = o[0] - half[0], v[1] = o[1] - half[1], v[2] = o[2] - half[2];
+	v[0] = o[0] - half[0];
+	v[1] = o[1] - half[1];
+	v[2] = o[2] - half[2];
 	return v;
 }
 static float* AABBMaxVertice(const float o[3], const float half[3], float v[3]) {
-	v[0] = o[0] + half[0], v[1] = o[1] + half[1], v[2] = o[2] + half[2];
+	v[0] = o[0] + half[0];
+	v[1] = o[1] + half[1];
+	v[2] = o[2] + half[2];
 	return v;
+}
+
+void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]) {
+	int i;
+	float min_v[3], max_v[3];
+	AABBMinVertice(o, half, min_v);
+	AABBMaxVertice(o, half, max_v);
+	for (i = 0; i < 3; ++i) {
+		if (p[i] < min_v[i]) {
+			closest_p[i] = min_v[i];
+		}
+		else if (p[i] > max_v[i]) {
+			closest_p[i] = max_v[i];
+		}
+		else {
+			closest_p[i] = p[i];
+		}
+	}
 }
 
 void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]) {
@@ -629,17 +651,8 @@ static int mathAABBIntersectPlane(const float o[3], const float half[3], const f
 }
 
 static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
-	int i;
-	float min_v[3], max_v[3], closest_v[3];
-	AABBMinVertice(aabb_o, aabb_half, min_v);
-	AABBMaxVertice(aabb_o, aabb_half, max_v);
-	for (i = 0; i < 3; ++i) {
-		float v = (max_v[i] < sp_o[i] ? max_v[i] : sp_o[i]);
-		if (min_v[i] > v) {
-			v = min_v[i];
-		}
-		closest_v[i] = v;
-	}
+	float closest_v[3];
+	mathAABBClosestPointTo(aabb_o, aabb_half, sp_o, closest_v);
 	mathVec3Sub(closest_v, closest_v, sp_o);
 	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius + CCT_EPSILON;
 }
