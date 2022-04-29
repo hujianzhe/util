@@ -5,7 +5,7 @@
 #ifndef UTIL_C_CRT_COLLISION_DETECTION_H
 #define	UTIL_C_CRT_COLLISION_DETECTION_H
 
-#include "../compiler_define.h"
+#include "../../compiler_define.h"
 
 typedef struct CCTResult_t {
 	float distance;
@@ -83,11 +83,6 @@ typedef union CollisionBody_t {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-__declspec_dll void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]);
-__declspec_dll void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]);
-__declspec_dll int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
-__declspec_dll int mathAABBContainAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]);
 
 __declspec_dll CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb);
 __declspec_dll int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2);

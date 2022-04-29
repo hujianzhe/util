@@ -3,7 +3,7 @@
 //
 
 #include "../../inc/crt/math_vec3.h"
-#include "../../inc/crt/collision_detection.h"
+#include "../../inc/crt/geometry/aabb.h"
 #include "../../inc/crt/octree.h"
 #include <stdlib.h>
 

@@ -2,9 +2,14 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/crt/math.h"
-#include "../../inc/crt/math_vec3.h"
-#include "../../inc/crt/collision_detection.h"
+#include "../../../inc/crt/math.h"
+#include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/collision_detection.h"
+#include "../../../inc/crt/geometry/aabb.h"
+#include "../../../inc/crt/geometry/plane.h"
+#include "../../../inc/crt/geometry/sphere.h"
+#include "../../../inc/crt/geometry/line_segment.h"
+#include "../../../inc/crt/geometry/triangle.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -21,162 +26,6 @@ static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
 		mathVec3Copy(dst->hit_point, src->hit_point);
 	}
 	return dst;
-}
-
-static void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np_to_p[3], float np[3]) {
-	float vp[3], dot;
-	mathVec3Sub(vp, p, ls_v);
-	dot = mathVec3Dot(vp, lsdir);
-	mathVec3AddScalar(mathVec3Copy(np, ls_v), lsdir, dot);
-	mathVec3Sub(np_to_p, p, np);
-}
-
-static int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]) {
-	float N[3], n[3], v[3], dot, nlen;
-	mathVec3Sub(v, lsv2, lsv1);
-	mathVec3Cross(n, lsdir1, lsdir2);
-	if (mathVec3IsZero(n)) {
-		if (min_d) {
-			dot = mathVec3Dot(v, lsdir1);
-			*min_d = sqrtf(mathVec3LenSq(v) - dot * dot);
-		}
-		return 0;
-	}
-	nlen = mathVec3Normalized(N, n);
-	dot = mathVec3Dot(v, N);
-	if (dot <= -CCT_EPSILON)
-		dot = -dot;
-	if (min_d)
-		*min_d = dot;
-	if (dir_d) {
-		float cross_v[3], nlensq_inv = 1.0f / (nlen * nlen);
-		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n) * nlensq_inv;
-		dir_d[1] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir1), n) * nlensq_inv;
-	}
-	return 1;
-}
-
-static void mathPointProjectionPlane(const float p[3], const float plane_v[3], const float plane_n[3], float np[3], float* distance) {
-	float pv[3], d;
-	mathVec3Sub(pv, plane_v, p);
-	d = mathVec3Dot(pv, plane_n);
-	if (distance)
-		*distance = d;
-	if (np)
-		mathVec3AddScalar(mathVec3Copy(np, p), plane_n, d);
-}
-
-static float* mathPlaneNormalByVertices3(const float vertices[3][3], float normal[3]) {
-	float v0v1[3], v0v2[3];
-	mathVec3Sub(v0v1, vertices[1], vertices[0]);
-	mathVec3Sub(v0v2, vertices[2], vertices[0]);
-	mathVec3Cross(normal, v0v1, v0v2);
-	mathVec3Normalized(normal, normal);
-	return normal;
-}
-
-static int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]) {
-	float v[3];
-	mathVec3Sub(v, plane_v, p);
-	return fcmpf(mathVec3Dot(plane_normal, v), 0.0f, CCT_EPSILON) == 0;
-}
-
-static int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2[3], const float n2[3]) {
-	float n[3];
-	mathVec3Cross(n, n1, n2);
-	if (!mathVec3IsZero(n)) {
-		return 1;
-	}
-	return mathPlaneHasPoint(v1, n1, v2);
-}
-
-static int mathRectHasPoint(const float center_o[3], const float axis[3], const float plane_normal[3], float half_w, float half_h, const float p[3]) {
-	float v[3], dot;
-	mathVec3Sub(v, p, center_o);
-	dot = mathVec3Dot(plane_normal, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
-		return 0;
-	}
-	dot = mathVec3Dot(axis, v);
-	if (dot > half_h + CCT_EPSILON || dot < -half_h - CCT_EPSILON) {
-		return 0;
-	}
-	return mathVec3LenSq(v) - dot * dot <= half_w * half_w + CCT_EPSILON;
-}
-
-static int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
-	const float *v1 = ls[0], *v2 = ls[1];
-	float pv1[3], pv2[3], N[3];
-	mathVec3Sub(pv1, v1, p);
-	mathVec3Sub(pv2, v2, p);
-	if (!mathVec3IsZero(mathVec3Cross(N, pv1, pv2)))
-		return 0;
-	else if (mathVec3Equal(ls[0], p))
-		return 1;
-	else if (mathVec3Equal(ls[1], p))
-		return 2;
-	else {
-		float dot = mathVec3Dot(pv1, pv2);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) > 0) {
-			return 0;
-		}
-		return 3;
-	}
-}
-
-static int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
-	return p[0] >= o[0] - half[0] - CCT_EPSILON && p[0] <= o[0] + half[0] + CCT_EPSILON &&
-		   p[1] >= o[1] - half[1] - CCT_EPSILON && p[1] <= o[1] + half[1] + CCT_EPSILON &&
-		   p[2] >= o[2] - half[2] - CCT_EPSILON && p[2] <= o[2] + half[2] + CCT_EPSILON;
-}
-
-static int mathSphereHasPoint(const float o[3], float radius, const float p[3]) {
-	float op[3];
-	int cmp = fcmpf(mathVec3LenSq(mathVec3Sub(op, p, o)), radius * radius, CCT_EPSILON);
-	if (cmp > 0)
-		return 0;
-	if (0 == cmp)
-		return 1;
-	else
-		return 2;
-}
-
-static float* mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]) {
-	float v0[3], v1[3], v2[3];
-	mathVec3MultiplyScalar(v0, tri[0], 1.0f - u - v);
-	mathVec3MultiplyScalar(v1, tri[1], u);
-	mathVec3MultiplyScalar(v2, tri[2], v);
-	return mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
-}
-
-static int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
-	float ap[3], ab[3], ac[3], N[3];
-	mathVec3Sub(ap, p, tri[0]);
-	mathVec3Sub(ab, tri[1], tri[0]);
-	mathVec3Sub(ac, tri[2], tri[0]);
-	mathVec3Cross(N, ab, ac);
-	if (fcmpf(mathVec3Dot(N, ap), 0.0f, CCT_EPSILON))
-		return 0;
-	else {
-		float u, v;
-		float dot_ac_ac = mathVec3Dot(ac, ac);
-		float dot_ac_ab = mathVec3Dot(ac, ab);
-		float dot_ac_ap = mathVec3Dot(ac, ap);
-		float dot_ab_ab = mathVec3Dot(ab, ab);
-		float dot_ab_ap = mathVec3Dot(ab, ap);
-		float tmp = 1.0f / (dot_ac_ac * dot_ab_ab - dot_ac_ab * dot_ac_ab);
-		u = (dot_ab_ab * dot_ac_ap - dot_ac_ab * dot_ab_ap) * tmp;
-		if (fcmpf(u, 0.0f, CCT_EPSILON) < 0 || fcmpf(u, 1.0f, CCT_EPSILON) > 0)
-			return 0;
-		v = (dot_ac_ac * dot_ab_ap - dot_ac_ab * dot_ac_ap) * tmp;
-		if (fcmpf(v, 0.0f, CCT_EPSILON) < 0 || fcmpf(v + u, 1.0f, CCT_EPSILON) > 0)
-			return 0;
-		if (p_u)
-			*p_u = u;
-		if (p_v)
-			*p_v = v;
-		return 1;
-	}
 }
 
 static int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]) {
@@ -196,111 +45,6 @@ static int mathCapsuleHasPoint(const float o[3], const float axis[3], float radi
 		if (cmp > 0)
 			return 0;
 		return cmp < 0 ? 2 : 1;
-	}
-}
-
-static int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float distance[2]) {
-	float N[3], v[3];
-	mathVec3Sub(v, ls1v, ls2v);
-	mathVec3Cross(N, ls1dir, ls2dir);
-	if (mathVec3IsZero(N)) {
-		float dot = mathVec3Dot(v, ls2dir);
-		return fcmpf(dot * dot, mathVec3LenSq(v), CCT_EPSILON) ? 0 : 2;
-	}
-	else if (mathVec3IsZero(v)) {
-		distance[0] = distance[1] = 0.0f;
-		return 1;
-	}
-	else {
-		float dot = mathVec3Dot(v, N);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON))
-			return 0;
-		dot = mathVec3Dot(v, ls2dir);
-		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
-		mathVec3Sub(v, v, ls1v);
-		if (mathVec3IsZero(v)) {
-			distance[0] = 0.0f;
-		}
-		else {
-			distance[0] = mathVec3Normalized(v, v);
-			distance[0] /= mathVec3Dot(v, ls1dir);
-		}
-		mathVec3Sub(v, ls2v, ls1v);
-		dot = mathVec3Dot(v, ls1dir);
-		mathVec3AddScalar(mathVec3Copy(v, ls1v), ls1dir, dot);
-		mathVec3Sub(v, v, ls2v);
-		if (mathVec3IsZero(v)) {
-			distance[1] = 0.0f;
-		}
-		else {
-			distance[1] = mathVec3Normalized(v, v);
-			distance[1] /= mathVec3Dot(v, ls2dir);
-		}
-		return 1;
-	}
-}
-
-static int overlapSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
-	int res = mathSegmentHasPoint(ls1, ls2[0]);
-	if (3 == res)
-		return 2;
-	else if (res) {
-		if (mathSegmentHasPoint(ls1, ls2[1]))
-			return 2;
-		if (mathSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
-			return 2;
-		mathVec3Copy(p, ls1[res - 1]);
-		return 1;
-	}
-	res = mathSegmentHasPoint(ls1, ls2[1]);
-	if (3 == res)
-		return 2;
-	else if (res) {
-		if (mathSegmentHasPoint(ls2, ls1[res == 1 ? 1 : 0]))
-			return 2;
-		mathVec3Copy(p, ls1[res - 1]);
-		return 1;
-	}
-
-	if (mathSegmentHasPoint(ls2, ls1[0]) == 3 ||
-		mathSegmentHasPoint(ls2, ls1[1]) == 3)
-	{
-		return 2;
-	}
-	return 0;
-}
-
-static int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
-	int res;
-	float lsdir1[3], lsdir2[3], d[2], lslen1, lslen2;
-	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
-	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
-	lslen1 = mathVec3Normalized(lsdir1, lsdir1);
-	lslen2 = mathVec3Normalized(lsdir2, lsdir2);
-	res = mathLineIntersectLine(ls1[0], lsdir1, ls2[0], lsdir2, d);
-	if (0 == res)
-		return 0;
-	else if (1 == res) {
-		if (fcmpf(d[0], 0.0f, CCT_EPSILON) < 0 || fcmpf(d[1], 0.0f, CCT_EPSILON) < 0)
-			return 0;
-		if (fcmpf(d[0], lslen1, CCT_EPSILON) > 0 || fcmpf(d[1], lslen2, CCT_EPSILON) > 0)
-			return 0;
-		mathVec3AddScalar(mathVec3Copy(p, ls1[0]), lsdir1, d[0]);
-		return 1;
-	}
-	else
-		return overlapSegmentIntersectSegment(ls1, ls2, p);
-}
-
-static int mathLineIntersectPlane(const float ls_v[3], const float lsdir[3], const float plane_v[3], const float plane_normal[3], float* distance) {
-	float cos_theta = mathVec3Dot(lsdir, plane_normal);
-	mathPointProjectionPlane(ls_v, plane_v, plane_normal, NULL, distance);
-	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON)) {
-		*distance /= cos_theta;
-		return 1;
-	}
-	else {
-		return fcmpf(*distance, 0.0f, CCT_EPSILON) ? 0 : 2;
 	}
 }
 
@@ -438,24 +182,6 @@ static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, con
 	return 0;
 }
 
-static int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], float r2, float p[3]) {
-	int cmp;
-	float o1o2[3], radius_sum = r1 + r2;
-	mathVec3Sub(o1o2, o2, o1);
-	cmp = fcmpf(mathVec3LenSq(o1o2), radius_sum * radius_sum, CCT_EPSILON);
-	if (cmp > 0)
-		return 0;
-	if (cmp < 0)
-		return 2;
-	else {
-		if (p) {
-			mathVec3Normalized(o1o2, o1o2);
-			mathVec3AddScalar(mathVec3Copy(p, o1), o1o2, r1);
-		}
-		return 1;
-	}
-}
-
 static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, float p[3]) {
 	float v[3], cp[3], dot;
 	mathVec3AddScalar(mathVec3Copy(cp, cp_o), cp_axis, -cp_half_height);
@@ -486,153 +212,6 @@ static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, cons
 			return 1;
 		}
 	}
-}
-
-/*
-	     7+------+6			0 = ---
-	     /|     /|			1 = +--
-	    / |    / |			2 = ++-
-	   / 4+---/--+5			3 = -+-
-	 3+------+2 /    y   z	4 = --+
-	  | /    | /     |  /	5 = +-+
-	  |/     |/      |/		6 = +++
-	 0+------+1      *---x	7 = -++
-*/
-static int Box_Edge_Indices[] = {
-	0, 1,	1, 2,	2, 3,	3, 0,
-	7, 6,	6, 5,	5, 4,	4, 7,
-	1, 5,	6, 2,
-	3, 7,	4, 0
-};
-static int Box_Triangle_Vertices_Indices[] = {
-	0, 1, 2,	2, 3, 0,
-	7, 6, 5,	5, 4, 7,
-	1, 5, 6,	6, 2, 1,
-	3, 7, 4,	4, 0, 3,
-	3, 7, 6,	6, 2, 3,
-	0, 4, 5,	5, 1, 0
-};
-static float AABB_Plane_Normal[][3] = {
-	{ 0.0f, 0.0f, 1.0f },{ 0.0f, 0.0f, -1.0f },
-	{ 1.0f, 0.0f, 0.0f },{ -1.0f, 0.0f, 0.0f },
-	{ 0.0f, 1.0f, 0.0f },{ 0.0f, -1.0f, 0.0f }
-};
-static float AABB_Rect_Axis[][3] = {
-	{ 0.0f, 1.0f, 0.0f },
-	{ 0.0f, 1.0f, 0.0f },
-	{ 0.0f, 1.0f, 0.0f },
-	{ 0.0f, 1.0f, 0.0f },
-	{ 1.0f, 0.0f, 0.0f },
-	{ 1.0f, 0.0f, 0.0f }
-};
-static void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
-	mathVec3Copy(v[0], o);
-	v[0][2] += half[2];
-	mathVec3Copy(v[1], o);
-	v[1][2] -= half[2];
-
-	mathVec3Copy(v[2], o);
-	v[2][0] += half[0];
-	mathVec3Copy(v[3], o);
-	v[3][0] -= half[0];
-
-	mathVec3Copy(v[4], o);
-	v[4][1] += half[1];
-	mathVec3Copy(v[5], o);
-	v[5][1] -= half[1];
-}
-static void AABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
-	/*
-	float half_w[] = {
-		aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
-	};
-	float half_h[] = {
-		aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[0], aabb_half[0]
-	};
-	*/
-	half_w[0] = aabb_half[0];
-	half_h[0] = aabb_half[1];
-
-	half_w[1] = aabb_half[0];
-	half_h[1] = aabb_half[1];
-
-	half_w[2] = aabb_half[0];
-	half_h[2] = aabb_half[1];
-
-	half_w[3] = aabb_half[0];
-	half_h[3] = aabb_half[1];
-
-	half_w[4] = aabb_half[2];
-	half_h[4] = aabb_half[0];
-
-	half_w[5] = aabb_half[2];
-	half_h[5] = aabb_half[0];
-}
-static void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
-	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
-	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
-	v[2][0] = o[0] + half[0], v[2][1] = o[1] + half[1], v[2][2] = o[2] - half[2];
-	v[3][0] = o[0] - half[0], v[3][1] = o[1] + half[1], v[3][2] = o[2] - half[2];
-	v[4][0] = o[0] - half[0], v[4][1] = o[1] - half[1], v[4][2] = o[2] + half[2];
-	v[5][0] = o[0] + half[0], v[5][1] = o[1] - half[1], v[5][2] = o[2] + half[2];
-	v[6][0] = o[0] + half[0], v[6][1] = o[1] + half[1], v[6][2] = o[2] + half[2];
-	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
-}
-static float* AABBMinVertice(const float o[3], const float half[3], float v[3]) {
-	v[0] = o[0] - half[0];
-	v[1] = o[1] - half[1];
-	v[2] = o[2] - half[2];
-	return v;
-}
-static float* AABBMaxVertice(const float o[3], const float half[3], float v[3]) {
-	v[0] = o[0] + half[0];
-	v[1] = o[1] + half[1];
-	v[2] = o[2] + half[2];
-	return v;
-}
-
-void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]) {
-	int i;
-	float min_v[3], max_v[3];
-	AABBMinVertice(o, half, min_v);
-	AABBMaxVertice(o, half, max_v);
-	for (i = 0; i < 3; ++i) {
-		if (p[i] < min_v[i]) {
-			closest_p[i] = min_v[i];
-		}
-		else if (p[i] > max_v[i]) {
-			closest_p[i] = max_v[i];
-		}
-		else {
-			closest_p[i] = p[i];
-		}
-	}
-}
-
-void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]) {
-	mathVec3MultiplyScalar(new_half, half, 0.5f);
-	AABBVertices(o, new_half, new_o);
-}
-
-int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
-	int i;
-	for (i = 0; i < 3; ++i) {
-		float half = half1[i] + half2[i] + CCT_EPSILON;
-		if (o2[i] - o1[i] > half || o1[i] - o2[i] > half) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-int mathAABBContainAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
-	float v[3];
-	AABBMinVertice(o2, half2, v);
-	if (!mathAABBHasPoint(o1, half1, v)) {
-		return 0;
-	}
-	AABBMaxVertice(o2, half2, v);
-	return mathAABBHasPoint(o1, half1, v);
 }
 
 static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3]) {
@@ -755,7 +334,7 @@ static int mathSegmentIntersectCapsule(const float ls[2][3], const float o[3], c
 			return 0;
 		mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), lsdir, d[0]);
 		mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[0]), lsdir, d[1]);
-		return overlapSegmentIntersectSegment(ls, (const float(*)[3])new_ls, p);
+		return mathSegmentIntersectSegment(ls, (const float(*)[3])new_ls, p);
 	}
 }
 
@@ -812,7 +391,7 @@ static int mathCapsuleIntersectTrianglesPlane(const float cp_o[3], const float c
 				float edge[2][3];
 				mathVec3Copy(edge[0], vertices[indices[j % 3 + i]]);
 				mathVec3Copy(edge[1], vertices[indices[(j + 1) % 3 + i]]);
-				if (mathSegmentIntersectCapsule((const float(*)[3])edge, cp_o, cp_axis, cp_radius, cp_half_height, p))
+				if (mathSegmentIntersectCapsule((const float(*)[3])edge, cp_o, cp_axis, cp_radius, cp_half_height, NULL))
 					return 1;
 			}
 		}
@@ -956,7 +535,8 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 
 static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
 	float N[3];
-	if (!mathRaycastPlane(o, dir, tri[0], mathPlaneNormalByVertices3(tri, N), result))
+	mathPlaneNormalByVertices3(tri, N);
+	if (!mathRaycastPlane(o, dir, tri[0], N, result))
 		return NULL;
 	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL))
 		return result;
@@ -1248,13 +828,15 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 					}
 				} while (0);
 				if (p_result) {
+					/*
 					if (is_parallel) {
 						float new_ls1[2][3];
-						mathVec3AddScalar(mathVec3Copy(new_ls1[0], ls1[0]), dir, result->distance);
-						mathVec3AddScalar(mathVec3Copy(new_ls1[1], ls1[1]), dir, result->distance);
+						mathVec3AddScalar(mathVec3Copy(new_ls1[0], ls1[0]), dir, p_result->distance);
+						mathVec3AddScalar(mathVec3Copy(new_ls1[1], ls1[1]), dir, p_result->distance);
 						if (2 == overlapSegmentIntersectSegment((const float(*)[3])new_ls1, ls2, v))
 							result->hit_point_cnt = -1;
 					}
+					*/
 					copy_result(result, p_result);
 					return result;
 				}
@@ -1665,34 +1247,6 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 			}
 		}
 		return p_result;
-/*
-		float v1[8][3], v2[8][3];
-		AABBVertices(o1, half1, v1);
-		AABBVertices(o2, half2, v2);
-		for (i = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 3) {
-			int j;
-			float tri1[3][3];
-			mathVec3Copy(tri1[0], v1[Box_Triangle_Vertices_Indices[i]]);
-			mathVec3Copy(tri1[1], v1[Box_Triangle_Vertices_Indices[i + 1]]);
-			mathVec3Copy(tri1[2], v1[Box_Triangle_Vertices_Indices[i + 2]]);
-			for (j = 0; j < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); j += 3) {
-				CCTResult_t result_temp;
-				float tri2[3][3];
-				mathVec3Copy(tri2[0], v2[Box_Triangle_Vertices_Indices[j]]);
-				mathVec3Copy(tri2[1], v2[Box_Triangle_Vertices_Indices[j + 1]]);
-				mathVec3Copy(tri2[2], v2[Box_Triangle_Vertices_Indices[j + 2]]);
-
-				if (!mathTrianglecastTriangle(tri1, dir, tri2, &result_temp))
-					continue;
-
-				if (!p_result || p_result->distance > result_temp.distance) {
-					p_result = result;
-					copy_result(p_result, &result_temp);
-				}
-			}
-		}
-		return p_result;
-*/
 	}
 }
 
