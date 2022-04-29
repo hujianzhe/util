@@ -11,12 +11,12 @@
 extern "C" {
 #endif
 
-void mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np_to_p[3], float np[3]) {
+float mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np[3]) {
 	float vp[3], dot;
 	mathVec3Sub(vp, p, ls_v);
 	dot = mathVec3Dot(vp, lsdir);
 	mathVec3AddScalar(mathVec3Copy(np, ls_v), lsdir, dot);
-	mathVec3Sub(np_to_p, p, np);
+	return dot;
 }
 
 int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]) {
@@ -32,7 +32,7 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 	}
 	nlen = mathVec3Normalized(N, n);
 	dot = mathVec3Dot(v, N);
-	if (dot <= -CCT_EPSILON) {
+	if (dot < -CCT_EPSILON) {
 		dot = -dot;
 	}
 	if (min_d) {
@@ -107,6 +107,19 @@ int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
 			return 0;
 		}
 		return 1;
+	}
+}
+
+void mathSegmentClosetPointTo(const float ls[2][3], const float p[3], float closet_p[3]) {
+	float lsdir[3], lslen, dot;
+	mathVec3Sub(lsdir, ls[1], ls[0]);
+	lslen = mathVec3Normalized(lsdir, lsdir);
+	dot = mathPointProjectionLine(p, ls[0], lsdir, closet_p);
+	if (dot < -CCT_EPSILON) {
+		mathVec3Copy(closet_p, ls[0]);
+	}
+	else if (dot > lslen + CCT_EPSILON) {
+		mathVec3Copy(closet_p, ls[1]);
 	}
 }
 

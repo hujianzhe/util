@@ -102,32 +102,16 @@ static int mathSphereIntersectLine(const float o[3], float radius, const float l
 }
 
 static int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]) {
-	int c[2];
-	c[0] = mathSphereHasPoint(o, radius, ls[0]);
-	c[1] = mathSphereHasPoint(o, radius, ls[1]);
-	if (c[0] + c[1] >= 2)
-		return 2;
-	else {
-		float lsdir[3], plo[3], pl[3];
-		mathVec3Sub(lsdir, ls[1], ls[0]);
-		mathVec3Normalized(lsdir, lsdir);
-		mathPointProjectionLine(o, ls[0], lsdir, plo, pl);
-		if (!mathSegmentHasPoint(ls, pl)) {
-			if (c[0])
-				mathVec3Copy(p, ls[0]);
-			else if (c[1])
-				mathVec3Copy(p, ls[1]);
-			return c[0] + c[1];
-		}
-		c[0] = fcmpf(mathVec3LenSq(plo), radius * radius, CCT_EPSILON);
-		if (c[0] < 0)
-			return 2;
-		if (0 == c[0]) {
-			mathVec3Copy(p, pl);
-			return 1;
-		}
-		return 0;
+	int res;
+	float closet_p[3], closest_v[3];
+	mathSegmentClosetPointTo(ls, o, closet_p);
+	mathVec3Sub(closest_v, closet_p, o);
+	res = fcmpf(mathVec3LenSq(closest_v), radius * radius, CCT_EPSILON);
+	if (res == 0) {
+		mathVec3Copy(p, closet_p);
+		return 1;
 	}
+	return res < 0 ? 2 : 0;
 }
 
 static int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r) {
@@ -480,7 +464,9 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 		result->distance = d[0];
 		result->hit_point_cnt = 1;
 		mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d[0]);
-		mathPointProjectionLine(o, ls[0], lsdir, result->hit_normal, p);
+		mathPointProjectionLine(o, ls[0], lsdir, p);
+		mathVec3Sub(result->hit_normal, o, p);
+		mathVec3Normalized(result->hit_normal, result->hit_normal);
 		return result;
 	}
 	else {
@@ -683,7 +669,9 @@ static CCTResult_t* mathRaycastCapsule(const float o[3], const float dir[3], con
 					mathVec3Copy(result->hit_normal, v);
 				}
 				else {
-					mathPointProjectionLine(result->hit_point, cp_o, cp_axis, result->hit_normal, v);
+					mathPointProjectionLine(result->hit_point, cp_o, cp_axis, v);
+					mathVec3Sub(result->hit_normal, result->hit_point, v);
+					mathVec3Normalized(result->hit_normal, result->hit_normal);
 				}
 				return result;
 			}
@@ -970,7 +958,8 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 			if (res) {
 				float plo[3], p[3];
 				mathVec3Normalized(lsdir, lsdir);
-				mathPointProjectionLine(circle_o, ls[0], lsdir, plo, p);
+				mathPointProjectionLine(circle_o, ls[0], lsdir, p);
+				mathVec3Sub(plo, circle_o, p);
 				res = fcmpf(mathVec3LenSq(plo), circle_radius * circle_radius, CCT_EPSILON);
 				if (res >= 0) {
 					float new_ls[2][3], d;
