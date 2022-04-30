@@ -60,8 +60,9 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 	}
 	else {
 		float dot = mathVec3Dot(v, N);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON))
+		if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
 			return 0;
+		}
 		dot = mathVec3Dot(v, ls2dir);
 		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
 		mathVec3Sub(v, v, ls1v);
@@ -214,10 +215,24 @@ int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], fl
 		}
 		else {
 			float v1[3], v2[3];
-			mathVec3Sub(v1, ls1[0], ls2[1]);
-			mathVec3Sub(v2, ls1[1], ls2[0]);
-			dot = mathVec3Dot(v1, v2);
-			return dot < -CCT_EPSILON ? 2 : 0;
+			int i;
+			for (i = 0; i < 2; ++i) {
+				mathVec3Sub(v1, ls1[0], ls2[i]);
+				mathVec3Sub(v2, ls1[1], ls2[i]);
+				dot = mathVec3Dot(v1, v2);
+				if (dot < -CCT_EPSILON) {
+					return 2;
+				}
+			}
+			for (i = 0; i < 2; ++i) {
+				mathVec3Sub(v1, ls2[0], ls1[i]);
+				mathVec3Sub(v1, ls2[1], ls1[i]);
+				dot = mathVec3Dot(v1, v2);
+				if (dot < -CCT_EPSILON) {
+					return 2;
+				}
+			}
+			return 0;
 		}
 	}
 }
