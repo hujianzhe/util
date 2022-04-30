@@ -226,7 +226,7 @@ int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], fl
 			}
 			for (i = 0; i < 2; ++i) {
 				mathVec3Sub(v1, ls2[0], ls1[i]);
-				mathVec3Sub(v1, ls2[1], ls1[i]);
+				mathVec3Sub(v2, ls2[1], ls1[i]);
 				dot = mathVec3Dot(v1, v2);
 				if (dot < -CCT_EPSILON) {
 					return 2;
