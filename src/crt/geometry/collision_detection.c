@@ -25,6 +25,7 @@ static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	if (1 == src->hit_point_cnt) {
 		mathVec3Copy(dst->hit_point, src->hit_point);
 	}
+	mathVec3Copy(dst->hit_normal, src->hit_normal);
 	return dst;
 }
 
