@@ -28,6 +28,24 @@ static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	return dst;
 }
 
+static CCTResult_t* set_result(CCTResult_t* result, float distance, const float hit_point[3], const float hit_normal[3]) {
+	result->distance = distance;
+	if (hit_point) {
+		mathVec3Copy(result->hit_point, hit_point);
+		result->hit_point_cnt = 1;
+	}
+	else {
+		result->hit_point_cnt = 0;
+	}
+	if (hit_normal) {
+		mathVec3Copy(result->hit_normal, hit_normal);
+	}
+	else {
+		mathVec3Set(result->hit_normal, 0.0f, 0.0f, 0.0f);
+	}
+	return result;
+}
+
 /*
 static int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]) {
 	float cp[3], v[3], dot;
@@ -452,55 +470,55 @@ static int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axi
 */
 
 static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	int res;
-	float lsdir[3], lslen, d[2];
-	mathVec3Sub(lsdir, ls[1], ls[0]);
-	lslen = mathVec3Normalized(lsdir, lsdir);
-	res = mathLineIntersectLine(o, dir, ls[0], lsdir, d);
-	if (GEOMETRY_LINE_SKEW == res || GEOMETRY_LINE_PARALLEL == res) {
-		return NULL;
-	}
-	else if (GEOMETRY_LINE_CROSS == res) {
-		float p[3];
-		if (d[0] < -CCT_EPSILON) {
-			return NULL;
-		}
-		if (d[1] < -CCT_EPSILON || d[1] > lslen + CCT_EPSILON) {
-			return NULL;
-		}
-		result->distance = d[0];
-		result->hit_point_cnt = 1;
-		mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d[0]);
-		mathPointProjectionLine(o, ls[0], lsdir, p);
-		mathVec3Sub(result->hit_normal, o, p);
-		mathVec3Normalized(result->hit_normal, result->hit_normal);
-		return result;
-	}
-	else {
-		float v1[3], v2[3], dot;
-		mathVec3Copy(result->hit_normal, dir);
-		mathVec3Sub(v1, ls[0], o);
-		mathVec3Sub(v2, ls[1], o);
-		dot = mathVec3Dot(v1, v2);
+	float v0[3], v1[3], N[3], dot, d;
+	mathVec3Sub(v0, ls[0], o);
+	mathVec3Sub(v1, ls[1], o);
+	mathVec3Cross(N, v0, v1);
+	if (mathVec3IsZero(N)) {
+		dot = mathVec3Dot(v0, v1);
 		if (dot <= CCT_EPSILON) {
-			result->distance = 0.0f;
-			mathVec3Copy(result->hit_point, o);
-			result->hit_point_cnt = 1;
+			set_result(result, 0.0f, o, dir);
 			return result;
 		}
-		dot = mathVec3Dot(v1, dir);
+		mathVec3Cross(N, dir, v0);
+		if (!mathVec3IsZero(N)) {
+			return NULL;
+		}
+		dot = mathVec3Dot(dir, v0);
 		if (dot < -CCT_EPSILON) {
 			return NULL;
 		}
-		if (mathVec3LenSq(v1) > mathVec3LenSq(v2)) {
-			result->distance = mathVec3Dot(v2, dir);
-			mathVec3Copy(result->hit_point, ls[1]);
+		if (mathVec3LenSq(v0) < mathVec3LenSq(v1)) {
+			d = mathVec3Dot(v0, dir);
+			set_result(result, d, v0, dir);
 		}
 		else {
-			result->distance = mathVec3Dot(v1, dir);
-			mathVec3Copy(result->hit_point, ls[0]);
+			d = mathVec3Dot(v1, dir);
+			set_result(result, d, v1, dir);
 		}
-		result->hit_point_cnt = 1;
+		return result;
+	}
+	else {
+		float lsdir[3], p[3], op[3];
+		dot = mathVec3Dot(N, dir);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return NULL;
+		}
+		mathVec3Sub(lsdir, ls[1], ls[0]);
+		mathVec3Normalized(lsdir, lsdir);
+		mathPointProjectionLine(o, ls[0], lsdir, p);
+		if (!mathProjectionRay(o, p, dir, &d, op)) {
+			return NULL;
+		}
+		mathVec3Copy(p, o);
+		mathVec3AddScalar(p, dir, d);
+		mathVec3Sub(v0, ls[0], p);
+		mathVec3Sub(v1, ls[1], p);
+		dot = mathVec3Dot(v0, v1);
+		if (dot > CCT_EPSILON) {
+			return NULL;
+		}
+		set_result(result, d, p, op);
 		return result;
 	}
 }
@@ -749,98 +767,77 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 }
 
 static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float dir[3], const float ls2[2][3], CCTResult_t* result) {
-	int res = mathSegmentIntersectSegment(ls1, ls2, result->hit_point, NULL);
+	int line_mask;
+	int res = mathSegmentIntersectSegment(ls1, ls2, result->hit_point, &line_mask);
 	if (GEOMETRY_SEGMENT_CONTACT == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
+		set_result(result, 0.0f, result->hit_point, dir);
 		return result;
 	}
 	else if (GEOMETRY_SEGMENT_OVERLAP == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
+		set_result(result, 0.0f, NULL, dir);
+		return result;
+	}
+	else if (GEOMETRY_LINE_PARALLEL == line_mask || GEOMETRY_LINE_CROSS == line_mask) {
+		CCTResult_t* p_result = NULL;
+		float neg_dir[3];
+		int i;
+		for (i = 0; i < 2; ++i) {
+			CCTResult_t result_temp;
+			if (!mathRaycastSegment(ls1[i], dir, ls2, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < 2; ++i) {
+			CCTResult_t result_temp;
+			if (!mathRaycastSegment(ls2[i], neg_dir, ls1, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+				mathVec3Copy(p_result->hit_point, ls2[i]);
+			}
+		}
+		return p_result;
+	}
+	else if (GEOMETRY_LINE_OVERLAP == line_mask) {
+		float v[3], N[3], closest_p[2][3], dot;
+		mathVec3Sub(v, ls1[1], ls1[0]);
+		mathVec3Cross(N, v, dir);
+		if (!mathVec3IsZero(N)) {
+			return NULL;
+		}
+		mathSegmentClosestSegmentVertice(ls1, ls2, closest_p);
+		mathVec3Sub(v, closest_p[1], closest_p[0]);
+		dot = mathVec3Dot(v, dir);
+		if (dot < -CCT_EPSILON) {
+			return NULL;
+		}
+		set_result(result, dot, closest_p[1], dir);
 		return result;
 	}
 	else {
-		float N[3], lsdir1[3];
-		mathVec3Sub(lsdir1, ls1[1], ls1[0]);
-		mathVec3Cross(N, lsdir1, dir);
+		float N[3], v[3], neg_dir[3];
+		mathVec3Sub(v, ls1[1], ls1[0]);
+		mathVec3Cross(N, v, dir);
 		if (mathVec3IsZero(N)) {
-			CCTResult_t results[2], *p_result;
-			if (!mathRaycastSegment(ls1[0], dir, ls2, &results[0]))
-				return NULL;
-			if (!mathRaycastSegment(ls1[1], dir, ls2, &results[1]))
-				return NULL;
-			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
-			copy_result(result, p_result);
-			return result;
-		}
-		else {
-			float neg_dir[3];
-			mathVec3Normalized(N, N);
-			res = mathSegmentIntersectPlane(ls2, ls1[0], N, result->hit_point);
-			if (1 == res) {
-				float hit_point[3];
-				mathVec3Copy(hit_point, result->hit_point);
-				mathVec3Negate(neg_dir, dir);
-				if (!mathRaycastSegment(hit_point, neg_dir, ls1, result))
-					return NULL;
-				mathVec3Copy(result->hit_point, hit_point);
-				return result;
-			}
-			else if (2 == res) {
-				int is_parallel;
-				float lsdir2[3], v[3];
-				CCTResult_t results[4], *p_result = NULL;
-
-				mathVec3Sub(lsdir2, ls2[1], ls2[0]);
-				mathVec3Cross(v, lsdir1, lsdir2);
-				is_parallel = mathVec3IsZero(v);
-				do {
-					int c0 = 0, c1 = 0;
-					if (mathRaycastSegment(ls1[0], dir, ls2, &results[0])) {
-						c0 = 1;
-						if (!p_result)
-							p_result = &results[0];
-					}
-					if (mathRaycastSegment(ls1[1], dir, ls2, &results[1])) {
-						c1 = 1;
-						if (!p_result || p_result->distance > results[1].distance)
-							p_result = &results[1];
-					}
-					if (is_parallel && (c0 || c1))
-						break;
-					else if (c0 && c1)
-						break;
-					mathVec3Negate(neg_dir, dir);
-					if (mathRaycastSegment(ls2[0], neg_dir, ls1, &results[2])) {
-						if (!p_result || p_result->distance > results[2].distance) {
-							p_result = &results[2];
-							mathVec3Copy(p_result->hit_point, ls2[0]);
-						}
-					}
-					if (mathRaycastSegment(ls2[1], neg_dir, ls1, &results[3])) {
-						if (!p_result || p_result->distance > results[3].distance) {
-							p_result = &results[3];
-							mathVec3Copy(p_result->hit_point, ls2[1]);
-						}
-					}
-				} while (0);
-				if (p_result) {
-					/*
-					if (is_parallel) {
-						float new_ls1[2][3];
-						mathVec3AddScalar(mathVec3Copy(new_ls1[0], ls1[0]), dir, p_result->distance);
-						mathVec3AddScalar(mathVec3Copy(new_ls1[1], ls1[1]), dir, p_result->distance);
-						if (2 == overlapSegmentIntersectSegment((const float(*)[3])new_ls1, ls2, v))
-							result->hit_point_cnt = -1;
-					}
-					*/
-					copy_result(result, p_result);
-					return result;
-				}
-			}
 			return NULL;
 		}
+		mathVec3Normalized(N, N);
+		if (!mathSegmentIntersectPlane(ls2, ls1[0], N, v)) {
+			return NULL;
+		}
+		mathVec3Negate(neg_dir, dir);
+		if (!mathRaycastSegment(v, neg_dir, ls1, result)) {
+			return NULL;
+		}
+		mathVec3Copy(result->hit_point, v);
+		return result;
 	}
 }
 

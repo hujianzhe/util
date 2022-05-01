@@ -11,25 +11,31 @@
 extern "C" {
 #endif
 
-int mathProjectionRayLength(const float o[3], const float projection_p[3], const float dir[3], float* d) {
+int mathProjectionRay(const float o[3], const float projection_p[3], const float dir[3], float* dir_d, float projection_v[3]) {
 	float v[3];
 	mathVec3Sub(v, projection_p, o);
 	if (mathVec3IsZero(v)) {
-		*d = 0.0f;
+		*dir_d = 0.0f;
+		if (projection_v) {
+			mathVec3Set(projection_v, 0.0f, 0.0f, 0.0f);
+		}
 		return 1;
 	}
 	if (dir) {
 		float dot = mathVec3Dot(v, dir);
 		if (dot <= CCT_EPSILON) {
-			*d = 0.0f;
+			*dir_d = 0.0f;
 			return 0;
 		}
-		*d = mathVec3Normalized(v, v);
+		*dir_d = mathVec3Normalized(v, v);
 		dot = mathVec3Dot(v, dir);
-		*d /= dot;
+		*dir_d /= dot;
 	}
 	else {
-		*d = mathVec3Normalized(v, v);
+		*dir_d = mathVec3Normalized(v, v);
+	}
+	if (projection_v) {
+		mathVec3Copy(projection_v, v);
 	}
 	return 1;
 }
