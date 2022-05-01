@@ -24,11 +24,13 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 	mathVec3Sub(v, lsv2, lsv1);
 	mathVec3Cross(n, lsdir1, lsdir2);
 	if (mathVec3IsZero(n)) {
+		dot = mathVec3Dot(v, lsdir1);
+		dot *= dot;
+		nlen = mathVec3LenSq(v);
 		if (min_d) {
-			dot = mathVec3Dot(v, lsdir1);
-			*min_d = sqrtf(mathVec3LenSq(v) - dot * dot);
+			*min_d = sqrtf(nlen - dot);
 		}
-		return 0;
+		return fcmpf(nlen, dot, CCT_EPSILON) ? GEOMETRY_LINE_PARALLEL : GEOMETRY_LINE_OVERLAP;
 	}
 	nlen = mathVec3Normalized(N, n);
 	dot = mathVec3Dot(v, N);
@@ -43,7 +45,7 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 		dir_d[0] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir2), n) * nlensq_inv;
 		dir_d[1] = mathVec3Dot(mathVec3Cross(cross_v, v, lsdir1), n) * nlensq_inv;
 	}
-	return 1;
+	return dot > CCT_EPSILON ? GEOMETRY_LINE_SKEW : GEOMETRY_LINE_CROSS;
 }
 
 int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float distance[2]) {
@@ -52,16 +54,16 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 	mathVec3Cross(N, ls1dir, ls2dir);
 	if (mathVec3IsZero(N)) {
 		float dot = mathVec3Dot(v, ls2dir);
-		return fcmpf(dot * dot, mathVec3LenSq(v), CCT_EPSILON) ? 0 : 2;
+		return fcmpf(dot * dot, mathVec3LenSq(v), CCT_EPSILON) ? GEOMETRY_LINE_PARALLEL: GEOMETRY_LINE_OVERLAP;
 	}
 	else if (mathVec3IsZero(v)) {
 		distance[0] = distance[1] = 0.0f;
-		return 1;
+		return GEOMETRY_LINE_CROSS;
 	}
 	else {
 		float dot = mathVec3Dot(v, N);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
-			return 0;
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return GEOMETRY_LINE_SKEW;
 		}
 		dot = mathVec3Dot(v, ls2dir);
 		mathVec3AddScalar(mathVec3Copy(v, ls2v), ls2dir, dot);
@@ -84,8 +86,193 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 			distance[1] = mathVec3Normalized(v, v);
 			distance[1] /= mathVec3Dot(v, ls2dir);
 		}
-		return 1;
+		return GEOMETRY_LINE_CROSS;
 	}
+}
+
+static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+	int mask = GEOMETRY_LINE_OVERLAP;
+	float dot, lsdir1[3], lsdir2[3];
+	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
+	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
+	if (mathVec3Equal(ls1[0], ls2[0])) {
+		dot = mathVec3Dot(lsdir2, lsdir1);
+		if (dot <= CCT_EPSILON) {
+			if (p) {
+				mathVec3Copy(p, ls1[0]);
+			}
+			mask |= GEOMETRY_SEGMENT_CONTACT;
+			return mask;
+		}
+		mask |= GEOMETRY_SEGMENT_OVERLAP;
+		return mask;
+	}
+	else if (mathVec3Equal(ls1[0], ls2[1])) {
+		dot = mathVec3Dot(lsdir2, lsdir1);
+		if (dot >= CCT_EPSILON) {
+			if (p) {
+				mathVec3Copy(p, ls1[0]);
+			}
+			mask |= GEOMETRY_SEGMENT_CONTACT;
+			return mask;
+		}
+		mask |= GEOMETRY_SEGMENT_OVERLAP;
+		return mask;
+	}
+	else if (mathVec3Equal(ls1[1], ls2[0])) {
+		dot = mathVec3Dot(lsdir2, lsdir1);
+		if (dot >= CCT_EPSILON) {
+			if (p) {
+				mathVec3Copy(p, ls1[1]);
+			}
+			mask |= GEOMETRY_SEGMENT_CONTACT;
+			return mask;
+		}
+		mask |= GEOMETRY_SEGMENT_OVERLAP;
+		return mask;
+	}
+	else if (mathVec3Equal(ls1[1], ls2[1])) {
+		dot = mathVec3Dot(lsdir2, lsdir1);
+		if (dot <= CCT_EPSILON) {
+			if (p) {
+				mathVec3Copy(p, ls1[1]);
+			}
+			mask |= GEOMETRY_SEGMENT_CONTACT;
+			return mask;
+		}
+		mask |= GEOMETRY_SEGMENT_OVERLAP;
+		return mask;
+	}
+	else {
+		float v1[3], v2[3];
+		int i;
+		for (i = 0; i < 2; ++i) {
+			mathVec3Sub(v1, ls1[0], ls2[i]);
+			mathVec3Sub(v2, ls1[1], ls2[i]);
+			dot = mathVec3Dot(v1, v2);
+			if (dot < -CCT_EPSILON) {
+				mask |= GEOMETRY_SEGMENT_OVERLAP;
+				return mask;
+			}
+		}
+		for (i = 0; i < 2; ++i) {
+			mathVec3Sub(v1, ls2[0], ls1[i]);
+			mathVec3Sub(v2, ls2[1], ls1[i]);
+			dot = mathVec3Dot(v1, v2);
+			if (dot < -CCT_EPSILON) {
+				mask |= GEOMETRY_SEGMENT_OVERLAP;
+				return mask;
+			}
+		}
+		return mask;
+	}
+}
+
+int mathSegmentClosetSegment(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]) {
+	float dir1[3], dir2[3], lslen1, lslen2, dir_d[2];
+	int res, i, has_p;
+	mathVec3Sub(dir1, ls1[1], ls1[0]);
+	mathVec3Sub(dir2, ls2[1], ls2[0]);
+	lslen1 = mathVec3Normalized(dir1, dir1);
+	lslen2 = mathVec3Normalized(dir2, dir2);
+	res = mathLineClosestLine(ls1[0], dir1, ls2[0], dir2, NULL, dir_d);
+	if (GEOMETRY_LINE_PARALLEL == res) {
+		for (i = 0; i < 2; ++i) {
+			float v[3], dot;
+			mathVec3Sub(v, ls1[i], ls2[0]);
+			dot = mathVec3Dot(v, dir2);
+			if (dot >= -CCT_EPSILON && dot <= lslen2 + CCT_EPSILON) {
+				mathVec3Copy(closest_p[0], ls1[i]);
+				mathVec3Copy(closest_p[1], ls2[0]);
+				mathVec3AddScalar(closest_p[1], dir2, dot);
+				return res;
+			}
+		}
+	}
+	else if (GEOMETRY_LINE_CROSS == res || GEOMETRY_LINE_SKEW == res) {
+		if ((dir_d[0] < -CCT_EPSILON || dir_d[0] > lslen1 + CCT_EPSILON) &&
+			(dir_d[1] < -CCT_EPSILON || dir_d[1] > lslen2 + CCT_EPSILON))
+		{
+			mathVec3Copy(closest_p[0], ls1[0]);
+			mathVec3AddScalar(closest_p[0], dir1, dir_d[0]);
+			mathVec3Copy(closest_p[1], ls2[0]);
+			mathVec3AddScalar(closest_p[1], dir2, dir_d[1]);
+			return res;
+		}
+		has_p = 0;
+		for (i = 0; i < 2; ++i) {
+			float v[3], dot;
+			mathVec3Sub(v, ls1[i], ls2[0]);
+			dot = mathVec3Dot(v, dir2);
+			if (dot < -CCT_EPSILON || dot > lslen2 + CCT_EPSILON) {
+				continue;
+			}
+			if (has_p) {
+				float dq = mathVec3LenSq(v) - dot * dot;
+				mathVec3Sub(v, closest_p[1], closest_p[0]);
+				if (dq >= mathVec3LenSq(v)) {
+					continue;
+				}
+			}
+			has_p = 1;
+			mathVec3Copy(closest_p[0], ls1[i]);
+			mathVec3Copy(closest_p[1], ls2[0]);
+			mathVec3AddScalar(closest_p[1], dir2, dot);
+		}
+		for (i = 0; i < 2; ++i) {
+			float v[3], dot;
+			mathVec3Sub(v, ls2[i], ls1[0]);
+			dot = mathVec3Dot(v, dir1);
+			if (dot < -CCT_EPSILON || dot > lslen1 + CCT_EPSILON) {
+				continue;
+			}
+			if (has_p) {
+				float dq = mathVec3LenSq(v) - dot * dot;
+				mathVec3Sub(v, closest_p[1], closest_p[0]);
+				if (dq >= mathVec3LenSq(v)) {
+					continue;
+				}
+			}
+			has_p = 1;
+			mathVec3Copy(closest_p[1], ls2[i]);
+			mathVec3Copy(closest_p[0], ls1[0]);
+			mathVec3AddScalar(closest_p[0], dir1, dot);
+		}
+		if (has_p) {
+			return res;
+		}
+	}
+	else {
+		float p[3];
+		res = mathSegmentIntersectSegmentWhenInSameLine(ls1, ls2, p);
+		if (res & GEOMETRY_SEGMENT_CONTACT) {
+			mathVec3Copy(closest_p[0], p);
+			mathVec3Copy(closest_p[1], p);
+			return res;
+		}
+		if (res & GEOMETRY_SEGMENT_OVERLAP) {
+			return res;
+		}
+	}
+	has_p = 0;
+	for (i = 0; i < 2; ++i) {
+		int j;
+		for (j = 0; j < 2; ++j) {
+			float v[3];
+			mathVec3Sub(v, ls2[j], ls1[i]);
+			if (has_p) {
+				float dq = mathVec3LenSq(v);
+				mathVec3Sub(v, closest_p[1], closest_p[0]);
+				if (dq >= mathVec3LenSq(v)) {
+					continue;
+				}
+			}
+			has_p = 1;
+			mathVec3Copy(closest_p[0], ls1[i]);
+			mathVec3Copy(closest_p[1], ls2[j]);
+		}
+	}
+	return res;
 }
 
 int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
@@ -111,16 +298,16 @@ int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
 	}
 }
 
-void mathSegmentClosetPointTo(const float ls[2][3], const float p[3], float closet_p[3]) {
+void mathSegmentClosetPointTo(const float ls[2][3], const float p[3], float closest_p[3]) {
 	float lsdir[3], lslen, dot;
 	mathVec3Sub(lsdir, ls[1], ls[0]);
 	lslen = mathVec3Normalized(lsdir, lsdir);
-	dot = mathPointProjectionLine(p, ls[0], lsdir, closet_p);
+	dot = mathPointProjectionLine(p, ls[0], lsdir, closest_p);
 	if (dot < -CCT_EPSILON) {
-		mathVec3Copy(closet_p, ls[0]);
+		mathVec3Copy(closest_p, ls[0]);
 	}
 	else if (dot > lslen + CCT_EPSILON) {
-		mathVec3Copy(closet_p, ls[1]);
+		mathVec3Copy(closest_p, ls[1]);
 	}
 }
 
@@ -141,7 +328,7 @@ int mathSegmentContainSegment(const float ls1[2][3], const float ls2[2][3]) {
 		mathVec3Sub(v1, ls1[0], ls2[i]);
 		mathVec3Sub(v2, ls1[1], ls2[i]);
 		dot = mathVec3Dot(v1, v2);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) > 0) {
+		if (dot > CCT_EPSILON) {
 			return 0;
 		}
 	}
@@ -156,84 +343,24 @@ int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], fl
 	lslen1 = mathVec3Normalized(lsdir1, lsdir1);
 	lslen2 = mathVec3Normalized(lsdir2, lsdir2);
 	res = mathLineIntersectLine(ls1[0], lsdir1, ls2[0], lsdir2, d);
-	if (0 == res) {
-		return 0;
+	if (GEOMETRY_LINE_PARALLEL == res || GEOMETRY_LINE_SKEW == res) {
+		return res;
 	}
-	else if (1 == res) {
+	else if (GEOMETRY_LINE_CROSS == res) {
 		if (d[0] < -CCT_EPSILON || d[1] < -CCT_EPSILON) {
-			return 0;
+			return res;
 		}
 		if (d[0] > lslen1 + CCT_EPSILON || d[1] > lslen2 + CCT_EPSILON) {
-			return 0;
+			return res;
 		}
 		if (p) {
 			mathVec3AddScalar(mathVec3Copy(p, ls1[0]), lsdir1, d[0]);
 		}
-		return 1;
+		res |= GEOMETRY_SEGMENT_CONTACT;
+		return res;
 	}
 	else {
-		float dot;
-		if (mathVec3Equal(ls1[0], ls2[0])) {
-			dot = mathVec3Dot(lsdir2, lsdir1);
-			if (dot <= CCT_EPSILON) {
-				if (p) {
-					mathVec3Copy(p, ls1[0]);
-				}
-				return 1;
-			}
-			return 2;
-		}
-		else if (mathVec3Equal(ls1[0], ls2[1])) {
-			dot = mathVec3Dot(lsdir2, lsdir1);
-			if (dot >= CCT_EPSILON) {
-				if (p) {
-					mathVec3Copy(p, ls1[0]);
-				}
-				return 1;
-			}
-			return 2;
-		}
-		else if (mathVec3Equal(ls1[1], ls2[0])) {
-			dot = mathVec3Dot(lsdir2, lsdir1);
-			if (dot >= CCT_EPSILON) {
-				if (p) {
-					mathVec3Copy(p, ls1[1]);
-				}
-				return 1;
-			}
-			return 2;
-		}
-		else if (mathVec3Equal(ls1[1], ls2[1])) {
-			dot = mathVec3Dot(lsdir2, lsdir1);
-			if (dot <= CCT_EPSILON) {
-				if (p) {
-					mathVec3Copy(p, ls1[1]);
-				}
-				return 1;
-			}
-			return 2;
-		}
-		else {
-			float v1[3], v2[3];
-			int i;
-			for (i = 0; i < 2; ++i) {
-				mathVec3Sub(v1, ls1[0], ls2[i]);
-				mathVec3Sub(v2, ls1[1], ls2[i]);
-				dot = mathVec3Dot(v1, v2);
-				if (dot < -CCT_EPSILON) {
-					return 2;
-				}
-			}
-			for (i = 0; i < 2; ++i) {
-				mathVec3Sub(v1, ls2[0], ls1[i]);
-				mathVec3Sub(v2, ls2[1], ls1[i]);
-				dot = mathVec3Dot(v1, v2);
-				if (dot < -CCT_EPSILON) {
-					return 2;
-				}
-			}
-			return 0;
-		}
+		return mathSegmentIntersectSegmentWhenInSameLine(ls1, ls2, p);
 	}
 }
 
