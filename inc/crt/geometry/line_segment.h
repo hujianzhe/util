@@ -21,6 +21,7 @@ enum {
 extern "C" {
 #endif
 
+__declspec_dll int mathProjectionRayLength(const float o[3], const float projection_p[3], const float dir[3], float* d);
 __declspec_dll float mathPointProjectionLine(const float p[3], const float ls_v[3], const float lsdir[3], float np[3]);
 __declspec_dll int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float lsv2[3], const float lsdir2[3], float* min_d, float dir_d[2]);
 __declspec_dll int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const float ls2v[3], const float ls2dir[3], float distance[2]);
