@@ -29,6 +29,8 @@ __declspec_dll int mathSegmentHasPoint(const float ls[2][3], const float p[3]);
 __declspec_dll void mathSegmentClosestPointTo(const float ls[2][3], const float p[3], float closest_p[3]);
 __declspec_dll int mathSegmentContainSegment(const float ls1[2][3], const float ls2[2][3]);
 __declspec_dll int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3], int* line_mask);
+__declspec_dll int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], const float ls2[2][3], float p[3]);
+__declspec_dll void mathSegmentClosestSegmentVertice(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]);
 __declspec_dll int mathSegmentClosestSegment(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]);
 
 #ifdef	__cplusplus

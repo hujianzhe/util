@@ -90,7 +90,7 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 	}
 }
 
-static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], const float ls2[2][3], float p[3]) {
 	float dot, lsdir1[3], lsdir2[3];
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
@@ -154,6 +154,26 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			}
 		}
 		return 0;
+	}
+}
+
+void mathSegmentClosestSegmentVertice(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]) {
+	int i;
+	for (i = 0; i < 2; ++i) {
+		int j;
+		for (j = 0; j < 2; ++j) {
+			float v[3];
+			mathVec3Sub(v, ls2[j], ls1[i]);
+			if (i || j) {
+				float dq = mathVec3LenSq(v);
+				mathVec3Sub(v, closest_p[1], closest_p[0]);
+				if (dq >= mathVec3LenSq(v)) {
+					continue;
+				}
+			}
+			mathVec3Copy(closest_p[0], ls1[i]);
+			mathVec3Copy(closest_p[1], ls2[j]);
+		}
 	}
 }
 
@@ -243,48 +263,20 @@ int mathSegmentClosestSegment(const float ls1[2][3], const float ls2[2][3], floa
 			return res;
 		}
 	}
-	has_p = 0;
-	for (i = 0; i < 2; ++i) {
-		int j;
-		for (j = 0; j < 2; ++j) {
-			float v[3];
-			mathVec3Sub(v, ls2[j], ls1[i]);
-			if (has_p) {
-				float dq = mathVec3LenSq(v);
-				mathVec3Sub(v, closest_p[1], closest_p[0]);
-				if (dq >= mathVec3LenSq(v)) {
-					continue;
-				}
-			}
-			has_p = 1;
-			mathVec3Copy(closest_p[0], ls1[i]);
-			mathVec3Copy(closest_p[1], ls2[j]);
-		}
-	}
+	mathSegmentClosestSegmentVertice(ls1, ls2, closest_p);
 	return 0;
 }
 
 int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
-	float pv1[3], pv2[3], N[3];
+	float pv1[3], pv2[3], N[3], dot;
 	mathVec3Sub(pv1, ls[0], p);
 	mathVec3Sub(pv2, ls[1], p);
 	mathVec3Cross(N, pv1, pv2);
 	if (!mathVec3IsZero(N)) {
 		return 0;
 	}
-	else if (mathVec3Equal(ls[0], p)) {
-		return 1;
-	}
-	else if (mathVec3Equal(ls[1], p)) {
-		return 1;
-	}
-	else {
-		float dot = mathVec3Dot(pv1, pv2);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) > 0) {
-			return 0;
-		}
-		return 1;
-	}
+	dot = mathVec3Dot(pv1, pv2);
+	return dot <= CCT_EPSILON;
 }
 
 void mathSegmentClosestPointTo(const float ls[2][3], const float p[3], float closest_p[3]) {
