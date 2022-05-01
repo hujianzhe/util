@@ -106,7 +106,7 @@ static int mathSphereIntersectLine(const float o[3], float radius, const float l
 static int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]) {
 	int res;
 	float closest_p[3], closest_v[3];
-	mathSegmentClosetPointTo(ls, o, closest_p);
+	mathSegmentClosestPointTo(ls, o, closest_p);
 	mathVec3Sub(closest_v, closest_p, o);
 	res = fcmpf(mathVec3LenSq(closest_v), radius * radius, CCT_EPSILON);
 	if (res == 0) {
@@ -438,11 +438,11 @@ static int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axi
 	float ls1[2][3], ls2[2][3], closest_p[2][3], v[3], r;
 	mathCapsuleAxisSegment(cp1_o, cp1_axis, cp1_half_height, ls1);
 	mathCapsuleAxisSegment(cp2_o, cp2_axis, cp2_half_height, ls2);
-	res = mathSegmentClosetSegment((const float(*)[3])ls1, (const float(*)[3])ls2, closest_p);
-	if (GEOMETRY_SEGMENT_OVERLAP & res) {
+	res = mathSegmentClosestSegment((const float(*)[3])ls1, (const float(*)[3])ls2, closest_p);
+	if (GEOMETRY_SEGMENT_OVERLAP == res) {
 		return 1;
 	}
-	if (GEOMETRY_SEGMENT_CONTACT & res) {
+	if (GEOMETRY_SEGMENT_CONTACT == res) {
 		return 1;
 	}
 	mathVec3Sub(v, closest_p[1], closest_p[0]);
@@ -749,13 +749,13 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 }
 
 static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float dir[3], const float ls2[2][3], CCTResult_t* result) {
-	int res = mathSegmentIntersectSegment(ls1, ls2, result->hit_point);
-	if (res & GEOMETRY_SEGMENT_CONTACT) {
+	int res = mathSegmentIntersectSegment(ls1, ls2, result->hit_point, NULL);
+	if (GEOMETRY_SEGMENT_CONTACT == res) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = 1;
 		return result;
 	}
-	else if (res & GEOMETRY_SEGMENT_OVERLAP) {
+	else if (GEOMETRY_SEGMENT_OVERLAP == res) {
 		result->distance = 0.0f;
 		result->hit_point_cnt = -1;
 		return result;
@@ -1719,7 +1719,7 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 			case COLLISION_BODY_LINE_SEGMENT:
 			{
 				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSegmentIntersectSegment(one->vertices, two->vertices, NULL) & GEOMETRY_SEGMENT_ALL_MASK;
+				return mathSegmentIntersectSegment(one->vertices, two->vertices, NULL, NULL);
 			}
 			case COLLISION_BODY_PLANE:
 			{

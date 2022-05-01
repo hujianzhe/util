@@ -91,7 +91,6 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 }
 
 static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], const float ls2[2][3], float p[3]) {
-	int mask = GEOMETRY_LINE_OVERLAP;
 	float dot, lsdir1[3], lsdir2[3];
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
 	mathVec3Sub(lsdir2, ls2[1], ls2[0]);
@@ -101,11 +100,9 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			if (p) {
 				mathVec3Copy(p, ls1[0]);
 			}
-			mask |= GEOMETRY_SEGMENT_CONTACT;
-			return mask;
+			return GEOMETRY_SEGMENT_CONTACT;
 		}
-		mask |= GEOMETRY_SEGMENT_OVERLAP;
-		return mask;
+		return GEOMETRY_SEGMENT_OVERLAP;
 	}
 	else if (mathVec3Equal(ls1[0], ls2[1])) {
 		dot = mathVec3Dot(lsdir2, lsdir1);
@@ -113,11 +110,9 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			if (p) {
 				mathVec3Copy(p, ls1[0]);
 			}
-			mask |= GEOMETRY_SEGMENT_CONTACT;
-			return mask;
+			return GEOMETRY_SEGMENT_CONTACT;
 		}
-		mask |= GEOMETRY_SEGMENT_OVERLAP;
-		return mask;
+		return GEOMETRY_SEGMENT_OVERLAP;
 	}
 	else if (mathVec3Equal(ls1[1], ls2[0])) {
 		dot = mathVec3Dot(lsdir2, lsdir1);
@@ -125,11 +120,9 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			if (p) {
 				mathVec3Copy(p, ls1[1]);
 			}
-			mask |= GEOMETRY_SEGMENT_CONTACT;
-			return mask;
+			return GEOMETRY_SEGMENT_CONTACT;
 		}
-		mask |= GEOMETRY_SEGMENT_OVERLAP;
-		return mask;
+		return GEOMETRY_SEGMENT_OVERLAP;
 	}
 	else if (mathVec3Equal(ls1[1], ls2[1])) {
 		dot = mathVec3Dot(lsdir2, lsdir1);
@@ -137,11 +130,9 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			if (p) {
 				mathVec3Copy(p, ls1[1]);
 			}
-			mask |= GEOMETRY_SEGMENT_CONTACT;
-			return mask;
+			return GEOMETRY_SEGMENT_CONTACT;
 		}
-		mask |= GEOMETRY_SEGMENT_OVERLAP;
-		return mask;
+		return GEOMETRY_SEGMENT_OVERLAP;
 	}
 	else {
 		float v1[3], v2[3];
@@ -151,8 +142,7 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			mathVec3Sub(v2, ls1[1], ls2[i]);
 			dot = mathVec3Dot(v1, v2);
 			if (dot < -CCT_EPSILON) {
-				mask |= GEOMETRY_SEGMENT_OVERLAP;
-				return mask;
+				return GEOMETRY_SEGMENT_OVERLAP;
 			}
 		}
 		for (i = 0; i < 2; ++i) {
@@ -160,15 +150,14 @@ static int mathSegmentIntersectSegmentWhenInSameLine(const float ls1[2][3], cons
 			mathVec3Sub(v2, ls2[1], ls1[i]);
 			dot = mathVec3Dot(v1, v2);
 			if (dot < -CCT_EPSILON) {
-				mask |= GEOMETRY_SEGMENT_OVERLAP;
-				return mask;
+				return GEOMETRY_SEGMENT_OVERLAP;
 			}
 		}
-		return mask;
+		return 0;
 	}
 }
 
-int mathSegmentClosetSegment(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]) {
+int mathSegmentClosestSegment(const float ls1[2][3], const float ls2[2][3], float closest_p[2][3]) {
 	float dir1[3], dir2[3], lslen1, lslen2, dir_d[2];
 	int res, i, has_p;
 	mathVec3Sub(dir1, ls1[1], ls1[0]);
@@ -185,19 +174,19 @@ int mathSegmentClosetSegment(const float ls1[2][3], const float ls2[2][3], float
 				mathVec3Copy(closest_p[0], ls1[i]);
 				mathVec3Copy(closest_p[1], ls2[0]);
 				mathVec3AddScalar(closest_p[1], dir2, dot);
-				return res;
+				return 0;
 			}
 		}
 	}
 	else if (GEOMETRY_LINE_CROSS == res || GEOMETRY_LINE_SKEW == res) {
-		if ((dir_d[0] < -CCT_EPSILON || dir_d[0] > lslen1 + CCT_EPSILON) &&
-			(dir_d[1] < -CCT_EPSILON || dir_d[1] > lslen2 + CCT_EPSILON))
+		if (dir_d[0] >= CCT_EPSILON && dir_d[0] <= lslen1 + CCT_EPSILON &&
+			dir_d[1] >= CCT_EPSILON && dir_d[1] <= lslen2 + CCT_EPSILON)
 		{
 			mathVec3Copy(closest_p[0], ls1[0]);
 			mathVec3AddScalar(closest_p[0], dir1, dir_d[0]);
 			mathVec3Copy(closest_p[1], ls2[0]);
 			mathVec3AddScalar(closest_p[1], dir2, dir_d[1]);
-			return res;
+			return GEOMETRY_LINE_CROSS == res ? GEOMETRY_SEGMENT_CONTACT : 0;
 		}
 		has_p = 0;
 		for (i = 0; i < 2; ++i) {
@@ -239,18 +228,18 @@ int mathSegmentClosetSegment(const float ls1[2][3], const float ls2[2][3], float
 			mathVec3AddScalar(closest_p[0], dir1, dot);
 		}
 		if (has_p) {
-			return res;
+			return 0;
 		}
 	}
 	else {
 		float p[3];
 		res = mathSegmentIntersectSegmentWhenInSameLine(ls1, ls2, p);
-		if (res & GEOMETRY_SEGMENT_CONTACT) {
+		if (GEOMETRY_SEGMENT_CONTACT == res) {
 			mathVec3Copy(closest_p[0], p);
 			mathVec3Copy(closest_p[1], p);
 			return res;
 		}
-		if (res & GEOMETRY_SEGMENT_OVERLAP) {
+		if (GEOMETRY_SEGMENT_OVERLAP == res) {
 			return res;
 		}
 	}
@@ -272,7 +261,7 @@ int mathSegmentClosetSegment(const float ls1[2][3], const float ls2[2][3], float
 			mathVec3Copy(closest_p[1], ls2[j]);
 		}
 	}
-	return res;
+	return 0;
 }
 
 int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
@@ -298,7 +287,7 @@ int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
 	}
 }
 
-void mathSegmentClosetPointTo(const float ls[2][3], const float p[3], float closest_p[3]) {
+void mathSegmentClosestPointTo(const float ls[2][3], const float p[3], float closest_p[3]) {
 	float lsdir[3], lslen, dot;
 	mathVec3Sub(lsdir, ls[1], ls[0]);
 	lslen = mathVec3Normalized(lsdir, lsdir);
@@ -335,7 +324,7 @@ int mathSegmentContainSegment(const float ls1[2][3], const float ls2[2][3]) {
 	return 1;
 }
 
-int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3]) {
+int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], float p[3], int* line_mask) {
 	int res;
 	float lsdir1[3], lsdir2[3], d[2], lslen1, lslen2;
 	mathVec3Sub(lsdir1, ls1[1], ls1[0]);
@@ -343,21 +332,22 @@ int mathSegmentIntersectSegment(const float ls1[2][3], const float ls2[2][3], fl
 	lslen1 = mathVec3Normalized(lsdir1, lsdir1);
 	lslen2 = mathVec3Normalized(lsdir2, lsdir2);
 	res = mathLineIntersectLine(ls1[0], lsdir1, ls2[0], lsdir2, d);
+	if (line_mask) {
+		*line_mask = res;
+	}
 	if (GEOMETRY_LINE_PARALLEL == res || GEOMETRY_LINE_SKEW == res) {
-		return res;
+		return 0;
 	}
 	else if (GEOMETRY_LINE_CROSS == res) {
-		if (d[0] < -CCT_EPSILON || d[1] < -CCT_EPSILON) {
-			return res;
-		}
-		if (d[0] > lslen1 + CCT_EPSILON || d[1] > lslen2 + CCT_EPSILON) {
-			return res;
+		if (d[0] < -CCT_EPSILON || d[1] < -CCT_EPSILON ||
+			d[0] > lslen1 + CCT_EPSILON || d[1] > lslen2 + CCT_EPSILON)
+		{
+			return 0;
 		}
 		if (p) {
 			mathVec3AddScalar(mathVec3Copy(p, ls1[0]), lsdir1, d[0]);
 		}
-		res |= GEOMETRY_SEGMENT_CONTACT;
-		return res;
+		return GEOMETRY_SEGMENT_CONTACT;
 	}
 	else {
 		return mathSegmentIntersectSegmentWhenInSameLine(ls1, ls2, p);
