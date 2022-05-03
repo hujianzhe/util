@@ -90,7 +90,7 @@ float mathVec3Len(const float v[3]) {
 
 float mathVec3Normalized(float r[3], const float v[3]) {
 	float len = mathVec3Len(v);
-	if (fcmpf(len, 0.0f, CCT_EPSILON) > 0) {
+	if (len > CCT_EPSILON) {
 		float inv_len = 1.0f / len;
 		r[0] = v[0] * inv_len;
 		r[1] = v[1] * inv_len;
@@ -98,6 +98,18 @@ float mathVec3Normalized(float r[3], const float v[3]) {
 		return len;
 	}
 	return 0.0f;
+}
+
+float mathVec3Direction(const float end[3], const float start[3], float dir[3]) {
+	float v[3];
+	if (!dir) {
+		dir = v;
+	}
+	mathVec3Sub(dir, end, start);
+	if (mathVec3IsZero(dir)) {
+		return 0.0f;
+	}
+	return mathVec3Normalized(dir, dir);
 }
 
 /* r = -v */
@@ -140,6 +152,7 @@ float* mathVec3MultiplyScalar(float r[3], const float v[3], float n) {
 	return r;
 }
 
+/* r = v1 * v2, r = |v1|*|v2|*cos@ */
 float mathVec3Dot(const float v1[3], const float v2[3]) {
 	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
@@ -148,7 +161,7 @@ float mathVec3Radian(const float v1[3], const float v2[3]) {
 	return acosf(mathVec3Dot(v1, v2) / sqrtf(mathVec3LenSq(v1) * mathVec3LenSq(v2)));
 }
 
-/* r = v1 X v2 */
+/* r = v1 X v2, r = |v1|*|v2|*sin@ */
 float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]) {
 	float x = v1[1] * v2[2] - v1[2] * v2[1];
 	float y = v1[2] * v2[0] - v1[0] * v2[2];
@@ -161,7 +174,7 @@ float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]) {
 
 float* mathQuatNormalized(float r[4], const float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
-	if (fcmpf(m, 0.0f, CCT_EPSILON) > 0) {
+	if (m > CCT_EPSILON) {
 		m = 1.0f / sqrtf(m);
 		r[0] = q[0] * m;
 		r[1] = q[1] * m;

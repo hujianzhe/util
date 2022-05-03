@@ -40,6 +40,7 @@ typedef struct CollisionBodySphere_t {
 	float radius;
 } CollisionBodySphere_t;
 
+/*
 typedef struct CollisionBodyCapsule_t {
 	int type;
 	float pos[3];
@@ -47,6 +48,7 @@ typedef struct CollisionBodyCapsule_t {
 	float radius;
 	float half_height;
 } CollisionBodyCapsule_t;
+*/
 
 typedef struct CollisionBodyAABB_t {
 	int type;
@@ -74,7 +76,7 @@ typedef union CollisionBody_t {
 	CollisionBodyPoint_t point;
 	CollisionBodyLineSegment_t line_segment;
 	CollisionBodySphere_t sphere;
-	CollisionBodyCapsule_t capsule;
+	/*CollisionBodyCapsule_t capsule;*/
 	CollisionBodyAABB_t aabb;
 	CollisionBodyPlane_t plane;
 	CollisionBodyTrianglesPlane_t triangles_plane;
