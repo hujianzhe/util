@@ -89,8 +89,9 @@ float mathVec3Len(const float v[3]) {
 }
 
 float mathVec3Normalized(float r[3], const float v[3]) {
-	float len = mathVec3Len(v);
-	if (len > CCT_EPSILON) {
+	float len_sq = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+	if (len_sq > CCT_EPSILON) {
+		float len = sqrtf(len_sq);
 		float inv_len = 1.0f / len;
 		r[0] = v[0] * inv_len;
 		r[1] = v[1] * inv_len;
