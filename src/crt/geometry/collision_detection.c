@@ -1214,8 +1214,7 @@ static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], con
 
 static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], const float dir[3], const float o2[3], const float half2[3], CCTResult_t* result) {
 	if (mathAABBIntersectAABB(o1, half1, o2, half2)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
+		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
 	else {
@@ -1253,37 +1252,32 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 
 static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int res;
-	float dn, d;
+	float dn, d, hit_point[3];
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &dn);
 	res = fcmpf(dn * dn, radius * radius, CCT_EPSILON);
 	if (res < 0) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
+		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
 	else if (0 == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
-		mathVec3AddScalar(mathVec3Copy(result->hit_point, o), plane_n, dn);
+		mathVec3AddScalar(mathVec3Copy(hit_point, o), plane_n, dn);
+		set_result(result, 0.0f, hit_point, dir);
 		return result;
 	}
 	else {
 		float dn_abs, cos_theta = mathVec3Dot(plane_n, dir);
-		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0)
+		if (cos_theta <= CCT_EPSILON && cos_theta >= -CCT_EPSILON) {
 			return NULL;
+		}
 		d = dn / cos_theta;
-		if (fcmpf(d, 0.0f, CCT_EPSILON) < 0)
+		if (d < -CCT_EPSILON) {
 			return NULL;
-		dn_abs = fcmpf(dn, 0.0f, CCT_EPSILON) > 0 ? dn : -dn;
+		}
+		dn_abs = (dn >= 0.0f ? dn : -dn);
 		d -= radius / dn_abs * d;
-		result->distance = d;
-		result->hit_point_cnt = 1;
-		mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, d);
-		if (fcmpf(dn, 0.0f, CCT_EPSILON) < 0)
-			mathVec3AddScalar(result->hit_point, plane_n, -radius);
-		else
-			mathVec3AddScalar(result->hit_point, plane_n, radius);
-		mathVec3Copy(result->hit_normal, plane_n);
+		mathVec3AddScalar(mathVec3Copy(hit_point, o), dir, d);
+		mathVec3AddScalar(hit_point, plane_n, dn >= 0.0f ? radius : -radius);
+		set_result(result, d, hit_point, plane_n);
 		return result;
 	}
 }
@@ -1345,8 +1339,7 @@ static CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius,
 
 static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result) {
 	if (mathAABBIntersectSphere(center, half, o, radius)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
+		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
 	else {
