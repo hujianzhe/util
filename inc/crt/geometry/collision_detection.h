@@ -15,13 +15,15 @@ typedef struct CCTResult_t {
 } CCTResult_t;
 
 enum {
-	COLLISION_BODY_POINT,
-	COLLISION_BODY_AABB,
-	COLLISION_BODY_SPHERE,
+	COLLISION_BODY_POINT = 1,
+	COLLISION_BODY_LINE_SEGMENT = 2,
+	COLLISION_BODY_PLANE = 3,
+	COLLISION_BODY_SPHERE = 4,
+	COLLISION_BODY_AABB = 5,
+	/*
 	COLLISION_BODY_CAPSULE,
-	COLLISION_BODY_PLANE,
 	COLLISION_BODY_TRIANGLES_PLANE,
-	COLLISION_BODY_LINE_SEGMENT
+	*/
 };
 
 typedef struct CollisionBodyPoint_t {
@@ -48,6 +50,15 @@ typedef struct CollisionBodyCapsule_t {
 	float radius;
 	float half_height;
 } CollisionBodyCapsule_t;
+
+typedef struct CollisionBodyTrianglesPlane_t {
+	int type;
+	float normal[3];
+	float(*vertices)[3];
+	int verticescnt;
+	int* indices;
+	int indicescnt;
+} CollisionBodyTrianglesPlane_t;
 */
 
 typedef struct CollisionBodyAABB_t {
@@ -62,24 +73,17 @@ typedef struct CollisionBodyPlane_t {
 	float vertice[3];
 } CollisionBodyPlane_t;
 
-typedef struct CollisionBodyTrianglesPlane_t {
-	int type;
-	float normal[3];
-	float(*vertices)[3];
-	int verticescnt;
-	int* indices;
-	int indicescnt;
-} CollisionBodyTrianglesPlane_t;
-
 typedef union CollisionBody_t {
 	int type;
 	CollisionBodyPoint_t point;
 	CollisionBodyLineSegment_t line_segment;
 	CollisionBodySphere_t sphere;
-	/*CollisionBodyCapsule_t capsule;*/
 	CollisionBodyAABB_t aabb;
 	CollisionBodyPlane_t plane;
+	/*
+	CollisionBodyCapsule_t capsule;
 	CollisionBodyTrianglesPlane_t triangles_plane;
+	*/
 } CollisionBody_t;
 
 #ifdef __cplusplus

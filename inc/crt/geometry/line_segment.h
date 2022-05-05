@@ -17,6 +17,15 @@ enum {
 	GEOMETRY_SEGMENT_OVERLAP = 2,
 };
 
+typedef struct GeometryLine_t {
+	float v[3];
+	float dir[3];
+} GeometryLine_t;
+
+typedef struct GeometrySegment_t {
+	float v[2][3];
+} GeometrySegment_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

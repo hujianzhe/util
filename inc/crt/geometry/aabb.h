@@ -7,6 +7,11 @@
 
 #include "../../compiler_define.h"
 
+typedef struct GeometryAABB_t {
+	float o[3];
+	float half[3];
+} GeometryAABB_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

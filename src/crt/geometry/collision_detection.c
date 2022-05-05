@@ -166,7 +166,9 @@ static int mathSphereIntersectSegment(const float o[3], float radius, const floa
 	mathVec3Sub(closest_v, closest_p, o);
 	res = fcmpf(mathVec3LenSq(closest_v), radius * radius, CCT_EPSILON);
 	if (res == 0) {
-		mathVec3Copy(p, closest_p);
+		if (p) {
+			mathVec3Copy(p, closest_p);
+		}
 		return 1;
 	}
 	return res < 0 ? 2 : 0;
@@ -199,6 +201,7 @@ static int mathSphereIntersectPlane(const float o[3], float radius, const float 
 	}
 }
 
+/*
 static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, const float plane_n[3], const float vertices[][3], const int indices[], int indicescnt) {
 	float new_o[3], new_radius;
 	int i, res = mathSphereIntersectPlane(o, radius, vertices[indices[0]], plane_n, new_o, &new_radius);
@@ -222,7 +225,7 @@ static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, con
 				float edge[2][3], p[3];
 				mathVec3Copy(edge[0], vertices[indices[j % 3 + i]]);
 				mathVec3Copy(edge[1], vertices[indices[(j + 1) % 3 + i]]);
-				if (mathSphereIntersectSegment(new_o, new_radius, (const float(*)[3])edge, p)) {
+				if (mathSphereIntersectSegment(new_o, new_radius, (const float(*)[3])edge, NULL)) {
 					return 1;
 				}
 			}
@@ -231,7 +234,6 @@ static int mathSphereIntersectTrianglesPlane(const float o[3], float radius, con
 	return 0;
 }
 
-/*
 static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, float p[3]) {
 	float v[3], cp[3], dot;
 	mathVec3AddScalar(mathVec3Copy(cp, cp_o), cp_axis, -cp_half_height);
@@ -622,6 +624,7 @@ static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], co
 	}
 }
 
+/*
 static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[3], const float plane_n[3], const float vertices[][3], const int indices[], int indicecnt, CCTResult_t* result) {
 	int i;
 	if (!mathRaycastPlane(o, dir, vertices[indices[0]], plane_n, result)) {
@@ -639,6 +642,7 @@ static CCTResult_t* mathRaycastTrianglesPlane(const float o[3], const float dir[
 	}
 	return NULL;
 }
+*/
 
 static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
 	if (mathAABBHasPoint(aabb_o, aabb_half, o)) {
@@ -1316,6 +1320,7 @@ static CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const floa
 	return result;
 }
 
+/*
 static CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius, const float dir[3], const float plane_n[3],
 													const float vertices[][3], const int indices[], int indicescnt, CCTResult_t* result) {
 	if (mathSphereIntersectTrianglesPlane(o, radius, plane_n, vertices, indices, indicescnt)) {
@@ -1362,6 +1367,7 @@ static CCTResult_t* mathSpherecastTrianglesPlane(const float o[3], float radius,
 	}
 	return NULL;
 }
+*/
 
 static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result) {
 	if (mathAABBIntersectSphere(center, half, o, radius)) {
@@ -1635,7 +1641,6 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			mathVec3Set(aabb->half, half_d, half_d, half_d);
 			break;
 		}
-		*/
 		case COLLISION_BODY_TRIANGLES_PLANE:
 		{
 			float min[3], max[3];
@@ -1668,6 +1673,7 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			mathVec3Sub(aabb->half, max, aabb->pos);
 			break;
 		}
+		*/
 		default:
 		{
 			return NULL;
@@ -1751,8 +1757,7 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 			case COLLISION_BODY_SPHERE:
 			{
 				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				float p[3];
-				return mathSphereIntersectSegment(two->pos, two->radius, one->vertices, p);
+				return mathSphereIntersectSegment(two->pos, two->radius, one->vertices, NULL);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1838,8 +1843,7 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 			case COLLISION_BODY_LINE_SEGMENT:
 			{
 				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				float p[3];
-				return mathSphereIntersectSegment(one->pos, one->radius, two->vertices, p);
+				return mathSphereIntersectSegment(one->pos, one->radius, two->vertices, NULL);
 			}
 			default:
 				return 0;
@@ -1961,11 +1965,13 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
 				return mathRaycastSegment(one->pos, dir, two->vertices, result);
 			}
+			/*
 			case COLLISION_BODY_TRIANGLES_PLANE:
 			{
 				const CollisionBodyTrianglesPlane_t* two = (const CollisionBodyTrianglesPlane_t*)b2;
 				return mathRaycastTrianglesPlane(one->pos, dir, two->normal, (const float(*)[3])two->vertices, two->indices, two->indicescnt, result);
 			}
+			*/
 			default:
 				return NULL;
 		}
@@ -2094,11 +2100,13 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				}
 				return NULL;
 			}
+			/*
 			case COLLISION_BODY_TRIANGLES_PLANE:
 			{
 				const CollisionBodyTrianglesPlane_t* two = (const CollisionBodyTrianglesPlane_t*)b2;
 				return mathSpherecastTrianglesPlane(one->pos, one->radius, dir, two->normal, (const float(*)[3])two->vertices, two->indices, two->indicescnt, result);
 			}
+			*/
 			default:
 				return NULL;
 		}

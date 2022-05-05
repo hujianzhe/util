@@ -7,6 +7,19 @@
 
 #include "../../compiler_define.h"
 
+typedef struct GeometryPlane_t {
+	float v[3];
+	float normal[3];
+} GeometryPlane_t;
+
+typedef struct GeometryRect_t {
+	float o[3];
+	float h_axis[3];
+	float normal[3];
+	float half_w;
+	float half_h;
+} GeometryRect_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

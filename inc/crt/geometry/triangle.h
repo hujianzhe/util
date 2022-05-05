@@ -7,6 +7,10 @@
 
 #include "../../compiler_define.h"
 
+typedef struct GeometryTriangle_t {
+	float v[3][3];
+} GeometryTriangle_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

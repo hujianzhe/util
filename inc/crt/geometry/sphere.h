@@ -7,6 +7,11 @@
 
 #include "../../compiler_define.h"
 
+typedef struct GeometrySphere_t {
+	float o[3];
+	float radius;
+} GeometrySphere_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
