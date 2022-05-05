@@ -71,32 +71,66 @@ static int mathCapsuleHasPoint(const float o[3], const float axis[3], float radi
 
 static int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]) {
 	int cmp[2];
-	float d[2];
+	float d[2], lsdir[3], dot;
+	mathVec3Sub(lsdir, ls[1], ls[0]);
+	dot = mathVec3Dot(lsdir, plane_normal);
+	if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+		return mathPlaneHasPoint(plane_v, plane_normal, ls[0]) ? 2 : 0;
+	}
 	mathPointProjectionPlane(ls[0], plane_v, plane_normal, NULL, &d[0]);
 	mathPointProjectionPlane(ls[1], plane_v, plane_normal, NULL, &d[1]);
 	cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
 	cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
-	if (0 == cmp[0] && 0 == cmp[1]) {
-		return 2;
-	}
 	if (cmp[0] * cmp[1] > 0) {
 		return 0;
 	}
-	else if (0 == cmp[0]) {
-		mathVec3Copy(p, ls[0]);
+	if (0 == cmp[0]) {
+		if (p) {
+			mathVec3Copy(p, ls[0]);
+		}
 		return 1;
 	}
-	else if (0 == cmp[1]) {
-		mathVec3Copy(p, ls[1]);
+	if (0 == cmp[1]) {
+		if (p) {
+			mathVec3Copy(p, ls[1]);
+		}
 		return 1;
 	}
-	else {
-		float lsdir[3], dot;
-		mathVec3Sub(lsdir, ls[1], ls[0]);
+	if (p) {
 		mathVec3Normalized(lsdir, lsdir);
 		dot = mathVec3Dot(lsdir, plane_normal);
 		mathVec3AddScalar(mathVec3Copy(p, ls[0]), lsdir, d[0] / dot);
-		return 1;
+	}
+	return 1;
+}
+
+static int mathSegmentIntersectRect(const float ls[2][3], const float center_o[3], const float h_axis[3], const float normal[3], float half_w, float half_h) {
+	float p[3];
+	int res = mathSegmentIntersectPlane(ls, center_o, normal, p);
+	if (0 == res) {
+		return 0;
+	}
+	if (1 == res) {
+		return mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, p);
+	}
+	if (mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, ls[0]) ||
+		mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, ls[1]))
+	{
+		return 2;
+	}
+	else {
+		int i;
+		float vertices[4][3];
+		mathRectVertices(center_o, h_axis, normal, half_w, half_h, vertices);
+		for (i = 0; i < 4; ++i) {
+			float edge[2][3];
+			mathVec3Copy(edge[0], vertices[i]);
+			mathVec3Copy(edge[1], vertices[(i+1) >= 4 ? 0 : i+1]);
+			if (mathSegmentIntersectSegment(ls, edge, NULL, NULL)) {
+				return 2;
+			}
+		}
+		return 0;
 	}
 }
 
@@ -1707,8 +1741,7 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 			case COLLISION_BODY_PLANE:
 			{
 				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				float p[3];
-				return mathSegmentIntersectPlane(one->vertices, two->vertice, two->normal, p);
+				return mathSegmentIntersectPlane(one->vertices, two->vertice, two->normal, NULL);
 			}
 			case COLLISION_BODY_AABB:
 			{
@@ -1885,8 +1918,7 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 			case COLLISION_BODY_LINE_SEGMENT:
 			{
 				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				float p[3];
-				return mathSegmentIntersectPlane(two->vertices, one->vertice, one->normal, p);
+				return mathSegmentIntersectPlane(two->vertices, one->vertice, one->normal, NULL);
 			}
 			default:
 				return 0;
