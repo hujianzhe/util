@@ -5,11 +5,6 @@
 #include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/collision_detection.h"
-#include "../../../inc/crt/geometry/aabb.h"
-#include "../../../inc/crt/geometry/plane.h"
-#include "../../../inc/crt/geometry/sphere.h"
-#include "../../../inc/crt/geometry/line_segment.h"
-#include "../../../inc/crt/geometry/triangle.h"
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -1620,17 +1615,17 @@ static CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const float delta_half_v[3], CollisionBodyAABB_t* aabb) {
+GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const float delta_half_v[3], GeometryAABB_t* aabb) {
 	switch (b->type) {
-		case COLLISION_BODY_AABB:
+		case GEOMETRY_BODY_AABB:
 		{
-			*aabb = b->aabb;
+			*aabb = *(b->aabb);
 			break;
 		}
-		case COLLISION_BODY_SPHERE:
+		case GEOMETRY_BODY_SPHERE:
 		{
-			mathVec3Copy(aabb->pos, b->sphere.pos);
-			mathVec3Set(aabb->half, b->sphere.radius, b->sphere.radius, b->sphere.radius);
+			mathVec3Copy(aabb->o, b->sphere->o);
+			mathVec3Set(aabb->half, b->sphere->radius, b->sphere->radius, b->sphere->radius);
 			break;
 		}
 		/*
@@ -1679,46 +1674,41 @@ CollisionBody_t* mathCollisionBodyBoundingBox(const CollisionBody_t* b, const fl
 			return NULL;
 		}
 	}
-	aabb->type = COLLISION_BODY_AABB;
 	if (delta_half_v) {
 		int i;
-		mathVec3Add(aabb->pos, aabb->pos, delta_half_v);
+		mathVec3Add(aabb->o, aabb->o, delta_half_v);
 		for (i = 0; i < 3; ++i) {
 			aabb->half[i] += (delta_half_v[i] > 0.0f ? delta_half_v[i] : -delta_half_v[i]);
 		}
 	}
-	return (CollisionBody_t*)aabb;
+	return aabb;
 }
 
-int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t* b2) {
-	if (b1 == b2)
+int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two) {
+	if (one == two) {
 		return 1;
-	else if (COLLISION_BODY_POINT == b1->type) {
-		const CollisionBodyPoint_t* one = (const CollisionBodyPoint_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_POINT:
-			{	const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
-				return mathVec3Equal(one->pos, two->pos);
-			}
-			case COLLISION_BODY_LINE_SEGMENT:
+	}
+	else if (GEOMETRY_BODY_POINT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSegmentHasPoint(two->vertices, one->pos);
+				return mathVec3Equal(one->point, two->point);
 			}
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathPlaneHasPoint(two->vertice, two->normal, one->pos);
+				return mathSegmentHasPoint(two->segment->v, one->point);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBHasPoint(two->pos, two->half, one->pos);
+				return mathPlaneHasPoint(two->plane->v, two->plane->normal, one->point);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSphereHasPoint(two->pos, two->radius, one->pos);
+				return mathAABBHasPoint(two->aabb->o, two->aabb->half, one->point);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathSphereHasPoint(two->sphere->o, two->sphere->radius, one->point);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1731,33 +1721,27 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				return 0;
 		}
 	}
-	else if (COLLISION_BODY_LINE_SEGMENT == b1->type) {
-		const CollisionBodyLineSegment_t* one = (const CollisionBodyLineSegment_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_POINT:
+	else if (GEOMETRY_BODY_SEGMENT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
 			{
-				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
-				return mathSegmentHasPoint(one->vertices, two->pos);
+				return mathSegmentHasPoint(one->segment->v, two->point);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSegmentIntersectSegment(one->vertices, two->vertices, NULL, NULL);
+				return mathSegmentIntersectSegment(one->segment->v, two->segment->v, NULL, NULL);
 			}
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathSegmentIntersectPlane(one->vertices, two->vertice, two->normal, NULL);
+				return mathSegmentIntersectPlane(one->segment->v, two->plane->v, two->plane->normal, NULL);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBIntersectSegment(two->pos, two->half, one->vertices);
+				return mathAABBIntersectSegment(two->aabb->o, two->aabb->half, one->segment->v);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSphereIntersectSegment(two->pos, two->radius, one->vertices, NULL);
+				return mathSphereIntersectSegment(two->sphere->o, two->sphere->radius, one->segment->v, NULL);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1771,23 +1755,19 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				return 0;
 		}
 	}
-	else if (COLLISION_BODY_AABB == b1->type) {
-		const CollisionBodyAABB_t* one = (const CollisionBodyAABB_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_POINT:
+	else if (GEOMETRY_BODY_AABB == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
 			{
-				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
-				return mathAABBHasPoint(one->pos, one->half, two->pos);
+				return mathAABBHasPoint(one->aabb->o, one->aabb->half, two->point);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBIntersectAABB(one->pos, one->half, two->pos, two->half);
+				return mathAABBIntersectAABB(one->aabb->o, one->aabb->half, two->aabb->o, two->aabb->half);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathAABBIntersectSphere(one->pos, one->half, two->pos, two->radius);
+				return mathAABBIntersectSphere(one->aabb->o, one->aabb->half, two->sphere->o, two->sphere->radius);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1796,37 +1776,31 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				return mathAABBIntersectCapsule(one->pos, one->half, two->pos, two->axis, two->radius, two->half_height);
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathAABBIntersectPlane(one->pos, one->half, two->vertice, two->normal);
+				return mathAABBIntersectPlane(one->aabb->o, one->aabb->half, two->plane->v, two->plane->normal);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathAABBIntersectSegment(one->pos, one->half, two->vertices);
+				return mathAABBIntersectSegment(one->aabb->o, one->aabb->half, two->segment->v);
 			}
 			default:
 				return 0;
 		}
 	}
-	else if (COLLISION_BODY_SPHERE == b1->type) {
-		const CollisionBodySphere_t* one = (const CollisionBodySphere_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_POINT:
+	else if (GEOMETRY_BODY_SPHERE == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
 			{
-				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
-				return mathSphereHasPoint(one->pos, one->radius, two->pos);
+				return mathSphereHasPoint(one->sphere->o, one->sphere->radius, two->point);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBIntersectSphere(two->pos, two->half, one->pos, one->radius);
+				return mathAABBIntersectSphere(two->aabb->o, two->aabb->half, one->sphere->o, one->sphere->radius);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSphereIntersectSphere(one->pos, one->radius, two->pos, two->radius, NULL);
+				return mathSphereIntersectSphere(one->sphere->o, one->sphere->radius, two->sphere->o, two->sphere->radius, NULL);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1835,15 +1809,13 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				return mathSphereIntersectCapsule(one->pos, one->radius, two->pos, two->axis, two->radius, two->half_height, NULL);
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathSphereIntersectPlane(one->pos, one->radius, two->vertice, two->normal, NULL, NULL);
+				return mathSphereIntersectPlane(one->sphere->o, one->sphere->radius, two->plane->v, two->plane->normal, NULL, NULL);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSphereIntersectSegment(one->pos, one->radius, two->vertices, NULL);
+				return mathSphereIntersectSegment(one->sphere->o, one->sphere->radius, two->segment->v, NULL);
 			}
 			default:
 				return 0;
@@ -1889,23 +1861,19 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 		}
 	}
 	*/
-	else if (COLLISION_BODY_PLANE == b1->type) {
-		const CollisionBodyPlane_t* one = (const CollisionBodyPlane_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_POINT:
+	else if (GEOMETRY_BODY_PLANE == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
 			{
-				const CollisionBodyPoint_t* two = (const CollisionBodyPoint_t*)b2;
-				return mathPlaneHasPoint(one->vertice, one->normal, two->pos);
+				return mathPlaneHasPoint(one->plane->v, one->plane->normal, two->point);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBIntersectPlane(two->pos, two->half, one->vertice, one->normal);
+				return mathAABBIntersectPlane(two->aabb->o, two->aabb->half, one->plane->v, one->plane->normal);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSphereIntersectPlane(two->pos, two->radius, one->vertice, one->normal, NULL, NULL);
+				return mathSphereIntersectPlane(two->sphere->o, two->sphere->radius, one->plane->v, one->plane->normal, NULL, NULL);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1914,15 +1882,13 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 				return mathCapsuleIntersectPlane(two->pos, two->axis, two->radius, two->half_height, one->vertice, one->normal, NULL);
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathPlaneIntersectPlane(one->vertice, one->normal, two->vertice, two->normal);
+				return mathPlaneIntersectPlane(one->plane->v, one->plane->normal, two->plane->v, two->plane->normal);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSegmentIntersectPlane(two->vertices, one->vertice, one->normal, NULL);
+				return mathSegmentIntersectPlane(two->segment->v, one->plane->v, one->plane->normal, NULL);
 			}
 			default:
 				return 0;
@@ -1931,22 +1897,19 @@ int mathCollisionBodyIntersect(const CollisionBody_t* b1, const CollisionBody_t*
 	return 0;
 }
 
-CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3], const CollisionBody_t* b2, CCTResult_t* result) {
-	if (b1 == b2 || mathVec3IsZero(dir)) {
+CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
+	if (one == two || mathVec3IsZero(dir)) {
 		return NULL;
 	}
-	else if (COLLISION_BODY_POINT == b1->type) {
-		const CollisionBodyPoint_t* one = (const CollisionBodyPoint_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_AABB:
+	else if (GEOMETRY_BODY_POINT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathRaycastAABB(one->pos, dir, two->pos, two->half, result);
+				return mathRaycastAABB(one->point, dir, two->aabb->o, two->aabb->half, result);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathRaycastSphere(one->pos, dir, two->pos, two->radius, result);
+				return mathRaycastSphere(one->point, dir, two->sphere->o, two->sphere->radius, result);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1955,15 +1918,13 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				return mathRaycastCapsule(one->pos, dir, two->pos, two->axis, two->radius, two->half_height, result);
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathRaycastPlane(one->pos, dir, two->vertice, two->normal, result);
+				return mathRaycastPlane(one->point, dir, two->plane->v, two->plane->normal, result);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathRaycastSegment(one->pos, dir, two->vertices, result);
+				return mathRaycastSegment(one->point, dir, two->segment->v, result);
 			}
 			/*
 			case COLLISION_BODY_TRIANGLES_PLANE:
@@ -1976,28 +1937,23 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				return NULL;
 		}
 	}
-	else if (COLLISION_BODY_LINE_SEGMENT == b1->type) {
-		const CollisionBodyLineSegment_t* one = (const CollisionBodyLineSegment_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_LINE_SEGMENT:
+	else if (GEOMETRY_BODY_SEGMENT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_SEGMENT:
 			{
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				return mathSegmentcastSegment(one->vertices, dir, two->vertices, result);
+				return mathSegmentcastSegment(one->segment->v, dir, two->segment->v, result);
 			}
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathSegmentcastPlane(one->vertices, dir, two->vertice, two->normal, result);
+				return mathSegmentcastPlane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
 			}
-			case COLLISION_BODY_AABB:
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathSegmentcastAABB(one->vertices, dir, two->pos, two->half, result);
+				return mathSegmentcastAABB(one->segment->v, dir, two->aabb->o, two->aabb->half, result);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSegmentcastSphere(one->vertices, dir, two->pos, two->radius, result);
+				return mathSegmentcastSphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -2010,23 +1966,23 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				return NULL;
 		}
 	}
-	else if (COLLISION_BODY_AABB == b1->type) {
-		const CollisionBodyAABB_t* one = (const CollisionBodyAABB_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_AABB:
+	else if (GEOMETRY_BODY_AABB == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathAABBcastAABB(one->pos, one->half, dir, two->pos, two->half, result);
+				return mathAABBcastAABB(one->aabb->o, one->aabb->half, dir, two->aabb->o, two->aabb->half, result);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
 				float neg_dir[3];
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				if (mathSpherecastAABB(two->pos, two->radius, mathVec3Negate(neg_dir, dir), one->pos, one->half, result)) {
-					mathVec3AddScalar(result->hit_point, dir, result->distance);
-					return result;
+				mathVec3Negate(neg_dir, dir);
+				if (!mathSpherecastAABB(two->sphere->o, two->sphere->radius, neg_dir, one->aabb->o, one->aabb->half, result)) {
+					return NULL;
 				}
-				return NULL;
+				if (result->hit_point_cnt > 0) {
+					mathVec3AddScalar(result->hit_point, dir, result->distance);
+				}
+				return result;
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -2042,39 +1998,35 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				return NULL;
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathAABBcastPlane(one->pos, one->half, dir, two->vertice, two->normal, result);
+				return mathAABBcastPlane(one->aabb->o, one->aabb->half, dir, two->plane->v, two->plane->normal, result);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
 				float neg_dir[3];
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				if (mathSegmentcastAABB(two->vertices, mathVec3Negate(neg_dir, dir), one->pos, one->half, result)) {
-					if (result->hit_point_cnt > 0) {
-						mathVec3AddScalar(result->hit_point, dir, result->distance);
-					}
-					return result;
+				mathVec3Negate(neg_dir, dir);
+				if (!mathSegmentcastAABB(two->segment->v, neg_dir, one->aabb->o, one->aabb->half, result)) {
+					return NULL;
 				}
-				return NULL;
+				if (result->hit_point_cnt > 0) {
+					mathVec3AddScalar(result->hit_point, dir, result->distance);
+				}
+				return result;
 			}
 			default:
 				return NULL;
 		}
 	}
-	else if (COLLISION_BODY_SPHERE == b1->type) {
-		const CollisionBodySphere_t* one = (const CollisionBodySphere_t*)b1;
-		switch (b2->type) {
-			case COLLISION_BODY_AABB:
+	else if (GEOMETRY_BODY_SPHERE == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_AABB:
 			{
-				const CollisionBodyAABB_t* two = (const CollisionBodyAABB_t*)b2;
-				return mathSpherecastAABB(one->pos, one->radius, dir, two->pos, two->half, result);
+				return mathSpherecastAABB(one->sphere->o, one->sphere->radius, dir, two->aabb->o, two->aabb->half, result);
 			}
-			case COLLISION_BODY_SPHERE:
+			case GEOMETRY_BODY_SPHERE:
 			{
-				const CollisionBodySphere_t* two = (const CollisionBodySphere_t*)b2;
-				return mathSpherecastSphere(one->pos, one->radius, dir, two->pos, two->radius, result);
+				return mathSpherecastSphere(one->sphere->o, one->sphere->radius, dir, two->sphere->o, two->sphere->radius, result);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -2083,22 +2035,21 @@ CCTResult_t* mathCollisionBodyCast(const CollisionBody_t* b1, const float dir[3]
 				return mathSpherecastCapsule(one->pos, one->radius, dir, two->pos, two->axis, two->radius, two->half_height, result);
 			}
 			*/
-			case COLLISION_BODY_PLANE:
+			case GEOMETRY_BODY_PLANE:
 			{
-				const CollisionBodyPlane_t* two = (const CollisionBodyPlane_t*)b2;
-				return mathSpherecastPlane(one->pos, one->radius, dir, two->vertice, two->normal, result);
+				return mathSpherecastPlane(one->sphere->o, one->sphere->radius, dir, two->plane->v, two->plane->normal, result);
 			}
-			case COLLISION_BODY_LINE_SEGMENT:
+			case GEOMETRY_BODY_SEGMENT:
 			{
 				float neg_dir[3];
-				const CollisionBodyLineSegment_t* two = (const CollisionBodyLineSegment_t*)b2;
-				if (mathSegmentcastSphere(two->vertices, mathVec3Negate(neg_dir, dir), one->pos, one->radius, result)) {
-					if (result->hit_point_cnt > 0) {
-						mathVec3AddScalar(result->hit_point, dir, result->distance);
-					}
-					return result;
+				mathVec3Negate(neg_dir, dir);
+				if (!mathSegmentcastSphere(two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result)) {
+					return NULL;
 				}
-				return NULL;
+				if (result->hit_point_cnt > 0) {
+					mathVec3AddScalar(result->hit_point, dir, result->distance);
+				}
+				return result;
 			}
 			/*
 			case COLLISION_BODY_TRIANGLES_PLANE:
