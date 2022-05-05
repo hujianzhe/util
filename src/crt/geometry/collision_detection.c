@@ -1143,7 +1143,7 @@ static CCTResult_t* mathSegmentcastCapsule(const float ls[2][3], const float dir
 
 static CCTResult_t* mathTrianglecastPlane(const float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	CCTResult_t results[3], *p_result = NULL;
-	int i, cmp;
+	int i;
 	for (i = 0; i < 3; ++i) {
 		float ls[2][3];
 		mathVec3Copy(ls[0], tri[i % 3]);
