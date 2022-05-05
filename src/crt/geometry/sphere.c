@@ -40,7 +40,7 @@ int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], fl
 	}
 }
 
-int mathSphereContainSphere(const float o1[3], float r1, const float o2[3], float r2, float p[3]) {
+int mathSphereContainSphere(const float o1[3], float r1, const float o2[3], float r2) {
 	if (r1 < r2 - CCT_EPSILON) {
 		return 0;
 	}
