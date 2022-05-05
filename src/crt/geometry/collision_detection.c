@@ -126,7 +126,7 @@ static int mathSegmentIntersectRect(const float ls[2][3], const float center_o[3
 			float edge[2][3];
 			mathVec3Copy(edge[0], vertices[i]);
 			mathVec3Copy(edge[1], vertices[(i+1) >= 4 ? 0 : i+1]);
-			if (mathSegmentIntersectSegment(ls, edge, NULL, NULL)) {
+			if (mathSegmentIntersectSegment(ls, (const float(*)[3])edge, NULL, NULL)) {
 				return 2;
 			}
 		}
