@@ -29,8 +29,8 @@ __declspec_dll void mathPlaneNormalByVertices3(const float vertices[3][3], float
 __declspec_dll int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]);
 __declspec_dll int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2[3], const float n2[3]);
 
-__declspec_dll int mathRectHasPoint(const float center_o[3], const float h_axis[3], const float normal[3], float half_w, float half_h, const float p[3]);
-__declspec_dll void mathRectVertices(const float center_o[3], const float h_axis[3], const float normal[3], float half_w, float half_h, float p[4][3]);
+__declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]);
+__declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
 
 #ifdef	__cplusplus
 }

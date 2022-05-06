@@ -99,24 +99,24 @@ static int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3
 	return 1;
 }
 
-static int mathSegmentIntersectRect(const float ls[2][3], const float center_o[3], const float h_axis[3], const float normal[3], float half_w, float half_h) {
+static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* rect) {
 	float p[3];
-	int res = mathSegmentIntersectPlane(ls, center_o, normal, p);
+	int res = mathSegmentIntersectPlane(ls, rect->o, rect->normal, p);
 	if (0 == res) {
 		return 0;
 	}
 	if (1 == res) {
-		return mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, p);
+		return mathRectHasPoint(rect, p);
 	}
-	if (mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, ls[0]) ||
-		mathRectHasPoint(center_o, h_axis, normal, half_w, half_h, ls[1]))
+	if (mathRectHasPoint(rect, ls[0]) ||
+		mathRectHasPoint(rect, ls[1]))
 	{
 		return 2;
 	}
 	else {
 		int i;
 		float vertices[4][3];
-		mathRectVertices(center_o, h_axis, normal, half_w, half_h, vertices);
+		mathRectVertices(rect, vertices);
 		for (i = 0; i < 4; ++i) {
 			float edge[2][3];
 			mathVec3Copy(edge[0], vertices[i]);
@@ -647,16 +647,15 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 	else {
 		CCTResult_t *p_result = NULL;
 		int i;
-		float v[6][3], half_w[6], half_h[6];
-		mathAABBPlaneVertices(aabb_o, aabb_half, v);
-		mathAABBPlaneRectSizes(aabb_half, half_w, half_h);
 		for (i = 0; i < 6; ) {
 			CCTResult_t result_temp;
-			if (!mathRaycastPlane(o, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
+			GeometryRect_t rect;
+			mathAABBPlaneRect(aabb_o, aabb_half, i, &rect);
+			if (!mathRaycastPlane(o, dir, rect.o, rect.normal, &result_temp)) {
 				i += 2;
 				continue;
 			}
-			if (!mathRectHasPoint(v[i], AABB_Rect_Axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
+			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
 				++i;
 				continue;
 			}
@@ -1371,19 +1370,19 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 	}
 	else {
 		CCTResult_t* p_result = NULL;
+		float v[8][3], neg_dir[3];
 		int i;
-		float v[8][3], half_w[6], half_h[6], neg_dir[3];
-		mathAABBPlaneVertices(center, half, v);
-		mathAABBPlaneRectSizes(half, half_w, half_h);
 		for (i = 0; i < 6; ++i) {
 			CCTResult_t result_temp;
-			if (!mathSpherecastPlane(o, radius, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
+			GeometryRect_t rect;
+			mathAABBPlaneRect(center, half, i, &rect);
+			if (!mathSpherecastPlane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
 			if (fcmpf(result_temp.distance, 0.0, CCT_EPSILON) == 0) {
 				continue;
 			}
-			if (!mathRectHasPoint(v[i], AABB_Rect_Axis[i], AABB_Plane_Normal[i], half_w[i], half_h[i], result_temp.hit_point)) {
+			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
