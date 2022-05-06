@@ -99,9 +99,13 @@ static int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3
 	return 1;
 }
 
-static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* rect) {
-	float p[3];
-	int res = mathSegmentIntersectPlane(ls, rect->o, rect->normal, p);
+static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* rect, float p[3]) {
+	int res;
+	float point[3];
+	if (!p) {
+		p = point;
+	}
+	res = mathSegmentIntersectPlane(ls, rect->o, rect->normal, p);
 	if (0 == res) {
 		return 0;
 	}
@@ -115,18 +119,60 @@ static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* 
 	}
 	else {
 		int i;
-		float vertices[4][3];
-		mathRectVertices(rect, vertices);
+		float v[4][3];
+		mathRectVertices(rect, v);
 		for (i = 0; i < 4; ++i) {
 			float edge[2][3];
-			mathVec3Copy(edge[0], vertices[i]);
-			mathVec3Copy(edge[1], vertices[(i+1) >= 4 ? 0 : i+1]);
+			mathVec3Copy(edge[0], v[i]);
+			mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
 			if (mathSegmentIntersectSegment(ls, (const float(*)[3])edge, NULL, NULL)) {
 				return 2;
 			}
 		}
 		return 0;
 	}
+}
+
+static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect_t* rect2) {
+	int i;
+	float v[4][3];
+	if (!mathPlaneIntersectPlane(rect1->o, rect1->normal, rect2->o, rect2->normal)) {
+		return 0;
+	}
+	mathRectVertices(rect1, v);
+	for (i = 0; i < 4; ++i) {
+		float edge[2][3];
+		mathVec3Copy(edge[0], v[i]);
+		mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
+		if (mathSegmentIntersectRect((const float(*)[3])edge, rect2, NULL)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_v[3], const float plane_n[3]) {
+	int i;
+	float N[3], v[4][3], prev_d;
+	mathVec3Cross(N, rect->normal, plane_n);
+	if (mathVec3IsZero(N)) {
+		float dot, v[3];
+		mathVec3Sub(v, plane_v, rect->o);
+		dot = mathVec3Dot(v, plane_n);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return 0;
+		}
+	}
+	mathRectVertices(rect, v);
+	for (i = 0; i < 4; ++i) {
+		float d;
+		mathPointProjectionPlane(v[i], plane_v, plane_n, NULL, &d);
+		if (i && prev_d * d <= CCT_EPSILON) {
+			return 1;
+		}
+		prev_d = d;
+	}
+	return 0;
 }
 
 static int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]) {
@@ -193,6 +239,36 @@ static int mathSphereIntersectPlane(const float o[3], float radius, const float 
 			*new_r = sqrtf(radius * radius - ppolensq);
 		}
 		return 2;
+	}
+}
+
+static int mathSphereIntersectRect(const float o[3], float radius, const GeometryRect_t* rect, float p[3]) {
+	int res;
+	float point[3];
+	if (!p) {
+		p = point;
+	}
+	res = mathSphereIntersectPlane(o, radius, rect->o, rect->normal, p, NULL);
+	if (0 == res) {
+		return 0;
+	}
+	else if (1 == res) {
+		return mathRectHasPoint(rect, p);
+	}
+	else {
+		int i;
+		float v[4][3];
+		mathRectVertices(rect, v);
+		for (i = 0; i < 4; ++i) {
+			float edge[2][3];
+			mathVec3Copy(edge[0], v[i]);
+			mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
+			res = mathSphereIntersectSegment(o, radius, (const float(*)[3])edge, p);
+			if (res != 0) {
+				return res;
+			}
+		}
+		return 0;
 	}
 }
 
@@ -585,38 +661,72 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 	return result;
 }
 
+static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
+	CCTResult_t* p_result;
+	int i;
+	float v[4][3];
+	if (!mathRaycastPlane(o, dir, rect->o, rect->normal, result)) {
+		return NULL;
+	}
+	if (mathRectHasPoint(rect, result->hit_point)) {
+		return result;
+	}
+	if (fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
+		float dot = mathVec3Dot(dir, rect->normal);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return NULL;
+		}
+	}
+	p_result = NULL;
+	mathRectVertices(rect, v);
+	for (i = 0; i < 4; ++i) {
+		CCTResult_t result_temp;
+		float edge[2][3];
+		mathVec3Copy(edge[0], v[i]);
+		mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
+		if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
+		}
+	}
+	return p_result;
+}
+
 static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
+	CCTResult_t *p_result;
+	int i;
 	float N[3];
 	mathPlaneNormalByVertices3(tri, N);
 	if (!mathRaycastPlane(o, dir, tri[0], N, result)) {
 		return NULL;
 	}
-	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
+	if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
 		return result;
 	}
-	else if (fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
-		return NULL;
-	}
-	else {
-		CCTResult_t results[3], *p_results = NULL;
-		int i;
-		for (i = 0; i < 3; ++i) {
-			float edge[2][3];
-			mathVec3Copy(edge[0], tri[i % 3]);
-			mathVec3Copy(edge[1], tri[(i + 1) % 3]);
-			if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, results + i)) {
-				continue;
-			}
-			if (!p_results || p_results->distance > results[i].distance) {
-				p_results = &results[i];
-			}
+	if (fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
+		float dot = mathVec3Dot(dir, N);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return NULL;
 		}
-		if (p_results) {
-			copy_result(result, p_results);
-			return result;
-		}
-		return NULL;
 	}
+	p_result = NULL;
+	for (i = 0; i < 3; ++i) {
+		CCTResult_t result_temp;
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri[i % 3]);
+		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
+		if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
+		}
+	}
+	return p_result;
 }
 
 /*
@@ -678,6 +788,26 @@ static int mathAABBIntersectSegment(const float o[3], const float half[3], const
 		return 0;
 	}
 	return ls_len >= result.distance - CCT_EPSILON;
+}
+
+static int mathAABBIntersectRect(const float o[3], const float half[3], const GeometryRect_t* rect) {
+	if (!mathAABBIntersectPlane(o, half, rect->o, rect->normal)) {
+		return 0;
+	}
+	else {
+		int i;
+		float v[4][3];
+		mathRectVertices(rect, v);
+		for (i = 0; i < 4; ++i) {
+			float edge[2][3];
+			mathVec3Copy(edge[0], v[i]);
+			mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
+			if (mathAABBIntersectSegment(o, half, (const float(*)[3])edge)) {
+				return 2;
+			}
+		}
+		return 0;
+	}
 }
 
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
@@ -1709,6 +1839,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathSphereHasPoint(two->sphere->o, two->sphere->radius, one->point);
 			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathRectHasPoint(two->rect, one->point);
+			}
 			/*
 			case COLLISION_BODY_CAPSULE:
 			{
@@ -1741,6 +1875,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathSphereIntersectSegment(two->sphere->o, two->sphere->radius, one->segment->v, NULL);
+			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathSegmentIntersectRect(one->segment->v, two->rect, NULL);
 			}
 			/*
 			case COLLISION_BODY_CAPSULE:
@@ -1783,6 +1921,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathAABBIntersectSegment(one->aabb->o, one->aabb->half, two->segment->v);
 			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathAABBIntersectRect(one->aabb->o, one->aabb->half, two->rect);
+			}
 			default:
 				return 0;
 		}
@@ -1815,6 +1957,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_SEGMENT:
 			{
 				return mathSphereIntersectSegment(one->sphere->o, one->sphere->radius, two->segment->v, NULL);
+			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathSphereIntersectRect(one->sphere->o, one->sphere->radius, two->rect, NULL);
 			}
 			default:
 				return 0;
@@ -1888,6 +2034,40 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_SEGMENT:
 			{
 				return mathSegmentIntersectPlane(two->segment->v, one->plane->v, one->plane->normal, NULL);
+			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathRectIntersectPlane(one->rect, two->plane->v, two->plane->normal);
+			}
+			default:
+				return 0;
+		}
+	}
+	else if (GEOMETRY_BODY_RECT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathRectHasPoint(one->rect, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return mathSegmentIntersectRect(two->segment->v, one->rect, NULL);
+			}
+			case GEOMETRY_BODY_PLANE:
+			{
+				return mathRectIntersectPlane(one->rect, two->plane->v, two->plane->normal);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathSphereIntersectRect(one->sphere->o, one->sphere->radius, two->rect, NULL);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				return mathAABBIntersectRect(one->aabb->o, one->aabb->half, two->rect);
+			}
+			case GEOMETRY_BODY_RECT:
+			{
+				return mathRectIntersectRect(one->rect, two->rect);
 			}
 			default:
 				return 0;

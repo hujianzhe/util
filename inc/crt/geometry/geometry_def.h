@@ -18,6 +18,7 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_PLANE = 3,
 	GEOMETRY_BODY_SPHERE = 4,
 	GEOMETRY_BODY_AABB = 5,
+	GEOMETRY_BODY_RECT = 6,
 };
 
 typedef struct GeometryBody_t {
@@ -27,6 +28,7 @@ typedef struct GeometryBody_t {
 		GeometryPlane_t plane;
 		GeometrySphere_t sphere;
 		GeometryAABB_t aabb;
+		GeometryRect_t rect;
 	};
 	int type;
 } GeometryBody_t;
@@ -38,6 +40,7 @@ typedef struct GeometryBodyRef_t {
 		const GeometryPlane_t* plane;
 		const GeometrySphere_t* sphere;
 		const GeometryAABB_t* aabb;
+		const GeometryRect_t* rect;
 	};
 	int type;
 } GeometryBodyRef_t;
