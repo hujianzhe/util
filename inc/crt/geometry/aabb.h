@@ -16,16 +16,16 @@ typedef struct GeometryAABB_t {
 extern "C" {
 #endif
 
-extern int Box_Edge_Indices[24];
-extern int Box_Triangle_Vertices_Indices[36];
-extern float AABB_Plane_Normal[6][3];
-extern float AABB_Rect_Axis[6][3];
+extern const int Box_Edge_Indices[24];
+extern const int Box_Triangle_Vertices_Indices[36];
+extern const float AABB_Plane_Normal[6][3];
+extern const float AABB_Rect_Axis[6][3];
 
-__declspec_dll void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]);
-__declspec_dll void AABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]);
-__declspec_dll void AABBVertices(const float o[3], const float half[3], float v[8][3]);
-__declspec_dll float* AABBMinVertice(const float o[3], const float half[3], float v[3]);
-__declspec_dll float* AABBMaxVertice(const float o[3], const float half[3], float v[3]);
+__declspec_dll void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3]);
+__declspec_dll void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]);
+__declspec_dll void mathAABBVertices(const float o[3], const float half[3], float v[8][3]);
+__declspec_dll void mathAABBMinVertice(const float o[3], const float half[3], float v[3]);
+__declspec_dll void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]);
 
 __declspec_dll int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]);
 __declspec_dll void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]);

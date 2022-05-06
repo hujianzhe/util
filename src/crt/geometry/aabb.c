@@ -21,13 +21,13 @@ extern "C" {
 	  |/     |/      |/		6 = +++
 	 0+------+1      *---x	7 = -++
 */
-int Box_Edge_Indices[24] = {
+const int Box_Edge_Indices[24] = {
 	0, 1,	1, 2,	2, 3,	3, 0,
 	7, 6,	6, 5,	5, 4,	4, 7,
 	1, 5,	6, 2,
 	3, 7,	4, 0
 };
-int Box_Triangle_Vertices_Indices[36] = {
+const int Box_Triangle_Vertices_Indices[36] = {
 	0, 1, 2,	2, 3, 0,
 	7, 6, 5,	5, 4, 7,
 	1, 5, 6,	6, 2, 1,
@@ -35,12 +35,12 @@ int Box_Triangle_Vertices_Indices[36] = {
 	3, 7, 6,	6, 2, 3,
 	0, 4, 5,	5, 1, 0
 };
-float AABB_Plane_Normal[6][3] = {
+const float AABB_Plane_Normal[6][3] = {
 	{ 0.0f, 0.0f, 1.0f },{ 0.0f, 0.0f, -1.0f },
 	{ 1.0f, 0.0f, 0.0f },{ -1.0f, 0.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },{ 0.0f, -1.0f, 0.0f }
 };
-float AABB_Rect_Axis[6][3] = {
+const float AABB_Rect_Axis[6][3] = {
 	{ 0.0f, 1.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },
@@ -49,7 +49,7 @@ float AABB_Rect_Axis[6][3] = {
 	{ 1.0f, 0.0f, 0.0f }
 };
 
-void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
+void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
 	mathVec3Copy(v[0], o);
 	v[0][2] += half[2];
 	mathVec3Copy(v[1], o);
@@ -66,7 +66,7 @@ void AABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
 	v[5][1] -= half[1];
 }
 
-void AABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
+void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
 	/*
 	float half_w[] = {
 		aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
@@ -94,7 +94,7 @@ void AABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[
 	half_h[5] = aabb_half[0];
 }
 
-void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
+void mathAABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
 	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
 	v[2][0] = o[0] + half[0], v[2][1] = o[1] + half[1], v[2][2] = o[2] - half[2];
@@ -105,18 +105,16 @@ void AABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
 }
 
-float* AABBMinVertice(const float o[3], const float half[3], float v[3]) {
+void mathAABBMinVertice(const float o[3], const float half[3], float v[3]) {
 	v[0] = o[0] - half[0];
 	v[1] = o[1] - half[1];
 	v[2] = o[2] - half[2];
-	return v;
 }
 
-float* AABBMaxVertice(const float o[3], const float half[3], float v[3]) {
+void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]) {
 	v[0] = o[0] + half[0];
 	v[1] = o[1] + half[1];
 	v[2] = o[2] + half[2];
-	return v;
 }
 
 int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
@@ -128,8 +126,8 @@ int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
 void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]) {
 	int i;
 	float min_v[3], max_v[3];
-	AABBMinVertice(o, half, min_v);
-	AABBMaxVertice(o, half, max_v);
+	mathAABBMinVertice(o, half, min_v);
+	mathAABBMaxVertice(o, half, max_v);
 	for (i = 0; i < 3; ++i) {
 		if (p[i] < min_v[i]) {
 			closest_p[i] = min_v[i];
@@ -145,7 +143,7 @@ void mathAABBClosestPointTo(const float o[3], const float half[3], const float p
 
 void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]) {
 	mathVec3MultiplyScalar(new_half, half, 0.5f);
-	AABBVertices(o, new_half, new_o);
+	mathAABBVertices(o, new_half, new_o);
 }
 
 int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
@@ -161,11 +159,11 @@ int mathAABBIntersectAABB(const float o1[3], const float half1[3], const float o
 
 int mathAABBContainAABB(const float o1[3], const float half1[3], const float o2[3], const float half2[3]) {
 	float v[3];
-	AABBMinVertice(o2, half2, v);
+	mathAABBMinVertice(o2, half2, v);
 	if (!mathAABBHasPoint(o1, half1, v)) {
 		return 0;
 	}
-	AABBMaxVertice(o2, half2, v);
+	mathAABBMaxVertice(o2, half2, v);
 	return mathAABBHasPoint(o1, half1, v);
 }
 

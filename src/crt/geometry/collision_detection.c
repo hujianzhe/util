@@ -265,7 +265,7 @@ static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, cons
 static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3]) {
 	int i;
 	float vertices[8][3], prev_d;
-	AABBVertices(o, half, vertices);
+	mathAABBVertices(o, half, vertices);
 	for (i = 0; i < 8; ++i) {
 		float d;
 		mathPointProjectionPlane(vertices[i], plane_v, plane_n, NULL, &d);
@@ -477,7 +477,7 @@ static int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half
 	else {
 		int i, j;
 		float v[8][3];
-		AABBVertices(aabb_o, aabb_half, v);
+		mathAABBVertices(aabb_o, aabb_half, v);
 		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
 			if (mathCapsuleIntersectTrianglesPlane(cp_o, cp_axis, cp_radius, cp_half_height, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6))
 				return 1;
@@ -648,8 +648,8 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 		CCTResult_t *p_result = NULL;
 		int i;
 		float v[6][3], half_w[6], half_h[6];
-		AABBPlaneVertices(aabb_o, aabb_half, v);
-		AABBPlaneRectSizes(aabb_half, half_w, half_h);
+		mathAABBPlaneVertices(aabb_o, aabb_half, v);
+		mathAABBPlaneRectSizes(aabb_half, half_w, half_h);
 		for (i = 0; i < 6; ) {
 			CCTResult_t result_temp;
 			if (!mathRaycastPlane(o, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
@@ -895,7 +895,7 @@ static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3]
 		CCTResult_t* p_result = NULL;
 		int i;
 		float v[6][3];
-		AABBVertices(o, half, v);
+		mathAABBVertices(o, half, v);
 		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
 			float edge[2][3];
 			CCTResult_t result_temp;
@@ -1209,7 +1209,7 @@ static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], con
 		CCTResult_t* p_result = NULL;
 		float v[8][3];
 		int i;
-		AABBVertices(o, half, v);
+		mathAABBVertices(o, half, v);
 		for (i = 0; i < sizeof(v) / sizeof(v[0]); ++i) {
 			int cmp;
 			CCTResult_t result_temp;
@@ -1244,8 +1244,8 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 		CCTResult_t *p_result = NULL;
 		int i;
 		float v1[6][3], v2[6][3];
-		AABBPlaneVertices(o1, half1, v1);
-		AABBPlaneVertices(o2, half2, v2);
+		mathAABBPlaneVertices(o1, half1, v1);
+		mathAABBPlaneVertices(o2, half2, v2);
 		for (i = 0; i < 6; ++i) {
 			float new_o1[3];
 			CCTResult_t result_temp;
@@ -1373,8 +1373,8 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		CCTResult_t* p_result = NULL;
 		int i;
 		float v[8][3], half_w[6], half_h[6], neg_dir[3];
-		AABBPlaneVertices(center, half, v);
-		AABBPlaneRectSizes(half, half_w, half_h);
+		mathAABBPlaneVertices(center, half, v);
+		mathAABBPlaneRectSizes(half, half_w, half_h);
 		for (i = 0; i < 6; ++i) {
 			CCTResult_t result_temp;
 			if (!mathSpherecastPlane(o, radius, dir, v[i], AABB_Plane_Normal[i], &result_temp)) {
@@ -1394,7 +1394,7 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		if (p_result) {
 			return p_result;
 		}
-		AABBVertices(center, half, v);
+		mathAABBVertices(center, half, v);
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
 			float edge[2][3];
@@ -1521,7 +1521,7 @@ static CCTResult_t* mathCapsulecastAABB(const float cp_o[3], const float cp_axis
 		CCTResult_t *p_result = NULL;
 		int i, j;
 		float v[8][3];
-		AABBVertices(aabb_o, aabb_half, v);
+		mathAABBVertices(aabb_o, aabb_half, v);
 		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
 			CCTResult_t result_temp;
 			if (mathCapsulecastTrianglesPlane(cp_o, cp_axis, cp_radius, cp_half_height, dir, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
