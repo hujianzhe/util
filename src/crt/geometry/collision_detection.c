@@ -1455,7 +1455,7 @@ static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float di
 		float edge[2][3];
 		mathVec3Copy(edge[0], v[i]);
 		mathVec3Copy(edge[1], v[i+1 >= 4 ? 0 : i+1]);
-		if (!mathSegmentcastRect((const float(*)[3])edge, dir, rect1, &result_temp)) {
+		if (!mathSegmentcastRect((const float(*)[3])edge, dir, rect2, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
