@@ -19,7 +19,7 @@ void mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]) {
 	mathVec3Add(p, mathVec3Add(p, v0, v1), v2);
 }
 
-int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
+int mathTrianglePointUV(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
 	float ap[3], ab[3], ac[3], N[3];
 	mathVec3Sub(ap, p, tri[0]);
 	mathVec3Sub(ab, tri[1], tri[0]);
@@ -52,6 +52,10 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3], float* p_u, fl
 		}
 		return 1;
 	}
+}
+
+int mathTriangleHasPoint(const float tri[3][3], const float p[3]) {
+	return mathTrianglePointUV(tri, p, NULL, NULL);
 }
 
 #ifdef __cplusplus
