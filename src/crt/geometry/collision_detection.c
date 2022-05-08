@@ -704,18 +704,16 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
 	CCTResult_t* p_result;
 	int i;
-	float v[4][3];
+	float v[4][3], dot;
 	if (!mathRaycastPlane(o, dir, rect->o, rect->normal, result)) {
 		return NULL;
 	}
-	if (mathRectHasPoint(rect, result->hit_point)) {
-		return result;
+	if (result->distance > CCT_EPSILON) {
+		return mathRectHasPoint(rect, result->hit_point) ? result : NULL;
 	}
-	if (fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
-		float dot = mathVec3Dot(dir, rect->normal);
-		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
-			return NULL;
-		}
+	dot = mathVec3Dot(dir, rect->normal);
+	if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+		return NULL;
 	}
 	p_result = NULL;
 	mathRectVertices(rect, v);
@@ -738,19 +736,17 @@ static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const 
 static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
 	CCTResult_t *p_result;
 	int i;
-	float N[3];
+	float N[3], dot;
 	mathPlaneNormalByVertices3(tri, N);
 	if (!mathRaycastPlane(o, dir, tri[0], N, result)) {
 		return NULL;
 	}
-	if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
-		return result;
+	if (result->distance > CCT_EPSILON) {
+		return mathTriangleHasPoint(tri, result->hit_point, NULL, NULL) ? result : NULL;
 	}
-	if (fcmpf(result->distance, 0.0f, CCT_EPSILON)) {
-		float dot = mathVec3Dot(dir, N);
-		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
-			return NULL;
-		}
+	dot = mathVec3Dot(dir, N);
+	if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+		return NULL;
 	}
 	p_result = NULL;
 	for (i = 0; i < 3; ++i) {
