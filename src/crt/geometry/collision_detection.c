@@ -133,6 +133,39 @@ static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* 
 	}
 }
 
+static int mathSegmentIntersectTriangle(const float ls[2][3], const float tri[3][3], float p[3]) {
+	int res;
+	float point[3], N[3];
+	if (!p) {
+		p = point;
+	}
+	mathPlaneNormalByVertices3(tri, N);
+	res = mathSegmentIntersectPlane(ls, tri[0], N, p);
+	if (0 == res) {
+		return 0;
+	}
+	if (1 == res) {
+		return mathTriangleHasPoint(tri, p, NULL, NULL);
+	}
+	if (mathTriangleHasPoint(tri, ls[0], NULL, NULL) ||
+		mathTriangleHasPoint(tri, ls[1], NULL, NULL))
+	{
+		return 2;
+	}
+	else {
+		int i;
+		for (i = 0; i < 3; ++i) {
+			float edge[2][3];
+			mathVec3Copy(edge[0], tri[i]);
+			mathVec3Copy(edge[1], tri[(i+1) >= 3 ? 0 : i+1]);
+			if (mathSegmentIntersectSegment(ls, (const float(*)[3])edge, NULL, NULL)) {
+				return 2;
+			}
+		}
+		return 0;
+	}
+}
+
 static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect_t* rect2) {
 	int i;
 	float v[4][3];
@@ -145,6 +178,25 @@ static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect
 		mathVec3Copy(edge[0], v[i]);
 		mathVec3Copy(edge[1], v[(i+1) >= 4 ? 0 : i+1]);
 		if (mathSegmentIntersectRect((const float(*)[3])edge, rect2, NULL)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int mathTriangleIntersectTriangle(const float tri1[3][3], const float tri2[3][3]) {
+	int i;
+	float N1[3], N2[3];
+	mathPlaneNormalByVertices3(tri1, N1);
+	mathPlaneNormalByVertices3(tri2, N2);
+	if (!mathPlaneIntersectPlane(tri1[0], N1, tri2[0], N2)) {
+		return 0;
+	}
+	for (i = 0; i < 3; ++i) {
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri1[i]);
+		mathVec3Copy(edge[1], tri1[(i+1) >= 3 ? 0 : i+1]);
+		if (mathSegmentIntersectTriangle((const float(*)[3])edge, tri2, NULL)) {
 			return 1;
 		}
 	}
@@ -164,6 +216,48 @@ static int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_
 		int cmp;
 		float d;
 		mathPointProjectionPlane(v[i], plane_v, plane_n, NULL, &d);
+		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
+		if (cmp > 0) {
+			if (has_le0) {
+				return 2;
+			}
+			has_gt0 = 1;
+		}
+		else if (cmp < 0) {
+			if (has_gt0) {
+				return 2;
+			}
+			has_le0 = 1;
+		}
+		else if (idx_0 >= 0) {
+			return 2;
+		}
+		else {
+			idx_0 = i;
+		}
+	}
+	if (idx_0 < 0) {
+		return 0;
+	}
+	if (p) {
+		mathVec3Copy(p, v[idx_0]);
+	}
+	return 1;
+}
+
+static int mathTriangleIntersectPlane(const float tri[3][3], const float plane_v[3], const float plane_n[3], float p[3]) {
+	int i, has_gt0, has_le0, idx_0;
+	float v[4][3], N[3];
+	mathPlaneNormalByVertices3(tri, N);
+	if (!mathPlaneIntersectPlane(tri[0], N, plane_v, plane_n)) {
+		return 0;
+	}
+	idx_0 = -1;
+	has_gt0 = has_le0 = 0;
+	for (i = 0; i < 3; ++i) {
+		int cmp;
+		float d;
+		mathPointProjectionPlane(tri[i], plane_v, plane_n, NULL, &d);
 		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
 		if (cmp > 0) {
 			if (has_le0) {
@@ -270,12 +364,12 @@ static int mathSphereIntersectRect(const float o[3], float radius, const Geometr
 	if (0 == res) {
 		return 0;
 	}
-	else if (1 == res) {
-		return mathRectHasPoint(rect, p);
-	}
 	else {
 		int i;
 		float v[4][3];
+		if (mathRectHasPoint(rect, p)) {
+			return res;
+		}
 		mathRectVertices(rect, v);
 		for (i = 0; i < 4; ++i) {
 			float edge[2][3];
@@ -288,6 +382,32 @@ static int mathSphereIntersectRect(const float o[3], float radius, const Geometr
 		}
 		return 0;
 	}
+}
+
+static int mathSphereIntersectTriangle(const float o[3], float radius, const float tri[3][3], float p[3]) {
+	int res, i;
+	float point[3], N[3];
+	if (!p) {
+		p = point;
+	}
+	mathPlaneNormalByVertices3(tri, N);
+	res = mathSphereIntersectPlane(o, radius, tri[0], N, p, NULL);
+	if (0 == res) {
+		return 0;
+	}
+	if (mathTriangleHasPoint(tri, p, NULL, NULL)) {
+		return res;
+	}
+	for (i = 0; i < 3; ++i) {
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri[i]);
+		mathVec3Copy(edge[1], tri[(i+1) >= 3 ? 0 : i+1]);
+		res = mathSphereIntersectSegment(o, radius, (const float(*)[3])edge, p);
+		if (res != 0) {
+			return res;
+		}
+	}
+	return 0;
 }
 
 /*
@@ -752,8 +872,8 @@ static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], co
 	for (i = 0; i < 3; ++i) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], tri[i % 3]);
-		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
+		mathVec3Copy(edge[0], tri[i]);
+		mathVec3Copy(edge[1], tri[i+1 >= 3 ? 0 : i+1]);
 		if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
@@ -1122,12 +1242,13 @@ static CCTResult_t* mathSegmentcastRect(const float ls[2][3], const float dir[3]
 		}
 	}
 	else {
-		mathVec3Copy(v[0], ls[0]);
-		mathVec3AddScalar(v[0], dir, result->distance);
-		mathVec3Copy(v[1], ls[1]);
-		mathVec3AddScalar(v[1], dir, result->distance);
-		if (mathRectHasPoint(rect, v[0]) || mathRectHasPoint(rect, v[1])) {
-			return result;
+		for (i = 0; i < 2; ++i) {
+			float test_p[3];
+			mathVec3Copy(test_p, ls[i]);
+			mathVec3AddScalar(test_p, dir, result->distance);
+			if (mathRectHasPoint(rect, test_p)) {
+				return result;
+			}
 		}
 	}
 	p_result = NULL;
@@ -1162,13 +1283,18 @@ static CCTResult_t* mathRectcastSegment(const GeometryRect_t* rect, const float 
 
 static CCTResult_t* mathSegmentcastTriangle(const float ls[2][3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
 	int i;
-	CCTResult_t results[3], *p_result = NULL;
+	CCTResult_t* p_result = NULL;
 	float N[3];
 	mathPlaneNormalByVertices3(tri, N);
 	if (!mathSegmentcastPlane(ls, dir, tri[0], N, result)) {
 		return NULL;
 	}
-	else if (result->hit_point_cnt < 0) {
+	if (result->hit_point_cnt > 0) {
+		if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
+			return result;
+		}
+	}
+	else {
 		for (i = 0; i < 2; ++i) {
 			float test_p[3];
 			mathVec3Copy(test_p, ls[i]);
@@ -1178,37 +1304,21 @@ static CCTResult_t* mathSegmentcastTriangle(const float ls[2][3], const float di
 			}
 		}
 	}
-	else if (mathTriangleHasPoint(tri, result->hit_point, NULL, NULL)) {
-		return result;
-	}
+	p_result = NULL;
 	for (i = 0; i < 3; ++i) {
-		int cmp;
+		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], tri[i % 3]);
-		mathVec3Copy(edge[1], tri[(i + 1) % 3]);
-		if (!mathSegmentcastSegment(ls, dir, (const float(*)[3])edge, &results[i])) {
+		mathVec3Copy(edge[0], tri[i]);
+		mathVec3Copy(edge[1], tri[i+1 >= 3 ? 0 : i+1]);
+		if (!mathSegmentcastSegment(ls, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
-		if (!p_result) {
-			p_result = &results[i];
-			continue;
-		}
-		cmp = fcmpf(p_result->distance, results[i].distance, CCT_EPSILON);
-		if (0 == cmp) {
-			if (!mathVec3Equal(p_result->hit_point, results[i].hit_point)) {
-				p_result->hit_point_cnt = -1;
-			}
-			break;
-		}
-		else if (cmp > 0) {
-			p_result = &results[i];
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
 		}
 	}
-	if (p_result) {
-		copy_result(result, p_result);
-		return result;
-	}
-	return NULL;
+	return p_result;
 }
 
 static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
@@ -1511,64 +1621,125 @@ static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float di
 	return p_result;
 }
 
-static CCTResult_t* mathTrianglecastPlane(const float tri[3][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
-	CCTResult_t results[3], *p_result = NULL;
-	int i;
+static CCTResult_t* mathTrianglecastPlane(const float tri[3][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1, idx_min = -1;
+	float min_d, dot;
 	for (i = 0; i < 3; ++i) {
-		float ls[2][3];
-		mathVec3Copy(ls[0], tri[i % 3]);
-		mathVec3Copy(ls[1], tri[(i + 1) % 3]);
-		if (!mathSegmentcastPlane((const float(*)[3])ls, dir, vertice, normal, &results[i])) {
+		int cmp;
+		float d;
+		mathPointProjectionPlane(tri[i], plane_v, plane_n, NULL, &d);
+		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
+		if (cmp > 0) {
+			if (has_le0) {
+				set_result(result, 0.0f, NULL, dir);
+				return result;
+			}
+			has_gt0 = 1;
+		}
+		else if (cmp < 0) {
+			if (has_gt0) {
+				set_result(result, 0.0f, NULL, dir);
+				return result;
+			}
+			has_le0 = 1;
+		}
+		else if (idx_0 >= 0) {
+			set_result(result, 0.0f, NULL, dir);
+			return result;
+		}
+		else {
+			idx_0 = i;
+		}
+		if (i && fabsf(min_d) < fabsf(d)) {
 			continue;
 		}
-		if (!p_result) {
-			p_result = &results[i];
-			continue;
-		}
-		if (p_result->distance > results[i].distance) {
-			p_result = &results[i];
-		}
+		min_d = d;
+		idx_min = i;
 	}
-	if (p_result) {
-		copy_result(result, p_result);
+	if (idx_0 >= 0) {
+		set_result(result, 0.0f, tri[idx_0], plane_n);
 		return result;
 	}
-	return NULL;
+	dot = mathVec3Dot(dir, plane_n);
+	if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+		return NULL;
+	}
+	min_d /= dot;
+	if (min_d < -CCT_EPSILON) {
+		return NULL;
+	}
+	set_result(result, min_d, tri[idx_min], plane_n);
+	mathVec3AddScalar(result->hit_point, dir, min_d);
+	return result;
 }
 
 static CCTResult_t* mathTrianglecastTriangle(const float tri1[3][3], const float dir[3], const float tri2[3][3], CCTResult_t* result) {
-	float neg_dir[3];
-	CCTResult_t results[6], *p_result = NULL;
-	int i;
-	for (i = 0; i < 3; ++i) {
-		float ls[2][3];
-		mathVec3Copy(ls[0], tri1[i % 3]);
-		mathVec3Copy(ls[1], tri1[(i + 1) % 3]);
-		if (!mathSegmentcastTriangle((const float(*)[3])ls, dir, tri2, &results[i])) {
-			continue;
+	CCTResult_t* p_result;
+	int i, flag;
+	float N1[3], N2[3], neg_dir[3];
+	if (mathTriangleIntersectTriangle(tri1, tri2)) {
+		set_result(result, 0.0f, NULL, dir);
+		return result;
+	}
+	mathPlaneNormalByVertices3(tri1, N1);
+	mathPlaneNormalByVertices3(tri2, N2);
+	flag = mathPlaneIntersectPlane(tri1[0], N1, tri2[0], N2);
+	if (0 == flag) {
+		float d, dot;
+		mathPointProjectionPlane(tri1[0], tri2[0], N2, NULL, &d);
+		dot = mathVec3Dot(dir, N2);
+		if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+			return NULL;
 		}
-		if (!p_result || p_result->distance > results[i].distance) {
-			p_result = &results[i];
+		d /= dot;
+		if (d < -CCT_EPSILON) {
+			return NULL;
 		}
 	}
-	mathVec3Negate(neg_dir, dir);
-	for (; i < 6; ++i) {
-		float ls[2][3];
-		mathVec3Copy(ls[0], tri2[i % 3]);
-		mathVec3Copy(ls[1], tri2[(i + 1) % 3]);
-		if (!mathSegmentcastTriangle((const float(*)[3])ls, neg_dir, tri1, &results[i])) {
+	else if (2 == flag) {
+		float dot = mathVec3Dot(dir, N2);
+		if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+			return NULL;
+		}
+	}
+	p_result = NULL;
+	for (i = 0; i < 3; ++i) {
+		CCTResult_t result_temp;
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri1[i]);
+		mathVec3Copy(edge[1], tri1[i+1 >= 3 ? 0 : i+1]);
+		if (!mathSegmentcastTriangle((const float(*)[3])edge, dir, tri2, &result_temp)) {
 			continue;
 		}
-		if (!p_result || p_result->distance > results[i].distance) {
-			p_result = &results[i];
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
+		}
+	}
+	if (2 == flag) {
+		if (p_result) {
+			p_result->hit_point_cnt = -1;
+		}
+		return p_result;
+	}
+	mathVec3Negate(neg_dir, dir);
+	for (i = 0; i < 3; ++i) {
+		CCTResult_t result_temp;
+		float edge[2][3];
+		mathVec3Copy(edge[0], tri2[i]);
+		mathVec3Copy(edge[1], tri2[i+1 >= 3 ? 0 : i+1]);
+		if (!mathSegmentcastTriangle((const float(*)[3])edge, neg_dir, tri1, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
 		}
 	}
 	if (p_result) {
-		copy_result(result, p_result);
-		result->hit_point_cnt = -1;
-		return result;
+		p_result->hit_point_cnt = -1;
 	}
-	return NULL;
+	return p_result;
 }
 
 static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
