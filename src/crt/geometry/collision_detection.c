@@ -1125,8 +1125,14 @@ static CCTResult_t* mathSegmentcastRect(const float ls[2][3], const float dir[3]
 			return result;
 		}
 	}
-	else if (mathRectHasPoint(rect, ls[0]) || mathRectHasPoint(rect, ls[1])) {
-		return result;
+	else {
+		mathVec3Copy(v[0], ls[0]);
+		mathVec3AddScalar(v[0], dir, result->distance);
+		mathVec3Copy(v[1], ls[1]);
+		mathVec3AddScalar(v[1], dir, result->distance);
+		if (mathRectHasPoint(rect, v[0]) || mathRectHasPoint(rect, v[1])) {
+			return result;
+		}
 	}
 	p_result = NULL;
 	mathRectVertices(rect, v);
@@ -1442,11 +1448,30 @@ static CCTResult_t* mathRectcastPlane(const GeometryRect_t* rect, const float di
 
 static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float dir[3], const GeometryRect_t* rect2, CCTResult_t* result) {
 	CCTResult_t* p_result;
-	int i;
-	float v[4][3];
+	int i, flag;
+	float v[4][3], neg_dir[3];
 	if (mathRectIntersectRect(rect1, rect2)) {
 		set_result(result, 0.0f, NULL, dir);
 		return result;
+	}
+	flag = mathPlaneIntersectPlane(rect1->o, rect1->normal, rect2->o, rect2->normal);
+	if (0 == flag) {
+		float d, dot;
+		mathPointProjectionPlane(rect1->o, rect2->o, rect2->normal, NULL, &d);
+		dot = mathVec3Dot(dir, rect2->normal);
+		if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+			return NULL;
+		}
+		d /= dot;
+		if (d < -CCT_EPSILON) {
+			return NULL;
+		}
+	}
+	else if (2 == flag) {
+		float dot = mathVec3Dot(dir, rect2->normal);
+		if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+			return NULL;
+		}
 	}
 	p_result = NULL;
 	mathRectVertices(rect1, v);
@@ -1462,6 +1487,30 @@ static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float di
 			p_result = result;
 			copy_result(result, &result_temp);
 		}
+	}
+	if (2 == flag) {
+		if (p_result) {
+			p_result->hit_point_cnt = -1;
+		}
+		return p_result;
+	}
+	mathVec3Negate(neg_dir, dir);
+	mathRectVertices(rect2, v);
+	for (i = 0; i < 4; ++i) {
+		CCTResult_t result_temp;
+		float edge[2][3];
+		mathVec3Copy(edge[0], v[i]);
+		mathVec3Copy(edge[1], v[i+1 >= 4 ? 0 : i+1]);
+		if (!mathSegmentcastRect((const float(*)[3])edge, neg_dir, rect1, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(result, &result_temp);
+		}
+	}
+	if (p_result) {
+		p_result->hit_point_cnt = -1;
 	}
 	return p_result;
 }

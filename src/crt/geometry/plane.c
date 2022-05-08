@@ -43,7 +43,7 @@ int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2
 	if (!mathVec3IsZero(n)) {
 		return 1;
 	}
-	return mathPlaneHasPoint(v1, n1, v2);
+	return mathPlaneHasPoint(v1, n1, v2) ? 2 : 0;
 }
 
 int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
