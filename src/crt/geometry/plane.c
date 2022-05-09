@@ -46,39 +46,6 @@ int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2
 	return mathPlaneHasPoint(v1, n1, v2) ? 2 : 0;
 }
 
-int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
-	float v[3], dot;
-	mathVec3Sub(v, p, rect->o);
-	dot = mathVec3Dot(rect->normal, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
-		return 0;
-	}
-	dot = mathVec3Dot(rect->h_axis, v);
-	if (dot > rect->half_h + CCT_EPSILON || dot < -rect->half_h - CCT_EPSILON) {
-		return 0;
-	}
-	return mathVec3LenSq(v) - dot * dot <= rect->half_w * rect->half_w + CCT_EPSILON;
-}
-
-void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
-	float w_axis[3];
-	mathVec3Cross(w_axis, rect->h_axis, rect->normal);
-	//mathVec3Normalized(w_axis, w_axis);
-
-	mathVec3Copy(p[0], rect->o);
-	mathVec3AddScalar(p[0], rect->h_axis, rect->half_h);
-	mathVec3AddScalar(p[0], w_axis, rect->half_w);
-	mathVec3Copy(p[1], rect->o);
-	mathVec3AddScalar(p[1], rect->h_axis, rect->half_h);
-	mathVec3AddScalar(p[1], w_axis, -rect->half_w);
-	mathVec3Copy(p[2], rect->o);
-	mathVec3AddScalar(p[2], rect->h_axis, -rect->half_h);
-	mathVec3AddScalar(p[2], w_axis, -rect->half_w);
-	mathVec3Copy(p[3], rect->o);
-	mathVec3AddScalar(p[3], rect->h_axis, -rect->half_h);
-	mathVec3AddScalar(p[3], w_axis, rect->half_w);
-}
-
 #ifdef __cplusplus
 }
 #endif

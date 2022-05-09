@@ -6,7 +6,7 @@
 #define	UTIL_C_CRT_GEOMETRY_AABB_H
 
 #include "../../compiler_define.h"
-#include "plane.h"
+#include "triangle.h"
 
 typedef struct GeometryAABB_t {
 	float o[3];
