@@ -714,7 +714,7 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 	CCTResult_t* p_result;
 	const GeometryPolygen_t* polygen = gp->polygen;
 	int i;
-	float v[4][3], dot;
+	float dot;
 	if (!mathRaycastPlane(o, dir, polygen->v[0], polygen->normal, result)) {
 		return NULL;
 	}
@@ -1109,7 +1109,6 @@ static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir
 	CCTResult_t *p_result;
 	const GeometryPolygen_t* polygen = gp->polygen;
 	int i;
-	float v[4][3];
 	if (!mathSegmentcastPlane(ls, dir, polygen->v[0], polygen->normal, result)) {
 		return NULL;
 	}
