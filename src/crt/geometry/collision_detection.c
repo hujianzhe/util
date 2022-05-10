@@ -213,7 +213,7 @@ static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* 
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSegmentIntersectPolygen(ls, &gp, p);
 }
@@ -233,11 +233,11 @@ static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect
 	float v1[4][3], v2[4][3];
 	mathRectVertices(rect1, v1);
 	polygen1.v_cnt = 4;
-	polygen1.v = v1;
+	polygen1.v = (const float(*)[3])v1;
 	mathVec3Copy(polygen1.normal, rect1->normal);
 	mathRectVertices(rect2, v2);
 	polygen2.v_cnt = 4;
-	polygen2.v = v2;
+	polygen2.v = (const float(*)[3])v2;
 	mathVec3Copy(polygen2.normal, rect2->normal);
 	return mathPolygenIntersectPolygen(&gp1, &gp2);
 }
@@ -260,7 +260,7 @@ static int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathPolygenIntersectPlane(&gp, plane_v, plane_n, p);
 }
@@ -373,7 +373,7 @@ static int mathSphereIntersectRect(const float o[3], float radius, const Geometr
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSphereIntersectPolygen(o, radius, &gp, p);
 }
@@ -748,7 +748,7 @@ static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const 
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathRaycastPolygen(o, dir, &gp, result);
 }
@@ -837,7 +837,7 @@ static int mathAABBIntersectRect(const float o[3], const float half[3], const Ge
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathAABBIntersectPolygen(o, half, &gp, p);
 }
@@ -1163,7 +1163,7 @@ static CCTResult_t* mathSegmentcastRect(const float ls[2][3], const float dir[3]
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSegmentcastPolygen(ls, dir, &gp, result);
 }
@@ -1438,7 +1438,7 @@ static CCTResult_t* mathRectcastPlane(const GeometryRect_t* rect, const float di
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathPolygencastPlane(&gp, dir, plane_v, plane_n, result);
 }
@@ -1527,11 +1527,11 @@ static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float di
 	GeometryPolygenInner_t gp1 = { &polygen1, rect1 }, gp2 = { &polygen2, rect2 };
 	mathRectVertices(rect1, v1);
 	polygen1.v_cnt = 4;
-	polygen1.v = v1;
+	polygen1.v = (const float(*)[3])v1;
 	mathVec3Copy(polygen1.normal, rect1->normal);
 	mathRectVertices(rect2, v2);
 	polygen2.v_cnt = 4;
-	polygen2.v = v2;
+	polygen2.v = (const float(*)[3])v2;
 	mathVec3Copy(polygen2.normal, rect2->normal);
 	return mathPolygencastPolygen(&gp1, dir, &gp2, result);
 }
@@ -1686,7 +1686,7 @@ static CCTResult_t* mathAABBcastRect(const float o[3], const float half[3], cons
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathAABBcastPolygen(o, half, dir, &gp, result);
 }
@@ -1867,7 +1867,7 @@ static CCTResult_t* mathSpherecastRect(const float o[3], float radius, const flo
 	float v[4][3];
 	mathRectVertices(rect, v);
 	polygen.v_cnt = 4;
-	polygen.v = v;
+	polygen.v = (const float(*)[3])v;
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSpherecastPolygen(o, radius, dir, &gp, result);
 }
@@ -2306,7 +2306,7 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp2 = { two->polygen };
 				mathRectVertices(one->rect, v);
 				polygen1.v_cnt = 4;
-				polygen1.v = v;
+				polygen1.v = (const float(*)[3])v;
 				mathVec3Copy(polygen1.normal, one->rect->normal);
 				return mathPolygenIntersectPolygen(&gp1, &gp2);
 			}
@@ -2344,7 +2344,7 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp2 = { &polygen, two->rect };
 				mathRectVertices(two->rect, v);
 				polygen.v_cnt = 4;
-				polygen.v = v;
+				polygen.v = (const float(*)[3])v;
 				mathVec3Copy(polygen.normal, two->rect->normal);
 				return mathPolygenIntersectPolygen(&gp, &gp2);
 			}
@@ -2511,7 +2511,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp2 = { two->polygen };
 				mathRectVertices(one->rect, v);
 				polygen.v_cnt = 4;
-				polygen.v = v;
+				polygen.v = (const float(*)[3])v;
 				mathVec3Copy(polygen.normal, one->rect->normal);
 				return mathPolygencastPolygen(&gp1, dir, &gp2, result);
 			}
@@ -2545,7 +2545,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp2 = { &polygen, two->rect };
 				mathRectVertices(two->rect, v);
 				polygen.v_cnt = 4;
-				polygen.v = v;
+				polygen.v = (const float(*)[3])v;
 				mathVec3Copy(polygen.normal, two->rect->normal);
 				return mathPolygencastPolygen(&gp, dir, &gp2, result);
 			}
