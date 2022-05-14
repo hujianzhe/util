@@ -131,7 +131,7 @@ int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
 			mathVec3Copy(tri[0], polygen->v[polygen->indices[i++]]);
 			mathVec3Copy(tri[1], polygen->v[polygen->indices[i++]]);
 			mathVec3Copy(tri[2], polygen->v[polygen->indices[i++]]);
-			if (mathTriangleHasPoint(tri, p)) {
+			if (mathTriangleHasPoint((const float(*)[3])tri, p)) {
 				return 1;
 			}
 		}
