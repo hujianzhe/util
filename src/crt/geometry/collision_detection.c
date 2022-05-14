@@ -48,16 +48,10 @@ static CCTResult_t* set_result(CCTResult_t* result, float distance, const float 
 }
 
 static int polygen_inner_has_point(const GeometryPolygenInner_t* inner, const float p[3]) {
-	volatile int* debug_ptr = (int*)0;
 	if (inner->rect) {
 		return mathRectHasPoint(inner->rect, p);
 	}
-	else if (3 == inner->polygen->v_cnt) {
-		return mathTriangleHasPoint(inner->polygen->v, p);
-	}
-	// not implement ...
-	*debug_ptr = 0;
-	return 0;
+	return mathPolygenHasPoint(inner->polygen, p);
 }
 
 /*

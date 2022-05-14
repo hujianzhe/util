@@ -73,22 +73,70 @@ int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
 }
 
 void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
-	float w_axis[3];
-	mathVec3Cross(w_axis, rect->h_axis, rect->normal);
-	//mathVec3Normalized(w_axis, w_axis);
-
 	mathVec3Copy(p[0], rect->o);
 	mathVec3AddScalar(p[0], rect->h_axis, rect->half_h);
-	mathVec3AddScalar(p[0], w_axis, rect->half_w);
+	mathVec3AddScalar(p[0], rect->w_axis, rect->half_w);
 	mathVec3Copy(p[1], rect->o);
 	mathVec3AddScalar(p[1], rect->h_axis, rect->half_h);
-	mathVec3AddScalar(p[1], w_axis, -rect->half_w);
+	mathVec3AddScalar(p[1], rect->w_axis, -rect->half_w);
 	mathVec3Copy(p[2], rect->o);
 	mathVec3AddScalar(p[2], rect->h_axis, -rect->half_h);
-	mathVec3AddScalar(p[2], w_axis, -rect->half_w);
+	mathVec3AddScalar(p[2], rect->w_axis, -rect->half_w);
 	mathVec3Copy(p[3], rect->o);
 	mathVec3AddScalar(p[3], rect->h_axis, -rect->half_h);
-	mathVec3AddScalar(p[3], w_axis, rect->half_w);
+	mathVec3AddScalar(p[3], rect->w_axis, rect->half_w);
+}
+
+GeometryRect_t* mathRectFromVertices4(GeometryRect_t* rect, const float p[4][3]) {
+	float dot;
+	mathVec3Sub(rect->h_axis, p[1], p[0]);
+	mathVec3Sub(rect->w_axis, p[2], p[1]);
+	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
+	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+		return NULL;
+	}
+	mathVec3Sub(rect->h_axis, p[3], p[2]);
+	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
+	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+		return NULL;
+	}
+	mathVec3Sub(rect->w_axis, p[0], p[3]);
+	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
+	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+		return NULL;
+	}
+	rect->half_h = mathVec3Normalized(rect->h_axis, rect->h_axis) * 0.5f;
+	rect->half_w = mathVec3Normalized(rect->w_axis, rect->w_axis) * 0.5f;
+	mathVec3Cross(rect->normal, rect->h_axis, rect->w_axis);
+	//mathVec3Normalized(rect->normal, rect->normal);
+	mathVec3Add(rect->o, p[0], p[2]);
+	mathVec3MultiplyScalar(rect->o, rect->o, 0.5f);
+	return rect;
+}
+
+int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
+	if (3 == polygen->v_cnt) {
+		return mathTrianglePointUV(polygen->v, p, NULL, NULL);
+	}
+	else if (polygen->v_cnt > 3) {
+		unsigned int i;
+		float v[3], dot;
+		mathVec3Sub(v, polygen->v[0], p);
+		dot = mathVec3Dot(polygen->normal, v);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return 0;
+		}
+		for (i = 0; i + 3 <= polygen->indices_cnt; ) {
+			float tri[3][3];
+			mathVec3Copy(tri[0], polygen->v[polygen->indices[i++]]);
+			mathVec3Copy(tri[1], polygen->v[polygen->indices[i++]]);
+			mathVec3Copy(tri[2], polygen->v[polygen->indices[i++]]);
+			if (mathTriangleHasPoint(tri, p)) {
+				return 1;
+			}
+		}
+	}
+	return 0;
 }
 
 #ifdef __cplusplus

@@ -40,13 +40,21 @@ const float AABB_Plane_Normal[6][3] = {
 	{ 1.0f, 0.0f, 0.0f },{ -1.0f, 0.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },{ 0.0f, -1.0f, 0.0f }
 };
-static const float AABB_Rect_Axis[6][3] = {
+static const float AABB_Rect_H_Axis[6][3] = {
 	{ 0.0f, 1.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },
 	{ 0.0f, 1.0f, 0.0f },
 	{ 1.0f, 0.0f, 0.0f },
 	{ 1.0f, 0.0f, 0.0f }
+};
+static const float AABB_Rect_W_Axis[6][3] = {
+	{ 1.0f, 0.0f, 0.0f },
+	{ 1.0f, 0.0f, 0.0f },
+	{ 0.0f, 0.0f, 1.0f },
+	{ 0.0f, 0.0f, 1.0f },
+	{ 0.0f, 0.0f, 1.0f },
+	{ 0.0f, 0.0f, 1.0f }
 };
 
 void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3]) {
@@ -129,7 +137,8 @@ GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigne
 		rect->half_w = half[2];
 		rect->half_h = half[0];
 	}
-	mathVec3Copy(rect->h_axis, AABB_Rect_Axis[idx]);
+	mathVec3Copy(rect->h_axis, AABB_Rect_H_Axis[idx]);
+	mathVec3Copy(rect->w_axis, AABB_Rect_W_Axis[idx]);
 	mathVec3Copy(rect->normal, AABB_Plane_Normal[idx]);
 	return rect;
 }
