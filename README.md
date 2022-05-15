@@ -24,7 +24,7 @@
 				rpc_core			基于协程/回调的RPC调度核心机制  
 			crt/  
 				geometry/			包含常用几何体定义与接口  
-					collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/平面/矩形之间的方向投射检测  
+					collision_detection	一个3D碰撞检测接口,支持射线/AABB/球/平面/矩形/多边形之间的相交检测与方向投射检测  
 				cXML				用于解析XML  
 				dynarr				模拟泛型的动态数组  
 				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  

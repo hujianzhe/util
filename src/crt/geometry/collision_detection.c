@@ -54,28 +54,6 @@ static int polygen_inner_has_point(const GeometryPolygenInner_t* inner, const fl
 	return mathPolygenHasPoint(inner->polygen, p);
 }
 
-/*
-static int mathCapsuleHasPoint(const float o[3], const float axis[3], float radius, float half_height, const float p[3]) {
-	float cp[3], v[3], dot;
-	mathVec3AddScalar(mathVec3Copy(cp, o), axis, -half_height);
-	mathVec3Sub(v, p, cp);
-	dot = mathVec3Dot(axis, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
-		return mathSphereHasPoint(cp, radius, p);
-	}
-	else if (fcmpf(dot, half_height + half_height, CCT_EPSILON) > 0) {
-		mathVec3AddScalar(cp, axis, half_height + half_height);
-		return mathSphereHasPoint(cp, radius, p);
-	}
-	else {
-		int cmp = fcmpf(mathVec3LenSq(v) - dot * dot, radius * radius, CCT_EPSILON);
-		if (cmp > 0)
-			return 0;
-		return cmp < 0 ? 2 : 1;
-	}
-}
-*/
-
 static int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]) {
 	int cmp[2];
 	float d[2], lsdir[3], dot;
@@ -235,19 +213,7 @@ static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect
 	mathVec3Copy(polygen2.normal, rect2->normal);
 	return mathPolygenIntersectPolygen(&gp1, &gp2);
 }
-/*
-static int mathTriangleIntersectTriangle(const float tri1[3][3], const float tri2[3][3]) {
-	GeometryPolygen_t polygen1, polygen2;
-	GeometryPolygenInner_t gp1 = { &polygen1, NULL }, gp2 = { &polygen2, NULL };
-	polygen1.v_cnt = 3;
-	polygen1.v = tri1;
-	mathPlaneNormalByVertices3(tri1, polygen1.normal);
-	polygen2.v_cnt = 3;
-	polygen2.v = tri2;
-	mathPlaneNormalByVertices3(tri2, polygen2.normal);
-	return mathPolygenIntersectPolygen(&gp1, &gp2);
-}
-*/
+
 static int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_v[3], const float plane_n[3], float p[3]) {
 	GeometryPolygen_t polygen;
 	GeometryPolygenInner_t gp = { &polygen, rect };
@@ -258,16 +224,7 @@ static int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathPolygenIntersectPlane(&gp, plane_v, plane_n, p);
 }
-/*
-static int mathTriangleIntersectPlane(const float tri[3][3], const float plane_v[3], const float plane_n[3], float p[3]) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathPolygenIntersectPlane(&gp, plane_v, plane_n, p);
-}
-*/
+
 static int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]) {
 	int cmp;
 	float vo[3], lp[3], lpo[3], lpolensq, radiussq, dot;
@@ -371,49 +328,6 @@ static int mathSphereIntersectRect(const float o[3], float radius, const Geometr
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSphereIntersectPolygen(o, radius, &gp, p);
 }
-/*
-static int mathSphereIntersectTriangle(const float o[3], float radius, const float tri[3][3], float p[3]) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathSphereIntersectPolygen(o, radius, &gp, p);
-}
-*/
-/*
-static int mathSphereIntersectCapsule(const float sp_o[3], float sp_radius, const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, float p[3]) {
-	float v[3], cp[3], dot;
-	mathVec3AddScalar(mathVec3Copy(cp, cp_o), cp_axis, -cp_half_height);
-	mathVec3Sub(v, sp_o, cp);
-	dot = mathVec3Dot(cp_axis, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
-		return mathSphereIntersectSphere(sp_o, sp_radius, cp, cp_radius, p);
-	}
-	else if (fcmpf(dot, cp_half_height + cp_half_height, CCT_EPSILON) > 0) {
-		mathVec3AddScalar(cp, cp_axis, cp_half_height + cp_half_height);
-		return mathSphereIntersectSphere(sp_o, sp_radius, cp, cp_radius, p);
-	}
-	else {
-		float radius_sum = sp_radius + cp_radius;
-		int cmp = fcmpf(mathVec3LenSq(v) - dot * dot, radius_sum * radius_sum, CCT_EPSILON);
-		if (cmp > 0)
-			return 0;
-		if (cmp < 0)
-			return 2;
-		else {
-			if (p) {
-				float pl[3];
-				mathVec3AddScalar(mathVec3Copy(pl, cp), cp_axis, dot);
-				mathVec3Sub(v, pl, sp_o);
-				mathVec3Normalized(v, v);
-				mathVec3AddScalar(mathVec3Copy(p, sp_o), v, sp_radius);
-			}
-			return 1;
-		}
-	}
-}
-*/
 
 static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1;
@@ -489,146 +403,6 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	}
 	return rcnt;
 }
-
-/*
-static int mathLineIntersectCapsule(const float ls_v[3], const float lsdir[3], const float o[3], const float axis[3], float radius, float half_height, float distance[2]) {
-	int res = mathLineIntersectCylinderInfinite(ls_v, lsdir, o, axis, radius, distance);
-	if (0 == res)
-		return 0;
-	if (1 == res) {
-		float p[3];
-		mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, distance[0]);
-		return mathCapsuleHasPoint(o, axis, radius, half_height, p);
-	}
-	else {
-		float sphere_o[3], d[5], *min_d, *max_d;
-		int i, j = -1, cnt;
-		if (2 == res) {
-			cnt = 0;
-			for (i = 0; i < 2; ++i) {
-				float p[3];
-				mathVec3AddScalar(mathVec3Copy(p, ls_v), lsdir, distance[i]);
-				if (!mathCapsuleHasPoint(o, axis, radius, half_height, p))
-					continue;
-				++cnt;
-				j = i;
-			}
-			if (2 == cnt)
-				return 2;
-		}
-		cnt = 0;
-		mathVec3AddScalar(mathVec3Copy(sphere_o, o), axis, half_height);
-		if (mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d))
-			cnt += 2;
-		mathVec3AddScalar(mathVec3Copy(sphere_o, o), axis, -half_height);
-		if (mathSphereIntersectLine(sphere_o, radius, ls_v, lsdir, d + cnt))
-			cnt += 2;
-		if (0 == cnt)
-			return 0;
-		min_d = max_d = NULL;
-		if (j >= 0)
-			d[cnt++] = distance[j];
-		for (i = 0; i < cnt; ++i) {
-			if (!min_d || *min_d > d[i])
-				min_d = d + i;
-			if (!max_d || *max_d < d[i])
-				max_d = d + i;
-		}
-		distance[0] = *min_d;
-		distance[1] = *max_d;
-		return 2;
-	}
-}
-
-static int mathSegmentIntersectCapsule(const float ls[2][3], const float o[3], const float axis[3], float radius, float half_height, float p[3]) {
-	int res[2];
-	res[0] = mathCapsuleHasPoint(o, axis, radius, half_height, ls[0]);
-	if (2 == res[0])
-		return 2;
-	res[1] = mathCapsuleHasPoint(o, axis, radius, half_height, ls[1]);
-	if (2 == res[1])
-		return 2;
-	if (res[0] + res[1] >= 2)
-		return 2;
-	else {
-		float lsdir[3], d[2], new_ls[2][3];
-		mathVec3Sub(lsdir, ls[1], ls[0]);
-		mathVec3Normalized(lsdir, lsdir);
-		if (!mathLineIntersectCapsule(ls[0], lsdir, o, axis, radius, half_height, d)) {
-			return 0;
-		}
-		mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), lsdir, d[0]);
-		mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[0]), lsdir, d[1]);
-		return mathSegmentIntersectSegment(ls, (const float(*)[3])new_ls, p);
-	}
-}
-
-static int mathCapsuleIntersectPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float plane_v[3], const float plane_n[3], float p[3]) {
-	float sphere_o[2][3], d[2];
-	int i, cmp[2];
-	for (i = 0; i < 2; ++i) {
-		mathVec3AddScalar(mathVec3Copy(sphere_o[i], cp_o), cp_axis, i ? cp_half_height : -cp_half_height);
-		mathPointProjectionPlane(sphere_o[i], plane_v, plane_n, NULL, &d[i]);
-		cmp[i] = fcmpf(d[i] * d[i], cp_radius * cp_radius, CCT_EPSILON);
-		if (cmp[i] < 0)
-			return 2;
-	}
-	if (0 == cmp[0] && 0 == cmp[1])
-		return 2;
-	else if (0 == cmp[0]) {
-		if (p)
-			mathVec3AddScalar(mathVec3Copy(p, sphere_o[0]), plane_n, d[0]);
-		return 1;
-	}
-	else if (0 == cmp[1]) {
-		if (p)
-			mathVec3AddScalar(mathVec3Copy(p, sphere_o[1]), plane_n, d[1]);
-		return 1;
-	}
-	cmp[0] = fcmpf(d[0], 0.0f, CCT_EPSILON);
-	cmp[1] = fcmpf(d[1], 0.0f, CCT_EPSILON);
-	return cmp[0] * cmp[1] > 0 ? 0 : 2;
-}
-
-static int mathAABBIntersectCapsule(const float aabb_o[3], const float aabb_half[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height) {
-	if (mathAABBHasPoint(aabb_o, aabb_half, cp_o) || mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, aabb_o))
-		return 1;
-	else {
-		int i, j;
-		float v[8][3];
-		mathAABBVertices(aabb_o, aabb_half, v);
-		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
-			if (mathCapsuleIntersectTrianglesPlane(cp_o, cp_axis, cp_radius, cp_half_height, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6))
-				return 1;
-		}
-		return 0;
-	}
-}
-
-static void mathCapsuleAxisSegment(const float o[3], const float axis[3], float half_height, float ls[2][3]) {
-	mathVec3Copy(ls[0], o);
-	mathVec3AddScalar(ls[0], axis, half_height);
-	mathVec3Copy(ls[1], o);
-	mathVec3AddScalar(ls[1], axis, -half_height);
-}
-
-static int mathCapsuleIntersectCapsule(const float cp1_o[3], const float cp1_axis[3], float cp1_radius, float cp1_half_height, const float cp2_o[3], const float cp2_axis[3], float cp2_radius, float cp2_half_height) {
-	int res;
-	float ls1[2][3], ls2[2][3], closest_p[2][3], v[3], r;
-	mathCapsuleAxisSegment(cp1_o, cp1_axis, cp1_half_height, ls1);
-	mathCapsuleAxisSegment(cp2_o, cp2_axis, cp2_half_height, ls2);
-	res = mathSegmentClosestSegment((const float(*)[3])ls1, (const float(*)[3])ls2, closest_p);
-	if (GEOMETRY_SEGMENT_OVERLAP == res) {
-		return 1;
-	}
-	if (GEOMETRY_SEGMENT_CONTACT == res) {
-		return 1;
-	}
-	mathVec3Sub(v, closest_p[1], closest_p[0]);
-	r = cp1_radius + cp2_radius;
-	return mathVec3LenSq(v) <= r * r + CCT_EPSILON;
-}
-*/
 
 static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	float v0[3], v1[3], N[3], dot, d;
@@ -870,51 +644,6 @@ static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], cons
 	mathVec3MultiplyScalar(result->hit_normal, result->hit_normal, 1.0f / sp_radius);
 	return result;
 }
-
-/*
-static CCTResult_t* mathRaycastCapsule(const float o[3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
-	if (mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, o)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
-		mathVec3Copy(result->hit_point, o);
-		return result;
-	}
-	else {
-		float d[2];
-		if (mathLineIntersectCapsule(o, dir, cp_o, cp_axis, cp_radius, cp_half_height, d)) {
-			int cmp[2] = {
-				fcmpf(d[0], 0.0f, CCT_EPSILON),
-				fcmpf(d[1], 0.0f, CCT_EPSILON)
-			};
-			if (cmp[0] > 0 && cmp[1] > 0) {
-				float sphere_o[3], v[3], dot;
-				result->distance = d[0] < d[1] ? d[0] : d[1];
-				result->hit_point_cnt = 1;
-				mathVec3AddScalar(mathVec3Copy(result->hit_point, o), dir, result->distance);
-
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, -cp_half_height);
-				mathVec3Sub(v, result->hit_point, sphere_o);
-				dot = mathVec3Dot(v, cp_axis);
-				if (fcmpf(dot, 0.0f, CCT_EPSILON) < 0) {
-					mathVec3Copy(result->hit_normal, v);
-				}
-				else if (fcmpf(dot, cp_half_height, CCT_EPSILON) > 0) {
-					mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, cp_half_height);
-					mathVec3Sub(v, result->hit_point, sphere_o);
-					mathVec3Copy(result->hit_normal, v);
-				}
-				else {
-					mathPointProjectionLine(result->hit_point, cp_o, cp_axis, v);
-					mathVec3Sub(result->hit_normal, result->hit_point, v);
-					mathVec3Normalized(result->hit_normal, result->hit_normal);
-				}
-				return result;
-			}
-		}
-		return NULL;
-	}
-}
-*/
 
 static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	int res = mathSegmentIntersectPlane(ls, vertice, normal, result->hit_point);
@@ -1172,28 +901,7 @@ static CCTResult_t* mathRectcastSegment(const GeometryRect_t* rect, const float 
 	}
 	return result;
 }
-/*
-static CCTResult_t* mathSegmentcastTriangle(const float ls[2][3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathSegmentcastPolygen(ls, dir, &gp, result);
-}
 
-static CCTResult_t* mathTrianglecastSegment(const float tri[3][3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastTriangle(ls, neg_dir, tri, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-*/
 static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
 	int c = mathSphereIntersectSegment(center, radius, ls, result->hit_point);
 	if (1 == c) {
@@ -1286,92 +994,6 @@ static CCTResult_t* mathSpherecastSegment(const float o[3], const float radius, 
 	return result;
 }
 
-/*
-static CCTResult_t* mathSegmentcastCapsule(const float ls[2][3], const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
-	int i, res = mathSegmentIntersectCapsule(ls, cp_o, cp_axis, cp_radius, cp_half_height, result->hit_point);
-	if (1 == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
-		return result;
-	}
-	else if (2 == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else {
-		float lsdir[3], N[3];
-		mathVec3Sub(lsdir, ls[1], ls[0]);
-		mathVec3Cross(N, lsdir, dir);
-		if (mathVec3IsZero(N)) {
-			CCTResult_t results[2], *p_result;
-			if (!mathRaycastCapsule(ls[0], dir, cp_o, cp_axis, cp_radius, cp_half_height, &results[0]))
-				return NULL;
-			if (!mathRaycastCapsule(ls[1], dir, cp_o, cp_axis, cp_radius, cp_half_height, &results[1]))
-				return NULL;
-			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
-			copy_result(result, p_result);
-			return result;
-		}
-		else {
-			CCTResult_t results[4], *p_result;
-			float d, dir_d[2];
-			int mask;
-			mathVec3Normalized(lsdir, lsdir);
-			mask = mathLineClosestLine(cp_o, cp_axis, ls[0], lsdir, &d, dir_d);
-			if ((GEOMETRY_LINE_SKEW == mask || GEOMETRY_LINE_CROSS == mask) &&
-				fcmpf(d, cp_radius, CCT_EPSILON) > 0)
-			{
-				float closest_p[2][3], closest_v[3], plane_v[3];
-				mathVec3AddScalar(mathVec3Copy(closest_p[0], cp_o), cp_axis, dir_d[0]);
-				mathVec3AddScalar(mathVec3Copy(closest_p[1], ls[0]), lsdir, dir_d[1]);
-				mathVec3Sub(closest_v, closest_p[1], closest_p[0]);
-				mathVec3Normalized(closest_v, closest_v);
-				mathVec3AddScalar(mathVec3Copy(plane_v, closest_p[0]), closest_v, cp_radius);
-				if (!mathSegmentcastPlane(ls, dir, plane_v, closest_v, result))
-					return NULL;
-				else {
-					float new_ls[2][3];
-					mathVec3AddScalar(mathVec3Copy(new_ls[0], ls[0]), dir, result->distance);
-					mathVec3AddScalar(mathVec3Copy(new_ls[1], ls[1]), dir, result->distance);
-					res = mathSegmentIntersectCapsule((const float(*)[3])new_ls, cp_o, cp_axis, cp_radius, cp_half_height, result->hit_point);
-					if (1 == res) {
-						result->hit_point_cnt = 1;
-						return result;
-					}
-					else if (2 == res) {
-						result->hit_point_cnt = -1;
-						return result;
-					}
-				}
-			}
-			p_result = NULL;
-			for (i = 0; i < 2; ++i) {
-				float sphere_o[3];
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, i ? cp_half_height : -cp_half_height);
-				if (mathSegmentcastSphere(ls, dir, sphere_o, cp_radius, &results[i]) &&
-					(!p_result || p_result->distance > results[i].distance))
-				{
-					p_result = &results[i];
-				}
-			}
-			for (i = 0; i < 2; ++i) {
-				if (mathRaycastCapsule(ls[i], dir, cp_o, cp_axis, cp_radius, cp_half_height, &results[i + 2]) &&
-					(!p_result || p_result->distance > results[i + 2].distance))
-				{
-					p_result = &results[i + 2];
-				}
-			}
-			if (p_result) {
-				copy_result(result, p_result);
-				return result;
-			}
-			return NULL;
-		}
-	}
-}
-*/
-
 static CCTResult_t* mathPolygencastPlane(const GeometryPolygenInner_t* gp, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1, idx_min = -1;
 	float min_d, dot;
@@ -1435,16 +1057,7 @@ static CCTResult_t* mathRectcastPlane(const GeometryRect_t* rect, const float di
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathPolygencastPlane(&gp, dir, plane_v, plane_n, result);
 }
-/*
-static CCTResult_t* mathTrianglecastPlane(const float tri[3][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathPolygencastPlane(&gp, dir, plane_v, plane_n, result);
-}
-*/
+
 static CCTResult_t* mathPolygencastPolygen(const GeometryPolygenInner_t* gp1, const float dir[3], const GeometryPolygenInner_t* gp2, CCTResult_t* result) {
 	CCTResult_t* p_result;
 	int i, flag;
@@ -1528,19 +1141,7 @@ static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float di
 	mathVec3Copy(polygen2.normal, rect2->normal);
 	return mathPolygencastPolygen(&gp1, dir, &gp2, result);
 }
-/*
-static CCTResult_t* mathTrianglecastTriangle(const float tri1[3][3], const float dir[3], const float tri2[3][3], CCTResult_t* result) {
-	GeometryPolygen_t polygen1, polygen2;
-	GeometryPolygenInner_t gp1 = { &polygen1, NULL }, gp2 = { &polygen2, NULL };
-	polygen1.v_cnt = 3;
-	polygen1.v = tri1;
-	mathPlaneNormalByVertices3(tri1, polygen1.normal);
-	polygen2.v_cnt = 3;
-	polygen2.v = tri2;
-	mathPlaneNormalByVertices3(tri2, polygen2.normal);
-	return mathPolygencastPolygen(&gp1, dir, &gp2, result);
-}
-*/
+
 static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	int res = mathAABBIntersectPlane(o, half, vertice, normal, result->hit_point);
 	if (1 == res) {
@@ -1876,174 +1477,6 @@ static CCTResult_t* mathRectcastSphere(const GeometryRect_t* rect, const float d
 	}
 	return result;
 }
-/*
-static CCTResult_t* mathSpherecastTriangle(const float o[3], float radius, const float dir[3], const float tri[3][3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathSpherecastPolygen(o, radius, dir, &gp, result);
-}
-
-static CCTResult_t* mathTrianglecastSphere(const float tri[3][3], const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastTriangle(o, radius, neg_dir, tri, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-*/
-/*
-static CCTResult_t* mathSpherecastCapsule(const float sp_o[3], float sp_radius, const float dir[3], const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, CCTResult_t* result) {
-	if (mathRaycastCapsule(sp_o, dir, cp_o, cp_axis, sp_radius + cp_radius, cp_half_height, result)) {
-		float new_sp_o[3];
-		mathVec3AddScalar(mathVec3Copy(new_sp_o, sp_o), dir, result->distance);
-		result->hit_point_cnt = 1;
-		mathSphereIntersectCapsule(new_sp_o, sp_radius, cp_o, cp_axis, cp_radius, cp_half_height, result->hit_point);
-		return result;
-	}
-	return NULL;
-}
-
-static CCTResult_t* mathCapsulecastPlane(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
-	int res = mathCapsuleIntersectPlane(cp_o, cp_axis, cp_radius, cp_half_height, plane_v, plane_n, result->hit_point);
-	if (2 == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else if (1 == res) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = 1;
-		return result;
-	}
-	else {
-		CCTResult_t results[2], *p_result = NULL;
-		int i;
-		for (i = 0; i < 2; ++i) {
-			float sphere_o[3];
-			mathVec3AddScalar(mathVec3Copy(sphere_o, cp_o), cp_axis, i ? cp_half_height : -cp_half_height);
-			if (mathSpherecastPlane(sphere_o, cp_radius, dir, plane_v, plane_n, &results[i]) &&
-				(!p_result || p_result->distance > results[i].distance))
-			{
-				p_result = results + i;
-			}
-		}
-		if (p_result) {
-			float dot = mathVec3Dot(cp_axis, plane_n);
-			if (0 == fcmpf(dot, 0.0f, CCT_EPSILON))
-				p_result->hit_point_cnt = -1;
-			copy_result(result, p_result);
-			return result;
-		}
-		return NULL;
-	}
-}
-
-static CCTResult_t* mathCapsulecastAABB(const float cp_o[3], const float cp_axis[3], float cp_radius, float cp_half_height, const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
-	if (mathAABBHasPoint(aabb_o, aabb_half, cp_o) || mathCapsuleHasPoint(cp_o, cp_axis, cp_radius, cp_half_height, aabb_o)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else {
-		CCTResult_t *p_result = NULL;
-		int i, j;
-		float v[8][3];
-		mathAABBVertices(aabb_o, aabb_half, v);
-		for (i = 0, j = 0; i < sizeof(Box_Triangle_Vertices_Indices) / sizeof(Box_Triangle_Vertices_Indices[0]); i += 6, ++j) {
-			CCTResult_t result_temp;
-			if (mathCapsulecastTrianglesPlane(cp_o, cp_axis, cp_radius, cp_half_height, dir, AABB_Plane_Normal[j], (const float(*)[3])v, Box_Triangle_Vertices_Indices + i, 6, &result_temp) &&
-				(!p_result || p_result->distance > result_temp.distance))
-			{
-				copy_result(result, &result_temp);
-				p_result = result;
-			}
-		}
-		return p_result;
-	}
-}
-
-static CCTResult_t* mathCapsulecastCapsule(const float cp1_o[3], const float cp1_axis[3], float cp1_radius, float cp1_half_height, const float dir[3], const float cp2_o[3], const float cp2_axis[3], float cp2_radius, float cp2_half_height, CCTResult_t* result) {
-	if (mathCapsuleIntersectCapsule(cp1_o, cp1_axis, cp1_radius, cp1_half_height, cp2_o, cp2_axis, cp2_radius, cp2_half_height)) {
-		result->distance = 0.0f;
-		result->hit_point_cnt = -1;
-		return result;
-	}
-	else {
-		CCTResult_t results[4], *p_result;
-		int i;
-		float N[3];
-		mathVec3Cross(N, cp1_axis, dir);
-		if (mathVec3IsZero(N)) {
-			for (i = 0; i < 2; ++i) {
-				float sphere_o[3];
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp1_o), cp1_axis, i ? cp1_half_height : -cp1_half_height);
-				if (!mathSpherecastCapsule(sphere_o, cp1_radius, dir, cp2_o, cp2_axis, cp2_radius, cp2_half_height, &results[i]))
-					return NULL;
-			}
-			p_result = results[0].distance < results[1].distance ? &results[0] : &results[1];
-			copy_result(result, p_result);
-			return result;
-		}
-		else {
-			float min_d, dir_d[2], neg_dir[3];
-			int mask = mathLineClosestLine(cp1_o, cp1_axis, cp2_o, cp2_axis, &min_d, dir_d);
-			if ((GEOMETRY_LINE_SKEW == mask || GEOMETRY_LINE_CROSS == mask) &&
-				fcmpf(min_d, cp1_radius + cp2_radius, CCT_EPSILON) > 0)
-			{
-				float closest_p[2][3], closest_v[3], plane_p[3];
-				mathVec3AddScalar(mathVec3Copy(closest_p[0], cp1_o), cp1_axis, dir_d[0]);
-				mathVec3AddScalar(mathVec3Copy(closest_p[1], cp2_o), cp2_axis, dir_d[1]);
-				mathVec3Sub(closest_v, closest_p[1], closest_p[0]);
-				mathVec3Normalized(closest_v, closest_v);
-				mathVec3AddScalar(mathVec3Copy(plane_p, cp2_o), closest_v, -cp2_radius);
-				if (!mathCapsulecastPlane(cp1_o, cp1_axis, cp1_radius, cp1_half_height, dir, plane_p, closest_v, result))
-					return NULL;
-				else {
-					float new_cp1_o[3];
-					mathVec3AddScalar(mathVec3Copy(new_cp1_o, cp1_o), dir, result->distance);
-					if (mathCapsuleIntersectCapsule(new_cp1_o, cp1_axis, cp1_radius, cp1_half_height, cp2_o, cp2_axis, cp2_radius, cp2_half_height)) {
-						result->hit_point_cnt = -1;
-						return result;
-					}
-				}
-			}
-			mathVec3Negate(neg_dir, dir);
-			p_result = NULL;
-			for (i = 0; i < 2; ++i) {
-				float sphere_o[3];
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp2_o), cp2_axis, i ? cp2_half_height : -cp2_half_height);
-				if (mathSpherecastCapsule(sphere_o, cp2_radius, neg_dir, cp1_o, cp1_axis, cp1_radius, cp1_half_height, &results[i]) &&
-					(!p_result || p_result->distance > results[i].distance))
-				{
-					p_result = &results[i];
-				}
-			}
-			for (i = 0; i < 2; ++i) {
-				float sphere_o[3];
-				mathVec3AddScalar(mathVec3Copy(sphere_o, cp1_o), cp1_axis, i ? cp1_half_height : -cp1_half_height);
-				if (mathSpherecastCapsule(sphere_o, cp1_radius, dir, cp2_o, cp2_axis, cp2_radius, cp2_half_height, &results[i + 2]) &&
-					(!p_result || p_result->distance > results[i + 2].distance))
-				{
-					p_result = &results[i + 2];
-				}
-			}
-			if (p_result) {
-				p_result->hit_point_cnt = -1;
-				copy_result(result, p_result);
-				return result;
-			}
-			return NULL;
-		}
-	}
-}
-*/
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -2062,15 +1495,6 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 			mathVec3Set(aabb->half, b->sphere->radius, b->sphere->radius, b->sphere->radius);
 			break;
 		}
-		/*
-		case COLLISION_BODY_CAPSULE:
-		{
-			float half_d = b->capsule.half_height + b->capsule.radius;
-			mathVec3Copy(aabb->pos, b->capsule.pos);
-			mathVec3Set(aabb->half, half_d, half_d, half_d);
-			break;
-		}
-		*/
 		default:
 		{
 			return NULL;
