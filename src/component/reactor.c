@@ -745,6 +745,9 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		int res = send(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
+				if (!packet->_.cached) {
+					reactorpacketFree(packet);
+				}
 				o->m_valid = 0;
 				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 				return;
