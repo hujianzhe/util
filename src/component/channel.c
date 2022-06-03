@@ -4,7 +4,6 @@
 
 #include "../../inc/component/channel.h"
 #include "../../inc/sysapi/error.h"
-#include "../../inc/sysapi/misc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -92,7 +91,7 @@ static int channel_recv_fin_handler(Channel_t* channel) {
 		return 1;
 	}
 	else {
-		unsigned int hdrsz = channel->on_hdrsize(channel, 0);
+		unsigned int hdrsz = channel->_.on_hdrsize(&channel->_, 0);
 		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, hdrsz, 0);
 		if (!fin_packet) {
 			return 0;
@@ -265,7 +264,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				if (!socketNonBlock(new_sockfd, TRUE)) {
 					break;
 				}
-				hdrlen = channel->on_hdrsize(channel, sizeof(local_port));
+				hdrlen = channel->_.on_hdrsize(&channel->_, sizeof(local_port));
 				buflen = hdrlen + sizeof(local_port);
 				halfconn = (DgramHalfConn_t*)malloc(sizeof(DgramHalfConn_t) + buflen);
 				if (!halfconn) {
@@ -656,60 +655,14 @@ static void on_free_reliable_dgram(ChannelBase_t* base) {
 	channel->dgram.m_synpacket = NULL;
 }
 
-static unsigned int on_hdrsize(struct Channel_t* self, unsigned int bodylen) { return 0; }
-
-static List_t* channel_shard_data(Channel_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
-	unsigned int i, nbytes = 0;
-	ReactorPacket_t* packet;
-	for (i = 0; i < iovcnt; ++i) {
-		nbytes += iobufLen(iov + i);
+static void on_reg_reliable_dgram_client(ChannelBase_t* base, long long timestamp_msec) {
+	unsigned int hdrsize = base->on_hdrsize(base, 0);
+	ReactorPacket_t* packet = reactorpacketMake(NETPACKET_SYN, hdrsize, 0);
+	if (!packet) {
+		channel_invalid(base, REACTOR_CONNECT_ERR);
+		return;
 	}
-	if (nbytes) {
-		unsigned int off = 0, iov_i = 0, iov_off = 0;
-		unsigned int shardsz = channel->_.write_fragment_size;
-		unsigned int hdrsz = channel->on_hdrsize(channel, shardsz);
-		if (shardsz <= hdrsz) {
-			return packetlist;
-		}
-		shardsz -= hdrsz;
-		packet = NULL;
-		while (off < nbytes) {
-			unsigned int memsz = nbytes - off;
-			if (memsz > shardsz) {
-				memsz = shardsz;
-			}
-			hdrsz = channel->on_hdrsize(channel, memsz);
-			packet = reactorpacketMake(pktype, hdrsz, memsz);
-			if (!packet) {
-				break;
-			}
-			packet->_.fragment_eof = 0;
-			listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
-			off += memsz;
-			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
-		}
-		if (packet) {
-			packet->_.fragment_eof = 1;
-		}
-		else {
-			reactorpacketFreeList(packetlist);
-			listInit(packetlist);
-			return NULL;
-		}
-	}
-	else {
-		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		/*
-		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->_.flag))
-			return packetlist;
-		*/
-		packet = reactorpacketMake(pktype, hdrsize, 0);
-		if (!packet) {
-			return NULL;
-		}
-		listInsertNodeBack(packetlist, packetlist->tail, &packet->cmd._);
-	}
-	return packetlist;
+	channelbaseSendPacket(base, packet);
 }
 
 /*******************************************************************************/
@@ -732,7 +685,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 		streamtransportctxInit(&channel->_.stream_ctx, 0);
 	}
 	channel->m_initseq = 0;
-	channel->on_hdrsize = on_hdrsize;
 	if (flag & CHANNEL_FLAG_STREAM) {
 		channel->_.on_read = on_read_stream;
 		channel->_.on_pre_send = on_pre_send_stream;
@@ -748,6 +700,9 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 			channel->_.on_exec = on_exec_reliable_dgram;
 			channel->_.on_read = on_read_reliable_dgram;
 			channel->_.on_pre_send = on_pre_send_reliable_dgram;
+			if (flag & CHANNEL_FLAG_CLIENT) {
+				channel->_.on_reg_proc = on_reg_reliable_dgram_client;
+			}
 		}
 		else {
 			channel->_.on_read = on_read_dgram;
@@ -755,20 +710,6 @@ Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, uns
 		}
 	}
 	return channel;
-}
-
-List_t* channelShard(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, List_t* packetlist) {
-	List_t pklist;
-	listInit(&pklist);
-	if (NETPACKET_FIN == pktype) {
-		iov = NULL;
-		iovcnt = 0;
-	}
-	if (!channel_shard_data(channel, pktype, iov, iovcnt, &pklist)) {
-		return NULL;
-	}
-	listAppend(packetlist, &pklist);
-	return packetlist;
 }
 
 Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
@@ -791,7 +732,7 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 	}
 
 	listInit(&pklist);
-	if (!channelShard(channel, iov, iovcnt, pktype, &pklist)) {
+	if (!channelbaseShardDatas(&channel->_, pktype, iov, iovcnt, &pklist)) {
 		return NULL;
 	}
 	channelbaseSendPacketList(&channel->_, &pklist);

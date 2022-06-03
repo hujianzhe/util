@@ -5,6 +5,7 @@
 #include "../../inc/component/reactor.h"
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
+#include "../../inc/sysapi/misc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -341,6 +342,11 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 		next = cur->next;
 		channel->reactor = reactor;
+		if (channel->on_reg_proc) {
+			channel->on_reg_proc(channel, timestamp_msec);
+			channel->on_reg_proc = NULL;
+			after_call_channel_interface(channel);
+		}
 		if (channel->on_reg) {
 			channel->on_reg(channel, timestamp_msec);
 			channel->on_reg = NULL;
@@ -1242,6 +1248,8 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	return o;
 }
 
+static unsigned int default_on_hdrsize(struct ChannelBase_t* self, unsigned int bodylen) { return 0; }
+
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
 	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
 	if (pkg) {
@@ -1323,6 +1331,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
 	channel->write_fragment_size = o->write_fragment_size;
+	channel->on_hdrsize = default_on_hdrsize;
 	listInit(&channel->m_cache_packet_list);
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
@@ -1338,9 +1347,72 @@ void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
 	reactorCommitCmd(channel->reactor, &packet->cmd);
 }
 
+List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+	unsigned int nbytes = 0;
+	ReactorPacket_t* packet;
+	List_t pklist;
+	listInit(&pklist);
+	if (NETPACKET_FIN == pktype) {
+		iov = NULL;
+		iovcnt = 0;
+	}
+	else {
+		unsigned int i;
+		for (i = 0; i < iovcnt; ++i) {
+			nbytes += iobufLen(iov + i);
+		}
+	}
+	if (nbytes) {
+		unsigned int off = 0, iov_i = 0, iov_off = 0;
+		unsigned int shardsz = channel->write_fragment_size;
+		unsigned int hdrsz = channel->on_hdrsize(channel, shardsz);
+		if (shardsz <= hdrsz) {
+			return NULL;
+		}
+		shardsz -= hdrsz;
+		packet = NULL;
+		while (off < nbytes) {
+			unsigned int memsz = nbytes - off;
+			if (memsz > shardsz) {
+				memsz = shardsz;
+			}
+			hdrsz = channel->on_hdrsize(channel, memsz);
+			packet = reactorpacketMake(pktype, hdrsz, memsz);
+			if (!packet) {
+				break;
+			}
+			packet->_.fragment_eof = 0;
+			listPushNodeBack(&pklist, &packet->cmd._);
+			off += memsz;
+			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+		}
+		if (packet) {
+			packet->_.fragment_eof = 1;
+		}
+		else {
+			reactorpacketFreeList(&pklist);
+			return NULL;
+		}
+	}
+	else {
+		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
+		/*
+		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->flag))
+			return packetlist;
+		*/
+		packet = reactorpacketMake(pktype, hdrsize, 0);
+		if (!packet) {
+			return NULL;
+		}
+		listPushNodeBack(&pklist, &packet->cmd._);
+	}
+	listAppend(packetlist, &pklist);
+	return packetlist;
+}
+
 void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
 	ListNode_t* cur;
-	if (!packetlist->head) {
+	if (!packetlist || !packetlist->head) {
 		return;
 	}
 	for (cur = packetlist->head; cur; cur = cur->next) {
