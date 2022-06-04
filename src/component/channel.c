@@ -240,7 +240,7 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				unsigned short local_port;
 				Sockaddr_t local_saddr;
 				socklen_t local_slen;
-				unsigned int buflen, hdrlen;
+				unsigned int buflen, hdrlen, t;
 				ChannelOutbufEncodeParam_t encode_param;
 				memcpy(&local_saddr, &channel->_.listen_addr, sockaddrLength(&channel->_.listen_addr.sa));
 				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
@@ -273,7 +273,8 @@ static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf
 				halfconn->sockfd = new_sockfd;
 				memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 				halfconn->local_port = local_port;
-				halfconn->expire_time_msec = timestamp_msec + channel->dgram.rto;
+				t = (channel->dgram.resend_maxtimes + 2) * channel->dgram.rto;
+				halfconn->expire_time_msec = timestamp_msec + t;
 				halfconn->len = buflen;
 				listPushNodeBack(&channel->_.dgram_ctx.recvlist, &halfconn->node);
 				channel->dgram.m_halfconn_curwaitcnt++;
