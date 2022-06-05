@@ -599,7 +599,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* base, long long timestamp_msec
 		}
 		else {
 			sendto(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0,
-				&channel->_.to_addr.sa, sockaddrLength(&channel->_.to_addr.sa));
+				&channel->_.connect_addr.sa, sockaddrLength(&channel->_.connect_addr.sa));
 			packet->_.resend_times++;
 			packet->_.resend_msec = timestamp_msec + channel->dgram.rto;
 			channel_set_timestamp(channel, packet->_.resend_msec);
