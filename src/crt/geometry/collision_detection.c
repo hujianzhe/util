@@ -373,6 +373,7 @@ static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[
 	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius + CCT_EPSILON;
 }
 
+/*
 static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
 	float new_o[3], new_dir[3], radius_sq = radius * radius;
 	float new_axies[3][3];
@@ -403,6 +404,7 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	}
 	return rcnt;
 }
+*/
 
 static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	float v0[3], v1[3], N[3], dot, d;

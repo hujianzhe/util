@@ -31,25 +31,9 @@ int mathQuadraticEquation(float a, float b, float c, float r[2]) {
 	}
 }
 
-float* mathCoordinateSystemTransformPoint(const float v[3], const float new_origin[3], float new_axies[3][3], float new_v[3]) {
+float* mathCoordinateSystemTransform(const float v[3], const float new_origin[3], const float new_axies[3][3], float new_v[3]) {
 	float t[3];
 	mathVec3Sub(t, v, new_origin);
-	new_v[0] = mathVec3Dot(t, new_axies[0]);
-	new_v[1] = mathVec3Dot(t, new_axies[1]);
-	new_v[2] = mathVec3Dot(t, new_axies[2]);
-	return new_v;
-}
-
-float* mathVec3Set(float r[3], float x, float y, float z) {
-	r[0] = x;
-	r[1] = y;
-	r[2] = z;
-	return r;
-}
-
-float* mathCoordinateSystemTransformNormalVec3(const float v[3], float new_axies[3][3], float new_v[3]) {
-	float t[3];
-	mathVec3Copy(t, v);
 	new_v[0] = mathVec3Dot(t, new_axies[0]);
 	new_v[1] = mathVec3Dot(t, new_axies[1]);
 	new_v[2] = mathVec3Dot(t, new_axies[2]);
@@ -59,6 +43,13 @@ float* mathCoordinateSystemTransformNormalVec3(const float v[3], float new_axies
 /*
 vec3 and quat
 */
+
+float* mathVec3Set(float r[3], float x, float y, float z) {
+	r[0] = x;
+	r[1] = y;
+	r[2] = z;
+	return r;
+}
 
 int mathVec3IsZero(const float v[3]) {
 	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&

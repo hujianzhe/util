@@ -16,8 +16,7 @@ extern "C" {
 #endif
 
 __declspec_dll int mathQuadraticEquation(float a, float b, float c, float r[2]);
-__declspec_dll float* mathCoordinateSystemTransformPoint(const float v[3], const float new_origin[3], float new_axies[3][3], float new_v[3]);
-__declspec_dll float* mathCoordinateSystemTransformNormalVec3(const float v[3], float new_axies[3][3], float new_v[3]);
+__declspec_dll float* mathCoordinateSystemTransform(const float v[3], const float new_origin[3], const float new_axies[3][3], float new_v[3]);
 
 __declspec_dll int mathVec3IsZero(const float v[3]);
 __declspec_dll int mathVec3Equal(const float v1[3], const float v2[3]);
