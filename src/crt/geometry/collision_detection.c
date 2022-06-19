@@ -189,16 +189,7 @@ static int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* 
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathSegmentIntersectPolygen(ls, &gp, p);
 }
-/*
-static int mathSegmentIntersectTriangle(const float ls[2][3], const float tri[3][3], float p[3]) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathSegmentIntersectPolygen(ls, &gp, p);
-}
-*/
+
 static int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect_t* rect2) {
 	GeometryPolygen_t polygen1, polygen2;
 	GeometryPolygenInner_t gp1 = { &polygen1, rect1 }, gp2 = { &polygen2, rect2 };
@@ -522,16 +513,7 @@ static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const 
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathRaycastPolygen(o, dir, &gp, result);
 }
-/*
-static CCTResult_t* mathRaycastTriangle(const float o[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathRaycastPolygen(o, dir, &gp, result);
-}
-*/
+
 static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
 	if (mathAABBHasPoint(aabb_o, aabb_half, o)) {
 		set_result(result, 0.0f, o, dir);
@@ -611,16 +593,7 @@ static int mathAABBIntersectRect(const float o[3], const float half[3], const Ge
 	mathVec3Copy(polygen.normal, rect->normal);
 	return mathAABBIntersectPolygen(o, half, &gp, p);
 }
-/*
-static int mathAABBIntersectTriangle(const float o[3], const float half[3], const float tri[3][3], float p[3]) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathAABBIntersectPolygen(o, half, &gp, p);
-}
-*/
+
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
 	float dr2, oc2, dir_d;
 	float oc[3];
@@ -1298,16 +1271,7 @@ static CCTResult_t* mathRectcastAABB(const GeometryRect_t* rect, const float dir
 	}
 	return result;
 }
-/*
-static CCTResult_t* mathAABBcastTriangle(const float o[3], const float half[3], const float dir[3], const float tri[3][3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	polygen.v_cnt = 3;
-	polygen.v = tri;
-	mathPlaneNormalByVertices3(tri, polygen.normal);
-	return mathAABBcastPolygen(o, half, dir, &gp, result);
-}
-*/
+
 static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int res;
 	float dn, d, hit_point[3];
