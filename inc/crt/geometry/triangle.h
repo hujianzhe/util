@@ -17,11 +17,10 @@ typedef struct GeometryRect_t {
 } GeometryRect_t;
 
 typedef struct GeometryPolygen_t {
-	const float (*v)[3]; // vertices data must be ordered(clockwise or counterclockwise)
-	unsigned int v_cnt;
+	const float (*v)[3]; /* vertices vec3 */
 	float normal[3];
-	unsigned int* indices; // v_cnt > 3, need set field
-	unsigned int indices_cnt; // v_cnt > 3, need set field
+	unsigned int v_indices_cnt; /* number of vertices and index */
+	const unsigned int* v_indices; /* vertices index, must be ordered(clockwise or counterclockwise) */
 } GeometryPolygen_t;
 
 #ifdef	__cplusplus

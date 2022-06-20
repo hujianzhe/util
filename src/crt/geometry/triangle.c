@@ -115,23 +115,27 @@ GeometryRect_t* mathRectFromVertices4(GeometryRect_t* rect, const float p[4][3])
 }
 
 int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
-	if (3 == polygen->v_cnt) {
-		return mathTrianglePointUV(polygen->v, p, NULL, NULL);
+	if (3 == polygen->v_indices_cnt) {
+		float tri[3][3];
+		mathVec3Copy(tri[0], polygen->v[polygen->v_indices[0]]);
+		mathVec3Copy(tri[1], polygen->v[polygen->v_indices[1]]);
+		mathVec3Copy(tri[2], polygen->v[polygen->v_indices[2]]);
+		return mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL);
 	}
-	else if (polygen->v_cnt > 3) {
+	else if (polygen->v_indices_cnt > 3) {
 		unsigned int i;
 		float v[3], dot;
-		mathVec3Sub(v, polygen->v[0], p);
+		mathVec3Sub(v, polygen->v[polygen->v_indices[0]], p);
 		dot = mathVec3Dot(polygen->normal, v);
 		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
 			return 0;
 		}
-		for (i = 0; i + 3 <= polygen->indices_cnt; ) {
+		for (i = 2; i < polygen->v_indices_cnt; ++i) {
 			float tri[3][3];
-			mathVec3Copy(tri[0], polygen->v[polygen->indices[i++]]);
-			mathVec3Copy(tri[1], polygen->v[polygen->indices[i++]]);
-			mathVec3Copy(tri[2], polygen->v[polygen->indices[i++]]);
-			if (mathTriangleHasPoint((const float(*)[3])tri, p)) {
+			mathVec3Copy(tri[0], polygen->v[polygen->v_indices[0]]);
+			mathVec3Copy(tri[1], polygen->v[polygen->v_indices[i - 1]]);
+			mathVec3Copy(tri[2], polygen->v[polygen->v_indices[i]]);
+			if (mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL)) {
 				return 1;
 			}
 		}
