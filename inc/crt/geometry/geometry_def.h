@@ -37,7 +37,7 @@ typedef struct GeometryBody_t {
 
 typedef struct GeometryBodyRef_t {
 	union {
-		const float* point;
+		const float* point; /* float[3] */
 		const GeometrySegment_t* segment;
 		const GeometryPlane_t* plane;
 		const GeometrySphere_t* sphere;
