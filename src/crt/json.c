@@ -483,6 +483,10 @@ cJSON* cJSON_NewRoot(void) {
 	return cJSON_NewNode(cJSON_Object);
 }
 
+cJSON* cJSON_NewRootArray(void) {
+	return cJSON_NewNode(cJSON_Array);
+}
+
 cJSON* cJSON_AppendObject(cJSON* parent, const char* name) {
 	cJSON* node = cJSON_NewAddNode(parent->type, cJSON_Object, name);
 	if (!node) {
@@ -578,14 +582,19 @@ cJSON* cJSON_FromString(const char* s, int deep_copy) {
 	int parse_ok;
 	cJSON* node, *root;
 	s = skip(s);
-	if (*s != '{') {
+	if (*s != '{' && *s != '[') {
 		return NULL;
 	}
-	++s;
-	root = cJSON_NewNode(cJSON_Object);
+	else if ('{' == *s) {
+		root = cJSON_NewNode(cJSON_Object);
+	}
+	else {
+		root = cJSON_NewNode(cJSON_Array);
+	}
 	if (!root) {
 		return NULL;
 	}
+	++s;
 	root->name_deep_copy = deep_copy;
 	root->value_deep_copy = deep_copy;
 	parse_ok = 1;
