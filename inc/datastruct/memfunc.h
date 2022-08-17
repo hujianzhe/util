@@ -25,6 +25,10 @@ __declspec_dll unsigned long long memToLE64(unsigned long long v);
 __declspec_dll unsigned long long memFromBE64(unsigned long long v);
 __declspec_dll unsigned long long memFromLE64(unsigned long long v);
 
+__declspec_dll int memBitCheck(char* arr, UnsignedPtr_t bit_idx);
+__declspec_dll void memBitSet(char* arr, UnsignedPtr_t bit_idx);
+__declspec_dll void memBitUnset(char* arr, UnsignedPtr_t bit_idx);
+
 __declspec_dll void memSwap(void* p1, void* p2, UnsignedPtr_t n);
 __declspec_dll void* memCopy(void* dst, const void* src, UnsignedPtr_t n);
 __declspec_dll unsigned char* memSkipByte(const void* p, UnsignedPtr_t n, const unsigned char* delim, UnsignedPtr_t dn);

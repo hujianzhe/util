@@ -97,6 +97,18 @@ unsigned long long memFromLE64(unsigned long long v) {
 	return v;
 }
 
+int memBitCheck(char* arr, UnsignedPtr_t bit_idx) {
+	return (arr[bit_idx >> 3] >> (bit_idx & 7)) & 1;
+}
+
+void memBitSet(char* arr, UnsignedPtr_t bit_idx) {
+	arr[bit_idx >> 3] |= (1 << (bit_idx & 7));
+}
+
+void memBitUnset(char* arr, UnsignedPtr_t bit_idx) {
+	arr[bit_idx >> 3] &= ~(1 << (bit_idx & 7));
+}
+
 void memSwap(void* p1, void* p2, UnsignedPtr_t n) {
 	unsigned char* _p1 = (unsigned char*)p1;
 	unsigned char* _p2 = (unsigned char*)p2;
