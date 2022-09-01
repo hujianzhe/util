@@ -164,6 +164,12 @@ float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]) {
 	return r;
 }
 
+float* mathVec3Reflect(float r[3], const float v[3], const float n[3]) {
+	float dot = mathVec3Dot(v, n);
+	mathVec3MultiplyScalar(r, n, dot * 2.0f);
+	return mathVec3Sub(r, v, r);
+}
+
 float* mathQuatNormalized(float r[4], const float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
 	if (m > CCT_EPSILON) {
