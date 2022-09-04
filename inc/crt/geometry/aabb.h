@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 extern const int Box_Edge_Indices[24];
+extern const int Box_Vertice_Adjacent_Indices[8][3];
 extern const int Box_Triangle_Vertices_Indices[36];
 extern const float AABB_Plane_Normal[6][3];
 
