@@ -170,6 +170,20 @@ float* mathVec3Reflect(float r[3], const float v[3], const float n[3]) {
 	return mathVec3Sub(r, v, r);
 }
 
+void mathVec3ComputeBasis(const float dir[3], float right[3], float up[3]) {
+	/* these code is copy from PhysX-3.4 */
+	if (dir[1] <= 0.9999f && dir[1] >= -0.9999f) {
+		mathVec3Set(right, dir[2], 0.0f, -dir[0]);
+		mathVec3Normalized(right, right);
+		mathVec3Cross(up, dir, right);
+	}
+	else {
+		mathVec3Set(right, 1.0f, 0.0f, 0.0f);
+		mathVec3Set(up, 0.0f, dir[2], -dir[1]);
+		mathVec3Normalized(up, up);
+	}
+}
+
 float* mathQuatNormalized(float r[4], const float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
 	if (m > CCT_EPSILON) {

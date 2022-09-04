@@ -13,12 +13,13 @@ extern "C" {
 GeometryOBB_t* mathOBBFromAABB(GeometryOBB_t* obb, const float o[3], const float half[3]) {
 	mathVec3Copy(obb->o, o);
 	mathVec3Copy(obb->half, half);
-	mathVec3Set(obb->x_axis, 1.0f, 0.0f, 0.0f);
-	mathVec3Set(obb->y_axis, 0.0f, 1.0f, 0.0f);
-	mathVec3Set(obb->z_axis, 0.0f, 0.0f, 1.0f);
+	mathVec3Set(obb->axis[0], 1.0f, 0.0f, 0.0f);
+	mathVec3Set(obb->axis[1], 0.0f, 1.0f, 0.0f);
+	mathVec3Set(obb->axis[2], 0.0f, 0.0f, 1.0f);
 	return obb;
 }
 
+/*
 void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 	int i;
 	float v[8][3], min_v[3], max_v[3];
@@ -109,6 +110,7 @@ int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
 	}
 	return 1;
 }
+*/
 
 int mathOBBIntersectOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1) {
 	/* these code is copy from PhysX-3.4 */
@@ -117,7 +119,7 @@ int mathOBBIntersectOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1) {
 	const float* e0 = obb0->half, *e1 = obb1->half;
 	int i;
 	mathVec3Sub(v, obb1->o, obb0->o);
-	mathVec3Set(T, mathVec3Dot(v, obb0->x_axis), mathVec3Dot(v, obb0->y_axis), mathVec3Dot(v, obb0->z_axis));
+	mathVec3Set(T, mathVec3Dot(v, obb0->axis[0]), mathVec3Dot(v, obb0->axis[1]), mathVec3Dot(v, obb0->axis[2]));
 
 	for (i = 0; i < 3; ++i) {
 		int k;
