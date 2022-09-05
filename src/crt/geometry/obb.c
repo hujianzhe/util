@@ -19,42 +19,6 @@ GeometryOBB_t* mathOBBFromAABB(GeometryOBB_t* obb, const float o[3], const float
 	return obb;
 }
 
-/*
-void mathOBBVertices(const GeometryOBB_t* obb, float v[8][3]) {
-	mathVec3Copy(v[0], obb->o);
-	mathVec3AddScalar(v[0], obb->axis[0], -obb->half[0]);
-	mathVec3AddScalar(v[0], obb->axis[1], -obb->half[1]);
-	mathVec3AddScalar(v[0], obb->axis[2], -obb->half[2]);
-	mathVec3Copy(v[1], obb->o);
-	mathVec3AddScalar(v[1], obb->axis[0], obb->half[0]);
-	mathVec3AddScalar(v[1], obb->axis[1], -obb->half[1]);
-	mathVec3AddScalar(v[1], obb->axis[2], -obb->half[2]);
-	mathVec3Copy(v[2], obb->o);
-	mathVec3AddScalar(v[2], obb->axis[0], obb->half[0]);
-	mathVec3AddScalar(v[2], obb->axis[1], obb->half[1]);
-	mathVec3AddScalar(v[2], obb->axis[2], -obb->half[2]);
-	mathVec3Copy(v[3], obb->o);
-	mathVec3AddScalar(v[3], obb->axis[0], -obb->half[0]);
-	mathVec3AddScalar(v[3], obb->axis[1], obb->half[1]);
-	mathVec3AddScalar(v[3], obb->axis[2], -obb->half[2]);
-	mathVec3Copy(v[4], obb->o);
-	mathVec3AddScalar(v[4], obb->axis[0], -obb->half[0]);
-	mathVec3AddScalar(v[4], obb->axis[1], -obb->half[1]);
-	mathVec3AddScalar(v[4], obb->axis[2], obb->half[2]);
-	mathVec3Copy(v[5], obb->o);
-	mathVec3AddScalar(v[5], obb->axis[0], obb->half[0]);
-	mathVec3AddScalar(v[5], obb->axis[1], -obb->half[1]);
-	mathVec3AddScalar(v[5], obb->axis[2], obb->half[2]);
-	mathVec3Copy(v[6], obb->o);
-	mathVec3AddScalar(v[6], obb->axis[0], obb->half[0]);
-	mathVec3AddScalar(v[6], obb->axis[1], obb->half[1]);
-	mathVec3AddScalar(v[6], obb->axis[2], obb->half[2]);
-	mathVec3Copy(v[7], obb->o);
-	mathVec3AddScalar(v[7], obb->axis[0], -obb->half[0]);
-	mathVec3AddScalar(v[7], obb->axis[1], obb->half[1]);
-	mathVec3AddScalar(v[7], obb->axis[2], obb->half[2]);
-}
-
 void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 	int i;
 	float v[8][3], min_v[3], max_v[3];
@@ -76,21 +40,67 @@ void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 	}
 }
 
-void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
+void mathOBBVertices(const GeometryOBB_t* obb, float v[8][3]) {
+	float AX[3][3];
+	mathVec3MultiplyScalar(AX[0], obb->axis[0], obb->half[0]);
+	mathVec3MultiplyScalar(AX[1], obb->axis[1], obb->half[1]);
+	mathVec3MultiplyScalar(AX[2], obb->axis[2], obb->half[2]);
+
 	mathVec3Copy(v[0], obb->o);
-	mathVec3AddScalar(v[0], obb->axis[2], obb->half[2]);
+	mathVec3Sub(v[0], v[0], AX[0]);
+	mathVec3Sub(v[0], v[0], AX[1]);
+	mathVec3Sub(v[0], v[0], AX[2]);
+
 	mathVec3Copy(v[1], obb->o);
-	mathVec3AddScalar(v[1], obb->axis[2], -obb->half[2]);
+	mathVec3Add(v[1], v[1], AX[0]);
+	mathVec3Sub(v[1], v[1], AX[1]);
+	mathVec3Sub(v[1], v[1], AX[2]);
 
 	mathVec3Copy(v[2], obb->o);
-	mathVec3AddScalar(v[2], obb->axis[0], obb->half[0]);
+	mathVec3Add(v[2], v[2], AX[0]);
+	mathVec3Add(v[2], v[2], AX[1]);
+	mathVec3Sub(v[2], v[2], AX[2]);
+
 	mathVec3Copy(v[3], obb->o);
-	mathVec3AddScalar(v[3], obb->axis[0], -obb->half[0]);
+	mathVec3Sub(v[3], v[3], AX[0]);
+	mathVec3Add(v[3], v[3], AX[1]);
+	mathVec3Sub(v[3], v[3], AX[2]);
 
 	mathVec3Copy(v[4], obb->o);
-	mathVec3AddScalar(v[4], obb->axis[1], obb->half[1]);
+	mathVec3Sub(v[4], v[4], AX[0]);
+	mathVec3Sub(v[4], v[4], AX[1]);
+	mathVec3Add(v[4], v[4], AX[2]);
+
 	mathVec3Copy(v[5], obb->o);
-	mathVec3AddScalar(v[5], obb->axis[1], -obb->half[1]);
+	mathVec3Add(v[5], v[5], AX[0]);
+	mathVec3Sub(v[5], v[5], AX[1]);
+	mathVec3Add(v[5], v[5], AX[2]);
+
+	mathVec3Copy(v[6], obb->o);
+	mathVec3Add(v[6], v[6], AX[0]);
+	mathVec3Add(v[6], v[6], AX[1]);
+	mathVec3Add(v[6], v[6], AX[2]);
+
+	mathVec3Copy(v[7], obb->o);
+	mathVec3Sub(v[7], v[7], AX[0]);
+	mathVec3Add(v[7], v[7], AX[1]);
+	mathVec3Add(v[7], v[7], AX[2]);
+}
+
+void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
+	float extend[3];
+
+	mathVec3MultiplyScalar(extend, obb->axis[2], obb->half[2]);
+	mathVec3Add(v[0], obb->o, extend);
+	mathVec3Sub(v[1], obb->o, extend);
+
+	mathVec3MultiplyScalar(extend, obb->axis[0], obb->half[0]);
+	mathVec3Add(v[2], obb->o, extend);
+	mathVec3Sub(v[3], obb->o, extend);
+
+	mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
+	mathVec3Add(v[4], obb->o, extend);
+	mathVec3Sub(v[5], obb->o, extend);
 }
 
 int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
@@ -110,7 +120,6 @@ int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
 	}
 	return 1;
 }
-*/
 
 int mathOBBIntersectOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1) {
 	/* these code is copy from PhysX-3.4 */
