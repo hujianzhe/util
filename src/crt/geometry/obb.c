@@ -78,33 +78,33 @@ void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 
 void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
 	mathVec3Copy(v[0], obb->o);
-	mathVec3AddScalar(v[0], obb->z_axis, obb->half[2]);
+	mathVec3AddScalar(v[0], obb->axis[2], obb->half[2]);
 	mathVec3Copy(v[1], obb->o);
-	mathVec3AddScalar(v[1], obb->z_axis, -obb->half[2]);
+	mathVec3AddScalar(v[1], obb->axis[2], -obb->half[2]);
 
 	mathVec3Copy(v[2], obb->o);
-	mathVec3AddScalar(v[2], obb->x_axis, obb->half[0]);
+	mathVec3AddScalar(v[2], obb->axis[0], obb->half[0]);
 	mathVec3Copy(v[3], obb->o);
-	mathVec3AddScalar(v[3], obb->x_axis, -obb->half[0]);
+	mathVec3AddScalar(v[3], obb->axis[0], -obb->half[0]);
 
 	mathVec3Copy(v[4], obb->o);
-	mathVec3AddScalar(v[4], obb->y_axis, obb->half[1]);
+	mathVec3AddScalar(v[4], obb->axis[1], obb->half[1]);
 	mathVec3Copy(v[5], obb->o);
-	mathVec3AddScalar(v[5], obb->y_axis, -obb->half[1]);
+	mathVec3AddScalar(v[5], obb->axis[1], -obb->half[1]);
 }
 
 int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
 	float op[3], dot;
 	mathVec3Sub(op, p, obb->o);
-	dot = mathVec3Dot(op, obb->x_axis);
+	dot = mathVec3Dot(op, obb->axis[0]);
 	if (dot > obb->half[0] + CCT_EPSILON || dot < -obb->half[0] - CCT_EPSILON) {
 		return 0;
 	}
-	dot = mathVec3Dot(op, obb->y_axis);
+	dot = mathVec3Dot(op, obb->axis[1]);
 	if (dot > obb->half[1] + CCT_EPSILON || dot < -obb->half[1] - CCT_EPSILON) {
 		return 0;
 	}
-	dot = mathVec3Dot(op, obb->z_axis);
+	dot = mathVec3Dot(op, obb->axis[2]);
 	if (dot > obb->half[2] + CCT_EPSILON || dot < -obb->half[2] - CCT_EPSILON) {
 		return 0;
 	}
