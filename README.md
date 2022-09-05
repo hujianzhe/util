@@ -29,6 +29,7 @@
 				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  
 				math				一些实用的数学运算接口  
 				math_vec3			一些3d向量运算  
+				math_quat			一些3d四元数运算  
 				octree				八叉树  
 			datastruct/  
 				arrheap				最小堆,最大堆  

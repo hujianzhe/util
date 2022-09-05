@@ -26,6 +26,8 @@ __declspec_dll double finvsqrt(double x);
 __declspec_dll float fsqrtf(float x);
 __declspec_dll double fsqrt(double x);
 
+__declspec_dll int mathQuadraticEquation(float a, float b, float c, float r[2]);
+
 #define	mathDegToRad(deg)	(M_PI / 180.0 * (deg))
 #define	mathDegToRad_f(deg)	(((float)M_PI) / 180.0f * ((float)(deg)))
 

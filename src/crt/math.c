@@ -61,6 +61,29 @@ float fsqrtf(float x) { return 1.0f / finvsqrtf(x); }
 
 double fsqrt(double x) { return 1.0 / finvsqrt(x); }
 
+int mathQuadraticEquation(float a, float b, float c, float r[2]) {
+	int cmp;
+	float delta;
+	if (fcmpf(a, 0.0f, 1e-6f) == 0) {
+		return 0;
+	}
+	delta = b * b - 4.0f * a * c;
+	cmp = fcmpf(delta, 0.0f, 1e-6f);
+	if (cmp < 0) {
+		return 0;
+	}
+	else if (0 == cmp) {
+		r[0] = r[1] = -b / a * 0.5f;
+		return 1;
+	}
+	else {
+		float sqrt_delta = sqrtf(delta);
+		r[0] = (-b + sqrt_delta) / a * 0.5f;
+		r[1] = (-b - sqrt_delta) / a * 0.5f;
+		return 2;
+	}
+}
+
 #ifdef	__cplusplus
 }
 #endif

@@ -15,7 +15,6 @@
 extern "C" {
 #endif
 
-__declspec_dll int mathQuadraticEquation(float a, float b, float c, float r[2]);
 __declspec_dll float* mathCoordinateSystemTransform(const float v[3], const float new_origin[3], const float new_axies[3][3], float new_v[3]);
 
 __declspec_dll int mathVec3IsZero(const float v[3]);
@@ -36,16 +35,6 @@ __declspec_dll float mathVec3Radian(const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3Reflect(float r[3], const float v[3], const float n[3]);
 __declspec_dll void mathVec3ComputeBasis(const float dir[3], float right[3], float up[3]);
-
-__declspec_dll float* mathQuatNormalized(float r[4], const float q[4]);
-__declspec_dll float* mathQuatFromEuler(float q[4], const float e[3], const char order[3]);
-__declspec_dll float* mathQuatFromUnitVec3(float q[4], const float from[3], const float to[3]);
-__declspec_dll float* mathQuatFromAxisRadian(float q[4], const float axis[3], float radian);
-__declspec_dll void mathQuatToAxisRadian(const float q[4], float axis[3], float* radian);
-__declspec_dll float* mathQuatIdentity(float q[4]);
-__declspec_dll float* mathQuatConjugate(float r[4], const float q[4]);
-__declspec_dll float* mathQuatMulQuat(float r[4], const float q1[4], const float q2[4]);
-__declspec_dll float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]);
 
 #ifdef	__cplusplus
 }
