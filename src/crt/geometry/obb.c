@@ -20,6 +20,41 @@ GeometryOBB_t* mathOBBFromAABB(GeometryOBB_t* obb, const float o[3], const float
 }
 
 /*
+void mathOBBVertices(const GeometryOBB_t* obb, float v[8][3]) {
+	mathVec3Copy(v[0], obb->o);
+	mathVec3AddScalar(v[0], obb->axis[0], -obb->half[0]);
+	mathVec3AddScalar(v[0], obb->axis[1], -obb->half[1]);
+	mathVec3AddScalar(v[0], obb->axis[2], -obb->half[2]);
+	mathVec3Copy(v[1], obb->o);
+	mathVec3AddScalar(v[1], obb->axis[0], obb->half[0]);
+	mathVec3AddScalar(v[1], obb->axis[1], -obb->half[1]);
+	mathVec3AddScalar(v[1], obb->axis[2], -obb->half[2]);
+	mathVec3Copy(v[2], obb->o);
+	mathVec3AddScalar(v[2], obb->axis[0], obb->half[0]);
+	mathVec3AddScalar(v[2], obb->axis[1], obb->half[1]);
+	mathVec3AddScalar(v[2], obb->axis[2], -obb->half[2]);
+	mathVec3Copy(v[3], obb->o);
+	mathVec3AddScalar(v[3], obb->axis[0], -obb->half[0]);
+	mathVec3AddScalar(v[3], obb->axis[1], obb->half[1]);
+	mathVec3AddScalar(v[3], obb->axis[2], -obb->half[2]);
+	mathVec3Copy(v[4], obb->o);
+	mathVec3AddScalar(v[4], obb->axis[0], -obb->half[0]);
+	mathVec3AddScalar(v[4], obb->axis[1], -obb->half[1]);
+	mathVec3AddScalar(v[4], obb->axis[2], obb->half[2]);
+	mathVec3Copy(v[5], obb->o);
+	mathVec3AddScalar(v[5], obb->axis[0], obb->half[0]);
+	mathVec3AddScalar(v[5], obb->axis[1], -obb->half[1]);
+	mathVec3AddScalar(v[5], obb->axis[2], obb->half[2]);
+	mathVec3Copy(v[6], obb->o);
+	mathVec3AddScalar(v[6], obb->axis[0], obb->half[0]);
+	mathVec3AddScalar(v[6], obb->axis[1], obb->half[1]);
+	mathVec3AddScalar(v[6], obb->axis[2], obb->half[2]);
+	mathVec3Copy(v[7], obb->o);
+	mathVec3AddScalar(v[7], obb->axis[0], -obb->half[0]);
+	mathVec3AddScalar(v[7], obb->axis[1], obb->half[1]);
+	mathVec3AddScalar(v[7], obb->axis[2], obb->half[2]);
+}
+
 void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 	int i;
 	float v[8][3], min_v[3], max_v[3];
@@ -56,41 +91,6 @@ void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
 	mathVec3AddScalar(v[4], obb->y_axis, obb->half[1]);
 	mathVec3Copy(v[5], obb->o);
 	mathVec3AddScalar(v[5], obb->y_axis, -obb->half[1]);
-}
-
-void mathOBBVertices(const GeometryOBB_t* obb, float v[8][3]) {
-	mathVec3Copy(v[0], obb->o);
-	mathVec3AddScalar(v[0], obb->x_axis, -obb->half[0]);
-	mathVec3AddScalar(v[0], obb->y_axis, -obb->half[1]);
-	mathVec3AddScalar(v[0], obb->z_axis, -obb->half[2]);
-	mathVec3Copy(v[1], obb->o);
-	mathVec3AddScalar(v[1], obb->x_axis, obb->half[0]);
-	mathVec3AddScalar(v[1], obb->y_axis, -obb->half[1]);
-	mathVec3AddScalar(v[1], obb->z_axis, -obb->half[2]);
-	mathVec3Copy(v[2], obb->o);
-	mathVec3AddScalar(v[2], obb->x_axis, obb->half[0]);
-	mathVec3AddScalar(v[2], obb->y_axis, obb->half[1]);
-	mathVec3AddScalar(v[2], obb->z_axis, -obb->half[2]);
-	mathVec3Copy(v[3], obb->o);
-	mathVec3AddScalar(v[3], obb->x_axis, -obb->half[0]);
-	mathVec3AddScalar(v[3], obb->y_axis, obb->half[1]);
-	mathVec3AddScalar(v[3], obb->z_axis, -obb->half[2]);
-	mathVec3Copy(v[4], obb->o);
-	mathVec3AddScalar(v[4], obb->x_axis, -obb->half[0]);
-	mathVec3AddScalar(v[4], obb->y_axis, -obb->half[1]);
-	mathVec3AddScalar(v[4], obb->z_axis, obb->half[2]);
-	mathVec3Copy(v[5], obb->o);
-	mathVec3AddScalar(v[5], obb->x_axis, obb->half[0]);
-	mathVec3AddScalar(v[5], obb->y_axis, -obb->half[1]);
-	mathVec3AddScalar(v[5], obb->z_axis, obb->half[2]);
-	mathVec3Copy(v[6], obb->o);
-	mathVec3AddScalar(v[6], obb->x_axis, obb->half[0]);
-	mathVec3AddScalar(v[6], obb->y_axis, obb->half[1]);
-	mathVec3AddScalar(v[6], obb->z_axis, obb->half[2]);
-	mathVec3Copy(v[7], obb->o);
-	mathVec3AddScalar(v[7], obb->x_axis, -obb->half[0]);
-	mathVec3AddScalar(v[7], obb->y_axis, obb->half[1]);
-	mathVec3AddScalar(v[7], obb->z_axis, obb->half[2]);
 }
 
 int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {

@@ -10,7 +10,7 @@
 typedef struct GeometryOBB_t {
 	float o[3];
 	float half[3];
-	float axis[3][3]; /* maybe not xyz order */
+	float axis[3][3];
 } GeometryOBB_t;
 
 #ifdef	__cplusplus
