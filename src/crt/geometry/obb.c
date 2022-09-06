@@ -5,6 +5,7 @@
 #include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/obb.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,6 +102,56 @@ void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
 	mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
 	mathVec3Add(v[4], obb->o, extend);
 	mathVec3Sub(v[5], obb->o, extend);
+}
+
+GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect) {
+	float extend[3];
+	if (idx >= 6) {
+		return NULL;
+	}
+	if (0 == idx || 1 == idx) {
+		mathVec3MultiplyScalar(extend, obb->axis[2], obb->half[2]);
+		if (0 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+		}
+		rect->half_w = obb->half[0];
+		rect->half_h = obb->half[1];
+		mathVec3Copy(rect->w_axis, obb->axis[0]);
+		mathVec3Copy(rect->h_axis, obb->axis[1]);
+		mathVec3Copy(rect->normal, obb->axis[2]);
+	}
+	else if (2 == idx || 3 == idx) {
+		mathVec3MultiplyScalar(extend, obb->axis[0], obb->half[0]);
+		if (2 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+		}
+		rect->half_w = obb->half[2];
+		rect->half_h = obb->half[1];
+		mathVec3Copy(rect->w_axis, obb->axis[2]);
+		mathVec3Copy(rect->h_axis, obb->axis[1]);
+		mathVec3Copy(rect->normal, obb->axis[0]);
+	}
+	else {
+		mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
+		if (4 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+		}
+		rect->half_w = obb->half[0];
+		rect->half_h = obb->half[2];
+		mathVec3Copy(rect->w_axis, obb->axis[0]);
+		mathVec3Copy(rect->h_axis, obb->axis[2]);
+		mathVec3Copy(rect->normal, obb->axis[1]);
+	}
+	return rect;
 }
 
 int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
