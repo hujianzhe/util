@@ -329,6 +329,22 @@ static int mathSphereIntersectRect(const float o[3], float radius, const Geometr
 	return mathSphereIntersectPolygen(o, radius, &gp, p);
 }
 
+static int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb) {
+	int i;
+	float v[3];
+	mathVec3Sub(v, o, obb->o);
+	for (i = 0; i < 3; ++i) {
+		float dot = mathVec3Dot(v, obb->axis[i]);
+		if (dot < 0.0f) {
+			dot = -dot;
+		}
+		if (dot > obb->half[i] + radius + CCT_EPSILON) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1;
 	float vertices[8][3];
@@ -1480,6 +1496,11 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 			mathVec3Set(aabb->half, b->sphere->radius, b->sphere->radius, b->sphere->radius);
 			break;
 		}
+		case GEOMETRY_BODY_OBB:
+		{
+			mathOBBToAABB(b->obb, aabb->o, aabb->half);
+			break;
+		}
 		default:
 		{
 			return NULL;
@@ -1600,6 +1621,12 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathAABBIntersectPolygen(one->aabb->o, one->aabb->half, &gp, NULL);
 			}
+			case GEOMETRY_BODY_OBB:
+			{
+				GeometryOBB_t one_obb;
+				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
+				return mathOBBIntersectOBB(&one_obb, two->obb);
+			}
 			default:
 				return 0;
 		}
@@ -1634,6 +1661,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathSphereIntersectPolygen(one->sphere->o, one->sphere->radius, &gp, NULL);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathSphereIntersectOBB(one->sphere->o, one->sphere->radius, two->obb);
 			}
 			default:
 				return 0;
@@ -1751,6 +1782,28 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				polygen.v = (const float(*)[3])v;
 				mathVec3Copy(polygen.normal, two->rect->normal);
 				return mathPolygenIntersectPolygen(&gp, &gp2);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_OBB == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathOBBHasPoint(one->obb, two->point);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathOBBIntersectOBB(one->obb, two->obb);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				GeometryOBB_t two_obb;
+				mathOBBFromAABB(&two_obb, two->aabb->o, two->aabb->half);
+				return mathOBBIntersectOBB(one->obb, &two_obb);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathSphereIntersectOBB(two->sphere->o, two->sphere->radius, one->obb);
 			}
 		}
 	}

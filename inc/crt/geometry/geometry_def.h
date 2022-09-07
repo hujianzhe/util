@@ -11,6 +11,7 @@
 #include "sphere.h"
 #include "aabb.h"
 #include "triangle.h"
+#include "obb.h"
 
 enum GeometryBodyType {
 	GEOMETRY_BODY_POINT = 1,
@@ -20,6 +21,7 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_AABB = 5,
 	GEOMETRY_BODY_RECT = 6,
 	GEOMETRY_BODY_POLYGEN = 7,
+	GEOMETRY_BODY_OBB = 8,
 };
 
 typedef struct GeometryBody_t {
@@ -31,6 +33,7 @@ typedef struct GeometryBody_t {
 		GeometryAABB_t aabb;
 		GeometryRect_t rect;
 		GeometryPolygen_t polygen;
+		GeometryOBB_t obb;
 	};
 	int type;
 } GeometryBody_t;
@@ -44,6 +47,7 @@ typedef struct GeometryBodyRef_t {
 		const GeometryAABB_t* aabb;
 		const GeometryRect_t* rect;
 		const GeometryPolygen_t* polygen;
+		const GeometryOBB_t* obb;
 	};
 	int type;
 } GeometryBodyRef_t;
