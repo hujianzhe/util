@@ -18,37 +18,6 @@ static const unsigned int DEFAULT_RECT_POLYGEN_VERTICE[4] = { 0, 1, 2, 3 };
 extern "C" {
 #endif
 
-static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
-	if (dst == src) {
-		return dst;
-	}
-	dst->distance = src->distance;
-	dst->hit_point_cnt = src->hit_point_cnt;
-	if (1 == src->hit_point_cnt) {
-		mathVec3Copy(dst->hit_point, src->hit_point);
-	}
-	mathVec3Copy(dst->hit_normal, src->hit_normal);
-	return dst;
-}
-
-static CCTResult_t* set_result(CCTResult_t* result, float distance, const float hit_point[3], const float hit_normal[3]) {
-	result->distance = distance;
-	if (hit_point) {
-		mathVec3Copy(result->hit_point, hit_point);
-		result->hit_point_cnt = 1;
-	}
-	else {
-		result->hit_point_cnt = -1;
-	}
-	if (hit_normal) {
-		mathVec3Copy(result->hit_normal, hit_normal);
-	}
-	else {
-		mathVec3Set(result->hit_normal, 0.0f, 0.0f, 0.0f);
-	}
-	return result;
-}
-
 static int polygen_inner_has_point(const GeometryPolygenInner_t* inner, const float p[3]) {
 	if (inner->rect) {
 		return mathRectHasPoint(inner->rect, p);
@@ -389,6 +358,63 @@ static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[
 	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius + CCT_EPSILON;
 }
 
+static int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
+	int i;
+	if (mathAABBHasPoint(o, half, ls[0]) || mathAABBHasPoint(o, half, ls[1])) {
+		return 1;
+	}
+	for (i = 0; i < 6; ++i) {
+		int res;
+		GeometryRect_t rect;
+		mathAABBPlaneRect(o, half, i, &rect);
+		if (mathSegmentIntersectRect(ls, &rect, NULL)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int mathAABBIntersectPolygen(const float o[3], const float half[3], const GeometryPolygenInner_t* gp, float p[3]) {
+	int res, i;
+	const GeometryPolygen_t* polygen = gp->polygen;
+	float point[3];
+	if (!p) {
+		p = point;
+	}
+	res = mathAABBIntersectPlane(o, half, polygen->v[polygen->v_indices[0]], polygen->normal, p);
+	if (0 == res) {
+		return 0;
+	}
+	if (1 == res) {
+		return polygen_inner_has_point(gp, p);
+	}
+	mathPointProjectionPlane(o, polygen->v[polygen->v_indices[0]], polygen->normal, p, NULL);
+	if (polygen_inner_has_point(gp, p)) {
+		return 2;
+	}
+	for (i = 0; i < polygen->v_indices_cnt; ) {
+		float edge[2][3];
+		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+		if (mathAABBIntersectSegment(o, half, (const float(*)[3])edge)) {
+			return 2;
+		}
+	}
+	return 0;
+}
+
+static int mathAABBIntersectRect(const float o[3], const float half[3], const GeometryRect_t* rect, float p[3]) {
+	GeometryPolygen_t polygen;
+	GeometryPolygenInner_t gp = { &polygen, NULL };
+	float v[4][3];
+	mathRectVertices(rect, v);
+	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
+	polygen.v_indices_cnt = 4;
+	polygen.v = (const float(*)[3])v;
+	mathVec3Copy(polygen.normal, rect->normal);
+	return mathAABBIntersectPolygen(o, half, &gp, p);
+}
+
 /*
 static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
 	float new_o[3], new_dir[3], radius_sq = radius * radius;
@@ -421,6 +447,41 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	return rcnt;
 }
 */
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
+	if (dst == src) {
+		return dst;
+	}
+	dst->distance = src->distance;
+	dst->hit_point_cnt = src->hit_point_cnt;
+	if (1 == src->hit_point_cnt) {
+		mathVec3Copy(dst->hit_point, src->hit_point);
+	}
+	mathVec3Copy(dst->hit_normal, src->hit_normal);
+	return dst;
+}
+
+static CCTResult_t* set_result(CCTResult_t* result, float distance, const float hit_point[3], const float hit_normal[3]) {
+	result->distance = distance;
+	if (hit_point) {
+		mathVec3Copy(result->hit_point, hit_point);
+		result->hit_point_cnt = 1;
+	}
+	else {
+		result->hit_point_cnt = -1;
+	}
+	if (hit_normal) {
+		mathVec3Copy(result->hit_normal, hit_normal);
+	}
+	else {
+		mathVec3Set(result->hit_normal, 0.0f, 0.0f, 0.0f);
+	}
+	return result;
+}
 
 static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	float v0[3], v1[3], N[3], dot, d;
@@ -568,57 +629,6 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 		}
 		return p_result;
 	}
-}
-
-static int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
-	CCTResult_t result;
-	float ls_dir[3], ls_len;
-	mathVec3Sub(ls_dir, ls[1], ls[0]);
-	ls_len = mathVec3Normalized(ls_dir, ls_dir);
-	if (!mathRaycastAABB(ls[0], ls_dir, o, half, &result)) {
-		return 0;
-	}
-	return ls_len >= result.distance - CCT_EPSILON;
-}
-
-static int mathAABBIntersectPolygen(const float o[3], const float half[3], const GeometryPolygenInner_t* gp, float p[3]) {
-	int res;
-	const GeometryPolygen_t* polygen = gp->polygen;
-	float point[3];
-	if (!p) {
-		p = point;
-	}
-	res = mathAABBIntersectPlane(o, half, polygen->v[polygen->v_indices[0]], polygen->normal, p);
-	if (0 == res) {
-		return 0;
-	}
-	else if (1 == res) {
-		return polygen_inner_has_point(gp, p);
-	}
-	else {
-		int i;
-		for (i = 0; i < polygen->v_indices_cnt; ) {
-			float edge[2][3];
-			mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-			mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
-			if (mathAABBIntersectSegment(o, half, (const float(*)[3])edge)) {
-				return 2;
-			}
-		}
-		return 0;
-	}
-}
-
-static int mathAABBIntersectRect(const float o[3], const float half[3], const GeometryRect_t* rect, float p[3]) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, NULL };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathAABBIntersectPolygen(o, half, &gp, p);
 }
 
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
@@ -1549,10 +1559,8 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POLYGEN:
 			{
 				GeometryPolygenInner_t gp = { two->polygen };
-				return polygen_inner_has_point(&gp, one->point);
+				return mathPolygenHasPoint(two->polygen, one->point);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
@@ -1586,8 +1594,6 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathSegmentIntersectPolygen(one->segment->v, &gp, NULL);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_AABB == one->type) {
@@ -1627,8 +1633,6 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
 				return mathOBBIntersectOBB(&one_obb, two->obb);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_SPHERE == one->type) {
@@ -1666,8 +1670,6 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathSphereIntersectOBB(one->sphere->o, one->sphere->radius, two->obb);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_PLANE == one->type) {
@@ -1701,8 +1703,6 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathPolygenIntersectPlane(&gp, one->plane->v, one->plane->normal, NULL);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_RECT == one->type) {
@@ -1744,8 +1744,6 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				mathVec3Copy(polygen1.normal, one->rect->normal);
 				return mathPolygenIntersectPolygen(&gp1, &gp2);
 			}
-			default:
-				return 0;
 		}
 	}
 	else if (GEOMETRY_BODY_POLYGEN == one->type) {
@@ -1753,7 +1751,7 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 		switch (two->type) {
 			case GEOMETRY_BODY_POINT:
 			{
-				return polygen_inner_has_point(&gp, two->point);
+				return mathPolygenHasPoint(one->polygen, two->point);
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
@@ -1841,8 +1839,6 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathRaycastPolygen(one->point, dir, &gp, result);
 			}
-			default:
-				return NULL;
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
@@ -1872,8 +1868,6 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathSegmentcastPolygen(one->segment->v, dir, &gp, result);
 			}
-			default:
-				return NULL;
 		}
 	}
 	else if (GEOMETRY_BODY_AABB == one->type) {
@@ -1903,8 +1897,6 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathAABBcastPolygen(one->aabb->o, one->aabb->half, dir, &gp, result);
 			}
-			default:
-				return NULL;
 		}
 	}
 	else if (GEOMETRY_BODY_SPHERE == one->type) {
@@ -1934,8 +1926,6 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathSpherecastPolygen(one->sphere->o, one->sphere->radius, dir, &gp, result);
 			}
-			default:
-				return NULL;
 		}
 	}
 	else if (GEOMETRY_BODY_RECT == one->type) {
@@ -1973,8 +1963,6 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				mathVec3Copy(polygen.normal, one->rect->normal);
 				return mathPolygencastPolygen(&gp1, dir, &gp2, result);
 			}
-			default:
-				return NULL;
 		}
 	}
 	else if (GEOMETRY_BODY_POLYGEN == one->type) {
