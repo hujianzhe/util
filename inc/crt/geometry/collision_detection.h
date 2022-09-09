@@ -5,7 +5,7 @@
 #ifndef UTIL_C_CRT_COLLISION_DETECTION_H
 #define	UTIL_C_CRT_COLLISION_DETECTION_H
 
-#include "geometry_def.h"
+#include "collision_intersect.h"
 
 typedef struct CCTResult_t {
 	float distance;
@@ -18,8 +18,6 @@ typedef struct CCTResult_t {
 extern "C" {
 #endif
 
-__declspec_dll GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const float delta_half_v[3], GeometryAABB_t* aabb);
-__declspec_dll int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two);
 __declspec_dll CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result);
 
 #ifdef	__cplusplus

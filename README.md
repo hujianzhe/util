@@ -22,8 +22,9 @@
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
 				rpc_core			基于协程/回调的RPC调度核心机制  
 			crt/  
-				geometry/			包含常用几何体定义与接口  
-					collision_detection	一个3D碰撞检测接口,支持射线/线段/AABB/球/平面/矩形/多边形之间的相交检测与方向投射检测  
+				geometry/			包含常用2D/3D几何体定义,射线/线段/AABB/OBB/球/平面/矩形/多边形  
+					collision_intersect	3D碰撞静态相交检测接口  
+					collision_detection	3D碰撞方向投射检测接口  
 				cXML				用于解析XML  
 				dynarr				模拟泛型的动态数组  
 				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  
