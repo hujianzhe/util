@@ -314,10 +314,8 @@ int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* 
 	return 1;
 }
 
-int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
+static int mathBoxIntersectPlane(const float vertices[8][3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1;
-	float vertices[8][3];
-	mathAABBVertices(o, half, vertices);
 	for (i = 0; i < 8; ++i) {
 		int cmp;
 		float d;
@@ -349,6 +347,18 @@ int mathAABBIntersectPlane(const float o[3], const float half[3], const float pl
 		mathVec3Copy(p, vertices[idx_0]);
 	}
 	return 1;
+}
+
+int mathOBBIntersectPlane(const GeometryOBB_t* obb, const float plane_v[3], const float plane_n[3], float p[3]) {
+	float vertices[8][3];
+	mathOBBVertices(obb, vertices);
+	return mathBoxIntersectPlane((const float(*)[3])vertices, plane_v, plane_n, p);
+}
+
+int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
+	float vertices[8][3];
+	mathAABBVertices(o, half, vertices);
+	return mathBoxIntersectPlane((const float(*)[3])vertices, plane_v, plane_n, p);
 }
 
 int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
@@ -641,6 +651,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathAABBIntersectPlane(two->aabb->o, two->aabb->half, one->plane->v, one->plane->normal, NULL);
 			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathOBBIntersectPlane(two->obb, one->plane->v, one->plane->normal, NULL);
+			}
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathSphereIntersectPlane(two->sphere->o, two->sphere->radius, one->plane->v, one->plane->normal, NULL, NULL);
@@ -747,6 +761,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POINT:
 			{
 				return mathOBBHasPoint(one->obb, two->point);
+			}
+			case GEOMETRY_BODY_PLANE:
+			{
+				return mathOBBIntersectPlane(one->obb, two->plane->v, two->plane->normal, NULL);
 			}
 			case GEOMETRY_BODY_OBB:
 			{
