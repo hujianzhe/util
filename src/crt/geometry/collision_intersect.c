@@ -374,9 +374,23 @@ int mathAABBIntersectSegment(const float o[3], const float half[3], const float 
 		return 1;
 	}
 	for (i = 0; i < 6; ++i) {
-		int res;
 		GeometryRect_t rect;
 		mathAABBPlaneRect(o, half, i, &rect);
+		if (mathSegmentIntersectRect(ls, &rect, NULL)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3]) {
+	int i;
+	if (mathOBBHasPoint(obb, ls[0]) || mathOBBHasPoint(obb, ls[1])) {
+		return 1;
+	}
+	for (i = 0; i < 6; ++i) {
+		GeometryRect_t rect;
+		mathOBBPlaneRect(obb, i, &rect);
 		if (mathSegmentIntersectRect(ls, &rect, NULL)) {
 			return 1;
 		}
@@ -530,6 +544,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				GeometryPolygenInner_t gp = { two->polygen };
 				return mathPolygenHasPoint(two->polygen, one->point);
 			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathOBBHasPoint(two->obb, one->point);
+			}
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
@@ -549,6 +567,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_AABB:
 			{
 				return mathAABBIntersectSegment(two->aabb->o, two->aabb->half, one->segment->v);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathOBBIntersectSegment(two->obb, one->segment->v);
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
@@ -761,6 +783,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POINT:
 			{
 				return mathOBBHasPoint(one->obb, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return mathOBBIntersectSegment(one->obb, two->segment->v);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
