@@ -240,6 +240,36 @@ static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const 
 	}
 }
 
+static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	if (mathOBBHasPoint(obb, o)) {
+		set_result(result, 0.0f, o, dir);
+		return result;
+	}
+	else {
+		CCTResult_t *p_result = NULL;
+		int i;
+		for (i = 0; i < 6; ) {
+			CCTResult_t result_temp;
+			GeometryRect_t rect;
+			mathOBBPlaneRect(obb, i, &rect);
+			if (!mathRaycastPlane(o, dir, rect.o, rect.normal, &result_temp)) {
+				i += 2;
+				continue;
+			}
+			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
+				++i;
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				copy_result(result, &result_temp);
+				p_result = result;
+			}
+			++i;
+		}
+		return p_result;
+	}
+}
+
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
 	float dr2, oc2, dir_d;
 	float oc[3];
@@ -1111,6 +1141,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			case GEOMETRY_BODY_AABB:
 			{
 				return mathRaycastAABB(one->point, dir, two->aabb->o, two->aabb->half, result);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathRaycastOBB(one->point, dir, two->obb, result);
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
