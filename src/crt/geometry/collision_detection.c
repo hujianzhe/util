@@ -904,7 +904,7 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 		CCTResult_t result_temp;
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastAABB((const float(*)[3])edge, neg_dir, o, half, &result_temp)) {
 			continue;
 		}
