@@ -130,6 +130,21 @@ int errnoGet(void) {
 		case WSAEWOULDBLOCK:
 			errno = EWOULDBLOCK;
 			break;
+		case WSAENOTEMPTY:
+			errno = ENOTEMPTY;
+			break;
+		case WSAELOOP:
+			errno = ELOOP;
+			break;
+		case WSAEOPNOTSUPP:
+			errno = EOPNOTSUPP;
+			break;
+		case WSAENAMETOOLONG:
+			errno = ENAMETOOLONG;
+			break;
+		case WSAEHOSTUNREACH:
+			errno = EHOSTUNREACH;
+			break;
 		default:
 			errno = err;
 	}
