@@ -511,17 +511,17 @@ int sockaddrLength(const struct sockaddr* saddr) {
 }
 
 int sockaddrIsEqual(const struct sockaddr* one, const struct sockaddr* two) {
-	const struct sockaddr* addr[2] = { one, two };
-	if (addr[0]->sa_family != addr[1]->sa_family)
-		return 0;
-	else {
+	if (one->sa_family == two->sa_family) {
 		int len = sockaddrLength(one);
-		if (len < 0)
+		if (len < 0) {
 			return 0;
-		else if (len == 0)
+		}
+		else if (len == 0) {
 			return 1;
+		}
 		return memcmp(one, two, len) == 0;
 	}
+	return 0;
 }
 
 BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port) {
@@ -777,6 +777,26 @@ FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec) 
 		socketNonBlock(sockfd, 0);
 end:
 	return sockfd;
+}
+
+FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec) {
+	struct sockaddr_storage st;
+	int slen;
+	int family = ipstrFamily(ip);
+	switch (family) {
+		case AF_INET:
+			slen = sizeof(struct sockaddr_in);
+			break;
+		case AF_INET6:
+			slen = sizeof(struct sockaddr_in6);
+			break;
+		default:
+			return INVALID_SOCKET;
+	}
+	if (!sockaddrEncode((struct sockaddr*)&st, family, ip, port)) {
+		return INVALID_SOCKET;
+	}
+	return socketTcpConnect((struct sockaddr*)&st, slen, msec);
 }
 
 BOOL socketIsConnected(FD_t fd, BOOL* bool_value) {
