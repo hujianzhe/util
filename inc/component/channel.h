@@ -33,7 +33,6 @@ typedef struct ChannelOutbufEncodeParam_t {
 typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
-	void* userdata; /* user use, library not use these field */
 	struct {
 		union {
 			/* listener use */

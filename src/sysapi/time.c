@@ -20,7 +20,6 @@ int TIMESTAMP_OFFSET_SECOND = 0;
 
 /* time trasform */
 int gmtimeTimezoneOffsetSecond(void) {
-	/* time_t local_time = gmtimeSecond() - gmtimeTimezoneOffsetSecond() */
 	static int tm_gmtoff;
 	if (0 == tm_gmtoff) {
 #if defined(WIN32) || defined(_WIN64)
@@ -42,6 +41,10 @@ int gmtimeTimezoneOffsetSecond(void) {
 time_t gmtimeSecond(void) {
 	time_t v;
 	return time(&v);
+}
+
+time_t localtimeSecond(void) {
+	return gmtimeSecond() - gmtimeTimezoneOffsetSecond();
 }
 
 long long gmtimeMillisecond(void) {

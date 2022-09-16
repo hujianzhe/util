@@ -1288,6 +1288,9 @@ void reactorpacketFreeList(List_t* pkglist) {
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr) {
 	ChannelBase_t* channel;
 	int sockaddrlen;
+	if (sz < sizeof(ChannelBase_t)) {
+		return NULL;
+	}
 	if (SOCK_STREAM == o->socktype) {
 		if (flag & CHANNEL_FLAG_DGRAM) {
 			return NULL;
