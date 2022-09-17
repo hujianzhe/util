@@ -1289,7 +1289,10 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	ChannelBase_t* channel;
 	int sockaddrlen;
 	if (sz < sizeof(ChannelBase_t)) {
-		return NULL;
+		if (sz > 0) {
+			return NULL;
+		}
+		sz = sizeof(ChannelBase_t);
 	}
 	if (SOCK_STREAM == o->socktype) {
 		if (flag & CHANNEL_FLAG_DGRAM) {

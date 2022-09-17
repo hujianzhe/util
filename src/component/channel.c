@@ -668,8 +668,15 @@ static void on_reg_reliable_dgram_client(ChannelBase_t* base, long long timestam
 
 /*******************************************************************************/
 
-Channel_t* reactorobjectOpenChannel(ReactorObject_t* o, unsigned short flag, unsigned int extra_sz, const struct sockaddr* addr) {
-	Channel_t* channel = (Channel_t*)channelbaseOpen(sizeof(Channel_t) + extra_sz, flag, o, addr);
+Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr) {
+	Channel_t* channel;
+	if (sz < sizeof(Channel_t)) {
+		if (sz > 0) {
+			return NULL;
+		}
+		sz = sizeof(Channel_t);
+	}
+	channel = (Channel_t*)channelbaseOpen(sz, flag, o, addr);
 	if (!channel) {
 		return NULL;
 	}

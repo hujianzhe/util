@@ -64,7 +64,7 @@ typedef struct Channel_t {
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(ReactorObject_t* io, unsigned short flag, unsigned int extra_sz, const struct sockaddr* addr);
+__declspec_dll Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObject_t* io, const struct sockaddr* addr);
 __declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);
 __declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 
