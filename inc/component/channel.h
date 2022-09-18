@@ -55,9 +55,6 @@ typedef struct Channel_t {
 	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
 	void(*on_recv)(struct Channel_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
 	void(*on_encode)(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param);
-/* private */
-	unsigned int m_initseq;
-	Atom32_t m_has_sendfin;
 } Channel_t;
 
 #ifdef	__cplusplus

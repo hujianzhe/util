@@ -116,9 +116,9 @@ typedef struct ChannelBase_t {
 		DgramTransportCtx_t dgram_ctx;
 	};
 	struct {
-		ReactorCmd_t stream_sendfincmd;
-		Atom8_t m_stream_has_sendfincmd;
-		char m_stream_sendfinwait;
+		ReactorCmd_t m_stream_fincmd;
+		char m_stream_delay_send_fin;
+		char m_stream_catch_fincmd;
 	};
 	char has_recvfin;
 	char has_sendfin;
@@ -150,6 +150,7 @@ typedef struct ChannelBase_t {
 	long long m_heartbeat_msec;
 	unsigned int m_heartbeat_times; /* client use */
 	char m_has_detached;
+	Atom8_t m_has_commit_fincmd;
 	List_t m_cache_packet_list;
 	void(*on_reg_proc)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 } ChannelBase_t;
@@ -180,8 +181,9 @@ __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, Re
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len);
-__declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
+__declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
 __declspec_dll List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist);
+__declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
 __declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
 
 #ifdef	__cplusplus

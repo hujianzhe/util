@@ -78,29 +78,6 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static int channel_recv_fin_handler(Channel_t* channel) {
-	if (channel->_.has_recvfin) {
-		return 1;
-	}
-	channel->_.has_recvfin = 1;
-
-	if (channel->_.has_sendfin) {
-		return 1;
-	}
-	if (_xchg32(&channel->m_has_sendfin, 1)) {
-		return 1;
-	}
-	else {
-		unsigned int hdrsz = channel->_.on_hdrsize(&channel->_, 0);
-		ReactorPacket_t* fin_packet = reactorpacketMake(NETPACKET_FIN, hdrsz, 0);
-		if (!fin_packet) {
-			return 0;
-		}
-		channelbaseSendPacket(&channel->_, fin_packet);
-		return 1;
-	}
-}
-
 static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, ChannelInbufDecodeResult_t* decode_result) {
 	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
 	if (NETPACKET_FIN == packet->_.type) {
@@ -109,7 +86,9 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 			next = cur->next;
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 		}
-		return channel_recv_fin_handler(channel);
+		channel->_.has_recvfin = 1;
+		channelbaseSendFin(&channel->_);
+		return 1;
 	}
 	else if (packetlist->head == packetlist->tail) {
 		decode_result->bodyptr = packet->_.buf;
@@ -151,50 +130,31 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 		else {
 			unsigned int pkseq = decode_result.pkseq;
 			StreamTransportCtx_t* ctx = &channel->_.stream_ctx;
-			if (streamtransportctxRecvCheck(ctx, pkseq, pktype)) {
-				if (channel->_.readcache_max_size > 0 &&
-					channel->_.readcache_max_size < channel->_.stream_ctx.cache_recv_bytes + decode_result.bodylen)
-				{
-					return 0;
+			if (channel->_.readcache_max_size > 0 &&
+				channel->_.readcache_max_size < channel->_.stream_ctx.cache_recv_bytes + decode_result.bodylen)
+			{
+				return 0;
+			}
+			if (ctx->recvlist.head || !decode_result.fragment_eof) {
+				List_t list;
+				ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+				if (!packet) {
+					return -1;
 				}
-				/*
-				if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
-					channel->on_reply_ack(channel, pkseq, &channel->_.to_addr.sa);
-				*/
-				if (ctx->recvlist.head || !decode_result.fragment_eof) {
-					List_t list;
-					ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
-					if (!packet) {
-						return -1;
-					}
-					packet->_.seq = pkseq;
-					packet->_.fragment_eof = decode_result.fragment_eof;
-					memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
-					streamtransportctxCacheRecvPacket(ctx, &packet->_);
-					if (decode_result.fragment_eof) {
-						while (streamtransportctxMergeRecvPacket(ctx, &list)) {
-							if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
-								return -1;
-							}
+				packet->_.seq = pkseq;
+				packet->_.fragment_eof = decode_result.fragment_eof;
+				memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
+				streamtransportctxCacheRecvPacket(ctx, &packet->_);
+				if (decode_result.fragment_eof) {
+					while (streamtransportctxMergeRecvPacket(ctx, &list)) {
+						if (!channel_merge_packet_handler(channel, &list, &decode_result)) {
+							return -1;
 						}
 					}
 				}
-				else {
-					channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
-				}
 			}
-			/*
-			else if (NETPACKET_ACK == pktype) {
-				NetPacket_t* ackpk = NULL;
-				if (!streamtransportctxAckSendPacket(ctx, pkseq, &ackpk))
-					return -1;
-				reactorpacketFree(pod_container_of(ackpk, ReactorPacket_t, _));
-			}
-			else if (pktype >= NETPACKET_STREAM_HAS_SEND_SEQ)
-				channel->on_reply_ack(channel, pkseq, &channel->_.to_addr.sa);
-			*/
 			else {
-				return -1;
+				channel->on_recv(channel, &channel->_.to_addr.sa, &decode_result);
 			}
 		}
 	}
@@ -473,9 +433,6 @@ static int on_read_stream(ChannelBase_t* base, unsigned char* buf, unsigned int 
 	if (res_off < 0) {
 		channel_invalid(base, REACTOR_ONREAD_ERR);
 	}
-	else if (base->has_recvfin && base->has_sendfin) {
-		channel_invalid(base, 0);
-	}
 	return res_off;
 }
 
@@ -517,7 +474,6 @@ static int on_read_dgram(ChannelBase_t* base, unsigned char* buf, unsigned int l
 
 static int on_pre_send_stream(ChannelBase_t* base, ReactorPacket_t* packet, long long timestamp_msec) {
 	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	packet->_.seq = streamtransportctxNextSendSeq(&base->stream_ctx, packet->_.type);
 	if (channel->on_encode) {
 		ChannelOutbufEncodeParam_t encode_param;
 		netpacket2encodeparam(&packet->_, &encode_param);
@@ -689,10 +645,6 @@ Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObjec
 		channel->dgram.resend_maxtimes = 5;
 		dgramtransportctxInit(&channel->_.dgram_ctx, 0);
 	}
-	else {
-		streamtransportctxInit(&channel->_.stream_ctx, 0);
-	}
-	channel->m_initseq = 0;
 	if (flag & CHANNEL_FLAG_STREAM) {
 		channel->_.on_read = on_read_stream;
 		channel->_.on_pre_send = on_pre_send_stream;
@@ -731,11 +683,10 @@ Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int io
 		}
 	}
 	else if (NETPACKET_FIN == pktype) {
-		if (_xchg32(&channel->m_has_sendfin, 1)) {
-			return channel;
-		}
+		channelbaseSendFin(&channel->_);
+		return channel;
 	}
-	else if (channel->m_has_sendfin) {
+	else if (channel->_.m_has_commit_fincmd) {
 		return channel;
 	}
 

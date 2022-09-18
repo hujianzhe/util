@@ -378,20 +378,33 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	channel_set_timestamp(channel, channel->m_heartbeat_msec);
 }
 
-static void stream_recvfin_handler(ReactorObject_t* o) {
+static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
+	ReactorObject_t* o = channel->o;
+	StreamTransportCtx_t* ctx = &channel->stream_ctx;
+
+	channel->m_stream_catch_fincmd = 1;
+	if (ctx->sendlist.head) {
+		channel->m_stream_delay_send_fin = 1;
+		return;
+	}
+	socketShutdown(o->fd, SHUT_WR);
+	channel->has_sendfin = 1;
+	if (channel->has_recvfin) {
+		o->m_valid = 0;
+	}
+}
+
+static void stream_recvfin_handler(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	ChannelBase_t* channel = streamChannel(o);
 	channel->has_recvfin = 1;
 	if (channel->has_sendfin) {
 		o->m_valid = 0;
+		return;
 	}
-	else {
-		ReactorPacket_t* fin_pkg = reactorpacketMake(NETPACKET_FIN, 0, 0);
-		if (!fin_pkg) {
-			o->m_valid = 0;
-			return;
-		}
-		channelbaseSendPacket(channel, fin_pkg);
+	if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
+		return;
 	}
+	stream_sendfin_handler(reactor, channel);
 }
 
 static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec) {
@@ -496,17 +509,6 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 	for (cur = ctxptr->sendlist.head; cur; cur = cur->next) {
 		int res;
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (NETPACKET_FIN == packet->type) {
-			packet->off = packet->hdrlen + packet->bodylen;
-			channel->has_sendfin = 1;
-			if (channel->has_recvfin)
-				o->m_valid = 0;
-			else {
-				channel->m_stream_sendfinwait = 0;
-				socketShutdown(o->fd, SHUT_WR);
-			}
-			break;
-		}
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
 			continue;
 		}
@@ -537,6 +539,17 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		next = cur->next;
 		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 	}
+	if (ctxptr->sendlist.head) {
+		return;
+	}
+	if (!channel->m_stream_delay_send_fin) {
+		return;
+	}
+	socketShutdown(o->fd, SHUT_WR);
+	channel->has_sendfin = 1;
+	if (channel->has_recvfin) {
+		o->m_valid = 0;
+	}
 }
 
 static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
@@ -561,7 +574,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		return;
 	}
 	else if (0 == res) {
-		stream_recvfin_handler(o);
+		stream_recvfin_handler(reactor, o, timestamp_msec);
 		return;
 	}
 	channel = streamChannel(o);
@@ -588,7 +601,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		return;
 	}
 	else if (0 == res) {
-		stream_recvfin_handler(o);
+		stream_recvfin_handler(reactor, o, timestamp_msec);
 		return;
 	}
 	o->m_inbuflen += res;
@@ -616,15 +629,9 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 			free_inbuf(o);
 		}
 	}
-	if (!channel->m_stream_sendfinwait) {
-		return;
-	}
-	if (channel->stream_ctx.send_all_acked) {
-		reactor_stream_writeev(reactor, o);
-	}
 }
 
-static void channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
+static void dgram_channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
 static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
 	unsigned int readtimes, readmaxtimes = 8;
@@ -671,7 +678,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				continue;
 			}
 			if (disable_send && !channel->disable_send) {
-				channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
+				dgram_channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			}
 			channel->m_heartbeat_times = 0;
 			if (channel->flag & CHANNEL_FLAG_SERVER) {
@@ -688,7 +695,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	ReactorObject_t* o;
 	StreamTransportCtx_t* ctx;
 
-	if (!channel->valid) {
+	if (!channel->valid || channel->m_stream_catch_fincmd) {
 		if (!packet->_.cached) {
 			reactorpacketFree(packet);
 		}
@@ -705,62 +712,39 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		packet_allow_send = 0;
 	}
 
-	if (packet_allow_send && NETPACKET_FIN != packet->_.type) {
-		if (channel->on_pre_send) {
-			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
-			if (!after_call_channel_interface(channel)) {
-				if (!packet->_.cached) {
-					reactorpacketFree(packet);
-				}
-				if (!o->m_valid) {
-					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-				}
-				return;
+	if (channel->on_pre_send) {
+		int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+		if (!after_call_channel_interface(channel)) {
+			if (!packet->_.cached) {
+				reactorpacketFree(packet);
 			}
-			if (!continue_send) {
-				return;
+			if (!o->m_valid) {
+				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			}
+			return;
+		}
+		if (!continue_send) {
+			return;
 		}
 	}
 	ctx = &channel->stream_ctx;
 	packet->_.off = 0;
-	if (NETPACKET_FIN == packet->_.type) {
-		if (ctx->sendlist.head) {
-			channel->m_stream_sendfinwait = 1;
-			streamtransportctxCacheSendPacket(ctx, &packet->_);
-		}
-		else {
-			channel->has_sendfin = 1;
-			reactorpacketFree(packet);
-			if (channel->has_recvfin) {
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-			}
-			else {
-				channel->m_stream_sendfinwait = 0;
-				socketShutdown(o->fd, SHUT_WR);
-			}
-		}
-		return;
-	}
-	if (!packet_allow_send) {
-		listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
-		return;
-	}
-	if (!streamtransportctxSendCheckBusy(ctx)) {
-		int res = send(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				if (!packet->_.cached) {
-					reactorpacketFree(packet);
+	if (packet_allow_send) {
+		if (!streamtransportctxSendCheckBusy(ctx)) {
+			int res = send(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
+			if (res < 0) {
+				if (errnoGet() != EWOULDBLOCK) {
+					if (!packet->_.cached) {
+						reactorpacketFree(packet);
+					}
+					o->m_valid = 0;
+					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+					return;
 				}
-				o->m_valid = 0;
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-				return;
+				res = 0;
 			}
-			res = 0;
+			packet->_.off = res;
 		}
-		packet->_.off = res;
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
 		if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen) {
@@ -836,19 +820,14 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 	reactorpacketFree(packet);
 }
 
-static void channel_cachepacket_send_proc(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
+static void dgram_channel_cachepacket_send_proc(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
 	ListNode_t* cur, *next;
 	List_t cache_list = channel->m_cache_packet_list;
 	listInit(&channel->m_cache_packet_list);
 	for (cur = cache_list.head; cur; cur = next) {
 		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
 		next = cur->next;
-		if (channel->flag & CHANNEL_FLAG_STREAM) {
-			reactor_packet_send_proc_stream(reactor, packet, timestamp_msec);
-		}
-		else {
-			reactor_packet_send_proc_dgram(reactor, packet, timestamp_msec);
-		}
+		reactor_packet_send_proc_dgram(reactor, packet, timestamp_msec);
 	}
 }
 
@@ -881,7 +860,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
 	channel_set_timestamp(channel, channel->m_heartbeat_msec);
-	channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
+	reactor_stream_writeev(reactor, o);
 	return 1;
 }
 
@@ -907,16 +886,13 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
 			ReactorObject_t* o;
-			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, stream_sendfincmd);
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_stream_fincmd);
 			if (!channel->valid) {
 				continue;
 			}
+			stream_sendfin_handler(reactor, channel);
 			o = channel->o;
-			channel->has_sendfin = 1;
-			channel->m_stream_sendfinwait = 0;
-			socketShutdown(o->fd, SHUT_WR);
-			if (channel->has_recvfin) {
-				o->m_valid = 0;
+			if (!o->m_valid) {
 				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			}
 			continue;
@@ -993,8 +969,8 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		}
 	}
 	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
-		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, stream_sendfincmd);
-		if (_xchg8(&channel->m_stream_has_sendfincmd, 1)) {
+		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, m_stream_fincmd);
+		if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
 			return;
 		}
 		reactor = channel->reactor;
@@ -1326,8 +1302,8 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	if (flag & CHANNEL_FLAG_STREAM) {
 		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);
-		streamtransportctxInit(&channel->stream_ctx, 0);
-		channel->stream_sendfincmd.type = REACTOR_STREAM_SENDFIN_CMD;
+		streamtransportctxInit(&channel->stream_ctx);
+		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
@@ -1350,7 +1326,7 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 
 ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len) {
 	ReactorPacket_t* packet;
-	if (!channel->valid) {
+	if (!channel->valid || channel->m_has_commit_fincmd) {
 		return NULL;
 	}
 	packet = reactorpacketMake(0, 0, len);
@@ -1362,9 +1338,19 @@ ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t 
 	return channel;
 }
 
-void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
-	packet->channel = channel;
-	reactorCommitCmd(channel->reactor, &packet->cmd);
+ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
+	if (channel->flag & CHANNEL_FLAG_STREAM) {
+		reactorCommitCmd(channel->reactor, &channel->m_stream_fincmd);
+	}
+	else if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
+		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
+		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
+		if (!packet) {
+			return NULL;
+		}
+		channelbaseSendPacket(channel, packet);
+	}
+	return channel;
 }
 
 List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
@@ -1428,6 +1414,11 @@ List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t 
 	}
 	listAppend(packetlist, &pklist);
 	return packetlist;
+}
+
+void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
+	packet->channel = channel;
+	reactorCommitCmd(channel->reactor, &packet->cmd);
 }
 
 void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {

@@ -791,6 +791,7 @@ FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec) {
 			slen = sizeof(struct sockaddr_in6);
 			break;
 		default:
+			__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 			return INVALID_SOCKET;
 	}
 	if (!sockaddrEncode((struct sockaddr*)&st, family, ip, port)) {
