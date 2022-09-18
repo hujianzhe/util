@@ -1348,6 +1348,20 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 	return channel;
 }
 
+ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len) {
+	ReactorPacket_t* packet;
+	if (!channel->valid) {
+		return NULL;
+	}
+	packet = reactorpacketMake(0, 0, len);
+	if (!packet) {
+		return NULL;
+	}
+	memcpy(packet->_.buf, data, len);
+	channelbaseSendPacket(channel, packet);
+	return channel;
+}
+
 void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
 	packet->channel = channel;
 	reactorCommitCmd(channel->reactor, &packet->cmd);
