@@ -21,15 +21,6 @@ typedef struct ChannelInbufDecodeResult_t {
 	void* userdata;
 } ChannelInbufDecodeResult_t;
 
-typedef struct ChannelOutbufEncodeParam_t {
-	char pktype;
-	char fragment_eof;
-	unsigned int pkseq;
-	unsigned int hdrlen;
-	unsigned int bodylen;
-	unsigned char* buf;
-} ChannelOutbufEncodeParam_t;
-
 typedef struct Channel_t {
 /* public */
 	ChannelBase_t _;
@@ -42,7 +33,8 @@ typedef struct Channel_t {
 			};
 			/* client use */
 			struct {
-				ReactorPacket_t* m_synpacket;
+				int m_synpacket_doing;
+				NetPacket_t* m_synpacket;
 			};
 		};
 		struct {
@@ -54,7 +46,7 @@ typedef struct Channel_t {
 	/* interface */
 	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
 	void(*on_recv)(struct Channel_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
-	void(*on_encode)(struct Channel_t* self, const ChannelOutbufEncodeParam_t* param);
+	void(*on_encode)(struct Channel_t* self, NetPacket_t* packet);
 } Channel_t;
 
 #ifdef	__cplusplus

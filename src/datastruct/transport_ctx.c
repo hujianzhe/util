@@ -75,8 +75,9 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 				continue;
 			}
 			*list = listSplitByTail(&ctx->recvlist, cur);
-			if (!ctx->recvlist.head || ctx->m_recvnode == cur)
+			if (!ctx->recvlist.head || ctx->m_recvnode == cur) {
 				ctx->m_recvnode = (struct ListNode_t*)0;
+			}
 			for (cur = list->head; cur; cur = cur->next) {
 				packet = pod_container_of(cur, NetPacket_t, node);
 				packet->cached = 0;
@@ -97,8 +98,9 @@ int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 		packet->cached = 0;
 		return 0;
 	}
-	else if (packet->type > NETPACKET_FIN)
+	else if (packet->type > NETPACKET_FIN) {
 		ctx->send_all_acked = 0;
+	}
 	packet->wait_ack = 0;
 	listInsertNodeBack(&ctx->sendlist, ctx->sendlist.tail, &packet->node);
 	packet->cached = 1;

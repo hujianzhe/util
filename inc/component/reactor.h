@@ -99,7 +99,6 @@ typedef struct ReactorObject_t {
 	int m_inbufsize;
 } ReactorObject_t;
 
-struct ReactorPacket_t;
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -142,7 +141,7 @@ typedef struct ChannelBase_t {
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr);
 	unsigned int(*on_hdrsize)(struct ChannelBase_t* self, unsigned int bodylen); /* optional */
-	int(*on_pre_send)(struct ChannelBase_t* self, struct ReactorPacket_t* packet, long long timestamp_msec); /* optional */
+	int(*on_pre_send)(struct ChannelBase_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
 	int(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
 	void(*on_detach)(struct ChannelBase_t* self);
 	void(*on_free)(struct ChannelBase_t* self); /* optional */
@@ -152,7 +151,6 @@ typedef struct ChannelBase_t {
 	char m_has_detached;
 	Atom8_t m_has_commit_fincmd;
 	List_t m_cache_packet_list;
-	void(*on_reg_proc)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 } ChannelBase_t;
 
 typedef struct ReactorPacket_t {

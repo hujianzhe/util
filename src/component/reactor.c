@@ -342,15 +342,13 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 		next = cur->next;
 		channel->reactor = reactor;
-		if (channel->on_reg_proc) {
-			channel->on_reg_proc(channel, timestamp_msec);
-			channel->on_reg_proc = NULL;
-			after_call_channel_interface(channel);
-		}
 		if (channel->on_reg) {
 			channel->on_reg(channel, timestamp_msec);
 			channel->on_reg = NULL;
 			after_call_channel_interface(channel);
+		}
+		else {
+			reactor_set_event_timestamp(reactor, channel->event_msec);
 		}
 	}
 	if (SOCK_STREAM != o->socktype) {
@@ -713,7 +711,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	}
 
 	if (channel->on_pre_send) {
-		int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+		int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
@@ -786,7 +784,7 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 
 	if (packet_allow_send) {
 		if (channel->on_pre_send) {
-			int continue_send = channel->on_pre_send(channel, packet, timestamp_msec);
+			int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
 			if (!after_call_channel_interface(channel)) {
 				if (!packet->_.cached) {
 					reactorpacketFree(packet);
