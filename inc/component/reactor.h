@@ -124,7 +124,6 @@ typedef struct ChannelBase_t {
 	unsigned int connected_times; /* client use */
 	unsigned int heartbeat_maxtimes; /* client use */
 	int heartbeat_timeout_sec;
-	char disable_send;
 	char valid;
 	unsigned short flag;
 	int detach_error;
@@ -150,7 +149,6 @@ typedef struct ChannelBase_t {
 	unsigned int m_heartbeat_times; /* client use */
 	char m_has_detached;
 	Atom8_t m_has_commit_fincmd;
-	List_t m_cache_packet_list;
 } ChannelBase_t;
 
 typedef struct ReactorPacket_t {

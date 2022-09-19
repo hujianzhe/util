@@ -123,7 +123,6 @@ static void channelobject_free(ChannelBase_t* channel) {
 		packetlist_free_packet(&channel->dgram_ctx.recvlist);
 		packetlist_free_packet(&channel->dgram_ctx.sendlist);
 	}
-	packetlist_free_packet(&channel->m_cache_packet_list);
 	free(channel);
 }
 
@@ -265,14 +264,12 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 		}
 		else if (ret) {
 			o->m_connected = 1;
-			channel->disable_send = 0;
 			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
 		}
 		else {
 			o->m_connected = 0;
-			channel->disable_send = 1;
 			if (!reactorobject_request_connect(reactor, o)) {
 				return 0;
 			}
@@ -306,13 +303,6 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 		}
 		if (!reactorobject_request_read(reactor, o)) {
 			return 0;
-		}
-		for (cur = o->m_channel_list.head; cur; cur = next) {
-			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
-			next = cur->next;
-			if (channel->flag & CHANNEL_FLAG_CLIENT) {
-				channel->disable_send = 1;
-			}
 		}
 		o->m_connected = (socketIsConnected(o->fd, &bval) && bval);
 	}
@@ -629,7 +619,6 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 }
 
-static void dgram_channel_cachepacket_send_proc(Reactor_t*, ChannelBase_t*, long long);
 static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
 	unsigned int readtimes, readmaxtimes = 8;
@@ -669,14 +658,10 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		ptr[res] = 0; /* convienent for text data */
 		for (cur = o->m_channel_list.head; cur; cur = next) {
 			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
-			int disable_send = channel->disable_send;
 			next = cur->next;
 			channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
 			if (!after_call_channel_interface(channel)) {
 				continue;
-			}
-			if (disable_send && !channel->disable_send) {
-				dgram_channel_cachepacket_send_proc(reactor, channel, timestamp_msec);
 			}
 			channel->m_heartbeat_times = 0;
 			if (channel->flag & CHANNEL_FLAG_SERVER) {
@@ -703,11 +688,8 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	if (!o->m_connected) {
 		packet_allow_send = 0;
 	}
-	else if (!channel->disable_send) {
-		packet_allow_send = 1;
-	}
 	else {
-		packet_allow_send = 0;
+		packet_allow_send = 1;
 	}
 
 	if (channel->on_pre_send) {
@@ -759,7 +741,6 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 }
 
 static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* packet, long long timestamp_msec) {
-	int packet_allow_send;
 	ChannelBase_t* channel = packet->channel;
 	ReactorObject_t* o;
 	struct sockaddr* paddr;
@@ -772,36 +753,20 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		return;
 	}
 	o = channel->o;
-	if (NETPACKET_SYN == packet->_.type || NETPACKET_SYN_ACK == packet->_.type) {
-		packet_allow_send = 1;
-	}
-	else if (!channel->disable_send) {
-		packet_allow_send = 1;
-	}
-	else {
-		packet_allow_send = 0;
-	}
-
-	if (packet_allow_send) {
-		if (channel->on_pre_send) {
-			int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
-			if (!after_call_channel_interface(channel)) {
-				if (!packet->_.cached) {
-					reactorpacketFree(packet);
-				}
-				if (!o->m_valid) {
-					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-				}
-				return;
+	if (channel->on_pre_send) {
+		int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
+		if (!after_call_channel_interface(channel)) {
+			if (!packet->_.cached) {
+				reactorpacketFree(packet);
 			}
-			if (!continue_send) {
-				return;
+			if (!o->m_valid) {
+				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			}
+			return;
 		}
-	}
-	else {
-		listPushNodeBack(&channel->m_cache_packet_list, &packet->_.node);
-		return;
+		if (!continue_send) {
+			return;
+		}
 	}
 	if (o->m_connected) {
 		paddr = NULL;
@@ -816,17 +781,6 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		return;
 	}
 	reactorpacketFree(packet);
-}
-
-static void dgram_channel_cachepacket_send_proc(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
-	ListNode_t* cur, *next;
-	List_t cache_list = channel->m_cache_packet_list;
-	listInit(&channel->m_cache_packet_list);
-	for (cur = cache_list.head; cur; cur = next) {
-		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, _.node);
-		next = cur->next;
-		reactor_packet_send_proc_dgram(reactor, packet, timestamp_msec);
-	}
 }
 
 static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
@@ -849,7 +803,6 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	if (~0 != channel->connected_times) {
 		++channel->connected_times;
 	}
-	channel->disable_send = 0;
 	if (channel->on_syn_ack) {
 		channel->on_syn_ack(channel, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
@@ -1312,7 +1265,6 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	channel->valid = 1;
 	channel->write_fragment_size = o->write_fragment_size;
 	channel->on_hdrsize = default_on_hdrsize;
-	listInit(&channel->m_cache_packet_list);
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
 }
