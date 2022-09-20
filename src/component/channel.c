@@ -658,38 +658,16 @@ Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObjec
 			channel->_.on_pre_send = on_pre_send_dgram;
 		}
 	}
+	channel->_.write_fragment_with_hdr = 1;
 	return channel;
 }
 
 Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
-	List_t pklist;
-	if (NETPACKET_SYN == pktype) {
-		if (!(channel->_.flag & CHANNEL_FLAG_CLIENT)) {
-			return channel;
-		}
-		if (!(channel->_.flag & CHANNEL_FLAG_DGRAM) && 0 == channel->_.connected_times) {
-			return channel;
-		}
-	}
-	else if (NETPACKET_FIN == pktype) {
-		channelbaseSendFin(&channel->_);
-		return channel;
-	}
-	else if (channel->_.m_has_commit_fincmd) {
-		return channel;
-	}
-
-	listInit(&pklist);
-	if (!channelbaseShardDatas(&channel->_, pktype, iov, iovcnt, &pklist)) {
-		return NULL;
-	}
-	channelbaseSendPacketList(&channel->_, &pklist);
-	return channel;
+	return (Channel_t*)channelbaseSendv(&channel->_, iov, iovcnt, pktype);
 }
 
 Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype) {
-	Iobuf_t iov = iobufStaticInit(data, len);
-	return channelSendv(channel, &iov, 1, pktype);
+	return (Channel_t*)channelbaseSend(&channel->_, data, len, pktype);
 }
 
 #ifdef	__cplusplus

@@ -1276,17 +1276,32 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 	return channel;
 }
 
-ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len) {
-	ReactorPacket_t* packet;
+ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
+	if (NETPACKET_FIN == pktype) {
+		return channelbaseSendFin(channel);
+	}
+	else {
+		Iobuf_t iov = iobufStaticInit(data, len);
+		return channelbaseSendv(channel, &iov, 1, pktype);
+	}
+}
+
+ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+	List_t pklist;
+	if (NETPACKET_FIN == pktype) {
+		return channelbaseSendFin(channel);
+	}
 	if (!channel->valid || channel->m_has_commit_fincmd) {
 		return NULL;
 	}
-	packet = reactorpacketMake(0, 0, len);
-	if (!packet) {
+	listInit(&pklist);
+	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist)) {
 		return NULL;
 	}
-	memcpy(packet->_.buf, data, len);
-	channelbaseSendPacket(channel, packet);
+	if (listIsEmpty(&pklist)) {
+		return channel;
+	}
+	reactor_commit_cmdlist(channel->reactor, &pklist);
 	return channel;
 }
 
@@ -1300,89 +1315,78 @@ ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
 		if (!packet) {
 			return NULL;
 		}
-		channelbaseSendPacket(channel, packet);
+		packet->channel = channel;
+		reactorCommitCmd(channel->reactor, &packet->cmd);
 	}
 	return channel;
 }
 
 List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
-	unsigned int nbytes = 0;
+	unsigned int i, nbytes = 0;
+	unsigned int hdrsz;
 	ReactorPacket_t* packet;
 	List_t pklist;
+
 	listInit(&pklist);
-	if (NETPACKET_FIN == pktype) {
-		iov = NULL;
-		iovcnt = 0;
-	}
-	else {
-		unsigned int i;
-		for (i = 0; i < iovcnt; ++i) {
-			nbytes += iobufLen(iov + i);
-		}
+	for (i = 0; i < iovcnt; ++i) {
+		nbytes += iobufLen(iov + i);
 	}
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
-		unsigned int shardsz = channel->write_fragment_size;
-		unsigned int hdrsz = channel->on_hdrsize(channel, shardsz);
+		unsigned int write_fragment_size = channel->write_fragment_size;
+		unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->on_hdrsize;
+		unsigned int shardsz = write_fragment_size;
+
+		hdrsz = fn_on_hdrsize(channel, shardsz);
 		if (shardsz <= hdrsz) {
 			return NULL;
 		}
 		shardsz -= hdrsz;
 		packet = NULL;
 		while (off < nbytes) {
-			unsigned int memsz = nbytes - off;
-			if (memsz > shardsz) {
-				memsz = shardsz;
+			unsigned int sz = nbytes - off;
+			if (sz > shardsz) {
+				sz = shardsz;
 			}
-			hdrsz = channel->on_hdrsize(channel, memsz);
-			packet = reactorpacketMake(pktype, hdrsz, memsz);
+			if (fn_on_hdrsize) {
+				hdrsz = fn_on_hdrsize(channel, sz);
+			}
+			packet = reactorpacketMake(pktype, hdrsz, sz);
 			if (!packet) {
 				break;
 			}
+			packet->channel = channel;
 			packet->_.fragment_eof = 0;
 			listPushNodeBack(&pklist, &packet->cmd._);
-			off += memsz;
+			off += sz;
 			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+			if (channel->write_fragment_with_hdr) {
+				continue;
+			}
+			shardsz = write_fragment_size;
+			hdrsz = 0;
+			fn_on_hdrsize = NULL;
 		}
-		if (packet) {
-			packet->_.fragment_eof = 1;
-		}
-		else {
+		if (!packet) {
 			reactorpacketFreeList(&pklist);
 			return NULL;
 		}
+		packet->_.fragment_eof = 1;
 	}
 	else {
-		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		/*
-		if (0 == hdrsize && (CHANNEL_FLAG_STREAM & channel->flag))
+		hdrsz = channel->on_hdrsize(channel, 0);
+		if (0 == hdrsz && (CHANNEL_FLAG_STREAM & channel->flag)) {
 			return packetlist;
-		*/
-		packet = reactorpacketMake(pktype, hdrsize, 0);
+		}
+		packet = reactorpacketMake(pktype, hdrsz, 0);
 		if (!packet) {
 			return NULL;
 		}
+		packet->channel = channel;
 		listPushNodeBack(&pklist, &packet->cmd._);
 	}
 	listAppend(packetlist, &pklist);
 	return packetlist;
-}
-
-void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet) {
-	packet->channel = channel;
-	reactorCommitCmd(channel->reactor, &packet->cmd);
-}
-
-void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist) {
-	ListNode_t* cur;
-	if (!packetlist || !packetlist->head) {
-		return;
-	}
-	for (cur = packetlist->head; cur; cur = cur->next) {
-		ReactorPacket_t* packet = pod_container_of(cur, ReactorPacket_t, cmd._);
-		packet->channel = channel;
-	}
-	reactor_commit_cmdlist(channel->reactor, packetlist);
 }
 
 #ifdef	__cplusplus

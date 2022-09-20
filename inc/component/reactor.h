@@ -125,6 +125,7 @@ typedef struct ChannelBase_t {
 	unsigned int heartbeat_maxtimes; /* client use */
 	int heartbeat_timeout_sec;
 	char valid;
+	unsigned char write_fragment_with_hdr;
 	unsigned short flag;
 	int detach_error;
 	long long event_msec;
@@ -176,11 +177,10 @@ __declspec_dll void reactorpacketFreeList(List_t* pkglist);
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 
-__declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len);
+__declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
+__declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
 __declspec_dll List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist);
-__declspec_dll void channelbaseSendPacket(ChannelBase_t* channel, ReactorPacket_t* packet);
-__declspec_dll void channelbaseSendPacketList(ChannelBase_t* channel, List_t* packetlist);
 
 #ifdef	__cplusplus
 }
