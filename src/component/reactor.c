@@ -287,7 +287,6 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 		}
 	}
 	else if (SOCK_DGRAM == o->socktype) {
-		ListNode_t* cur, *next;
 		BOOL bval;
 		if (!socketHasAddr(o->fd, &bval)) {
 			return 0;
