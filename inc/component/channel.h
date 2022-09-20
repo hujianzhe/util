@@ -41,12 +41,12 @@ typedef struct Channel_t {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
 		};
-		void(*on_reply_ack)(struct Channel_t* self, unsigned int seq, const struct sockaddr* to_saddr);
+		void(*on_reply_ack)(ChannelBase_t* self, unsigned int seq, const struct sockaddr* to_saddr);
 	} dgram;
 	/* interface */
-	void(*on_decode)(struct Channel_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(struct Channel_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
-	void(*on_encode)(struct Channel_t* self, NetPacket_t* packet);
+	void(*on_decode)(ChannelBase_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(ChannelBase_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
+	void(*on_encode)(ChannelBase_t* self, NetPacket_t* packet);
 } Channel_t;
 
 #ifdef	__cplusplus
@@ -54,8 +54,6 @@ extern "C" {
 #endif
 
 __declspec_dll Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObject_t* io, const struct sockaddr* addr);
-__declspec_dll Channel_t* channelSend(Channel_t* channel, const void* data, unsigned int len, int pktype);
-__declspec_dll Channel_t* channelSendv(Channel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 
 #ifdef	__cplusplus
 }
