@@ -96,7 +96,8 @@ static int channel_merge_packet_handler(Channel_t* channel, List_t* packetlist, 
 	return 1;
 }
 
-static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, int len, int off, long long timestamp_msec) {
+static int on_read_stream(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	ChannelInbufDecodeResult_t decode_result;
 	while (off < len) {
 		unsigned char pktype;
@@ -150,9 +151,11 @@ static int channel_stream_recv_handler(Channel_t* channel, unsigned char* buf, i
 	return off;
 }
 
-static int channel_dgram_listener_handler(Channel_t* channel, unsigned char* buf, int len, long long timestamp_msec, const struct sockaddr* from_saddr) {
+static int on_read_dgram_listener(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_saddr) {
+	Channel_t* channel = pod_container_of(base, Channel_t, _);
 	ChannelInbufDecodeResult_t decode_result;
 	unsigned char pktype;
+
 	memset(&decode_result, 0, sizeof(decode_result));
 	channel->on_decode(channel, buf, len, &decode_result);
 	if (decode_result.err) {
@@ -425,21 +428,6 @@ static int channel_reliable_dgram_recv_handler(Channel_t* channel, unsigned char
 	else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
 		channel->dgram.on_reply_ack(channel, pkseq, from_saddr);
 	}
-	return 1;
-}
-
-static int on_read_stream(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
-	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	int res_off = channel_stream_recv_handler(channel, buf, len, off, timestamp_msec);
-	if (res_off < 0) {
-		channel_invalid(base, REACTOR_ONREAD_ERR);
-	}
-	return res_off;
-}
-
-static int on_read_dgram_listener(ChannelBase_t* base, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr) {
-	Channel_t* channel = pod_container_of(base, Channel_t, _);
-	channel_dgram_listener_handler(channel, buf, len, timestamp_msec, from_addr);
 	return 1;
 }
 

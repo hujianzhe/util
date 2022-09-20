@@ -594,17 +594,17 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
 	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
+	if (res < 0 || !after_call_channel_interface(channel)) {
+		o->m_valid = 0;
+		o->detach_error = REACTOR_ONREAD_ERR;
+		return;
+	}
 	if (res > 0) {
 		channel->m_heartbeat_times = 0;
 		if (channel->flag & CHANNEL_FLAG_SERVER) {
 			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
 			channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		}
-	}
-	if (res < 0 || !after_call_channel_interface(channel)) {
-		o->m_valid = 0;
-		o->detach_error = REACTOR_ONREAD_ERR;
-		return;
 	}
 	o->m_inbufoff = res;
 	if (o->m_inbufoff >= o->m_inbuflen) {
@@ -1010,7 +1010,10 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_ms
 					else {
 						reactor_dgram_readev(reactor, o, timestamp_msec);
 					}
-					if (o->m_valid && !reactorobject_request_read(reactor, o)) {
+					if (!o->m_valid) {
+						break;
+					}
+					if (!reactorobject_request_read(reactor, o)) {
 						o->m_valid = 0;
 						o->detach_error = REACTOR_IO_ERR;
 						break;
