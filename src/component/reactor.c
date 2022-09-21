@@ -369,7 +369,7 @@ static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
 	ReactorObject_t* o = channel->o;
 	StreamTransportCtx_t* ctx = &channel->stream_ctx;
 
-	channel->m_stream_catch_fincmd = 1;
+	channel->m_catch_fincmd = 1;
 	if (ctx->sendlist.head) {
 		channel->m_stream_delay_send_fin = 1;
 		return;
@@ -402,23 +402,16 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return 1;
 	}
+	if (channel->flag & CHANNEL_FLAG_SERVER) {
+		return 0;
+	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		int ok = 0;
-		if (channel->m_heartbeat_times < channel->heartbeat_maxtimes) {
-			ok = channel->on_heartbeat(channel, channel->m_heartbeat_times++);
-		}
-		else if (channel->on_heartbeat(channel, channel->m_heartbeat_times)) {
-			ok = 1;
-			channel->m_heartbeat_times = 0;
-		}
-		if (!ok) {
+		if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 			return 0;
 		}
+		channel->on_heartbeat(channel, channel->m_heartbeat_times++);
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, now_msec);
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
-	}
-	else if (channel->flag & CHANNEL_FLAG_SERVER) {
-		return 0;
 	}
 	return 1;
 }
@@ -593,20 +586,23 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-	res = channel->on_read(channel, o->m_inbuf, o->m_inbuflen, o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
-	if (res < 0 || !after_call_channel_interface(channel)) {
-		o->m_valid = 0;
-		o->detach_error = REACTOR_ONREAD_ERR;
-		return;
-	}
-	if (res > 0) {
-		channel->m_heartbeat_times = 0;
-		if (channel->flag & CHANNEL_FLAG_SERVER) {
-			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-			channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	while (o->m_inbufoff < o->m_inbuflen) {
+		res = channel->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
+		if (res < 0 || !after_call_channel_interface(channel)) {
+			o->m_valid = 0;
+			o->detach_error = REACTOR_ONREAD_ERR;
+			return;
 		}
+		if (0 == res) {
+			break;
+		}
+		o->m_inbufoff += res;
 	}
-	o->m_inbufoff = res;
+	channel->m_heartbeat_times = 0;
+	if (channel->flag & CHANNEL_FLAG_SERVER) {
+		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	}
 	if (o->m_inbufoff >= o->m_inbuflen) {
 		if (o->stream.inbuf_saved) {
 			o->m_inbufoff = 0;
@@ -622,7 +618,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 	Sockaddr_t from_addr;
 	unsigned int readtimes, readmaxtimes = 8;
 	for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
-		int res;
+		int len;
 		unsigned char* ptr;
 		ListNode_t* cur, * next;
 		socklen_t slen = sizeof(from_addr.st);
@@ -636,7 +632,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
 			}
 			ptr = o->m_inbuf;
-			res = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
+			len = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		}
 		else {
 			Iobuf_t iov;
@@ -645,21 +641,36 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 				continue;
 			}
 			ptr = (unsigned char*)iobufPtr(&iov);
-			res = iobufLen(&iov);
+			len = iobufLen(&iov);
 		}
 
-		if (res < 0) {
+		if (len < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				o->m_valid = 0;
 			}
 			return;
 		}
-		ptr[res] = 0; /* convienent for text data */
+		ptr[len] = 0; /* convienent for text data */
 		for (cur = o->m_channel_list.head; cur; cur = next) {
+			int off = 0, res;
 			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 			next = cur->next;
-			channel->on_read(channel, ptr, res, 0, timestamp_msec, &from_addr.sa);
-			if (!after_call_channel_interface(channel)) {
+			do { /* dgram can recv 0 bytes packet */
+				res = channel->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
+				if (res < 0) {
+					channel->valid = 0;
+					channel->detach_error = REACTOR_ONREAD_ERR;
+					break;
+				}
+				if (!after_call_channel_interface(channel)) {
+					break;
+				}
+				if (0 == res) {
+					break;
+				}
+				off += res;
+			} while (off < len);
+			if (!channel->valid) {
 				continue;
 			}
 			channel->m_heartbeat_times = 0;
@@ -677,7 +688,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	ReactorObject_t* o;
 	StreamTransportCtx_t* ctx;
 
-	if (!channel->valid || channel->m_stream_catch_fincmd) {
+	if (!channel->valid || channel->m_catch_fincmd) {
 		if (!packet->_.cached) {
 			reactorpacketFree(packet);
 		}
@@ -745,11 +756,14 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 	struct sockaddr* paddr;
 	int addrlen;
 
-	if (!channel->valid) {
+	if (!channel->valid || channel->m_catch_fincmd) {
 		if (!packet->_.cached) {
 			reactorpacketFree(packet);
 		}
 		return;
+	}
+	if (NETPACKET_FIN == packet->_.type) {
+		channel->m_catch_fincmd = 1;
 	}
 	o = channel->o;
 	if (channel->on_pre_send) {

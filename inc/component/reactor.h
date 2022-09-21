@@ -117,7 +117,6 @@ typedef struct ChannelBase_t {
 	struct {
 		ReactorCmd_t m_stream_fincmd;
 		char m_stream_delay_send_fin;
-		char m_stream_catch_fincmd;
 	};
 	char has_recvfin;
 	char has_sendfin;
@@ -139,16 +138,17 @@ typedef struct ChannelBase_t {
 	};
 	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
-	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, unsigned int off, long long timestamp_msec, const struct sockaddr* from_addr);
+	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr);
 	unsigned int(*on_hdrsize)(struct ChannelBase_t* self, unsigned int bodylen); /* optional */
 	int(*on_pre_send)(struct ChannelBase_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
-	int(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
+	void(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
 	void(*on_detach)(struct ChannelBase_t* self);
 	void(*on_free)(struct ChannelBase_t* self); /* optional */
 /* private */
 	long long m_heartbeat_msec;
 	unsigned int m_heartbeat_times; /* client use */
 	char m_has_detached;
+	char m_catch_fincmd;
 	Atom8_t m_has_commit_fincmd;
 } ChannelBase_t;
 
