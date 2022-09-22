@@ -45,7 +45,7 @@ typedef struct Channel_t {
 	} dgram;
 	/* interface */
 	void(*on_decode)(ChannelBase_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(ChannelBase_t* self, const struct sockaddr* from_saddr, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(ChannelBase_t* self, const struct sockaddr* from_saddr, const ChannelInbufDecodeResult_t* result);
 	void(*on_encode)(ChannelBase_t* self, NetPacket_t* packet);
 } Channel_t;
 
