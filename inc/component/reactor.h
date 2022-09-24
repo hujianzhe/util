@@ -99,6 +99,8 @@ typedef struct ReactorObject_t {
 	int m_inbufsize;
 } ReactorObject_t;
 
+struct ChannelBaseProc_t;
+
 typedef struct ChannelBase_t {
 	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
@@ -131,7 +133,16 @@ typedef struct ChannelBase_t {
 	unsigned int write_fragment_size;
 	unsigned int readcache_max_size;
 	void* userdata; /* user use, library not use these field */
+	struct ChannelBaseProc_t* proc;
+/* private */
+	long long m_heartbeat_msec;
+	unsigned int m_heartbeat_times; /* client use */
+	char m_has_detached;
+	char m_catch_fincmd;
+	Atom8_t m_has_commit_fincmd;
+} ChannelBase_t;
 
+typedef struct ChannelBaseProc_t {
 	union {
 		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
 		void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
@@ -144,13 +155,7 @@ typedef struct ChannelBase_t {
 	void(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
 	void(*on_detach)(struct ChannelBase_t* self);
 	void(*on_free)(struct ChannelBase_t* self); /* optional */
-/* private */
-	long long m_heartbeat_msec;
-	unsigned int m_heartbeat_times; /* client use */
-	char m_has_detached;
-	char m_catch_fincmd;
-	Atom8_t m_has_commit_fincmd;
-} ChannelBase_t;
+} ChannelBaseProc_t;
 
 typedef struct ReactorPacket_t {
 	ReactorCmd_t cmd;
@@ -180,7 +185,6 @@ __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
-__declspec_dll List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist);
 
 #ifdef	__cplusplus
 }

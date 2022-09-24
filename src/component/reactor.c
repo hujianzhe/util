@@ -60,7 +60,7 @@ static void channel_detach_handler(ChannelBase_t* channel, int error, long long 
 		o->m_valid = 0;
 	}
 	channel->o = NULL;
-	channel->on_detach(channel);
+	channel->proc->on_detach(channel);
 }
 
 static int after_call_channel_interface(ChannelBase_t* channel) {
@@ -169,7 +169,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		channel->m_has_detached = 1;
 		channel->o = NULL;
 		channel->valid = 0;
-		channel->on_detach(channel);
+		channel->proc->on_detach(channel);
 	}
 	listInit(&o->m_channel_list);
 
@@ -331,9 +331,8 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 		next = cur->next;
 		channel->reactor = reactor;
-		if (channel->on_reg) {
-			channel->on_reg(channel, timestamp_msec);
-			channel->on_reg = NULL;
+		if (channel->proc->on_reg) {
+			channel->proc->on_reg(channel, timestamp_msec);
 			after_call_channel_interface(channel);
 		}
 		else {
@@ -356,8 +355,8 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		++channel->connected_times;
 	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->on_syn_ack) {
-			channel->on_syn_ack(channel, timestamp_msec);
+		if (channel->proc->on_syn_ack) {
+			channel->proc->on_syn_ack(channel, timestamp_msec);
 			after_call_channel_interface(channel);
 		}
 	}
@@ -409,7 +408,7 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 		if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 			return 0;
 		}
-		channel->on_heartbeat(channel, channel->m_heartbeat_times++);
+		channel->proc->on_heartbeat(channel, channel->m_heartbeat_times++);
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, now_msec);
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
@@ -439,8 +438,8 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 					channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, now_msec);
 					continue;
 				}
-				if (channel->on_exec) {
-					channel->on_exec(channel, now_msec);
+				if (channel->proc->on_exec) {
+					channel->proc->on_exec(channel, now_msec);
 					after_call_channel_interface(channel);
 				}
 			}
@@ -541,7 +540,7 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 		connfd != INVALID_FD_HANDLE;
 		connfd = accept(o->fd, &saddr.sa, &slen))
 	{
-		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
+		channel->proc->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
 		slen = sizeof(saddr.st);
 	}
 }
@@ -587,7 +586,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
 	while (o->m_inbufoff < o->m_inbuflen) {
-		res = channel->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
+		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
 		if (res < 0 || !after_call_channel_interface(channel)) {
 			o->m_valid = 0;
 			o->detach_error = REACTOR_ONREAD_ERR;
@@ -656,7 +655,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 			ChannelBase_t* channel = pod_container_of(cur, ChannelBase_t, regcmd._);
 			next = cur->next;
 			do { /* dgram can recv 0 bytes packet */
-				res = channel->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
+				res = channel->proc->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
 				if (res < 0) {
 					channel->valid = 0;
 					channel->detach_error = REACTOR_ONREAD_ERR;
@@ -702,8 +701,8 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		packet_allow_send = 1;
 	}
 
-	if (channel->on_pre_send) {
-		int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
+	if (channel->proc->on_pre_send) {
+		int continue_send = channel->proc->on_pre_send(channel, &packet->_, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
@@ -766,8 +765,8 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		channel->m_catch_fincmd = 1;
 	}
 	o = channel->o;
-	if (channel->on_pre_send) {
-		int continue_send = channel->on_pre_send(channel, &packet->_, timestamp_msec);
+	if (channel->proc->on_pre_send) {
+		int continue_send = channel->proc->on_pre_send(channel, &packet->_, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
@@ -816,8 +815,8 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	if (~0 != channel->connected_times) {
 		++channel->connected_times;
 	}
-	if (channel->on_syn_ack) {
-		channel->on_syn_ack(channel, timestamp_msec);
+	if (channel->proc->on_syn_ack) {
+		channel->proc->on_syn_ack(channel, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
 			return 0;
 		}
@@ -953,8 +952,8 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 			return;
 		}
 		reactor = channel->reactor;
-		if (channel->on_free) {
-			channel->on_free(channel);
+		if (channel->proc->on_free) {
+			channel->proc->on_free(channel);
 		}
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);
@@ -1191,8 +1190,6 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	return o;
 }
 
-static unsigned int default_on_hdrsize(struct ChannelBase_t* self, unsigned int bodylen) { return 0; }
-
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
 	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
 	if (pkg) {
@@ -1280,7 +1277,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
 	channel->write_fragment_size = o->write_fragment_size;
-	channel->on_hdrsize = default_on_hdrsize;
+	channel->proc = NULL;
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
 }
@@ -1290,42 +1287,20 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 	return channel;
 }
 
-ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
-	if (NETPACKET_FIN == pktype) {
-		return channelbaseSendFin(channel);
-	}
-	else {
-		Iobuf_t iov = iobufStaticInit(data, len);
-		return channelbaseSendv(channel, &iov, 1, pktype);
-	}
-}
-
-ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
-	List_t pklist;
-	if (NETPACKET_FIN == pktype) {
-		return channelbaseSendFin(channel);
-	}
-	if (!channel->valid || channel->m_has_commit_fincmd) {
-		return NULL;
-	}
-	listInit(&pklist);
-	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist)) {
-		return NULL;
-	}
-	if (listIsEmpty(&pklist)) {
-		return channel;
-	}
-	reactor_commit_cmdlist(channel->reactor, &pklist);
-	return channel;
-}
-
 ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
 	if (channel->flag & CHANNEL_FLAG_STREAM) {
 		reactorCommitCmd(channel->reactor, &channel->m_stream_fincmd);
 	}
 	else if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
-		unsigned int hdrsize = channel->on_hdrsize(channel, 0);
-		ReactorPacket_t* packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
+		ReactorPacket_t* packet;
+		unsigned int hdrsize;
+		if (channel->proc->on_hdrsize) {
+			hdrsize = channel->proc->on_hdrsize(channel, 0);
+		}
+		else {
+			hdrsize = 0;
+		}
+		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
 		if (!packet) {
 			return NULL;
 		}
@@ -1335,7 +1310,7 @@ ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
 	return channel;
 }
 
-List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
 	unsigned int i, nbytes = 0;
 	unsigned int hdrsz;
 	ReactorPacket_t* packet;
@@ -1345,13 +1320,13 @@ List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t 
 	for (i = 0; i < iovcnt; ++i) {
 		nbytes += iobufLen(iov + i);
 	}
+	unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->proc->on_hdrsize;
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
 		unsigned int write_fragment_size = channel->write_fragment_size;
-		unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->on_hdrsize;
 		unsigned int shardsz = write_fragment_size;
 
-		hdrsz = fn_on_hdrsize(channel, shardsz);
+		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, shardsz) : 0);
 		if (shardsz <= hdrsz) {
 			return NULL;
 		}
@@ -1388,7 +1363,7 @@ List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t 
 		packet->_.fragment_eof = 1;
 	}
 	else {
-		hdrsz = channel->on_hdrsize(channel, 0);
+		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, 0) : 0);
 		if (0 == hdrsz && (CHANNEL_FLAG_STREAM & channel->flag)) {
 			return packetlist;
 		}
@@ -1401,6 +1376,35 @@ List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t 
 	}
 	listAppend(packetlist, &pklist);
 	return packetlist;
+}
+
+ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
+	if (NETPACKET_FIN == pktype) {
+		return channelbaseSendFin(channel);
+	}
+	else {
+		Iobuf_t iov = iobufStaticInit(data, len);
+		return channelbaseSendv(channel, &iov, 1, pktype);
+	}
+}
+
+ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+	List_t pklist;
+	if (NETPACKET_FIN == pktype) {
+		return channelbaseSendFin(channel);
+	}
+	if (!channel->valid || channel->m_has_commit_fincmd) {
+		return NULL;
+	}
+	listInit(&pklist);
+	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist)) {
+		return NULL;
+	}
+	if (listIsEmpty(&pklist)) {
+		return channel;
+	}
+	reactor_commit_cmdlist(channel->reactor, &pklist);
+	return channel;
 }
 
 #ifdef	__cplusplus

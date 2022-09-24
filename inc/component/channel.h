@@ -5,8 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_CHANNEL_H
 #define	UTIL_C_COMPONENT_CHANNEL_H
 
-#include "../component/reactor.h"
-#include "../sysapi/atomic.h"
+#include "reactor.h"
 
 typedef struct ChannelInbufDecodeResult_t {
 	char err;
@@ -21,9 +20,8 @@ typedef struct ChannelInbufDecodeResult_t {
 	void* userdata;
 } ChannelInbufDecodeResult_t;
 
-typedef struct Channel_t {
+typedef struct ChannelRWData_t {
 /* public */
-	ChannelBase_t _;
 	struct {
 		union {
 			/* listener use */
@@ -41,19 +39,20 @@ typedef struct Channel_t {
 			unsigned short rto;
 			unsigned char resend_maxtimes;
 		};
-		void(*on_reply_ack)(ChannelBase_t* self, unsigned int seq, const struct sockaddr* to_saddr);
 	} dgram;
-	/* interface */
-	void(*on_decode)(ChannelBase_t* self, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(ChannelBase_t* self, const struct sockaddr* from_saddr, const ChannelInbufDecodeResult_t* result);
-	void(*on_encode)(ChannelBase_t* self, NetPacket_t* packet);
-} Channel_t;
+	ChannelBaseProc_t base_proc;
+	void(*on_decode)(struct ChannelBase_t* channel, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(struct ChannelBase_t* channel, const struct sockaddr* from_saddr, const ChannelInbufDecodeResult_t* result);
+	void(*on_encode)(struct ChannelBase_t* channel, NetPacket_t* packet);
+	void(*on_reply_ack)(struct ChannelBase_t* channel, unsigned int seq, const struct sockaddr* to_saddr);
+} ChannelRWData_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-__declspec_dll Channel_t* reactorobjectOpenChannel(size_t sz, unsigned short flag, ReactorObject_t* io, const struct sockaddr* addr);
+__declspec_dll void channelrwdataInit(ChannelRWData_t* rw, unsigned short flag);
+__declspec_dll void channelbaseUseRWData(ChannelBase_t* channel, const ChannelRWData_t* rw);
 
 #ifdef	__cplusplus
 }
