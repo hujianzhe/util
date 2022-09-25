@@ -133,7 +133,7 @@ typedef struct ChannelBase_t {
 	unsigned int write_fragment_size;
 	unsigned int readcache_max_size;
 	void* userdata; /* user use, library not use these field */
-	struct ChannelBaseProc_t* proc;
+	struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
 /* private */
 	long long m_heartbeat_msec;
 	unsigned int m_heartbeat_times; /* client use */
