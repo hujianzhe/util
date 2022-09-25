@@ -969,11 +969,13 @@ static void reactor_commit_cmdlist(Reactor_t* reactor, List_t* cmdlist) {
 	reactorWake(reactor);
 }
 
-int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec) {
+int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
+	long long timestamp_msec = gmtimeMillisecond();
 	if (reactor->m_event_msec > timestamp_msec) {
 		int checkexpire_wait_msec = reactor->m_event_msec - timestamp_msec;
-		if (checkexpire_wait_msec < wait_msec || wait_msec < 0)
+		if (checkexpire_wait_msec < wait_msec || wait_msec < 0) {
 			wait_msec = checkexpire_wait_msec;
+		}
 	}
 	else if (reactor->m_event_msec) {
 		wait_msec = 0;

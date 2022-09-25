@@ -170,7 +170,7 @@ extern "C" {
 __declspec_dll Reactor_t* reactorInit(Reactor_t* reactor);
 __declspec_dll void reactorWake(Reactor_t* reactor);
 __declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
-__declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, long long timestamp_msec, int wait_msec);
+__declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
 __declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
