@@ -351,12 +351,9 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 		return;
 	}
 	channel = streamChannel(o);
-	if (~0 != channel->connected_times) {
-		++channel->connected_times;
-	}
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
-		if (channel->proc->on_syn_ack) {
-			channel->proc->on_syn_ack(channel, timestamp_msec);
+		if (channel->on_syn_ack) {
+			channel->on_syn_ack(channel, timestamp_msec);
 			after_call_channel_interface(channel);
 		}
 	}
@@ -540,7 +537,7 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 		connfd != INVALID_FD_HANDLE;
 		connfd = accept(o->fd, &saddr.sa, &slen))
 	{
-		channel->proc->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
+		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
 		slen = sizeof(saddr.st);
 	}
 }
@@ -812,11 +809,8 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 		return 0;
 	}
 	o->m_connected = 1;
-	if (~0 != channel->connected_times) {
-		++channel->connected_times;
-	}
-	if (channel->proc->on_syn_ack) {
-		channel->proc->on_syn_ack(channel, timestamp_msec);
+	if (channel->on_syn_ack) {
+		channel->on_syn_ack(channel, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
 			return 0;
 		}

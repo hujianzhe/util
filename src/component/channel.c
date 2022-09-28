@@ -272,7 +272,7 @@ static int on_read_dgram_listener(ChannelBase_t* channel, unsigned char* buf, un
 				socketClose(connfd);
 				continue;
 			}
-			channel->proc->on_ack_halfconn(channel, connfd, &addr.sa, timestamp_msec);
+			channel->on_ack_halfconn(channel, connfd, &addr.sa, timestamp_msec);
 		}
 	}
 	return decode_result.decodelen;
@@ -365,11 +365,8 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 			free(rw->dgram.m_synpacket);
 			rw->dgram.m_synpacket = NULL;
 			rw->dgram.m_synpacket_doing = 0;
-			if (~0 != channel->connected_times) {
-				++channel->connected_times;
-			}
-			if (channel->proc->on_syn_ack) {
-				channel->proc->on_syn_ack(channel, timestamp_msec);
+			if (channel->on_syn_ack) {
+				channel->on_syn_ack(channel, timestamp_msec);
 			}
 			on_syn_ack = 1;
 		}
@@ -634,7 +631,7 @@ void channelbaseUseRWData(ChannelBase_t* channel, const ChannelRWData_t* rw) {
 			channel->event_msec = 1;
 		}
 	}
-	channel->proc = (ChannelBaseProc_t*)&rw->base_proc;
+	channel->proc = &rw->base_proc;
 	channel->write_fragment_with_hdr = 1;
 }
 

@@ -122,9 +122,8 @@ typedef struct ChannelBase_t {
 	};
 	char has_recvfin;
 	char has_sendfin;
-	unsigned int connected_times; /* client use */
-	unsigned int heartbeat_maxtimes; /* client use */
-	int heartbeat_timeout_sec;
+	unsigned int heartbeat_maxtimes; /* client use, optional */
+	int heartbeat_timeout_sec; /* optional */
 	char valid;
 	unsigned char write_fragment_with_hdr;
 	unsigned short flag;
@@ -133,7 +132,11 @@ typedef struct ChannelBase_t {
 	unsigned int write_fragment_size;
 	unsigned int readcache_max_size;
 	void* userdata; /* user use, library not use these field */
-	struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
+	const struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
+	union {
+		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
+		void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
+	};
 /* private */
 	long long m_heartbeat_msec;
 	unsigned int m_heartbeat_times; /* client use */
@@ -143,10 +146,6 @@ typedef struct ChannelBase_t {
 } ChannelBase_t;
 
 typedef struct ChannelBaseProc_t {
-	union {
-		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
-		void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
-	};
 	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr);
