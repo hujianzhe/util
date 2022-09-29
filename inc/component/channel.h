@@ -17,7 +17,6 @@ typedef struct ChannelInbufDecodeResult_t {
 	unsigned int decodelen;
 	unsigned int bodylen;
 	unsigned char* bodyptr;
-	void* userdata;
 } ChannelInbufDecodeResult_t;
 
 typedef struct ChannelRWData_t {
