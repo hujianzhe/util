@@ -40,10 +40,10 @@ typedef struct ChannelRWData_t {
 		};
 	} dgram;
 	ChannelBaseProc_t base_proc;
-	void(*on_decode)(struct ChannelBase_t* channel, unsigned char* buf, size_t buflen, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(struct ChannelBase_t* channel, const struct sockaddr* from_saddr, const ChannelInbufDecodeResult_t* result);
+	void(*on_decode)(struct ChannelBase_t* channel, unsigned char* buf, size_t len, ChannelInbufDecodeResult_t* result);
+	void(*on_recv)(struct ChannelBase_t* channel, unsigned char* bodyptr, size_t bodylen, const struct sockaddr* from_addr);
 	void(*on_encode)(struct ChannelBase_t* channel, NetPacket_t* packet);
-	void(*on_reply_ack)(struct ChannelBase_t* channel, unsigned int seq, const struct sockaddr* to_saddr);
+	void(*on_reply_ack)(struct ChannelBase_t* channel, unsigned int seq, const struct sockaddr* to_addr);
 } ChannelRWData_t;
 
 #ifdef	__cplusplus
