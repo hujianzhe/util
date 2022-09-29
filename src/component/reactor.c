@@ -405,7 +405,10 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 		if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 			return 0;
 		}
-		channel->proc->on_heartbeat(channel, channel->m_heartbeat_times++);
+		if (channel->proc->on_heartbeat) {
+			channel->proc->on_heartbeat(channel, channel->m_heartbeat_times);
+		}
+		channel->m_heartbeat_times++;
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, now_msec);
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
