@@ -40,6 +40,8 @@ union {\
 
 #define	dynarrInitZero(dynarr)	dynarrInitZero_raw(&(dynarr)->raw)
 
+#define	dynarrIsEmpty(dynarr)	(0 == (dynarr)->len)
+
 #define	dynarrReserve(dynarr, capacity)	dynarrReserve_raw(&(dynarr)->raw, capacity, sizeof((dynarr)->buf[0]))
 
 #define	dynarrResize(dynarr, len)	dynarrResize_raw(&(dynarr)->raw, len, sizeof((dynarr)->buf[0]))
