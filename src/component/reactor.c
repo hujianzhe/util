@@ -713,6 +713,9 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 			return;
 		}
 		if (!continue_send) {
+			if (!packet->_.cached) {
+				reactorpacketFree(packet);
+			}
 			return;
 		}
 	}
@@ -777,6 +780,9 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 			return;
 		}
 		if (!continue_send) {
+			if (!packet->_.cached) {
+				reactorpacketFree(packet);
+			}
 			return;
 		}
 	}
@@ -951,6 +957,10 @@ void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		reactor = channel->reactor;
 		if (channel->proc->on_free) {
 			channel->proc->on_free(channel);
+		}
+		if (!reactor) {
+			channelobject_free(channel);
+			return;
 		}
 	}
 	criticalsectionEnter(&reactor->m_cmdlistlock);

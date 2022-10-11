@@ -52,6 +52,7 @@
 #include "sysapi/time.h"
 #include "component/channel.h"
 #include "component/dataqueue.h"
+#include "component/hiredis_cli_protocol.h"
 #include "component/httpframe.h"
 #include "component/log.h"
 #include "component/memheap_mt.h"
