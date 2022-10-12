@@ -2,7 +2,6 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#include "../../inc/sysapi/socket.h"
 #include "../../inc/component/websocketframe.h"
 #include "../../inc/datastruct/base64.h"
 #include "../../inc/datastruct/sha1.h"
@@ -90,13 +89,13 @@ int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		ext_payload_filed_len = 2;
 		if (len < header_size + ext_payload_filed_len + mask_len)
 			return 0;
-		payload_len = ntohs(*(unsigned short*)&buf[header_size]);
+		payload_len = memToBE16(*(unsigned short*)&buf[header_size]);
 	}
 	else if (payload_len == 127) {
 		ext_payload_filed_len = 8;
 		if (len < header_size + ext_payload_filed_len + mask_len)
 			return 0;
-		payload_len = ntohll(*(unsigned long long*)&data[header_size]);
+		payload_len = memToBE64(*(unsigned long long*)&data[header_size]);
 	}
 	else
 		return -1;
@@ -148,11 +147,11 @@ void websocketframeEncode(void* headbuf, int is_fin, int prev_is_fin, int type, 
 	}
 	else if (datalen <= 0xffff) {
 		phead[1] = 126;
-		*(unsigned short*)&phead[2] = htons(datalen);
+		*(unsigned short*)&phead[2] = memFromBE16(datalen);
 	}
 	else {
 		phead[1] = 127;
-		*(unsigned long long*)&phead[2] = htonll(datalen);
+		*(unsigned long long*)&phead[2] = memFromBE64(datalen);
 	}
 }
 
