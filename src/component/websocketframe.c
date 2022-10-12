@@ -2,31 +2,36 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#include "../../inc/sysapi/misc.h"
 #include "../../inc/sysapi/socket.h"
 #include "../../inc/component/websocketframe.h"
 #include "../../inc/datastruct/base64.h"
 #include "../../inc/datastruct/sha1.h"
 #include "../../inc/datastruct/memfunc.h"
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen) {
-	char *ks, *ke;
-	const char* e = strStr(data, datalen, "\r\n\r\n", -1);
-	if (!e)
+int websocketframeDecodeHandshake(const char* data, unsigned int datalen, const char** key, unsigned int* keylen) {
+	const char *ks, *ke;
+	const char* e = strStr(data, datalen, "\r\n\r\n", 4);
+	if (!e) {
 		return 0;
-
-	ks = strStr(data, e - data, "Sec-WebSocket-Key:", -1);
-	if (!ks)
+	}
+	ks = strStr(data, e - data, "Sec-WebSocket-Key:", 18);
+	if (!ks) {
 		return -1;
-	for (ks += 18; *ks <= 32; ++ks);
-	ke = strchr(ks, '\r');
-	if (!ke)
+	}
+	for (ks += 18; ks < e && *ks <= 32; ++ks);
+	if (ks >= e) {
 		return -1;
+	}
+	ke = strChr(ks, e - ks, '\r');
+	if (!ke) {
+		return -1;
+	}
 	*key = ks;
 	*keylen = ke - ks;
 
@@ -38,14 +43,17 @@ int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txt
 	SHA1_CTX sha1_ctx;
 	unsigned char sha1_key[20];
 	char base64_key[20 * 3];
-	char* pk = (char*)alloca(keylen + sizeof(WEB_SOCKET_MAGIC_KEY));
-	memcpy(pk, key, keylen);
-	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY));
-	SHA1Init(&sha1_ctx);
-	SHA1Update(&sha1_ctx, (unsigned char*)pk, strlen(pk));
-	SHA1Final(sha1_key, &sha1_ctx);
-	if (!base64Encode(sha1_key, sizeof(sha1_key), base64_key))
+	unsigned char* pk = (unsigned char*)malloc(keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	if (!pk) {
 		return 0;
+	}
+	memcpy(pk, key, keylen);
+	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Init(&sha1_ctx);
+	SHA1Update(&sha1_ctx, (unsigned char*)pk, keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Final(sha1_key, &sha1_ctx);
+	free(pk);
+	base64Encode(sha1_key, sizeof(sha1_key), base64_key);
 	txtbuf[0] = 0;
 	strcat(txtbuf, "HTTP/1.1 101 Switching Protocols\r\n"
 				"Upgrade: websocket\r\n"

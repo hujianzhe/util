@@ -40,6 +40,7 @@ __declspec_dll void* memSearch(const void* buf, UnsignedPtr_t n, const void* s, 
 __declspec_dll void* memSearchValue(const void* buf, UnsignedPtr_t n, const void* d, UnsignedPtr_t dn);
 
 __declspec_dll char* strSkipByte(const char* s, const char* delim);
+__declspec_dll char* strChr(const char* s, UnsignedPtr_t n, char c);
 __declspec_dll char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t s2len);
 __declspec_dll char* strSplit(char** s, const char* delim);
 __declspec_dll UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen);

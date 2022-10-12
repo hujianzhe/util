@@ -230,6 +230,19 @@ char* strSkipByte(const char* s, const char* delim) {
 	return (char*)s;
 }
 
+char* strChr(const char* s, UnsignedPtr_t n, char c) {
+	UnsignedPtr_t i;
+	for (i = 0; i < n; ++i, ++s) {
+		if (0 == *s) {
+			break;
+		}
+		if (c == *s) {
+			return (char*)s;
+		}
+	}
+	return (char*)0;
+}
+
 char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t s2len) {
 	const char *p1, *p2;
 	UnsignedPtr_t i;

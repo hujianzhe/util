@@ -22,7 +22,7 @@ enum {
 extern "C" {
 #endif
 
-__declspec_dll int websocketframeDecodeHandshake(char* data, unsigned int datalen, char** key, unsigned int* keylen);
+__declspec_dll int websocketframeDecodeHandshake(const char* data, unsigned int datalen, const char** key, unsigned int* keylen);
 __declspec_dll int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txtbuf[162]);
 __declspec_dll int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		unsigned char** data, unsigned long long* datalen, int* is_fin, int* type);
