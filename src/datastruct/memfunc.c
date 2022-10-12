@@ -252,7 +252,7 @@ char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t 
 		for (p2 = s2, s2len = 0; *p2; ++p2, ++s2len);
 	if (-1 == s1len)
 		for (p1 = s1, s1len = 0; *p1; ++p1, ++s1len);
-	for (i = 0; i + s2len <= s1len && s1[i]; ++i) {
+	for (i = 0; s2len <= s1len - i && s1[i]; ++i) {
 		UnsignedPtr_t len;
 		for (p1 = s1 + i, p2 = s2, len = s2len; len && *p2 && *p1 && *p1 == *p2; ++p1, ++p2, --len);
 		if ('\0' == *p2 || 0 == len)
