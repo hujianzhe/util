@@ -9,29 +9,29 @@
 #include <string.h>
 #include <stdlib.h>
 
-static char* encode_request_key(const char* key, unsigned int keylen, char base64_key[60]) {
-	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-	SHA1_CTX sha1_ctx;
-	unsigned char sha1_key[20];
-	unsigned char* pk = (unsigned char*)malloc(keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	if (!pk) {
-		return NULL;
-	}
-	memcpy(pk, key, keylen);
-	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	SHA1Init(&sha1_ctx);
-	SHA1Update(&sha1_ctx, (unsigned char*)pk, keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	SHA1Final(sha1_key, &sha1_ctx);
-	free(pk);
-	base64Encode(sha1_key, sizeof(sha1_key), base64_key);
-	return base64_key;
-}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen, const char** key, unsigned int* keylen, const char** sec_protocol, unsigned int* sec_protocol_len) {
+char* websocketframeComputeSecAccept(const char* sec_key, unsigned int sec_keylen, char sec_accept[60]) {
+	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	SHA1_CTX sha1_ctx;
+	unsigned char sha1_key[20];
+	unsigned char* pk = (unsigned char*)malloc(sec_keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	if (!pk) {
+		return NULL;
+	}
+	memcpy(pk, sec_key, sec_keylen);
+	memcpy(pk + sec_keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Init(&sha1_ctx);
+	SHA1Update(&sha1_ctx, (unsigned char*)pk, sec_keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Final(sha1_key, &sha1_ctx);
+	free(pk);
+	base64Encode(sha1_key, sizeof(sha1_key), sec_accept);
+	return sec_accept;
+}
+
+int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen, const char** sec_key, unsigned int* sec_keylen, const char** sec_protocol, unsigned int* sec_protocol_len) {
 	const char *ks, *ke;
 	const char* e = strStr(data, datalen, "\r\n\r\n", 4);
 	if (!e) {
@@ -49,8 +49,8 @@ int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen,
 	if (!ke) {
 		return -1;
 	}
-	*key = ks;
-	*keylen = ke - ks;
+	*sec_key = ks;
+	*sec_keylen = ke - ks;
 	*sec_protocol = NULL;
 	*sec_protocol_len = 0;
 	do {
@@ -72,29 +72,20 @@ int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen,
 	return e - data + 4;
 }
 
-char* websocketframeEncodeHandshakeResponse(const char* key, unsigned int keylen, char txtbuf[162]) {
-	char base64_key[60];
-	if (!encode_request_key(key, keylen, base64_key)) {
-		return NULL;
-	}
-	txtbuf[0] = 0;
-	strcat(txtbuf, "HTTP/1.1 101 Switching Protocols\r\n"
+char* websocketframeEncodeHandshakeResponse(const char* sec_accept, unsigned int sec_accept_len, char buf[162]) {
+	buf[0] = 0;
+	strcat(buf, "HTTP/1.1 101 Switching Protocols\r\n"
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"
 				"Sec-WebSocket-Accept: ");
-	strcat(txtbuf, base64_key);
-	strcat(txtbuf, "\r\n\r\n");
-	return txtbuf;
+	strncat(buf, sec_accept, sec_accept_len);
+	strcat(buf, "\r\n\r\n");
+	return buf;
 }
 
-char* websocketframeEncodeHandshakeResponseWithProtocol(const char* key, unsigned int keylen, const char* sec_protocol, unsigned int sec_protocol_len) {
+char* websocketframeEncodeHandshakeResponseWithProtocol(const char* sec_accept, unsigned int sec_accept_len, const char* sec_protocol, unsigned int sec_protocol_len) {
 	char* buf;
-	size_t buflen;
-	char base64_key[60];
-	if (!encode_request_key(key, keylen, base64_key)) {
-		return NULL;
-	}
-	buflen = 162;
+	size_t buflen = 162;
 	if (sec_protocol && sec_protocol_len > 0) {
 		buflen += (24 + sec_protocol_len + 2); /* Sec-WebSocket-Protocol: %s\r\n */
 	}
@@ -107,7 +98,7 @@ char* websocketframeEncodeHandshakeResponseWithProtocol(const char* key, unsigne
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"
 				"Sec-WebSocket-Accept: ");
-	strcat(buf, base64_key);
+	strncat(buf, sec_accept, sec_accept_len);
 	if (sec_protocol && sec_protocol_len > 0) {
 		strcat(buf, "\r\nSec-WebSocket-Protocol: ");
 		strncat(buf, sec_protocol, sec_protocol_len);
