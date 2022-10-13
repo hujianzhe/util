@@ -53,7 +53,7 @@
 #include "sysapi/statistics.h"
 #include "sysapi/terminal.h"
 #include "sysapi/time.h"
-#include "component/channel.h"
+#include "component/net_channel_rw.h"
 #include "component/dataqueue.h"
 #include "component/log.h"
 #include "component/memheap_mt.h"

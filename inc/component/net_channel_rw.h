@@ -2,8 +2,8 @@
 // Created by hujianzhe on 2019-7-11.
 //
 
-#ifndef	UTIL_C_COMPONENT_CHANNEL_H
-#define	UTIL_C_COMPONENT_CHANNEL_H
+#ifndef	UTIL_C_COMPONENT_NET_CHANNEL_RW_H
+#define	UTIL_C_COMPONENT_NET_CHANNEL_RW_H
 
 #include "reactor.h"
 

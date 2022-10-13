@@ -3,7 +3,7 @@
 //
 
 #include "../../inc/component/reactor.h"
-#include "../../inc/component/channel.h"
+#include "../../inc/component/net_channel_rw.h"
 #include "../../inc/sysapi/error.h"
 #include <stdlib.h>
 #include <string.h>
