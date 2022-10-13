@@ -38,7 +38,7 @@
 #include <limits.h>
 #include <math.h>
 
-#include "../../inc/component/hiredis_cli_protocol.h"
+#include "../../../inc/crt/protocol/hiredis_cli_protocol.h"
 
 #ifdef _MSC_VER
 

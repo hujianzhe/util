@@ -2,10 +2,10 @@
 // Created by hujianzhe on 18-8-17.
 //
 
-#include "../../inc/component/websocketframe.h"
-#include "../../inc/datastruct/base64.h"
-#include "../../inc/datastruct/sha1.h"
-#include "../../inc/datastruct/memfunc.h"
+#include "../../../inc/datastruct/base64.h"
+#include "../../../inc/datastruct/sha1.h"
+#include "../../../inc/datastruct/memfunc.h"
+#include "../../../inc/crt/protocol/websocketframe.h"
 #include <string.h>
 #include <stdlib.h>
 

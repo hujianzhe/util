@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_WEBSOCKETFRAME_H
 #define	UTIL_C_COMPONENT_WEBSOCKETFRAME_H
 
-#include "../compiler_define.h"
+#include "../../compiler_define.h"
 
 enum {
 	WEBSOCKET_CONTINUE_FRAME	= 0,

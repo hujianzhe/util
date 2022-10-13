@@ -2,9 +2,9 @@
 // Created by hujianzhe on 18-8-18.
 //
 
-#include "../../inc/datastruct/hash.h"
-#include "../../inc/datastruct/memfunc.h"
-#include "../../inc/component/httpframe.h"
+#include "../../../inc/datastruct/hash.h"
+#include "../../../inc/datastruct/memfunc.h"
+#include "../../../inc/crt/protocol/httpframe.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>

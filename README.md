@@ -13,9 +13,6 @@
 			component/  
 				channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存,断线重连自动重发等实现细节  
 				dataqueue			用于线程间通信的消息队列  
-				hiredis_cli_protocol	基于hiredis代码的裁剪,只保留了客户端对RESP协议解析和构造部分  
-				httpframe			用于解析与组装HTTP协议报文  
-				websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
 				memref				基于引用计数实现的内存强引用和观察者  
@@ -26,6 +23,10 @@
 				geometry/			包含常用2D/3D几何体定义,射线/线段/AABB/OBB/球/平面/矩形/多边形  
 					collision_intersect	3D碰撞静态相交检测接口  
 					collision_detection	3D碰撞方向投射检测接口  
+				protocol/			通用协议解析  
+					hiredis_cli_protocol	基于hiredis代码的裁剪,只保留了客户端对RESP协议解析和构造部分  
+					httpframe			用于解析与组装HTTP协议报文  
+					websocketframe		用于解析与组装WebSocket协议报文(13版本)  
 				cXML				用于解析XML  
 				dynarr				模拟泛型的动态数组  
 				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  
