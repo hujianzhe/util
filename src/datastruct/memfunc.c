@@ -261,27 +261,50 @@ char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t 
 	return (char*)0;
 }
 
-char* strSplit(char** s, const char* delim) {
-	int has_split;
-	char *ss, *sp;
-	if (!s || !*s)
+char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char* delim) {
+	char* beg;
+	const char* sc;
+	if (len <= 0) {
 		return (char*)0;
-	has_split = 0;
-	sp = ss = *s;
-	while (*sp) {
-		const char* p = delim;
-		while (*p && *sp != *p)
-			++p;
-		if (*p) {
-			*sp = '\0';
-			has_split = 1;
-		}
-		else if (has_split)
-			break;
-		++sp;
 	}
-	*s = sp;
-	return ss != sp ? ss : (char*)0;
+	sc = *p_sc;
+	if (sc) {
+		++sc;
+		if (sc <= str || sc - str > len) {
+			return (char*)0;
+		}
+	}
+	else {
+		sc = str;
+	}
+	if (sc - str == len || 0 == *sc) {
+		char last_c = sc[-1];
+		const char* pd = delim;
+		while (*pd) {
+			if (*pd != last_c) {
+				++pd;
+				continue;
+			}
+			*p_sc = sc;
+			return (char*)sc;
+		}
+		return (char*)0;
+	}
+	beg = (char*)sc;
+	while (sc - str < len && *sc) {
+		const char* pd = delim;
+		while (*pd) {
+			if (*pd != *sc) {
+				++pd;
+				continue;
+			}
+			*p_sc = sc;
+			return beg;
+		}
+		++sc;
+	}
+	*p_sc = sc;
+	return beg;
 }
 
 UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
