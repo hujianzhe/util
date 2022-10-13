@@ -9,11 +9,29 @@
 #include <string.h>
 #include <stdlib.h>
 
+static char* encode_request_key(const char* key, unsigned int keylen, char base64_key[60]) {
+	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	SHA1_CTX sha1_ctx;
+	unsigned char sha1_key[20];
+	unsigned char* pk = (unsigned char*)malloc(keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	if (!pk) {
+		return NULL;
+	}
+	memcpy(pk, key, keylen);
+	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Init(&sha1_ctx);
+	SHA1Update(&sha1_ctx, (unsigned char*)pk, keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	SHA1Final(sha1_key, &sha1_ctx);
+	free(pk);
+	base64Encode(sha1_key, sizeof(sha1_key), base64_key);
+	return base64_key;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int websocketframeDecodeHandshake(const char* data, unsigned int datalen, const char** key, unsigned int* keylen) {
+int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen, const char** key, unsigned int* keylen, const char** sec_protocol, unsigned int* sec_protocol_len) {
 	const char *ks, *ke;
 	const char* e = strStr(data, datalen, "\r\n\r\n", 4);
 	if (!e) {
@@ -33,26 +51,32 @@ int websocketframeDecodeHandshake(const char* data, unsigned int datalen, const 
 	}
 	*key = ks;
 	*keylen = ke - ks;
-
+	*sec_protocol = NULL;
+	*sec_protocol_len = 0;
+	do {
+		ks = strStr(data, e - data, "Sec-WebSocket-Protocol:", 23);
+		if (!ks) {
+			break;
+		}
+		for (ks += 23; ks < e && *ks <= 32; ++ks);
+		if (ks >= e) {
+			break;
+		}
+		ke = strChr(ks, e - ks, '\r');
+		if (!ke) {
+			break;
+		}
+		*sec_protocol = ke;
+		*sec_protocol_len = ke - ks;
+	} while (0);
 	return e - data + 4;
 }
 
-int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txtbuf[162]) {
-	static const char WEB_SOCKET_MAGIC_KEY[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-	SHA1_CTX sha1_ctx;
-	unsigned char sha1_key[20];
-	char base64_key[20 * 3];
-	unsigned char* pk = (unsigned char*)malloc(keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	if (!pk) {
-		return 0;
+char* websocketframeEncodeHandshakeResponse(const char* key, unsigned int keylen, char txtbuf[162]) {
+	char base64_key[60];
+	if (!encode_request_key(key, keylen, base64_key)) {
+		return NULL;
 	}
-	memcpy(pk, key, keylen);
-	memcpy(pk + keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	SHA1Init(&sha1_ctx);
-	SHA1Update(&sha1_ctx, (unsigned char*)pk, keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
-	SHA1Final(sha1_key, &sha1_ctx);
-	free(pk);
-	base64Encode(sha1_key, sizeof(sha1_key), base64_key);
 	txtbuf[0] = 0;
 	strcat(txtbuf, "HTTP/1.1 101 Switching Protocols\r\n"
 				"Upgrade: websocket\r\n"
@@ -60,7 +84,36 @@ int websocketframeEncodeHandshake(const char* key, unsigned int keylen, char txt
 				"Sec-WebSocket-Accept: ");
 	strcat(txtbuf, base64_key);
 	strcat(txtbuf, "\r\n\r\n");
-	return 1;
+	return txtbuf;
+}
+
+char* websocketframeEncodeHandshakeResponseWithProtocol(const char* key, unsigned int keylen, const char* sec_protocol, unsigned int sec_protocol_len) {
+	char* buf;
+	size_t buflen;
+	char base64_key[60];
+	if (!encode_request_key(key, keylen, base64_key)) {
+		return NULL;
+	}
+	buflen = 162;
+	if (sec_protocol && sec_protocol_len > 0) {
+		buflen += (24 + sec_protocol_len + 2); /* Sec-WebSocket-Protocol: %s\r\n */
+	}
+	buf = (char*)malloc(buflen);
+	if (!buf) {
+		return NULL;
+	}
+	buf[0] = 0;
+	strcat(buf, "HTTP/1.1 101 Switching Protocols\r\n"
+				"Upgrade: websocket\r\n"
+				"Connection: Upgrade\r\n"
+				"Sec-WebSocket-Accept: ");
+	strcat(buf, base64_key);
+	if (sec_protocol && sec_protocol_len > 0) {
+		strcat(buf, "Sec-WebSocket-Protocol: ");
+		strncat(buf, sec_protocol, sec_protocol_len);
+	}
+	strcat(buf, "\r\n\r\n");
+	return buf;
 }
 
 int websocketframeDecode(unsigned char* buf, unsigned long long len,
