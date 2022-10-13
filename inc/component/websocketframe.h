@@ -19,15 +19,15 @@ enum {
 #define	WEBSOCKET_MAX_ENCODE_HEADLENGTH	10
 
 #define	WEBSOCKET_SIMPLE_HTTP_HANDSHAKE_REQUEST_FMT	\
-"GET %s HTTP/1.1"	\
+"GET %s HTTP/1.1\r\n"	\
 "Upgrade: websocket\r\n"	\
 "Connection: Upgrade\r\n"	\
 "Sec-WebSocket-Version: 13\r\n"	\
 "Sec-WebSocket-Key: %s\r\n"	\
 "\r\n"	\
 
-#define	WEBSOCKET_SIMPLE_HTTP_HEADER_HANDSHAKE_REQUEST_WITH_PROTOCOL_FMT	\
-"GET %s HTTP/1.1"	\
+#define	WEBSOCKET_SIMPLE_HTTP_HANDSHAKE_REQUEST_WITH_PROTOCOL_FMT	\
+"GET %s HTTP/1.1\r\n"	\
 "Upgrade: websocket\r\n"	\
 "Connection: Upgrade\r\n"	\
 "Sec-WebSocket-Version: 13\r\n"	\

@@ -45,7 +45,7 @@ int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen,
 	if (ks >= e) {
 		return -1;
 	}
-	ke = strChr(ks, e - ks, '\r');
+	ke = strChr(ks, e - ks + 1, '\r');
 	if (!ke) {
 		return -1;
 	}
@@ -62,11 +62,11 @@ int websocketframeDecodeHandshakeRequest(const char* data, unsigned int datalen,
 		if (ks >= e) {
 			break;
 		}
-		ke = strChr(ks, e - ks, '\r');
+		ke = strChr(ks, e - ks + 1, '\r');
 		if (!ke) {
 			break;
 		}
-		*sec_protocol = ke;
+		*sec_protocol = ks;
 		*sec_protocol_len = ke - ks;
 	} while (0);
 	return e - data + 4;
@@ -109,7 +109,7 @@ char* websocketframeEncodeHandshakeResponseWithProtocol(const char* key, unsigne
 				"Sec-WebSocket-Accept: ");
 	strcat(buf, base64_key);
 	if (sec_protocol && sec_protocol_len > 0) {
-		strcat(buf, "Sec-WebSocket-Protocol: ");
+		strcat(buf, "\r\nSec-WebSocket-Protocol: ");
 		strncat(buf, sec_protocol, sec_protocol_len);
 	}
 	strcat(buf, "\r\n\r\n");
