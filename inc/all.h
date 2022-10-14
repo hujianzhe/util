@@ -31,6 +31,7 @@
 #include "crt/math.h"
 #include "crt/math_vec3.h"
 #include "crt/octree.h"
+#include "crt/string.h"
 #include "crt/geometry/aabb.h"
 #include "crt/geometry/collision_detection.h"
 #include "crt/geometry/line_segment.h"

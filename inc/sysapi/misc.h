@@ -30,8 +30,6 @@ extern "C" {
 __declspec_dll void* alignMalloc(size_t nbytes, size_t alignment);
 __declspec_dll void alignFree(const void* p);
 
-__declspec_dll int strFormatLen(const char* format, ...);
-__declspec_dll char* strFormat(int* out_len, const char* format, ...);
 __declspec_dll unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n);
 
 #ifdef	__cplusplus
