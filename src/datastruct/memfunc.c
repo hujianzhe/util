@@ -261,6 +261,16 @@ char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t 
 	return (char*)0;
 }
 
+/**
+ * code example:
+ *
+ * const char* data = argv[1];
+ * size_t datalen = strlen(data);
+ * const char* sl = NULL, *s;
+ * while (s = strSplit(data, datalen, &sl, ":")) {
+ *     printf("%.*s\n", sl - s, s);
+ * }
+ */
 char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char* delim) {
 	char* beg;
 	const char* sc;
@@ -310,22 +320,39 @@ char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char
 UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
 	UnsignedPtr_t u8_len = 0;
 	UnsignedPtr_t i;
-	for (i = 0; i < s_bytelen; ++i) {
+	for (i = 0; i < s_bytelen; ) {
 		unsigned char c = s[i];
-		if (c >= 0x80) {
-			if (c < 0xc0 || c >= 0xf8) {/* not UTF-8 */
-				u8_len = -1;
-				break;
-			}
-			else if (c >= 0xc0 && c < 0xe0) {
-				++i;
-			}
-			else if (c >= 0xe0 && c < 0xf0) {
-				i += 2;
-			}
-			else if (c >= 0xf0 && c < 0xf8) {
-				i += 3;
-			}
+		if (0 == c) {
+			break;
+		}
+		else if (c < 0x80) {
+			i += 1;
+		}
+		else if (c < 0xc0) {
+			u8_len = -1;
+			break;
+		}
+		else if (c < 0xe0) {
+			i += 2;
+		}
+		else if (c < 0xf0) {
+			i += 3;
+		}
+		else if (c < 0xf8) {
+			i += 4;
+		}
+		else if (c < 0xfc) {
+			i += 5;
+		}
+		else if (c < 0xfe) {
+			i += 6;
+		}
+		else {
+			u8_len = -1;
+			break;
+		}
+		if (i > s_bytelen) {
+			break;
 		}
 		++u8_len;
 	}
