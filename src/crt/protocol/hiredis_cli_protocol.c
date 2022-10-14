@@ -885,7 +885,8 @@ static int processLineItem(RedisReplyReader_t *r) {
         } else if (cur->type == REDIS_REPLY_BIGNUM) {
             /* Ensure all characters are decimal digits (with possible leading
              * minus sign). */
-            for (int i = 0; i < len; i++) {
+			int i;
+            for (i = 0; i < len; i++) {
                 /* XXX Consider: Allow leading '+'? Error on leading '0's? */
                 if (i == 0 && p[0] == '-') continue;
                 if (p[i] < '0' || p[i] > '9') {
@@ -900,7 +901,8 @@ static int processLineItem(RedisReplyReader_t *r) {
                 obj = (void*)REDIS_REPLY_BIGNUM;
         } else {
             /* Type will be error or status. */
-            for (int i = 0; i < len; i++) {
+			int i;
+            for (i = 0; i < len; i++) {
                 if (p[i] == '\r' || p[i] == '\n') {
                     __redisReaderSetError(r,REDIS_ERR_PROTOCOL,
                             "Bad simple string value");
@@ -1497,7 +1499,8 @@ void RedisReplyReader_free(RedisReplyReader_t *r) {
 
     if (r->task) {
         /* We know r->task[i] is allocated if i < r->tasks */
-        for (int i = 0; i < r->tasks; i++) {
+		int i;
+        for (i = 0; i < r->tasks; i++) {
             hi_free(r->task[i]);
         }
 
