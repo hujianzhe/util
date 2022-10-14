@@ -359,6 +359,32 @@ UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
 	return u8_len;
 }
 
+int strUtf8CharacterByteNum(const char* s) {
+	unsigned char c = *s;
+	if (c < 0x80) {
+		return 1;
+	}
+	else if (c < 0xc0) {
+		return -1;
+	}
+	else if (c < 0xe0) {
+		return 2;
+	}
+	else if (c < 0xf0) {
+		return 3;
+	}
+	else if (c < 0xf8) {
+		return 4;
+	}
+	else if (c < 0xfc) {
+		return 5;
+	}
+	else if (c < 0xfe) {
+		return 6;
+	}
+	return -1;
+}
+
 static int alphabet_no_case_delta(const char c) {
 	if (c >= 'a' && c <= 'z')
 		return c - 'a';
