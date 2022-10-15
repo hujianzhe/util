@@ -14,8 +14,7 @@
 #include "../datastruct/transport_ctx.h"
 
 enum {
-	REACTOR_OBJECT_REG_CMD = 1,
-	REACTOR_OBJECT_FREE_CMD,
+	REACTOR_CHANNEL_REG_CMD = 1,
 	REACTOR_CHANNEL_FREE_CMD,
 
 	REACTOR_STREAM_SENDFIN_CMD,
@@ -34,9 +33,7 @@ enum {
 enum {
 	CHANNEL_FLAG_CLIENT = 1 << 0,
 	CHANNEL_FLAG_SERVER = 1 << 1,
-	CHANNEL_FLAG_LISTEN = 1 << 2,
-	CHANNEL_FLAG_STREAM = 1 << 3,
-	CHANNEL_FLAG_DGRAM	= 1 << 4
+	CHANNEL_FLAG_LISTEN = 1 << 2
 };
 
 typedef struct Reactor_t {
@@ -57,6 +54,8 @@ typedef struct ReactorCmd_t {
 	int type;
 } ReactorCmd_t;
 
+struct ChannelBase_t;
+
 typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
@@ -74,15 +73,12 @@ typedef struct ReactorObject_t {
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
-	ReactorCmd_t regcmd;
-	ReactorCmd_t freecmd;
 /* protected */
 	int m_connected;
 /* private */
-	List_t m_channel_list;
+	struct ChannelBase_t* m_channel;
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
-	Atom8_t m_reghaspost;
 	char m_valid;
 	char m_has_inserted;
 	char m_has_detached;
@@ -101,11 +97,10 @@ typedef struct ReactorObject_t {
 struct ChannelBaseProc_t;
 
 typedef struct ChannelBase_t {
-	ReactorCmd_t regcmd;
 	ReactorCmd_t freecmd;
-	Atom32_t refcnt;
 	ReactorObject_t* o;
 	Reactor_t* reactor;
+	int socktype;
 	Sockaddr_t to_addr;
 	union {
 		Sockaddr_t listen_addr;
@@ -139,9 +134,12 @@ typedef struct ChannelBase_t {
 /* private */
 	long long m_heartbeat_msec;
 	unsigned int m_heartbeat_times; /* client use */
+	Atom32_t m_refcnt;
 	char m_has_detached;
 	char m_catch_fincmd;
 	Atom8_t m_has_commit_fincmd;
+	Atom8_t m_reghaspost;
+	ReactorCmd_t m_regcmd;
 } ChannelBase_t;
 
 typedef struct ChannelBaseProc_t {
@@ -167,18 +165,16 @@ extern "C" {
 
 __declspec_dll Reactor_t* reactorInit(Reactor_t* reactor);
 __declspec_dll void reactorWake(Reactor_t* reactor);
-__declspec_dll void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode);
 __declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
 __declspec_dll void reactorDestroy(Reactor_t* reactor);
-
-__declspec_dll ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol);
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 __declspec_dll void reactorpacketFreeList(List_t* pkglist);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr);
+__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
+__declspec_dll void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel);
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
 
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);

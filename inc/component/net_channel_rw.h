@@ -62,8 +62,8 @@ typedef struct ChannelRWHookProc_t {
 extern "C" {
 #endif
 
-__declspec_dll void channelrwInitData(ChannelRWData_t* rw, unsigned short flag, const ChannelRWDataProc_t* proc);
-__declspec_dll const ChannelRWHookProc_t* channelrwGetHookProc(unsigned short flag);
+__declspec_dll void channelrwInitData(ChannelRWData_t* rw, int channel_flag, int socktype, const ChannelRWDataProc_t* proc);
+__declspec_dll const ChannelRWHookProc_t* channelrwGetHookProc(int channel_flag, int socktype);
 __declspec_dll void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw);
 
 #ifdef	__cplusplus

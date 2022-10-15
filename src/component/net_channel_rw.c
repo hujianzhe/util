@@ -607,16 +607,16 @@ static ChannelRWHookProc_t hook_proc_normal = {
 	NULL
 };
 
-void channelrwInitData(ChannelRWData_t* rw, unsigned short flag, const ChannelRWDataProc_t* proc) {
+void channelrwInitData(ChannelRWData_t* rw, int channel_flag, int socktype, const ChannelRWDataProc_t* proc) {
 	memset(rw, 0, sizeof(*rw));
-	if (flag & CHANNEL_FLAG_DGRAM) {
-		if (flag & CHANNEL_FLAG_LISTEN) {
+	if (SOCK_DGRAM == socktype) {
+		if (channel_flag & CHANNEL_FLAG_LISTEN) {
 			rw->dgram.halfconn_maxwaitcnt = 200;
 			rw->dgram.rto = 200;
 			rw->dgram.resend_maxtimes = 5;
 		}
-		else if ((flag & CHANNEL_FLAG_CLIENT) || (flag & CHANNEL_FLAG_SERVER)) {
-			if (flag & CHANNEL_FLAG_CLIENT) {
+		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+			if (channel_flag & CHANNEL_FLAG_CLIENT) {
 				rw->dgram.m_synpacket_doing = 1;
 			}
 			rw->dgram.rto = 200;
@@ -626,25 +626,24 @@ void channelrwInitData(ChannelRWData_t* rw, unsigned short flag, const ChannelRW
 	rw->proc = proc;
 }
 
-const ChannelRWHookProc_t* channelrwGetHookProc(unsigned short flag) {
-	if (flag & CHANNEL_FLAG_DGRAM) {
-		if (flag & CHANNEL_FLAG_LISTEN) {
+const ChannelRWHookProc_t* channelrwGetHookProc(int channel_flag, int socktype) {
+	if (SOCK_DGRAM == socktype) {
+		if (channel_flag & CHANNEL_FLAG_LISTEN) {
 			return &hook_proc_dgram_listener;
 		}
-		else if ((flag & CHANNEL_FLAG_CLIENT) || (flag & CHANNEL_FLAG_SERVER)) {
+		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
 			return &hook_proc_reliable_dgram;
 		}
 	}
-	else if (flag & CHANNEL_FLAG_STREAM) {
+	else if (SOCK_STREAM == socktype) {
 		return &hook_proc_stream;
 	}
 	return &hook_proc_normal;
 }
 
 void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw) {
-	unsigned short flag = channel->flag;
-	if (flag & CHANNEL_FLAG_DGRAM) {
-		if (flag & CHANNEL_FLAG_CLIENT) {
+	if (SOCK_DGRAM == channel->socktype) {
+		if (channel->flag & CHANNEL_FLAG_CLIENT) {
 			channel->event_msec = 1;
 		}
 	}
