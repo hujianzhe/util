@@ -65,8 +65,7 @@ typedef struct ReactorObject_t {
 	int protocol;
 	int detach_error;
 	int detach_timeout_msec;
-	unsigned int read_fragment_size;
-	unsigned int write_fragment_size;
+	unsigned short dgram_read_fragment_size;
 	struct {
 		Sockaddr_t m_connect_addr;
 		char m_listened;
@@ -180,6 +179,7 @@ __declspec_dll void reactorpacketFreeList(List_t* pkglist);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* o, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
+__declspec_dll void channelbaseClose(ChannelBase_t* channel);
 
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);

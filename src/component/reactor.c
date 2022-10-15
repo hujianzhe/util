@@ -196,7 +196,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 		opcode = NIO_OP_READ;
 	}
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->read_fragment_size : 0);
+		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->dgram_read_fragment_size : 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -623,12 +623,12 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		socklen_t slen = sizeof(from_addr.st);
 		if (readtimes) {
 			if (!o->m_inbuf) {
-				o->m_inbuf = (unsigned char*)malloc(o->read_fragment_size + 1);
+				o->m_inbuf = (unsigned char*)malloc(o->dgram_read_fragment_size + 1);
 				if (!o->m_inbuf) {
 					o->m_valid = 0;
 					return;
 				}
-				o->m_inbuflen = o->m_inbufsize = o->read_fragment_size;
+				o->m_inbuflen = o->m_inbufsize = o->dgram_read_fragment_size;
 			}
 			ptr = o->m_inbuf;
 			len = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
@@ -1188,12 +1188,10 @@ ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protoc
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 		o->stream.inbuf_saved = 1;
-		o->read_fragment_size = 1460;
-		o->write_fragment_size = ~0;
+		o->dgram_read_fragment_size = 1460;
 	}
 	else {
-		o->read_fragment_size = 1464;
-		o->write_fragment_size = 548;
+		o->dgram_read_fragment_size = 1464;
 	}
 	reactorobject_init_comm(o);
 	return o;
@@ -1277,15 +1275,16 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);
 		streamtransportctxInit(&channel->stream_ctx);
 		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
+		channel->write_fragment_size = ~0;
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
+		channel->write_fragment_size = 548;
 	}
 	memcpy(&channel->to_addr, addr, sockaddrlen);
 	memcpy(&channel->connect_addr, addr, sockaddrlen);
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
-	channel->write_fragment_size = o->write_fragment_size;
 	channel->proc = NULL;
 	listPushNodeBack(&o->m_channel_list, &channel->regcmd._);
 	return channel;
@@ -1294,6 +1293,10 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short flag, ReactorObject_t* 
 ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 	_xadd32(&channel->refcnt, 1);
 	return channel;
+}
+
+void channelbaseClose(ChannelBase_t* channel) {
+	reactorCommitCmd(NULL, &channel->freecmd);
 }
 
 ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
