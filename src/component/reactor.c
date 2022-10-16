@@ -1062,7 +1062,6 @@ void reactorDestroy(Reactor_t* reactor) {
 		}
 	} while (0);
 	do {
-		ListNode_t* lcur, *lnext;
 		HashtableNode_t *cur, *next;
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
