@@ -7,7 +7,10 @@
 
 #include "../compiler_define.h"
 
+/* note: __st status enum define */
+
 enum {
+	SWITCH_STATUS_CANCEL = -3,
 	SWITCH_STATUS_ERROR = -2,
 	SWITCH_STATUS_FINISHED = -1,
 	SWITCH_STATUS_INIT = 0
