@@ -21,6 +21,7 @@
 #include "datastruct/random.h"
 #include "datastruct/rbtree.h"
 #include "datastruct/sha1.h"
+#include "datastruct/switch_process.h"
 #include "datastruct/transport_ctx.h"
 #include "datastruct/tree.h"
 #include "datastruct/url.h"
