@@ -40,17 +40,18 @@
 				bstree				类型无关的二叉搜索树  
 				hash				提供一些常用的hash算法  
 				hashtable			类型无关的哈希表  
-				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
 				lengthfieldframe	用于解析与组装包含长度字段的协议报文  
 				list				类型无关的双向链表,顺带支持栈/队列的PUSH/POP操作  
 				md5					MD5编码生成  
+				memfunc				不涉及分配释放的内存与字符串操作函数  
 				memheap				简单内存堆分配与释放  
 				random				随机数算法,提供rand48与MT19937算法  
-				strings				一些安全的字符串操作接口  
+				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
+				sha1				SHA1编解码,来源于Redis源码  
+				switch_process		基于switch-case语句实现的执行切换状态机  
 				transport_ctx		提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
 				tree				类型无关的普通树  
 				url					URL解析与编解码接口  
-				sha1				SHA1编解码,来源于Redis源码  
 			sysapi/  
 				assert				提供一个相对于assert的高级断言  
 				atomic				提供统一的原子操作接口  
