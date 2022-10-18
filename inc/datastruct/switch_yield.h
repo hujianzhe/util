@@ -7,7 +7,7 @@
 
 #include "../compiler_define.h"
 
-/* note: __st status enum define */
+/* note: switch status enum define */
 
 enum {
 	SWITCH_STATUS_CANCEL = -3,
@@ -16,24 +16,37 @@ enum {
 	SWITCH_STATUS_START = 0
 };
 
-/* note: __st is switch status, an integer value,
+/* note: a switch execute context */
+
+typedef struct SwitchCo_t {
+    int status; /* switch status */
+    void* ctx; /* hold routine execute context */
+} SwitchCo_t;
+
+/* note: co->status is switch status, an integer value,
  * 
  * code example:
  *
-	switch (co->st) {
+	switch (co->status) {
 		default:
+			if (co->ctx) {
+				// clean co->ctx
+			}
 			return; // avoid execute one more time
 		case SWITCH_STATUS_START:
 			// code ...
+			// SWITCH_YIELD(&co->status);
+			// code ...
 	}
-	co->st = SWITCH_STATUS_FINISH;
+	// clean co->ctx
+	co->status = SWITCH_STATUS_FINISH;
 	return;
  *
  *
  *
  */
 
-#define SWITCH_YIELD(__st)					do { *(__st) = __LINE__; return; case __LINE__: ; } while(0)
-#define SWITCH_YIELD_VALUE(__st, value)		do { *(__st) = __LINE__; return (value); case __LINE__: ; } while(0)
+#define SWITCH_YIELD(status)				do { *(status) = __LINE__; return; case __LINE__: ; } while(0)
+#define SWITCH_YIELD_VALUE(status, value)	do { *(status) = __LINE__; return (value); case __LINE__: ; } while(0)
 
 #endif
