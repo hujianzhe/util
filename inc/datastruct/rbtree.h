@@ -17,7 +17,6 @@ typedef union {
 	unsigned long long u64;
 } RBTreeNodeKey_t;
 
-struct RBTree_t;
 typedef struct RBTreeNode_t {
 	RBTreeNodeKey_t key;
 	unsigned long rb_color;
