@@ -16,12 +16,6 @@ enum {
 	SWITCH_STATUS_START = 0
 };
 
-/* note: SWITCH_PROCESS maybe hold execute context memory */
-typedef struct SwitchCo_t {
-	int st;
-	void* ctx;
-} SwitchCo_t;
-
 /* note: __st is switch status, an integer value,
  * 
  * code example:
