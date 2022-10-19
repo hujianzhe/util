@@ -29,16 +29,15 @@ typedef struct SwitchCo_t {
  *
 	switch (co->status) {
 		default:
-			if (co->ctx) {
-				// clean co->ctx
-			}
+			// (free or delete) co->ctx
 			return; // avoid execute one more time
 		case SWITCH_STATUS_START:
+			// co->ctx = (malloc or new ctx)
 			// code ...
 			// SWITCH_YIELD(&co->status);
 			// code ...
 	}
-	// clean co->ctx
+	// (free or delete) co->ctx
 	co->status = SWITCH_STATUS_FINISH;
 	return;
  *
@@ -48,5 +47,20 @@ typedef struct SwitchCo_t {
 
 #define SWITCH_YIELD(status)				do { *(status) = __LINE__; return; case __LINE__: ; } while(0)
 #define SWITCH_YIELD_VALUE(status, value)	do { *(status) = __LINE__; return (value); case __LINE__: ; } while(0)
+
+#define	SWITCH_WAIT_HEAD(child_status)	\
+do {	\
+	if (*(child_status) < 0) break
+
+#define	SWITCH_WAIT_TAIL(child_status, cur_status)	\
+	if (*(child_status) < 0)	\
+		break;	\
+	SWITCH_YIELD(cur_status);	\
+} while (1)
+
+#define	SWITCH_WAIT_FUNCTION(cur_status, child_status, sub_function_expr)	\
+	SWITCH_WAIT_HEAD(child_status);	\
+	sub_function_expr;	\
+	SWITCH_WAIT_TAIL(child_status, cur_status)
 
 #endif
