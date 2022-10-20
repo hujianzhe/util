@@ -63,4 +63,25 @@ do {	\
 	sub_function_expr;	\
 	SWITCH_WAIT_TAIL(child_status, cur_status)
 
+/* note: direct use SwitchCo_t */
+
+#define	SWITCH_CO_YIELD(ptr_co)					SWITCH_YIELD(&(ptr_co)->status)
+#define	SWITCH_CO_YIELD_VALUE(ptr_co, value)	SWITCH_YIELD_VALUE(&(ptr_co)->status, value)
+
+#define	SWITCH_CO_WAIT_HEAD(ptr_child_co)		SWITCH_WAIT_HEAD(&(ptr_child_co)->status)
+#define	SWITCH_CO_WAIT_TAIL(ptr_child_co, ptr_co)	SWITCH_WAIT_TAIL(&(ptr_child_co)->status, &(ptr_co)->status)
+#define	SWITCH_CO_WAIT_FUNCTION(ptr_co, ptr_child_co, sub_function_expr)	SWITCH_WAIT_FUNCTION(&(ptr_co)->status, &(ptr_child_co)->status, sub_function_expr)
+
+#define	SWITCH_CO_MULTI_WAIT_HEAD()			do {
+#define SWITCH_CO_MULTI_WAIT_TAIL(ptr_co, ptr_child_co_arr, child_co_cnt)	\
+	if (1) {	\
+		SwitchCo_t **MACRO_APPEND(__co,__LINE__), **MACRO_APPEND(__co_end,__LINE__) = ptr_child_co_arr + child_co_cnt;	\
+		for (MACRO_APPEND(__co,__LINE__) = ptr_child_co_arr; MACRO_APPEND(__co,__LINE__) < MACRO_APPEND(__co_end,__LINE__); ++MACRO_APPEND(__co,__LINE__)) {	\
+			if ((*MACRO_APPEND(__co,__LINE__))->status > 0) break;	\
+		}	\
+		if (MACRO_APPEND(__co,__LINE__) == MACRO_APPEND(__co_end,__LINE__)) break;	\
+	}	\
+	SWITCH_CO_YIELD(ptr_co);	\
+} while (1)
+
 #endif
