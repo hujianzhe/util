@@ -45,8 +45,8 @@ typedef struct SwitchCo_t {
  *
  */
 
-#define SWITCH_YIELD(status)				do { *(status) = __LINE__; return; case __LINE__: ; } while(0)
-#define SWITCH_YIELD_VALUE(status, value)	do { *(status) = __LINE__; return (value); case __LINE__: ; } while(0)
+#define SWITCH_YIELD(status)				do { *(status) = __COUNTER__ + 1; return; case __COUNTER__: ; } while(0)
+#define SWITCH_YIELD_VALUE(status, value)	do { *(status) = __COUNTER__ + 1; return (value); case __COUNTER__: ; } while(0)
 
 #define	SWITCH_WAIT_HEAD(child_status)	\
 do {	\
