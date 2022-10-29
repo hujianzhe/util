@@ -1,5 +1,5 @@
 # util工具库,C/C++代码分离,可运行于linux/windows/macOS平台,可直接集成到项目中,或抽取部分文件使用.  
-侧重网络通讯与消息事件处理,如IO多路复用下的并发可靠UDP/TCP的传输与监听,基于协程/回调的RPC调度核心机制等实现细节.  
+侧重网络通讯与协程,如IO多路复用下的并发可靠UDP/TCP的传输与监听,回调/有栈协程/无栈协程的调度机制等实现.  
   
 	util/  
 		.gitignore					用于git忽略一些无用文件  
@@ -18,7 +18,8 @@
 				memref				基于引用计数实现的内存强引用和观察者  
 				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
 				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
-				rpc_core			基于协程/回调的RPC调度核心机制  
+				rpc_core			基于有栈协程/回调的调度核心机制  
+				switch_co_sche		基于switch case语法的无栈协程调度核心机制  
 			crt/  
 				geometry/			包含常用2D/3D几何体定义,射线/线段/AABB/OBB/球/平面/矩形/多边形  
 					collision_intersect	3D碰撞静态相交检测接口  

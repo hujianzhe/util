@@ -21,6 +21,8 @@ enum {
 typedef struct SwitchCo_t {
     int status; /* switch status */
     void* ctx; /* hold routine execute context */
+	void* arg; /* routine arguments */
+	void* ret; /* routine result */
 } SwitchCo_t;
 
 /* note: co->status is switch status, an integer value,

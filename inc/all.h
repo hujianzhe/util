@@ -63,5 +63,6 @@
 #include "component/rbtimer.h"
 #include "component/reactor.h"
 #include "component/rpc_core.h"
+#include "component/switch_co_sche.h"
 
 #endif
