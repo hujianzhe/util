@@ -21,6 +21,7 @@ __declspec_dll SwitchCo_t* SwitchCoSche_function(struct SwitchCoSche_t* sche, vo
 __declspec_dll void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 __declspec_dll void SwitchCoSche_free_co(SwitchCo_t* co);
 __declspec_dll int SwitchCoSche_sche(struct SwitchCoSche_t* sche, int idle_msec);
+__declspec_dll void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche);
 
 #ifdef __cplusplus
 }

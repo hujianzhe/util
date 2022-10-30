@@ -221,7 +221,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		}
 		else {
 			wait_msec = min_t - cur_msec;
-			if (wait_msec > idle_msec) {
+			if (idle_msec >= 0 && wait_msec > idle_msec) {
 				wait_msec = idle_msec;
 			}
 		}
@@ -242,6 +242,15 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		}
 	}
 
+	cur_msec = gmtimeMillisecond();
+	for (i = 0; i < 100; ++i) {
+		RBTimerEvent_t* e = rbtimerTimeoutPopup(&sche->timer, cur_msec);
+		if (!e) {
+			break;
+		}
+		e->callback(&sche->timer, e);
+	}
+
 	for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
 		SwitchCoScheNode_t* co_node = pod_container_of(lcur, SwitchCoScheNode_t, _);
 		lnext = lcur->next;
@@ -255,16 +264,11 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 	}
 	sche->cur_co_node = NULL;
 
-	cur_msec = gmtimeMillisecond();
-	for (i = 0; i < 100; ++i) {
-		RBTimerEvent_t* e = rbtimerTimeoutPopup(&sche->timer, cur_msec);
-		if (!e) {
-			break;
-		}
-		e->callback(&sche->timer, e);
-	}
-
 	return 0;
+}
+
+void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche) {
+	dataqueueWake(&sche->dq);
 }
 
 #ifdef __cplusplus
