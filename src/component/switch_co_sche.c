@@ -7,6 +7,7 @@
 #include "../../inc/component/dataqueue.h"
 #include "../../inc/component/rbtimer.h"
 #include <stdlib.h>
+#include <limits.h>
 
 typedef struct SwitchCoScheNode_t {
 	SwitchCo_t co;
@@ -20,8 +21,6 @@ typedef struct SwitchCoSche_t {
 	DataQueue_t dq;
 	RBTimer_t timer;
 	List_t root_co_list;
-	SwitchCoScheNode_t*(*fn_alloc)(void);
-	void(*fn_free)(SwitchCoScheNode_t*);
 	SwitchCoScheNode_t* cur_co_node;
 } SwitchCoSche_t;
 
@@ -37,20 +36,29 @@ static void SwitchCoSche_free_co_node(SwitchCoScheNode_t* co_node) {
 	if (co_node->timeout_event) {
 		rbtimerDetachEvent(co_node->timeout_event);
 		free(co_node->timeout_event);
+		co_node->timeout_event = NULL;
 	}
 	free(co_node);
 }
 
-static void SwitchCoSche_sleep_proc(SwitchCoSche_t* sche, SwitchCo_t* co) {
-	co->status = SWITCH_STATUS_FINISH;
+static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
+	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
+	if (co_node->parent) {
+		co_node->co.status = SWITCH_STATUS_FINISH;
+		co_node->timeout_event = NULL;
+	}
+	else {
+		free(co_node);
+	}
+	free(e);
 }
 
 static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoSche_t* sche = pod_container_of(timer, SwitchCoSche_t, timer);
 	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
-	free(e);
 	co_node->timeout_event = NULL;
 	listPushNodeFront(&sche->root_co_list, &co_node->_);
+	free(e);
 }
 
 SwitchCoSche_t* SwitchCoSche_new(void) {
@@ -66,8 +74,6 @@ SwitchCoSche_t* SwitchCoSche_new(void) {
 		goto err;
 	}
 	listInit(&sche->root_co_list);
-	sche->fn_alloc = SwitchCoSche_alloc_co_node;
-	sche->fn_free = SwitchCoSche_free_co_node;
 	sche->cur_co_node = NULL;
 	return sche;
 err:
@@ -82,14 +88,27 @@ err:
 }
 
 void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
+	RBTimerEvent_t* e;
 	ListNode_t *lcur, *lnext;
 	for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
 		SwitchCoScheNode_t* co_node = pod_container_of(lcur, SwitchCoScheNode_t, _);
+		int status = co_node->co.status;
 		lnext = lcur->next;
-		sche->fn_free(co_node);
+
+		if (status >= 0) {
+			co_node->co.status = SWITCH_STATUS_CANCEL;
+			if (status > 0 && co_node->proc) {
+				co_node->proc(sche, &co_node->co);
+			}
+		}
+		SwitchCoSche_free_co_node(co_node);
 	}
-	dataqueueDestroy(&sche->dq);
+	while (e = rbtimerTimeoutPopup(&sche->timer, LLONG_MAX)) {
+		SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
+		SwitchCoSche_free_co_node(co_node);
+	}
 	rbtimerDestroy(&sche->timer);
+	dataqueueDestroy(&sche->dq);
 	free(sche);
 }
 
@@ -99,18 +118,17 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 	if (!e) {
 		return NULL;
 	}
-	co_node = sche->fn_alloc();
+	co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		free(e);
 		return NULL;
 	}
-	co_node->proc = SwitchCoSche_sleep_proc;
 	co_node->timeout_event = e;
 	co_node->parent = sche->cur_co_node;
 
 	e->timestamp = gmtimeMillisecond() + msec;
 	e->interval = 0;
-	e->callback = timer_timeout_callback;
+	e->callback = timer_sleep_callback;
 	e->arg = co_node;
 
 	if (!co_node->parent) {
@@ -122,8 +140,32 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 	return &co_node->co;
 }
 
+SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg) {
+	SwitchCoScheNode_t* co_node;
+	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+	if (!e) {
+		return NULL;
+	}
+	co_node = SwitchCoSche_alloc_co_node();
+	if (!co_node) {
+		free(e);
+		return NULL;
+	}
+	co_node->proc = proc;
+	co_node->co.arg = arg;
+	co_node->timeout_event = e;
+
+	e->timestamp = gmtimeMillisecond() + msec;
+	e->interval = 0;
+	e->callback = timer_timeout_callback;
+	e->arg = co_node;
+
+	dataqueuePush(&sche->dq, &co_node->_);
+	return &co_node->co;
+}
+
 SwitchCo_t* SwitchCoSche_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
-	SwitchCoScheNode_t* co_node = sche->fn_alloc();
+	SwitchCoScheNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
@@ -138,27 +180,31 @@ SwitchCo_t* SwitchCoSche_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec) {
+void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
 	SwitchCoScheNode_t* co_node;
-	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-	if (!e) {
-		return NULL;
+	int status = co->status;
+	if (status < 0) {
+		return;
 	}
-	co_node = sche->fn_alloc();
-	if (!co_node) {
-		free(e);
-		return NULL;
+	co_node = pod_container_of(co, SwitchCoScheNode_t, co);
+	if (co_node->timeout_event) {
+		rbtimerDetachEvent(co_node->timeout_event);
+		free(co_node->timeout_event);
+		co_node->timeout_event = NULL;
 	}
-	co_node->proc = proc;
-	co_node->timeout_event = e;
+	co->status = SWITCH_STATUS_CANCEL;
+	if (status > 0 && co_node->proc) {
+		co_node->proc(sche, co);
+	}
+}
 
-	e->timestamp = gmtimeMillisecond() + msec;
-	e->interval = 0;
-	e->callback = timer_timeout_callback;
-	e->arg = co_node;
-
-	dataqueuePush(&sche->dq, &co_node->_);
-	return &co_node->co;
+void SwitchCoSche_free_co(SwitchCo_t* co) {
+	SwitchCoScheNode_t* co_node;
+	if (!co) {
+		return;
+	}
+	co_node = pod_container_of(co, SwitchCoScheNode_t, co);
+	SwitchCoSche_free_co_node(co_node);
 }
 
 int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
@@ -204,9 +250,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		co_node->proc(sche, &co_node->co);
 		if (co_node->co.status < 0) {
 			listRemoveNode(&sche->root_co_list, lcur);
-			if (!co_node->parent) {
-				sche->fn_free(co_node);
-			}
+			SwitchCoSche_free_co_node(co_node);
 		}
 	}
 	sche->cur_co_node = NULL;

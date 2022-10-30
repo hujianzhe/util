@@ -16,8 +16,10 @@ extern "C" {
 __declspec_dll struct SwitchCoSche_t* SwitchCoSche_new(void);
 __declspec_dll void SwitchCoSche_destroy(struct SwitchCoSche_t* sche);
 __declspec_dll SwitchCo_t* SwitchCoSche_sleep_msec(struct SwitchCoSche_t* sche, long long msec);
+__declspec_dll SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg);
 __declspec_dll SwitchCo_t* SwitchCoSche_function(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret);
-__declspec_dll SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec);
+__declspec_dll void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
+__declspec_dll void SwitchCoSche_free_co(SwitchCo_t* co);
 __declspec_dll int SwitchCoSche_sche(struct SwitchCoSche_t* sche, int idle_msec);
 
 #ifdef __cplusplus
