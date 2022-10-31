@@ -19,6 +19,7 @@ enum {
 /* note: a switch execute context */
 
 typedef struct SwitchCo_t {
+	int id; /* unique id */
     int status; /* switch status */
     void* ctx; /* hold routine execute context */
 	void* arg; /* routine arguments */
