@@ -48,6 +48,8 @@ static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	free(e);
 }
 
+static void sleep_proc(SwitchCoSche_t* sche, SwitchCo_t* co) {}
+
 static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoSche_t* sche = pod_container_of(timer, SwitchCoSche_t, timer);
 	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
@@ -92,7 +94,7 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 
 		if (status >= 0) {
 			co_node->co.status = SWITCH_STATUS_CANCEL;
-			if (status > 0 && co_node->proc) {
+			if (status > 0) {
 				co_node->proc(sche, &co_node->co);
 			}
 		}
@@ -167,6 +169,7 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 		free(e);
 		return NULL;
 	}
+	co_node->proc = sleep_proc;
 	co_node->timeout_event = e;
 	co_node->parent = sche->cur_co_node;
 
@@ -192,7 +195,7 @@ void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
 		co_node->timeout_event = NULL;
 	}
 	co->status = SWITCH_STATUS_CANCEL;
-	if (status > 0 && co_node->proc) {
+	if (status > 0) {
 		co_node->proc(sche, co);
 	}
 }
