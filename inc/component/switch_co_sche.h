@@ -26,7 +26,7 @@ __declspec_dll SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche,
 
 __declspec_dll void SwitchCoSche_resume_co(struct SwitchCoSche_t* sche, int co_id, void* ret);
 __declspec_dll void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
-__declspec_dll void SwitchCoSche_free_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
+__declspec_dll void SwitchCoSche_free_child_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 
 #ifdef __cplusplus
 }

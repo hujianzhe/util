@@ -11,14 +11,15 @@
 #include <stdlib.h>
 #include <limits.h>
 
-typedef struct SwitchCoScheNode_t {
+typedef struct SwitchCoNode_t {
 	SwitchCo_t co;
 	RBTimerEvent_t* timeout_event;
 	void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*);
 	ListNode_t listnode;
+	List_t childs_list;
 	HashtableNode_t htnode;
-	struct SwitchCoScheNode_t* parent;
-} SwitchCoScheNode_t;
+	struct SwitchCoNode_t* parent;
+} SwitchCoNode_t;
 
 typedef struct SwitchResumeEvent_t {
 	ListNode_t listnode;
@@ -32,7 +33,7 @@ typedef struct SwitchCoSche_t {
 	CriticalSection_t resume_lock;
 	List_t resume_ev_list;
 	List_t root_co_list;
-	SwitchCoScheNode_t* cur_co_node;
+	SwitchCoNode_t* cur_co_node;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
 } SwitchCoSche_t;
@@ -48,11 +49,16 @@ static int gen_co_id() {
 	return id;
 }
 
-static SwitchCoScheNode_t* SwitchCoSche_alloc_co_node(void) {
-	return (SwitchCoScheNode_t*)calloc(1, sizeof(SwitchCoScheNode_t));
+static SwitchCoNode_t* SwitchCoSche_alloc_co_node(void) {
+	SwitchCoNode_t* co_node = (SwitchCoNode_t*)calloc(1, sizeof(SwitchCoNode_t));
+	if (!co_node) {
+		return NULL;
+	}
+	listInit(&co_node->childs_list);
+	return co_node;
 }
 
-static void SwitchCoSche_free_co_node(SwitchCoSche_t* sche, SwitchCoScheNode_t* co_node) {
+static void SwitchCoSche_free_co_node(SwitchCoSche_t* sche, SwitchCoNode_t* co_node) {
 	if (co_node->timeout_event) {
 		rbtimerDetachEvent(co_node->timeout_event);
 		free(co_node->timeout_event);
@@ -63,10 +69,22 @@ static void SwitchCoSche_free_co_node(SwitchCoSche_t* sche, SwitchCoScheNode_t* 
 	free(co_node);
 }
 
+void SwitchCoSche_free_child_co_nodes(SwitchCoSche_t* sche, SwitchCoNode_t* co_node) {
+	ListNode_t *lcur, *lnext;
+	for (lcur = co_node->childs_list.head; lcur; lcur = lnext) {
+		SwitchCoNode_t* child_co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
+		lnext = lcur->next;
+
+		SwitchCoSche_free_child_co_nodes(sche, child_co_node);
+		SwitchCoSche_free_co_node(sche, child_co_node);
+	}
+	listInit(&co_node->childs_list);
+}
+
 static void empty_proc(SwitchCoSche_t* sche, SwitchCo_t* co) {}
 
 static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
-	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
+	SwitchCoNode_t* co_node = (SwitchCoNode_t*)e->arg;
 	co_node->co.status = SWITCH_STATUS_FINISH;
 	co_node->timeout_event = NULL;
 	free(e);
@@ -74,7 +92,7 @@ static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 
 static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoSche_t* sche = pod_container_of(timer, SwitchCoSche_t, timer);
-	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
+	SwitchCoNode_t* co_node = (SwitchCoNode_t*)e->arg;
 	co_node->timeout_event = NULL;
 	listPushNodeFront(&sche->root_co_list, &co_node->listnode);
 	free(e);
@@ -82,7 +100,7 @@ static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 
 static void timer_block_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoSche_t* sche = pod_container_of(timer, SwitchCoSche_t, timer);
-	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
+	SwitchCoNode_t* co_node = (SwitchCoNode_t*)e->arg;
 	co_node->co.status = SWITCH_STATUS_CANCEL;
 	hashtableRemoveNode(&sche->block_co_htbl, &co_node->htnode);
 	co_node->htnode.key.i32 = 0;
@@ -138,7 +156,7 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 		free(e);
 	}
 	for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
-		SwitchCoScheNode_t* co_node = pod_container_of(lcur, SwitchCoScheNode_t, listnode);
+		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
 		int status = co_node->co.status;
 		lnext = lcur->next;
 
@@ -148,15 +166,16 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 				co_node->proc(sche, &co_node->co);
 			}
 		}
+		SwitchCoSche_free_child_co_nodes(sche, co_node);
 		SwitchCoSche_free_co_node(sche, co_node);
 	}
 	while (1) {
-		SwitchCoScheNode_t* co_node;
+		SwitchCoNode_t* co_node;
 		RBTimerEvent_t* e = rbtimerTimeoutPopup(&sche->timer, LLONG_MAX);
 		if (!e) {
 			break;
 		}
-		co_node = (SwitchCoScheNode_t*)e->arg;
+		co_node = (SwitchCoNode_t*)e->arg;
 		SwitchCoSche_free_co_node(sche, co_node);
 	}
 	rbtimerDestroy(&sche->timer);
@@ -166,7 +185,7 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 }
 
 SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg) {
-	SwitchCoScheNode_t* co_node;
+	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
 		return NULL;
@@ -190,7 +209,7 @@ SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(s
 }
 
 SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
-	SwitchCoScheNode_t* co_node = SwitchCoSche_alloc_co_node();
+	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
@@ -203,7 +222,7 @@ SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchC
 }
 
 SwitchCo_t* SwitchCoSche_child_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
-	SwitchCoScheNode_t* co_node = SwitchCoSche_alloc_co_node();
+	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
@@ -211,11 +230,13 @@ SwitchCo_t* SwitchCoSche_child_function(SwitchCoSche_t* sche, void(*proc)(Switch
 	co_node->co.arg = arg;
 	co_node->co.ret = ret;
 	co_node->parent = sche->cur_co_node;
+
+	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
 SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
-	SwitchCoScheNode_t* co_node;
+	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
 		return NULL;
@@ -235,11 +256,12 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 	e->arg = co_node;
 	rbtimerAddEvent(&sche->timer, co_node->timeout_event);
 
+	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
 SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long block_msec) {
-	SwitchCoScheNode_t* co_node;
+	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
 
 	if (block_msec >= 0) {
@@ -275,6 +297,7 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long bloc
 		rbtimerAddEvent(&sche->timer, co_node->timeout_event);
 	}
 
+	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
@@ -294,12 +317,12 @@ void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret) {
 }
 
 void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
-	SwitchCoScheNode_t* co_node;
+	SwitchCoNode_t* co_node;
 	int status = co->status;
 	if (status < 0) {
 		return;
 	}
-	co_node = pod_container_of(co, SwitchCoScheNode_t, co);
+	co_node = pod_container_of(co, SwitchCoNode_t, co);
 	if (co_node->timeout_event) {
 		rbtimerDetachEvent(co_node->timeout_event);
 		free(co_node->timeout_event);
@@ -315,13 +338,14 @@ void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
 	}
 }
 
-void SwitchCoSche_free_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
-	SwitchCoScheNode_t* co_node;
-	if (!co) {
+void SwitchCoSche_free_child_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
+	ListNode_t *lcur, *lnext;
+	SwitchCoNode_t* co_node;
+	if (!co || co->status >= 0) {
 		return;
 	}
-	co_node = pod_container_of(co, SwitchCoScheNode_t, co);
-	SwitchCoSche_free_co_node(sche, co_node);
+	co_node = pod_container_of(co, SwitchCoNode_t, co);
+	SwitchCoSche_free_child_co_nodes(sche, co_node);
 }
 
 int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
@@ -348,7 +372,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 	}
 
 	for (lcur = dataqueuePopWait(&sche->dq, wait_msec, 100); lcur; lcur = lnext) {
-		SwitchCoScheNode_t* co_node = pod_container_of(lcur, SwitchCoScheNode_t, listnode);
+		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
 		lnext = lcur->next;
 
 		if (co_node->timeout_event) {
@@ -370,14 +394,14 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		do {
 			HashtableNodeKey_t key;
 			HashtableNode_t* htnode;
-			SwitchCoScheNode_t* co_node;
+			SwitchCoNode_t* co_node;
 
 			key.i32 = e->co_id;
 			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 			if (!htnode) {
 				break;
 			}
-			co_node = pod_container_of(htnode, SwitchCoScheNode_t, htnode);
+			co_node = pod_container_of(htnode, SwitchCoNode_t, htnode);
 			co_node->htnode.key.i32 = 0;
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
@@ -404,13 +428,14 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 	}
 
 	for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
-		SwitchCoScheNode_t* co_node = pod_container_of(lcur, SwitchCoScheNode_t, listnode);
+		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
 		lnext = lcur->next;
 
 		sche->cur_co_node = co_node;
 		co_node->proc(sche, &co_node->co);
 		if (co_node->co.status < 0) {
 			listRemoveNode(&sche->root_co_list, lcur);
+			SwitchCoSche_free_child_co_nodes(sche, co_node);
 			SwitchCoSche_free_co_node(sche, co_node);
 		}
 	}
