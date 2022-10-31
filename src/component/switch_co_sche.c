@@ -43,13 +43,8 @@ static void SwitchCoSche_free_co_node(SwitchCoScheNode_t* co_node) {
 
 static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoScheNode_t* co_node = (SwitchCoScheNode_t*)e->arg;
-	if (co_node->parent) {
-		co_node->co.status = SWITCH_STATUS_FINISH;
-		co_node->timeout_event = NULL;
-	}
-	else {
-		free(co_node);
-	}
+	co_node->co.status = SWITCH_STATUS_FINISH;
+	co_node->timeout_event = NULL;
 	free(e);
 }
 
@@ -112,34 +107,6 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	free(sche);
 }
 
-SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
-	SwitchCoScheNode_t* co_node;
-	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-	if (!e) {
-		return NULL;
-	}
-	co_node = SwitchCoSche_alloc_co_node();
-	if (!co_node) {
-		free(e);
-		return NULL;
-	}
-	co_node->timeout_event = e;
-	co_node->parent = sche->cur_co_node;
-
-	e->timestamp = gmtimeMillisecond() + msec;
-	e->interval = 0;
-	e->callback = timer_sleep_callback;
-	e->arg = co_node;
-
-	if (!co_node->parent) {
-		dataqueuePush(&sche->dq, &co_node->_);
-	}
-	else {
-		rbtimerAddEvent(&sche->timer, co_node->timeout_event);
-	}
-	return &co_node->co;
-}
-
 SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg) {
 	SwitchCoScheNode_t* co_node;
 	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
@@ -164,7 +131,20 @@ SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(s
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
+SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
+	SwitchCoScheNode_t* co_node = SwitchCoSche_alloc_co_node();
+	if (!co_node) {
+		return NULL;
+	}
+	co_node->proc = proc;
+	co_node->co.arg = arg;
+	co_node->co.ret = ret;
+
+	dataqueuePush(&sche->dq, &co_node->_);
+	return &co_node->co;
+}
+
+SwitchCo_t* SwitchCoSche_child_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
 	SwitchCoScheNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
@@ -173,10 +153,29 @@ SwitchCo_t* SwitchCoSche_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche
 	co_node->co.arg = arg;
 	co_node->co.ret = ret;
 	co_node->parent = sche->cur_co_node;
+	return &co_node->co;
+}
 
-	if (!co_node->parent) {
-		dataqueuePush(&sche->dq, &co_node->_);
+SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
+	SwitchCoScheNode_t* co_node;
+	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+	if (!e) {
+		return NULL;
 	}
+	co_node = SwitchCoSche_alloc_co_node();
+	if (!co_node) {
+		free(e);
+		return NULL;
+	}
+	co_node->timeout_event = e;
+	co_node->parent = sche->cur_co_node;
+
+	e->timestamp = gmtimeMillisecond() + msec;
+	e->interval = 0;
+	e->callback = timer_sleep_callback;
+	e->arg = co_node;
+	rbtimerAddEvent(&sche->timer, co_node->timeout_event);
+
 	return &co_node->co;
 }
 
