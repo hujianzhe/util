@@ -221,14 +221,11 @@ SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchC
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_child_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
+SwitchCo_t* SwitchCoSche_new_child_co(SwitchCoSche_t* sche) {
 	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
-	co_node->proc = proc;
-	co_node->co.arg = arg;
-	co_node->co.ret = ret;
 	co_node->parent = sche->cur_co_node;
 
 	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);

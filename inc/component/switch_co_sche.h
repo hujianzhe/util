@@ -20,7 +20,7 @@ __declspec_dll void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche);
 
 __declspec_dll SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg);
 __declspec_dll SwitchCo_t* SwitchCoSche_root_function(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret);
-__declspec_dll SwitchCo_t* SwitchCoSche_child_function(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret);
+__declspec_dll SwitchCo_t* SwitchCoSche_new_child_co(struct SwitchCoSche_t* sche);
 __declspec_dll SwitchCo_t* SwitchCoSche_sleep_msec(struct SwitchCoSche_t* sche, long long msec);
 __declspec_dll SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long block_msec);
 
