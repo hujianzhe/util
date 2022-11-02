@@ -18,7 +18,7 @@ struct StackCoSche_t;
 extern "C" {
 #endif
 
-__declspec_dll struct StackCoSche_t* StackCoSche_new(Fiber_t* sche_fiber, size_t stack_size);
+__declspec_dll struct StackCoSche_t* StackCoSche_new(size_t stack_size);
 __declspec_dll void StackCoSche_destroy(struct StackCoSche_t* sche);
 __declspec_dll int StackCoSche_sche(struct StackCoSche_t* sche, int idle_msec);
 __declspec_dll void StackCoSche_wake_up(struct StackCoSche_t* sche);

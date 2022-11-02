@@ -145,7 +145,7 @@ static int StackCoSche_update_proc_fiber(StackCoSche_t* sche) {
 	return 1;
 }
 
-StackCoSche_t* StackCoSche_new(Fiber_t* sche_fiber, size_t stack_size) {
+StackCoSche_t* StackCoSche_new(size_t stack_size) {
 	int dq_ok = 0, timer_ok = 0;
 	StackCoSche_t* sche = (StackCoSche_t*)malloc(sizeof(StackCoSche_t));
 	if (!sche) {
