@@ -43,6 +43,7 @@ typedef struct StackCoEvent_t {
 } StackCoEvent_t;
 
 typedef struct StackCoSche_t {
+	int init_flag;
 	volatile int exit_flag;
 	DataQueue_t dq;
 	RBTimer_t timer;
@@ -158,18 +159,15 @@ StackCoSche_t* StackCoSche_new(Fiber_t* sche_fiber, size_t stack_size) {
 		goto err;
 	}
 	timer_ok = 1;
-	sche->proc_fiber = fiberCreate(sche_fiber, stack_size, FiberProcEntry);
-	if (!sche->proc_fiber) {
-		goto err;
-	}
-	sche->proc_fiber->arg = sche;
-	sche->cur_fiber = sche_fiber;
-	sche->sche_fiber = sche_fiber;
+	sche->init_flag = 0;
+	sche->exit_flag = 0;
+	sche->proc_fiber = NULL;
+	sche->cur_fiber = NULL;
+	sche->sche_fiber = NULL;
 	sche->stack_size = stack_size;
 	sche->resume_co_node = NULL;
 	sche->proc_arg = NULL;
 	sche->proc = NULL;
-	sche->exit_flag = 0;
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
 			hashtableDefaultKeyCmp32, hashtableDefaultKeyHash32);
@@ -345,6 +343,25 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	long long min_t, cur_msec;
 	ListNode_t *lcur, *lnext;
 
+	if (!sche->init_flag) {
+		Fiber_t* sche_fiber = fiberFromThread();
+		if (!sche_fiber) {
+			return 1;
+		}
+
+		sche->proc_fiber = fiberCreate(sche_fiber, sche->stack_size, FiberProcEntry);
+		if (!sche->proc_fiber) {
+			fiberFree(sche_fiber);
+			return 1;
+		}
+		sche->proc_fiber->arg = sche;
+
+		sche->cur_fiber = sche_fiber;
+		sche->sche_fiber = sche_fiber;
+
+		sche->init_flag = 1;
+	}
+
 	if (sche->exit_flag) {
 		HashtableNode_t* htnode, *htnext;
 		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = hashtableNextNode(htnode)) {
@@ -362,6 +379,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			fiberFree(co_node->fiber);
 			free(co_node);
 		}
+		fiberFree(sche->sche_fiber);
 		return 1;
 	}
 
