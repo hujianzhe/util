@@ -267,7 +267,6 @@ static void RpcFiberProcEntry(Fiber_t* fiber) {
 RpcFiberCore_t* rpcFiberCoreInit(RpcFiberCore_t* rpc, Fiber_t* sche_fiber, size_t stack_size, void(*msg_handler)(RpcFiberCore_t*, void*)) {
 	rpc->msg_fiber = fiberCreate(sche_fiber, stack_size, RpcFiberProcEntry);
 	if (!rpc->msg_fiber) {
-		free(rpc);
 		return NULL;
 	}
 	rpc->msg_fiber->arg = rpc;
