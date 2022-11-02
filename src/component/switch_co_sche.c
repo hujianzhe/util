@@ -403,8 +403,8 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 			if (!htnode) {
 				break;
 			}
+			htnode->key.i32 = 0;
 			co_node = pod_container_of(htnode, SwitchCoNode_t, htnode);
-			co_node->htnode.key.i32 = 0;
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
 				free(co_node->timeout_event);

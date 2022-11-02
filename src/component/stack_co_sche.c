@@ -69,11 +69,11 @@ static int gen_co_id() {
 	return id;
 }
 
-StackCoNode_t* alloc_stack_co_node(void) {
+static StackCoNode_t* alloc_stack_co_node(void) {
 	return (StackCoNode_t*)calloc(1, sizeof(StackCoNode_t));
 }
 
-void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
+static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	if (co_node->timeout_event) {
 		rbtimerDetachEvent(co_node->timeout_event);
 		free(co_node->timeout_event);
@@ -305,7 +305,10 @@ StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
 
 StackCo_t* StackCoSche_yield(StackCoSche_t* sche) {
 	do_fiber_switch(sche, sche->sche_fiber);
-	return &sche->resume_co_node->co;
+	if (sche->resume_co_node) {
+		return &sche->resume_co_node->co;
+	}
+	return NULL;
 }
 
 void StackCoSche_resume_co(StackCoSche_t* sche, int co_id, void* ret) {
@@ -343,6 +346,22 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	ListNode_t *lcur, *lnext;
 
 	if (sche->exit_flag) {
+		HashtableNode_t* htnode, *htnext;
+		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = hashtableNextNode(htnode)) {
+			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
+			co_node->co.cancel = 1;
+		}
+		sche->resume_co_node = NULL;
+		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = htnext) {
+			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
+			htnext = hashtableNextNode(htnode);
+
+			hashtableRemoveNode(&sche->block_co_htbl, htnode);
+			co_node->co.ret = NULL;
+			do_fiber_switch(sche, co_node->fiber);
+			fiberFree(co_node->fiber);
+			free(co_node);
+		}
 		return 1;
 	}
 
@@ -391,13 +410,13 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			}
 			htnode->key.i32 = 0;
 			co_node = pod_container_of(htnode, StackCoNode_t, htnode);
-			co_node->co.ret = ret;
-			sche->resume_co_node = co_node;
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
 				free(co_node->timeout_event);
 				co_node->timeout_event = NULL;
 			}
+			co_node->co.ret = ret;
+			sche->resume_co_node = co_node;
 			do_fiber_switch(sche, co_node->fiber);
 			if (!sche->resume_co_node) {
 				fiberFree(co_node->fiber);
