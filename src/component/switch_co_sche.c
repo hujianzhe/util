@@ -28,12 +28,12 @@ typedef struct SwitchResumeEvent_t {
 } SwitchResumeEvent_t;
 
 typedef struct SwitchCoSche_t {
+	volatile int exit_flag;
 	DataQueue_t dq;
 	RBTimer_t timer;
 	CriticalSection_t resume_lock;
 	List_t resume_ev_list;
 	List_t root_co_list;
-	SwitchCoNode_t* cur_co_node;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
 } SwitchCoSche_t;
@@ -126,9 +126,9 @@ SwitchCoSche_t* SwitchCoSche_new(void) {
 		goto err;
 	}
 	lock_ok = 1;
+	sche->exit_flag = 0;
 	listInit(&sche->resume_ev_list);
 	listInit(&sche->root_co_list);
-	sche->cur_co_node = NULL;
 	hashtableInit(&sche->block_co_htbl,
 		sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
 		hashtableDefaultKeyCmp32, hashtableDefaultKeyHash32);
@@ -155,20 +155,6 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 		lnext = lcur->next;
 		free(e);
 	}
-	for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
-		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
-		int status = co_node->co.status;
-		lnext = lcur->next;
-
-		if (status >= 0) {
-			co_node->co.status = SWITCH_STATUS_CANCEL;
-			if (status > 0) {
-				co_node->proc(sche, &co_node->co);
-			}
-		}
-		SwitchCoSche_free_child_co_nodes(sche, co_node);
-		SwitchCoSche_free_co_node(sche, co_node);
-	}
 	while (1) {
 		SwitchCoNode_t* co_node;
 		RBTimerEvent_t* e = rbtimerTimeoutPopup(&sche->timer, LLONG_MAX);
@@ -184,7 +170,7 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	free(sche);
 }
 
-SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), long long msec, void* arg) {
+SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, long long msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
@@ -221,18 +207,18 @@ SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchC
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_new_child_co(SwitchCoSche_t* sche) {
+SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co) {
 	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
-	co_node->parent = sche->cur_co_node;
+	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
 
-	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
+	listPushNodeBack(&co_node->parent->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
+SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long msec) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
@@ -245,7 +231,7 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 	}
 	co_node->proc = empty_proc;
 	co_node->timeout_event = e;
-	co_node->parent = sche->cur_co_node;
+	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
 
 	e->timestamp = gmtimeMillisecond() + msec;
 	e->interval = 0;
@@ -253,11 +239,11 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, long long msec) {
 	e->arg = co_node;
 	rbtimerAddEvent(&sche->timer, co_node->timeout_event);
 
-	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
+	listPushNodeBack(&co_node->parent->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long block_msec) {
+SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long block_msec) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
 
@@ -277,7 +263,7 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long bloc
 	}
 	co_node->proc = empty_proc;
 	co_node->timeout_event = e;
-	co_node->parent = sche->cur_co_node;
+	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
 	co_node->co.id = gen_co_id();
 	co_node->htnode.key.i32 = co_node->co.id;
 	if (hashtableInsertNode(&sche->block_co_htbl, &co_node->htnode) != &co_node->htnode) {
@@ -294,7 +280,7 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, long long bloc
 		rbtimerAddEvent(&sche->timer, co_node->timeout_event);
 	}
 
-	listPushNodeBack(&sche->cur_co_node->childs_list, &co_node->listnode);
+	listPushNodeBack(&co_node->parent->childs_list, &co_node->listnode);
 	return &co_node->co;
 }
 
@@ -347,11 +333,30 @@ void SwitchCoSche_free_child_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 
 int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 	int i;
-	long long cur_msec;
-	ListNode_t *lcur, *lnext;
 	long long wait_msec;
-	long long min_t = rbtimerMiniumTimestamp(&sche->timer);
+	long long cur_msec, min_t;
+	ListNode_t *lcur, *lnext;
 
+	if (sche->exit_flag) {
+		for (lcur = sche->root_co_list.head; lcur; lcur = lnext) {
+			SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
+			int status = co_node->co.status;
+			lnext = lcur->next;
+
+			if (status >= 0) {
+				co_node->co.status = SWITCH_STATUS_CANCEL;
+				if (status > 0) {
+					co_node->proc(sche, &co_node->co);
+				}
+			}
+			SwitchCoSche_free_child_co_nodes(sche, co_node);
+			SwitchCoSche_free_co_node(sche, co_node);
+		}
+		listInit(&sche->root_co_list);
+		return 1;
+	}
+
+	min_t = rbtimerMiniumTimestamp(&sche->timer);
 	if (min_t >= 0) {
 		cur_msec = gmtimeMillisecond();
 		if (min_t <= cur_msec) {
@@ -428,7 +433,6 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
 		lnext = lcur->next;
 
-		sche->cur_co_node = co_node;
 		co_node->proc(sche, &co_node->co);
 		if (co_node->co.status < 0) {
 			listRemoveNode(&sche->root_co_list, lcur);
@@ -436,12 +440,16 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 			SwitchCoSche_free_co_node(sche, co_node);
 		}
 	}
-	sche->cur_co_node = NULL;
 
 	return 0;
 }
 
-void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche) {
+void SwitchCoSche_wake_up(SwitchCoSche_t* sche) {
+	dataqueueWake(&sche->dq);
+}
+
+void SwitchCoSche_exit(SwitchCoSche_t* sche) {
+	sche->exit_flag = 1;
 	dataqueueWake(&sche->dq);
 }
 
