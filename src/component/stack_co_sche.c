@@ -303,10 +303,7 @@ StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
 
 StackCo_t* StackCoSche_yield(StackCoSche_t* sche) {
 	do_fiber_switch(sche, sche->sche_fiber);
-	if (sche->resume_co_node) {
-		return &sche->resume_co_node->co;
-	}
-	return NULL;
+	return &sche->resume_co_node->co;
 }
 
 void StackCoSche_resume_co(StackCoSche_t* sche, int co_id, void* ret) {
@@ -368,13 +365,13 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
 			co_node->co.cancel = 1;
 		}
-		sche->resume_co_node = NULL;
 		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = htnext) {
 			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
 			htnext = hashtableNextNode(htnode);
 
 			hashtableRemoveNode(&sche->block_co_htbl, htnode);
 			co_node->co.ret = NULL;
+			sche->resume_co_node = co_node;
 			do_fiber_switch(sche, co_node->fiber);
 			fiberFree(co_node->fiber);
 			free(co_node);

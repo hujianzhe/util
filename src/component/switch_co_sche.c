@@ -194,25 +194,25 @@ SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, long long mse
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg, void* ret) {
+SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg) {
 	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
 	co_node->proc = proc;
 	co_node->co.arg = arg;
-	co_node->co.ret = ret;
 
 	dataqueuePush(&sche->dq, &co_node->listnode);
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co) {
+SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*)) {
 	SwitchCoNode_t* co_node = SwitchCoSche_alloc_co_node();
 	if (!co_node) {
 		return NULL;
 	}
 	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
+	co_node->proc = proc;
 
 	listPushNodeBack(&co_node->parent->childs_list, &co_node->listnode);
 	return &co_node->co;
@@ -299,7 +299,7 @@ void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret) {
 	dataqueueWake(&sche->dq);
 }
 
-void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
+void SwitchCoSche_cancel_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 	SwitchCoNode_t* co_node;
 	int status = co->status;
 	if (status < 0) {
@@ -321,14 +321,15 @@ void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co) {
 	}
 }
 
-void SwitchCoSche_free_child_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
+void SwitchCoSche_cancel_child_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 	ListNode_t *lcur, *lnext;
-	SwitchCoNode_t* co_node;
-	if (!co || co->status >= 0) {
-		return;
+	SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
+	for (lcur = co_node->childs_list.head; lcur; lcur = lnext) {
+		SwitchCoNode_t* child_co_node = pod_container_of(lcur, SwitchCoNode_t, listnode);
+		lnext = lcur->next;
+
+		SwitchCoSche_cancel_co(sche, &child_co_node->co);
 	}
-	co_node = pod_container_of(co, SwitchCoNode_t, co);
-	SwitchCoSche_free_child_co_nodes(sche, co_node);
 }
 
 int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
