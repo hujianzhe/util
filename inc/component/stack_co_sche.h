@@ -24,8 +24,8 @@ __declspec_dll int StackCoSche_sche(struct StackCoSche_t* sche, int idle_msec);
 __declspec_dll void StackCoSche_wake_up(struct StackCoSche_t* sche);
 __declspec_dll void StackCoSche_exit(struct StackCoSche_t* sche);
 
-__declspec_dll void StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg);
-__declspec_dll void StackCoSche_timeout_msec(struct StackCoSche_t* sche, long long msec, void(*proc)(struct StackCoSche_t*, void*), void* arg);
+__declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg);
+__declspec_dll StackCo_t* StackCoSche_timeout_msec(struct StackCoSche_t* sche, long long msec, void(*proc)(struct StackCoSche_t*, void*), void* arg);
 __declspec_dll StackCo_t* StackCoSche_block_point(struct StackCoSche_t* sche, long long block_msec);
 __declspec_dll StackCo_t* StackCoSche_sleep_msec(struct StackCoSche_t* sche, long long msec);
 
