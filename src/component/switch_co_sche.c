@@ -274,9 +274,6 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, SwitchCo_t* pa
 		free(e);
 		return NULL;
 	}
-	co_node->proc = empty_proc;
-	co_node->timeout_event = e;
-	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
 	co_node->co.id = gen_co_id();
 	co_node->htnode.key.i32 = co_node->co.id;
 	if (hashtableInsertNode(&sche->block_co_htbl, &co_node->htnode) != &co_node->htnode) {
@@ -284,13 +281,16 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, SwitchCo_t* pa
 		free(co_node);
 		return NULL;
 	}
+	co_node->proc = empty_proc;
+	co_node->parent = pod_container_of(parent_co, SwitchCoNode_t, co);
 
 	if (e) {
+		co_node->timeout_event = e;
 		e->timestamp = gmtimeMillisecond() + block_msec;
 		e->interval = 0;
 		e->callback = timer_block_callback;
 		e->arg = co_node;
-		rbtimerAddEvent(&sche->timer, co_node->timeout_event);
+		rbtimerAddEvent(&sche->timer, e);
 	}
 
 	listPushNodeBack(&co_node->parent->childs_list, &co_node->hdr.listnode);
