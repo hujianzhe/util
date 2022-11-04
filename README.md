@@ -11,15 +11,16 @@
 			platform_define			根据系统平台的不同,给出统一的关键字,定义缺失类型,必须的预处理语句,频闭不需要的警告等  
   
 			component/  
-				channel				在下面的reactor,transport_ctx模块的基础上扩展封装,可自定义组包/解包格式,对使用者屏蔽普通TCP/UDP传输,并发的可靠UDP传输与监听,带ACK确认的TCP传输,数据包缓存,断线重连自动重发等实现细节  
+				net_channel_rw		基于下面的reactor模块提供TCP/UDP传输,并发的可靠UDP传输与监听  
 				dataqueue			用于线程间通信的消息队列  
 				log					用于日志读写,支持异步/同步写入文件,且内置日志轮替机制  
 				memheap_mt			基于共享内存的多进程/线程安全的内存管理  
 				memref				基于引用计数实现的内存强引用和观察者  
-				reactor				Reactor模型的事件通知库,支持I/O多路复用,定时/自定义事件,屏蔽数据的发送接受,TCP断线重连重发缓存包等细节问题  
-				rbtimer				一个基于红黑树结构的定时器模块接口(纯净的,比如内部不创建任何调度线程)  
-				rpc_core			基于有栈协程/回调的调度核心机制  
-				switch_co_sche		基于switch case语法的无栈协程调度核心机制  
+				reactor				Reactor模型的网络套接字库  
+				rbtimer				一个基于红黑树结构的定时器模块  
+				rpc_core			基于有栈协程/回调的调度核心机制(准备废弃)  
+				stack_co_sche		基于系统平台API实现的有栈协程调度器  
+				switch_co_sche		基于switch case语法的无栈协程调度器  
 			crt/  
 				geometry/			包含常用2D/3D几何体定义,射线/线段/AABB/OBB/球/平面/矩形/多边形  
 					collision_intersect	3D碰撞静态相交检测接口  
