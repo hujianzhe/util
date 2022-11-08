@@ -364,6 +364,14 @@ void SwitchCoSche_reuse_co(SwitchCo_t* co) {
 	listPushNodeBack(&parent_co_node->childs_reuse_list, &co_node->hdr.listnode);
 }
 
+SwitchCo_t* SwitchCoSche_call_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
+	if (co->status >= 0) {
+		SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
+		co_node->proc(sche, co);
+	}
+	return co;
+}
+
 void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret) {
 	SwitchCoResume_t* e = (SwitchCoResume_t*)malloc(sizeof(SwitchCoResume_t));
 	if (!e) {
