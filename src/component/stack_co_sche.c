@@ -106,7 +106,10 @@ static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node) {
 	if (sche->exec_co_node) {
 		return;
 	}
-	fiberFree(dst_fiber);
+	if (dst_fiber != sche->proc_fiber) {
+		fiberFree(dst_fiber);
+	}
+	dst_co_node->fiber = NULL;
 	for (lcur = dst_co_node->co_list.head; lcur; lcur = lnext) {
 		StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
 		lnext = lcur->next;
@@ -264,34 +267,37 @@ StackCo_t* StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*,
 	return &co_node->co;
 }
 
-StackCo_t* StackCoSche_timeout_msec(struct StackCoSche_t* sche, long long msec, void(*proc)(struct StackCoSche_t*, void*), void* arg) {
-	RBTimerEvent_t* timeout_event;
+StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg) {
+	RBTimerEvent_t* e;
 	StackCoNode_t* co_node;
 
-	timeout_event = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-	if (!timeout_event) {
+	if (tm_msec < 0) {
+		return NULL;
+	}
+	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+	if (!e) {
 		return NULL;
 	}
 	co_node = alloc_stack_co_node();
 	if (!co_node) {
-		free(timeout_event);
+		free(e);
 		return NULL;
 	}
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
 	co_node->proc_arg = arg;
 	co_node->exec_co_node = co_node;
-	co_node->timeout_event = timeout_event;
+	co_node->timeout_event = e;
 
-	timeout_event->timestamp = gmtimeMillisecond() + msec;
-	timeout_event->callback = timer_timeout_callback;
-	timeout_event->arg = co_node;
+	e->timestamp = tm_msec;
+	e->callback = timer_timeout_callback;
+	e->arg = co_node;
 
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
 	return &co_node->co;
 }
 
-StackCo_t* StackCoSche_block_point(StackCoSche_t* sche, long long block_msec) {
+StackCo_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec) {
 	RBTimerEvent_t* e = NULL;
 	StackCoNode_t* co_node = NULL, *exec_co_node;
 	int co_node_alloc = 0;
@@ -300,7 +306,7 @@ StackCo_t* StackCoSche_block_point(StackCoSche_t* sche, long long block_msec) {
 		return NULL;
 	}
 
-	if (block_msec > 0) {
+	if (tm_msec >= 0) {
 		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 		if (!e) {
 			goto err;
@@ -333,7 +339,7 @@ StackCo_t* StackCoSche_block_point(StackCoSche_t* sche, long long block_msec) {
 
 	if (e) {
 		co_node->timeout_event = e;
-		e->timestamp = gmtimeMillisecond() + block_msec;
+		e->timestamp = tm_msec;
 		e->callback = timer_block_callback;
 		e->arg = co_node;
 		rbtimerAddEvent(&sche->timer, e);
@@ -352,7 +358,7 @@ err:
 	return NULL;
 }
 
-StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
+StackCo_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 	RBTimerEvent_t* e;
 	StackCoNode_t* co_node, *exec_co_node;
 	int co_node_alloc = 0;
@@ -361,8 +367,8 @@ StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
 		return NULL;
 	}
 
-	if (msec < 0) {
-		msec = 0;
+	if (tm_msec < 0) {
+		tm_msec = 0;
 	}
 	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
@@ -388,7 +394,7 @@ StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
 	co_node->timeout_event = e;
 	co_node->exec_co_node = exec_co_node;
 
-	e->timestamp = gmtimeMillisecond() + msec;
+	e->timestamp = tm_msec;
 	e->callback = timer_sleep_callback;
 	e->arg = co_node;
 	rbtimerAddEvent(&sche->timer, co_node->timeout_event);
@@ -493,9 +499,11 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			hashtableRemoveNode(&sche->block_co_htbl, htnode);
 			co_node->co.ret = NULL;
 			stack_co_switch(sche, co_node);
+			fiberFree(co_node->fiber);
 			free(co_node);
 		}
 		fiberFree(sche->sche_fiber);
+		fiberFree(sche->proc_fiber);
 		return 1;
 	}
 
@@ -555,6 +563,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 				co_node->timeout_event = NULL;
 			}
 			co_node->co.ret = ret;
+			co_node->co.status = STACK_CO_STATUS_FINISH;
 			stack_co_switch(sche, co_node);
 		}
 	}

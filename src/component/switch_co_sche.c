@@ -206,9 +206,14 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	free(sche);
 }
 
-SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, long long msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg) {
+SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg) {
 	SwitchCoNode_t* co_node;
-	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+	RBTimerEvent_t* e;
+
+	if (tm_msec < 0) {
+		return NULL;
+	}
+	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
 		return NULL;
 	}
@@ -222,7 +227,7 @@ SwitchCo_t* SwitchCoSche_timeout_msec(struct SwitchCoSche_t* sche, long long mse
 	co_node->co.arg = arg;
 	co_node->timeout_event = e;
 
-	e->timestamp = gmtimeMillisecond() + msec;
+	e->timestamp = tm_msec;
 	e->interval = 0;
 	e->callback = timer_timeout_callback;
 	e->arg = co_node;
@@ -265,13 +270,13 @@ SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct 
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long msec) {
+SwitchCo_t* SwitchCoSche_sleep_util(SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec) {
 	SwitchCoNode_t* parent_co_node = pod_container_of(parent_co, SwitchCoNode_t, co);
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
 
-	if (msec < 0) {
-		msec = 0;
+	if (tm_msec < 0) {
+		tm_msec = 0;
 	}
 	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
@@ -293,7 +298,7 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, SwitchCo_t* parent_co,
 	co_node->timeout_event = e;
 	co_node->parent = parent_co_node;
 
-	e->timestamp = gmtimeMillisecond() + msec;
+	e->timestamp = tm_msec;
 	e->interval = 0;
 	e->callback = timer_sleep_callback;
 	e->arg = co_node;
@@ -303,13 +308,13 @@ SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, SwitchCo_t* parent_co,
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long block_msec) {
+SwitchCo_t* SwitchCoSche_block_point_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec) {
 	SwitchCoNode_t* parent_co_node = pod_container_of(parent_co, SwitchCoNode_t, co);
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e = NULL;
 	int co_node_alloc = 0;
 
-	if (block_msec >= 0) {
+	if (tm_msec >= 0) {
 		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 		if (!e) {
 			goto err;
@@ -337,7 +342,7 @@ SwitchCo_t* SwitchCoSche_block_point(struct SwitchCoSche_t* sche, SwitchCo_t* pa
 
 	if (e) {
 		co_node->timeout_event = e;
-		e->timestamp = gmtimeMillisecond() + block_msec;
+		e->timestamp = tm_msec;
 		e->interval = 0;
 		e->callback = timer_block_callback;
 		e->arg = co_node;

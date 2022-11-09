@@ -439,6 +439,9 @@ void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 }
 
 void fiberFree(Fiber_t* fiber) {
+	if (!fiber) {
+		return;
+	}
 #if defined(_WIN32) || defined(_WIN64)
 	if (fiber->m_creater == fiber) {
 		assertTRUE(ConvertFiberToThread());
