@@ -361,6 +361,9 @@ StackCo_t* StackCoSche_sleep_msec(StackCoSche_t* sche, long long msec) {
 		return NULL;
 	}
 
+	if (msec < 0) {
+		msec = 0;
+	}
 	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
 		goto err;

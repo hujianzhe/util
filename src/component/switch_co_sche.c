@@ -268,7 +268,12 @@ SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct 
 SwitchCo_t* SwitchCoSche_sleep_msec(SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long msec) {
 	SwitchCoNode_t* parent_co_node = pod_container_of(parent_co, SwitchCoNode_t, co);
 	SwitchCoNode_t* co_node;
-	RBTimerEvent_t* e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+	RBTimerEvent_t* e;
+
+	if (msec < 0) {
+		msec = 0;
+	}
+	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
 		return NULL;
 	}
