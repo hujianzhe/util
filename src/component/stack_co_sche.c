@@ -237,7 +237,7 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 
 	for (lcur = dataqueuePopWait(&sche->dq, 0, -1); lcur; lcur = lnext) {
 		StackCoHdr_t* hdr = pod_container_of(lcur, StackCoHdr_t, listnode);
-		lcur = lnext;
+		lnext = lcur->next;
 
 		if (STACK_CO_HDR_PROC == hdr->type) {
 			StackCoNode_t* co_node = pod_container_of(hdr, StackCoNode_t, hdr);

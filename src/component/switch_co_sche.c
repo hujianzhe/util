@@ -178,7 +178,7 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 
 	for (lcur = dataqueuePopWait(&sche->dq, 0, -1); lcur; lcur = lnext) {
 		SwitchCoHdr_t* hdr = pod_container_of(lcur, SwitchCoHdr_t, listnode);
-		lcur = lnext;
+		lnext = lcur->next;
 
 		if (SWITCH_CO_HDR_PROC == hdr->type) {
 			SwitchCoNode_t* co_node = pod_container_of(hdr, SwitchCoNode_t, hdr);
