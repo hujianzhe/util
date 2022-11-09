@@ -58,6 +58,7 @@ typedef struct StackCoSche_t {
 	StackCoNode_t* resume_co_node;
 	void* proc_arg;
 	void(*proc)(struct StackCoSche_t*, void*);
+	List_t exec_co_list;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
 } StackCoSche_t;
@@ -88,6 +89,20 @@ static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	free(co_node);
 }
 
+static void free_child_stack_co_nodes(StackCoSche_t* sche, StackCoNode_t* co_node) {
+	ListNode_t* lcur, *lnext;
+	for (lcur = co_node->co_list.head; lcur; lcur = lnext) {
+		StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
+		lnext = lcur->next;
+		free_stack_co_node(sche, co_node);
+	}
+	for (lcur = co_node->reuse_list.head; lcur; lcur = lnext) {
+		StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
+		lnext = lcur->next;
+		free_stack_co_node(sche, co_node);
+	}
+}
+
 static void reset_stack_co_data(StackCo_t* co) {
 	co->id = 0;
 	co->status = STACK_CO_STATUS_START;
@@ -95,33 +110,42 @@ static void reset_stack_co_data(StackCo_t* co) {
 	co->udata = 0;
 }
 
+static void FiberProcEntry(Fiber_t* fiber) {
+	StackCoSche_t* sche = (StackCoSche_t*)fiber->arg;
+	while (1) {
+		StackCoNode_t* exec_co_node = sche->exec_co_node;
+		void(*proc)(StackCoSche_t*, void*) = sche->proc;
+		void* proc_arg = sche->proc_arg;
+		sche->proc = NULL;
+		sche->proc_arg = NULL;
+		proc(sche, proc_arg);
+		exec_co_node->co.status = STACK_CO_STATUS_FINISH;
+		sche->cur_fiber = sche->sche_fiber;
+		fiberSwitch(fiber, sche->sche_fiber);
+	}
+}
+
 static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node) {
 	ListNode_t* lcur, *lnext;
 	Fiber_t* cur_fiber = sche->cur_fiber;
 	Fiber_t* dst_fiber = dst_co_node->fiber;
-	sche->exec_co_node = dst_co_node->exec_co_node;
+	StackCoNode_t* exec_co_node = dst_co_node->exec_co_node;
+
+	sche->exec_co_node = exec_co_node;
 	sche->resume_co_node = dst_co_node;
 	sche->cur_fiber = dst_fiber;
 	fiberSwitch(cur_fiber, dst_fiber);
-	if (sche->exec_co_node) {
+	if (exec_co_node->co.status >= 0) {
 		return;
 	}
 	if (dst_fiber != sche->proc_fiber) {
 		fiberFree(dst_fiber);
 	}
-	dst_co_node->fiber = NULL;
-	for (lcur = dst_co_node->co_list.head; lcur; lcur = lnext) {
-		StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
-		lnext = lcur->next;
-		free_stack_co_node(sche, co_node);
-	}
-	listInit(&dst_co_node->co_list);
-	for (lcur = dst_co_node->reuse_list.head; lcur; lcur = lnext) {
-		StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
-		lnext = lcur->next;
-		free_stack_co_node(sche, co_node);
-	}
-	listInit(&dst_co_node->reuse_list);
+	exec_co_node->fiber = NULL;
+	listRemoveNode(&sche->exec_co_list, &exec_co_node->hdr.listnode);
+	free_child_stack_co_nodes(sche, exec_co_node);
+	free_stack_co_node(sche, exec_co_node);
+	sche->exec_co_node = NULL;
 }
 
 static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
@@ -153,22 +177,8 @@ static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	co_node->fiber = sche->proc_fiber;
 	co_node->timeout_event = NULL;
 	free(e);
+	listPushNodeBack(&sche->exec_co_list, &co_node->hdr.listnode);
 	stack_co_switch(sche, co_node);
-	free(co_node);
-}
-
-static void FiberProcEntry(Fiber_t* fiber) {
-	StackCoSche_t* sche = (StackCoSche_t*)fiber->arg;
-	while (1) {
-		void(*proc)(StackCoSche_t*, void*) = sche->proc;
-		void* proc_arg = sche->proc_arg;
-		sche->proc = NULL;
-		sche->proc_arg = NULL;
-		proc(sche, proc_arg);
-		sche->exec_co_node = NULL;
-		sche->cur_fiber = sche->sche_fiber;
-		fiberSwitch(fiber, sche->sche_fiber);
-	}
 }
 
 static int sche_update_proc_fiber(StackCoSche_t* sche) {
@@ -206,6 +216,7 @@ StackCoSche_t* StackCoSche_new(size_t stack_size) {
 	sche->resume_co_node = NULL;
 	sche->proc_arg = NULL;
 	sche->proc = NULL;
+	listInit(&sche->exec_co_list);
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
 			hashtableDefaultKeyCmp32, hashtableDefaultKeyHash32);
@@ -416,7 +427,10 @@ StackCo_t* StackCoSche_yield(StackCoSche_t* sche) {
 	Fiber_t* cur_fiber = sche->cur_fiber;
 	sche->cur_fiber = sche->sche_fiber;
 	fiberSwitch(cur_fiber, sche->sche_fiber);
-	return &sche->resume_co_node->co;
+	if (sche->resume_co_node) {
+		return &sche->resume_co_node->co;
+	}
+	return NULL;
 }
 
 void StackCoSche_reuse_co(StackCo_t* co) {
@@ -481,26 +495,18 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	}
 
 	if (sche->exit_flag) {
-		HashtableNode_t* htnode, *htnext;
-		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = hashtableNextNode(htnode)) {
-			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
+		for (lcur = sche->exec_co_list.head; lcur; lcur = lnext) {
+			StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
+			lnext = lcur->next;
 
-			co_node->co.status = STACK_CO_STATUS_CANCEL;
-			if (co_node->timeout_event) {
-				rbtimerDetachEvent(co_node->timeout_event);
-				free(co_node->timeout_event);
-				co_node->timeout_event = NULL;
-			}
-		}
-		for (htnode = hashtableFirstNode(&sche->block_co_htbl); htnode; htnode = htnext) {
-			StackCoNode_t* co_node = pod_container_of(htnode, StackCoNode_t, htnode);
-			htnext = hashtableNextNode(htnode);
+			sche->exec_co_node = co_node;
+			sche->resume_co_node = NULL;
+			sche->cur_fiber = co_node->fiber;
+			fiberSwitch(sche->sche_fiber, co_node->fiber);
 
-			hashtableRemoveNode(&sche->block_co_htbl, htnode);
-			co_node->co.ret = NULL;
-			stack_co_switch(sche, co_node);
 			fiberFree(co_node->fiber);
-			free(co_node);
+			free_child_stack_co_nodes(sche, co_node);
+			free_stack_co_node(sche, co_node);
 		}
 		fiberFree(sche->sche_fiber);
 		fiberFree(sche->proc_fiber);
@@ -538,8 +544,8 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			sche->proc_arg = co_node->proc_arg;
 			listInit(&co_node->co_list);
 			co_node->fiber = sche->proc_fiber;
+			listPushNodeBack(&sche->exec_co_list, &co_node->hdr.listnode);
 			stack_co_switch(sche, co_node);
-			free(co_node);
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* e = pod_container_of(hdr, StackCoResume_t, hdr);
