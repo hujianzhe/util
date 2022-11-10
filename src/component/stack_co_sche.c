@@ -151,9 +151,7 @@ static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node) {
 static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	StackCoSche_t* sche = pod_container_of(timer, StackCoSche_t, timer);
 	StackCoNode_t* co_node = (StackCoNode_t*)e->arg;
-	co_node->timeout_event = NULL;
 	co_node->co.status = STACK_CO_STATUS_FINISH;
-	free(e);
 	stack_co_switch(sche, co_node);
 }
 
@@ -162,9 +160,7 @@ static void timer_block_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	StackCoNode_t* co_node = (StackCoNode_t*)e->arg;
 	hashtableRemoveNode(&sche->block_co_htbl, &co_node->htnode);
 	co_node->htnode.key.i32 = 0;
-	co_node->timeout_event = NULL;
 	co_node->co.status = STACK_CO_STATUS_CANCEL;
-	free(e);
 	stack_co_switch(sche, co_node);
 }
 
@@ -311,18 +307,12 @@ StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_mse
 StackCo_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec) {
 	RBTimerEvent_t* e = NULL;
 	StackCoNode_t* co_node = NULL, *exec_co_node;
-	int co_node_alloc = 0;
+	int co_node_alloc = 0, timeout_event_alloc = 0;
 
 	if (sche->cur_fiber == sche->sche_fiber) {
 		return NULL;
 	}
 
-	if (tm_msec >= 0) {
-		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-		if (!e) {
-			goto err;
-		}
-	}
 	exec_co_node = sche->exec_co_node;
 	if (listIsEmpty(&exec_co_node->reuse_list)) {
 		co_node = alloc_stack_co_node();
@@ -335,6 +325,19 @@ StackCo_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec) 
 		ListNode_t* listnode = listPopNodeBack(&exec_co_node->reuse_list);
 		co_node = pod_container_of(listnode, StackCoNode_t, hdr.listnode);
 		reset_stack_co_data(&co_node->co);
+	}
+	if (tm_msec >= 0) {
+		if (co_node->timeout_event) {
+			e = co_node->timeout_event;
+		}
+		else {
+			e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+			if (!e) {
+				goto err;
+			}
+			timeout_event_alloc = 1;
+			co_node->timeout_event = e;
+		}
 	}
 	co_node->co.id = gen_co_id();
 	co_node->htnode.key.i32 = co_node->co.id;
@@ -349,7 +352,6 @@ StackCo_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec) 
 	co_node->exec_co_node = exec_co_node;
 
 	if (e) {
-		co_node->timeout_event = e;
 		e->timestamp = tm_msec;
 		e->callback = timer_block_callback;
 		e->arg = co_node;
@@ -365,14 +367,16 @@ err:
 	else if (co_node) {
 		listPushNodeBack(&exec_co_node->reuse_list, &co_node->hdr.listnode);
 	}
-	free(e);
+	if (timeout_event_alloc) {
+		free(e);
+	}
 	return NULL;
 }
 
 StackCo_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
-	RBTimerEvent_t* e;
-	StackCoNode_t* co_node, *exec_co_node;
-	int co_node_alloc = 0;
+	RBTimerEvent_t* e = NULL;
+	StackCoNode_t* co_node = NULL, *exec_co_node;
+	int co_node_alloc = 0, timeout_event_alloc = 0;
 
 	if (sche->cur_fiber == sche->sche_fiber) {
 		return NULL;
@@ -380,10 +384,6 @@ StackCo_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 
 	if (tm_msec < 0) {
 		tm_msec = 0;
-	}
-	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-	if (!e) {
-		goto err;
 	}
 	exec_co_node = sche->exec_co_node;
 	if (listIsEmpty(&exec_co_node->reuse_list)) {
@@ -398,11 +398,21 @@ StackCo_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 		co_node = pod_container_of(listnode, StackCoNode_t, hdr.listnode);
 		reset_stack_co_data(&co_node->co);
 	}
+	if (co_node->timeout_event) {
+		e = co_node->timeout_event;
+	}
+	else {
+		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+		if (!e) {
+			goto err;
+		}
+		timeout_event_alloc = 1;
+		co_node->timeout_event = e;
+	}
 	if (!sche_update_proc_fiber(sche)) {
 		goto err;
 	}
 	co_node->fiber = sche->cur_fiber;
-	co_node->timeout_event = e;
 	co_node->exec_co_node = exec_co_node;
 
 	e->timestamp = tm_msec;
@@ -419,7 +429,9 @@ err:
 	else if (co_node) {
 		listPushNodeBack(&exec_co_node->reuse_list, &co_node->hdr.listnode);
 	}
-	free(e);
+	if (timeout_event_alloc) {
+		free(e);
+	}
 	return NULL;
 }
 
@@ -565,8 +577,6 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			co_node = pod_container_of(htnode, StackCoNode_t, htnode);
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
-				free(co_node->timeout_event);
-				co_node->timeout_event = NULL;
 			}
 			co_node->co.ret = ret;
 			co_node->co.status = STACK_CO_STATUS_FINISH;
