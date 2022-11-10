@@ -126,7 +126,6 @@ static void FiberProcEntry(Fiber_t* fiber) {
 }
 
 static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node) {
-	ListNode_t* lcur, *lnext;
 	Fiber_t* cur_fiber = sche->cur_fiber;
 	Fiber_t* dst_fiber = dst_co_node->fiber;
 	StackCoNode_t* exec_co_node = dst_co_node->exec_co_node;
