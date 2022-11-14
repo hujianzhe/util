@@ -24,6 +24,18 @@ typedef struct SwitchCo_t {
 
 struct SwitchCoSche_t;
 
+#define	SwitchCo_code_begin(co) \
+switch (co->status) { \
+	case SWITCH_STATUS_START: do
+
+#define	SwitchCo_code_end(co) \
+	while (0); default: \
+	if (co->status >= 0) { \
+		co->status = SWITCH_STATUS_FINISH; \
+	} \
+	SwitchCoSche_cancel_child_co(sche, co); \
+}
+
 #define SwitchCo_yield(co)	do { (co)->status = __COUNTER__ + 1; return; case __COUNTER__: ; } while(0)
 
 #define	SwitchCo_await(sche, co, child_co)	\
