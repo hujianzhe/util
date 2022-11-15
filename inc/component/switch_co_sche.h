@@ -9,7 +9,7 @@
 
 enum {
 	SWITCH_STATUS_CANCEL = -3,
-	SWITCH_STATUS_ERROR = -2,
+	SWITCH_STATUS_DOING = -2,
 	SWITCH_STATUS_FINISH = -1,
 	SWITCH_STATUS_START = 0
 };
@@ -26,17 +26,20 @@ struct SwitchCoSche_t;
 
 #define	SwitchCo_code_begin(co) \
 switch (co->status) { \
-	case SWITCH_STATUS_START: do
+	case SWITCH_STATUS_START: \
+		co->status = SWITCH_STATUS_DOING; \
+		do
 
 #define	SwitchCo_code_end(co) \
-	while (0); default: \
-	if (co->status >= 0) { \
-		co->status = SWITCH_STATUS_FINISH; \
-	} \
-	SwitchCoSche_cancel_child_co(sche, co); \
+		while (0); \
+	default: \
+		if (SWITCH_STATUS_DOING == co->status) { \
+			co->status = SWITCH_STATUS_FINISH; \
+		} \
+		SwitchCoSche_cancel_child_co(sche, co); \
 }
 
-#define SwitchCo_yield(co)	do { (co)->status = __COUNTER__ + 1; return; case __COUNTER__: ; } while(0)
+#define SwitchCo_yield(co)	do { (co)->status = __COUNTER__ + 1; return; case __COUNTER__: (co)->status = SWITCH_STATUS_DOING; } while(0)
 
 #define	SwitchCo_await(sche, co, child_co)	\
 do {	\
