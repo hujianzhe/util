@@ -28,13 +28,10 @@ typedef struct StackCoNode_t {
 	StackCo_t co;
 	Fiber_t* fiber;
 	struct StackCoNode_t* exec_co_node;
-	union {
-		List_t co_list;
-		struct {
-			void(*proc)(struct StackCoSche_t*, void*);
-			void* proc_arg;
-		};
-	};
+	void(*proc)(struct StackCoSche_t*, void*);
+	void* proc_arg;
+	void(*fn_proc_arg_free)(void*);
+	List_t co_list;
 	List_t reuse_list;
 	RBTimerEvent_t* timeout_event;
 	HashtableNode_t htnode;
@@ -57,8 +54,6 @@ typedef struct StackCoSche_t {
 	int stack_size;
 	StackCoNode_t* exec_co_node;
 	StackCoNode_t* resume_co_node;
-	void* proc_arg;
-	void(*proc)(struct StackCoSche_t*, void*);
 	void* userdata;
 	List_t exec_co_list;
 	Hashtable_t block_co_htbl;
@@ -77,7 +72,13 @@ static int gen_co_id() {
 }
 
 static StackCoNode_t* alloc_stack_co_node(void) {
-	return (StackCoNode_t*)calloc(1, sizeof(StackCoNode_t));
+	StackCoNode_t* co_node = (StackCoNode_t*)calloc(1, sizeof(StackCoNode_t));
+	if (!co_node) {
+		return NULL;
+	}
+	listInit(&co_node->co_list);
+	listInit(&co_node->reuse_list);
+	return co_node;
 }
 
 static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
@@ -87,6 +88,9 @@ static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	}
 	if (co_node->htnode.key.i32) {
 		hashtableRemoveNode(&sche->block_co_htbl, &co_node->htnode);
+	}
+	if (co_node->fn_proc_arg_free) {
+		co_node->fn_proc_arg_free(co_node->proc_arg);
 	}
 	free(co_node);
 }
@@ -115,11 +119,7 @@ static void FiberProcEntry(Fiber_t* fiber) {
 	StackCoSche_t* sche = (StackCoSche_t*)fiber->arg;
 	while (1) {
 		StackCoNode_t* exec_co_node = sche->exec_co_node;
-		void(*proc)(StackCoSche_t*, void*) = sche->proc;
-		void* proc_arg = sche->proc_arg;
-		sche->proc = NULL;
-		sche->proc_arg = NULL;
-		proc(sche, proc_arg);
+		exec_co_node->proc(sche, exec_co_node->proc_arg);
 		exec_co_node->co.status = STACK_CO_STATUS_FINISH;
 		sche->cur_fiber = sche->sche_fiber;
 		fiberSwitch(fiber, sche->sche_fiber);
@@ -167,9 +167,7 @@ static void timer_block_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	StackCoSche_t* sche = pod_container_of(timer, StackCoSche_t, timer);
 	StackCoNode_t* co_node = (StackCoNode_t*)e->arg;
-	sche->proc = co_node->proc;
-	sche->proc_arg = co_node->proc_arg;
-	listInit(&co_node->co_list);
+
 	co_node->fiber = sche->proc_fiber;
 	co_node->timeout_event = NULL;
 	free(e);
@@ -210,8 +208,6 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	sche->stack_size = stack_size;
 	sche->exec_co_node = NULL;
 	sche->resume_co_node = NULL;
-	sche->proc_arg = NULL;
-	sche->proc = NULL;
 	sche->userdata = userdata;
 	listInit(&sche->exec_co_list);
 	hashtableInit(&sche->block_co_htbl,
@@ -242,7 +238,7 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* e = pod_container_of(hdr, StackCoResume_t, hdr);
-			if (e->fn_ret_free && e->ret) {
+			if (e->fn_ret_free) {
 				e->fn_ret_free(e->ret);
 			}
 			free(e);
@@ -265,7 +261,7 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 	free(sche);
 }
 
-StackCo_t* StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, void*), void* arg) {
+StackCo_t* StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	StackCoNode_t* co_node = alloc_stack_co_node();
 	if (!co_node) {
 		return NULL;
@@ -273,12 +269,13 @@ StackCo_t* StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*,
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
 	co_node->proc_arg = arg;
+	co_node->fn_proc_arg_free = fn_arg_free;
 	co_node->exec_co_node = co_node;
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
 	return &co_node->co;
 }
 
-StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg) {
+StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	RBTimerEvent_t* e;
 	StackCoNode_t* co_node;
 
@@ -297,6 +294,7 @@ StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_mse
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
 	co_node->proc_arg = arg;
+	co_node->fn_proc_arg_free = fn_arg_free;
 	co_node->exec_co_node = co_node;
 	co_node->timeout_event = e;
 
@@ -557,9 +555,6 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 				rbtimerAddEvent(&sche->timer, co_node->timeout_event);
 				continue;
 			}
-			sche->proc = co_node->proc;
-			sche->proc_arg = co_node->proc_arg;
-			listInit(&co_node->co_list);
 			co_node->fiber = sche->proc_fiber;
 			listPushNodeBack(&sche->exec_co_list, &co_node->hdr.listnode);
 			stack_co_switch(sche, co_node);
@@ -573,7 +568,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			key.i32 = co_resume->co_id;
 			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 			if (!htnode) {
-				if (co_resume->fn_ret_free && co_resume->ret) {
+				if (co_resume->fn_ret_free) {
 					co_resume->fn_ret_free(co_resume->ret);
 				}
 				free(co_resume);
