@@ -13,10 +13,9 @@ enum {
 };
 
 typedef struct StackCo_t {
-	int id;
-	int status;
-	void* ret;
-	size_t udata;
+	int id; /* unique id, user read only */
+	int status; /* switch status, user read only */
+	void* ret; /* resume result */
 } StackCo_t;
 
 struct StackCoSche_t;
