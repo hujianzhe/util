@@ -108,7 +108,6 @@ static void reset_stack_co_data(StackCo_t* co) {
 	co->id = 0;
 	co->status = STACK_CO_STATUS_START;
 	co->ret = NULL;
-	co->udata = 0;
 }
 
 static void FiberProcEntry(Fiber_t* fiber) {

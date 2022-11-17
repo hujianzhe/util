@@ -59,8 +59,8 @@ __declspec_dll void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche);
 __declspec_dll void SwitchCoSche_exit(struct SwitchCoSche_t* sche);
 __declspec_dll void* SwitchCoSche_userdata(struct SwitchCoSche_t* sche);
 
-__declspec_dll SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg);
 __declspec_dll SwitchCo_t* SwitchCoSche_root_function(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg);
+__declspec_dll SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg);
 __declspec_dll SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*));
 __declspec_dll SwitchCo_t* SwitchCoSche_sleep_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec);
 __declspec_dll SwitchCo_t* SwitchCoSche_block_point_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec);

@@ -204,6 +204,19 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	free(sche);
 }
 
+SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg) {
+	SwitchCoNode_t* co_node = alloc_switch_co_node();
+	if (!co_node) {
+		return NULL;
+	}
+	co_node->hdr.type = SWITCH_CO_HDR_PROC;
+	co_node->proc = proc;
+	co_node->co.arg = arg;
+
+	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
+	return &co_node->co;
+}
+
 SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
@@ -229,19 +242,6 @@ SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_
 	e->interval = 0;
 	e->callback = timer_timeout_callback;
 	e->arg = co_node;
-
-	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
-	return &co_node->co;
-}
-
-SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg) {
-	SwitchCoNode_t* co_node = alloc_switch_co_node();
-	if (!co_node) {
-		return NULL;
-	}
-	co_node->hdr.type = SWITCH_CO_HDR_PROC;
-	co_node->proc = proc;
-	co_node->co.arg = arg;
 
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
 	return &co_node->co;
