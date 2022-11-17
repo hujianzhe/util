@@ -52,11 +52,12 @@ do {	\
 extern "C" {
 #endif
 
-__declspec_dll struct SwitchCoSche_t* SwitchCoSche_new(void);
+__declspec_dll struct SwitchCoSche_t* SwitchCoSche_new(void* userdata);
 __declspec_dll void SwitchCoSche_destroy(struct SwitchCoSche_t* sche);
 __declspec_dll int SwitchCoSche_sche(struct SwitchCoSche_t* sche, int idle_msec);
 __declspec_dll void SwitchCoSche_wake_up(struct SwitchCoSche_t* sche);
 __declspec_dll void SwitchCoSche_exit(struct SwitchCoSche_t* sche);
+__declspec_dll void* SwitchCoSche_userdata(struct SwitchCoSche_t* sche);
 
 __declspec_dll SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg);
 __declspec_dll SwitchCo_t* SwitchCoSche_root_function(struct SwitchCoSche_t* sche, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg);

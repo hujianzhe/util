@@ -58,6 +58,7 @@ typedef struct StackCoSche_t {
 	StackCoNode_t* resume_co_node;
 	void* proc_arg;
 	void(*proc)(struct StackCoSche_t*, void*);
+	void* userdata;
 	List_t exec_co_list;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
@@ -188,7 +189,7 @@ static int sche_update_proc_fiber(StackCoSche_t* sche) {
 	return 1;
 }
 
-StackCoSche_t* StackCoSche_new(size_t stack_size) {
+StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	int dq_ok = 0, timer_ok = 0;
 	StackCoSche_t* sche = (StackCoSche_t*)malloc(sizeof(StackCoSche_t));
 	if (!sche) {
@@ -211,6 +212,7 @@ StackCoSche_t* StackCoSche_new(size_t stack_size) {
 	sche->resume_co_node = NULL;
 	sche->proc_arg = NULL;
 	sche->proc = NULL;
+	sche->userdata = userdata;
 	listInit(&sche->exec_co_list);
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
@@ -602,6 +604,10 @@ void StackCoSche_wake_up(StackCoSche_t* sche) {
 void StackCoSche_exit(StackCoSche_t* sche) {
 	sche->exit_flag = 1;
 	dataqueueWake(&sche->dq);
+}
+
+void* StackCoSche_userdata(StackCoSche_t* sche) {
+	return sche->userdata;
 }
 
 #ifdef __cplusplus

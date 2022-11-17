@@ -25,11 +25,12 @@ struct StackCoSche_t;
 extern "C" {
 #endif
 
-__declspec_dll struct StackCoSche_t* StackCoSche_new(size_t stack_size);
+__declspec_dll struct StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata);
 __declspec_dll void StackCoSche_destroy(struct StackCoSche_t* sche);
 __declspec_dll int StackCoSche_sche(struct StackCoSche_t* sche, int idle_msec);
 __declspec_dll void StackCoSche_wake_up(struct StackCoSche_t* sche);
 __declspec_dll void StackCoSche_exit(struct StackCoSche_t* sche);
+__declspec_dll void* StackCoSche_userdata(struct StackCoSche_t* sche);
 
 __declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg);
 __declspec_dll StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg);

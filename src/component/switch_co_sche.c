@@ -40,6 +40,7 @@ typedef struct SwitchCoResume_t {
 
 typedef struct SwitchCoSche_t {
 	volatile int exit_flag;
+	void* userdata;
 	DataQueue_t dq;
 	RBTimer_t timer;
 	CriticalSection_t resume_lock;
@@ -138,7 +139,7 @@ static void timer_block_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	co_node->co.status = SWITCH_STATUS_CANCEL;
 }
 
-SwitchCoSche_t* SwitchCoSche_new(void) {
+SwitchCoSche_t* SwitchCoSche_new(void* userdata) {
 	int dq_ok = 0, timer_ok = 0;
 	SwitchCoSche_t* sche = (SwitchCoSche_t*)malloc(sizeof(SwitchCoSche_t));
 	if (!sche) {
@@ -153,6 +154,7 @@ SwitchCoSche_t* SwitchCoSche_new(void) {
 	}
 	timer_ok = 1;
 	sche->exit_flag = 0;
+	sche->userdata = userdata;
 	listInit(&sche->root_co_list);
 	hashtableInit(&sche->block_co_htbl,
 		sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
@@ -563,6 +565,10 @@ void SwitchCoSche_wake_up(SwitchCoSche_t* sche) {
 void SwitchCoSche_exit(SwitchCoSche_t* sche) {
 	sche->exit_flag = 1;
 	dataqueueWake(&sche->dq);
+}
+
+void* SwitchCoSche_userdata(SwitchCoSche_t* sche) {
+	return sche->userdata;
 }
 
 #ifdef __cplusplus
