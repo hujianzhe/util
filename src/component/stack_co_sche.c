@@ -44,6 +44,7 @@ typedef struct StackCoResume_t {
 	StackCoHdr_t hdr;
 	int co_id;
 	void* ret;
+	void(*fn_ret_free)(void*);
 } StackCoResume_t;
 
 typedef struct StackCoSche_t {
@@ -241,6 +242,9 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* e = pod_container_of(hdr, StackCoResume_t, hdr);
+			if (e->fn_ret_free && e->ret) {
+				e->fn_ret_free(e->ret);
+			}
 			free(e);
 		}
 		else {
@@ -455,7 +459,7 @@ void StackCoSche_reuse_co(StackCo_t* co) {
 	listPushNodeBack(&exec_co_node->reuse_list, &co_node->hdr.listnode);
 }
 
-void StackCoSche_resume_co(StackCoSche_t* sche, int co_id, void* ret) {
+void StackCoSche_resume_co(StackCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*)) {
 	StackCoResume_t* e = (StackCoResume_t*)malloc(sizeof(StackCoResume_t));
 	if (!e) {
 		return;
@@ -463,6 +467,7 @@ void StackCoSche_resume_co(StackCoSche_t* sche, int co_id, void* ret) {
 	e->hdr.type = STACK_CO_HDR_RESUME;
 	e->co_id = co_id;
 	e->ret = ret;
+	e->fn_ret_free = fn_ret_free;
 	dataqueuePush(&sche->dq, &e->hdr.listnode);
 }
 
@@ -560,17 +565,18 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			stack_co_switch(sche, co_node);
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
-			StackCoResume_t* e = pod_container_of(hdr, StackCoResume_t, hdr);
+			StackCoResume_t* co_resume = pod_container_of(hdr, StackCoResume_t, hdr);
 			HashtableNode_t* htnode;
 			HashtableNodeKey_t key;
 			StackCoNode_t* co_node;
-			int co_id = e->co_id;
-			void* ret = e->ret;
 
-			free(e);
-			key.i32 = co_id;
+			key.i32 = co_resume->co_id;
 			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 			if (!htnode) {
+				if (co_resume->fn_ret_free && co_resume->ret) {
+					co_resume->fn_ret_free(co_resume->ret);
+				}
+				free(co_resume);
 				continue;
 			}
 			htnode->key.i32 = 0;
@@ -578,8 +584,9 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
 			}
-			co_node->co.ret = ret;
+			co_node->co.ret = co_resume->ret;
 			co_node->co.status = STACK_CO_STATUS_FINISH;
+			free(co_resume);
 			stack_co_switch(sche, co_node);
 		}
 	}
