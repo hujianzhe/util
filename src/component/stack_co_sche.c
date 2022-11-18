@@ -31,6 +31,7 @@ typedef struct StackCoNode_t {
 	void(*proc)(struct StackCoSche_t*, void*);
 	void* proc_arg;
 	void(*fn_proc_arg_free)(void*);
+	void(*fn_ret_free)(void*);
 	List_t co_list;
 	List_t reuse_list;
 	RBTimerEvent_t* timeout_event;
@@ -91,6 +92,9 @@ static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	}
 	if (co_node->fn_proc_arg_free) {
 		co_node->fn_proc_arg_free(co_node->proc_arg);
+	}
+	if (co_node->fn_ret_free) {
+		co_node->fn_ret_free(co_node->co.ret);
 	}
 	free(co_node);
 }
@@ -447,11 +451,23 @@ StackCo_t* StackCoSche_yield(StackCoSche_t* sche) {
 	return NULL;
 }
 
+void* StackCoSche_pop_co_ret(StackCo_t* co) {
+	StackCoNode_t* co_node = pod_container_of(co, StackCoNode_t, co);
+	void* ret = co->ret;
+	co->ret = NULL;
+	co_node->fn_ret_free = NULL;
+	return ret;
+}
+
 void StackCoSche_reuse_co(StackCo_t* co) {
 	StackCoNode_t* co_node = pod_container_of(co, StackCoNode_t, co);
 	StackCoNode_t* exec_co_node = co_node->exec_co_node;
 	if (!exec_co_node || exec_co_node == co_node) {
 		return;
+	}
+	if (co_node->fn_ret_free) {
+		co_node->fn_ret_free(co->ret);
+		co_node->fn_ret_free = NULL;
 	}
 	listRemoveNode(&exec_co_node->co_list, &co_node->hdr.listnode);
 	listPushNodeBack(&exec_co_node->reuse_list, &co_node->hdr.listnode);
@@ -579,6 +595,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			if (co_node->timeout_event) {
 				rbtimerDetachEvent(co_node->timeout_event);
 			}
+			co_node->fn_ret_free = co_resume->fn_ret_free;
 			co_node->co.ret = co_resume->ret;
 			co_node->co.status = STACK_CO_STATUS_FINISH;
 			free(co_resume);
