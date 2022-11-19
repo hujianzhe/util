@@ -102,7 +102,7 @@ static void free_child_switch_co_nodes(SwitchCoSche_t* sche, SwitchCoNode_t* co_
 static void reset_switch_co_data(SwitchCo_t* co) {
 	co->id = 0;
 	co->status = SWITCH_STATUS_START;
-	co->ctx = co->arg = co->ret = NULL;
+	co->ctx = co->arg = co->resume_ret = NULL;
 }
 
 static void reuse_child_switch_co_nodes(SwitchCoNode_t* co_node) {
@@ -528,7 +528,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 					break;
 				}
 				co_node->co.status = SWITCH_STATUS_FINISH;
-				co_node->co.ret = e->ret;
+				co_node->co.resume_ret = e->ret;
 			} while (0);
 			free(e);
 		}

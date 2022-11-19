@@ -19,7 +19,7 @@ typedef struct SwitchCo_t {
 	int status; /* switch status, user read only */
 	void* ctx; /* hold routine execute context */
 	void* arg; /* routine arguments */
-	void* ret; /* routine result */
+	void* resume_ret; /* resume result */
 } SwitchCo_t;
 
 struct SwitchCoSche_t;
