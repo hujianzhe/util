@@ -25,7 +25,10 @@ typedef struct SwitchCoNode_t {
 	SwitchCoHdr_t hdr;
 	SwitchCo_t co;
 	RBTimerEvent_t* timeout_event;
-	void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*);
+	void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*, void*);
+	void* proc_arg;
+	void(*fn_proc_arg_free)(void*);
+	void(*fn_resume_ret_free)(void*);
 	List_t childs_list;
 	List_t childs_reuse_list;
 	HashtableNode_t htnode;
@@ -36,6 +39,7 @@ typedef struct SwitchCoResume_t {
 	SwitchCoHdr_t hdr;
 	int co_id;
 	void* ret;
+	void(*fn_ret_free)(void*);
 } SwitchCoResume_t;
 
 typedef struct SwitchCoSche_t {
@@ -78,6 +82,15 @@ static void free_switch_co_node(SwitchCoSche_t* sche, SwitchCoNode_t* co_node) {
 	if (co_node->htnode.key.i32) {
 		hashtableRemoveNode(&sche->block_co_htbl, &co_node->htnode);
 	}
+	if (co_node->fn_proc_arg_free) {
+		co_node->fn_proc_arg_free(co_node->proc_arg);
+	}
+	if (co_node->fn_resume_ret_free) {
+		co_node->fn_resume_ret_free(co_node->co.resume_ret);
+	}
+	if (co_node->co.fn_ctx_free) {
+		co_node->co.fn_ctx_free(co_node->co.ctx);
+	}
 	free(co_node);
 }
 
@@ -102,7 +115,8 @@ static void free_child_switch_co_nodes(SwitchCoSche_t* sche, SwitchCoNode_t* co_
 static void reset_switch_co_data(SwitchCo_t* co) {
 	co->id = 0;
 	co->status = SWITCH_STATUS_START;
-	co->ctx = co->arg = co->resume_ret = NULL;
+	co->ctx = NULL;
+	co->resume_ret = NULL;
 }
 
 static void reuse_child_switch_co_nodes(SwitchCoNode_t* co_node) {
@@ -116,7 +130,7 @@ static void reuse_child_switch_co_nodes(SwitchCoNode_t* co_node) {
 	listAppend(&co_node->childs_reuse_list, &co_node->childs_list);
 }
 
-static void empty_proc(SwitchCoSche_t* sche, SwitchCo_t* co) {}
+static void empty_proc(SwitchCoSche_t* sche, SwitchCo_t* co, void* arg) {}
 
 static void timer_sleep_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	SwitchCoNode_t* co_node = (SwitchCoNode_t*)e->arg;
@@ -204,20 +218,21 @@ void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	free(sche);
 }
 
-SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*), void* arg) {
+SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchCoSche_t*, SwitchCo_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	SwitchCoNode_t* co_node = alloc_switch_co_node();
 	if (!co_node) {
 		return NULL;
 	}
 	co_node->hdr.type = SWITCH_CO_HDR_PROC;
 	co_node->proc = proc;
-	co_node->co.arg = arg;
+	co_node->proc_arg = arg;
+	co_node->fn_proc_arg_free = fn_arg_free;
 
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*), void* arg) {
+SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
 
@@ -235,7 +250,8 @@ SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_
 	}
 	co_node->hdr.type = SWITCH_CO_HDR_PROC;
 	co_node->proc = proc;
-	co_node->co.arg = arg;
+	co_node->proc_arg = arg;
+	co_node->fn_proc_arg_free = fn_arg_free;
 	co_node->timeout_event = e;
 
 	e->timestamp = tm_msec;
@@ -247,7 +263,7 @@ SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*)) {
+SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co) {
 	SwitchCoNode_t* parent_co_node = pod_container_of(parent_co, SwitchCoNode_t, co);
 	SwitchCoNode_t* co_node;
 	if (listIsEmpty(&parent_co_node->childs_reuse_list)) {
@@ -262,7 +278,7 @@ SwitchCo_t* SwitchCoSche_new_child_co(SwitchCo_t* parent_co, void(*proc)(struct 
 		reset_switch_co_data(&co_node->co);
 	}
 	co_node->parent = parent_co_node;
-	co_node->proc = proc;
+	co_node->proc = empty_proc;
 
 	listPushNodeBack(&parent_co_node->childs_list, &co_node->hdr.listnode);
 	return &co_node->co;
@@ -384,6 +400,14 @@ err:
 	return NULL;
 }
 
+void* SwitchCoSche_pop_resume_ret(SwitchCo_t* co) {
+	SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
+	void* ret = co->resume_ret;
+	co->resume_ret = NULL;
+	co_node->fn_resume_ret_free = NULL;
+	return ret;
+}
+
 void SwitchCoSche_reuse_co(SwitchCo_t* co) {
 	SwitchCoNode_t* co_node, *parent_co_node;
 	if (co->status >= 0) {
@@ -395,6 +419,14 @@ void SwitchCoSche_reuse_co(SwitchCo_t* co) {
 	if (!parent_co_node) {
 		return;
 	}
+	if (co->fn_ctx_free) {
+		co->fn_ctx_free(co->ctx);
+		co->fn_ctx_free = NULL;
+	}
+	if (co_node->fn_resume_ret_free) {
+		co_node->fn_resume_ret_free(co->resume_ret);
+		co_node->fn_resume_ret_free = NULL;
+	}
 	listRemoveNode(&parent_co_node->childs_list, &co_node->hdr.listnode);
 	listPushNodeBack(&parent_co_node->childs_reuse_list, &co_node->hdr.listnode);
 }
@@ -402,12 +434,16 @@ void SwitchCoSche_reuse_co(SwitchCo_t* co) {
 SwitchCo_t* SwitchCoSche_call_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 	if (co->status >= 0) {
 		SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
-		co_node->proc(sche, co);
+		co_node->proc(sche, co, co_node->proc_arg);
+		if (co->status < 0 && co->fn_ctx_free) {
+			co->fn_ctx_free(co->ctx);
+			co->fn_ctx_free = NULL;
+		}
 	}
 	return co;
 }
 
-void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret) {
+void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*)) {
 	SwitchCoResume_t* e = (SwitchCoResume_t*)malloc(sizeof(SwitchCoResume_t));
 	if (!e) {
 		return;
@@ -415,6 +451,7 @@ void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret) {
 	e->hdr.type = SWITCH_CO_HDR_RESUME;
 	e->co_id = co_id;
 	e->ret = ret;
+	e->fn_ret_free = fn_ret_free;
 
 	dataqueuePush(&sche->dq, &e->hdr.listnode);
 }
@@ -437,7 +474,7 @@ void SwitchCoSche_cancel_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 	}
 	co->status = SWITCH_STATUS_CANCEL;
 	if (status > 0) {
-		co_node->proc(sche, co);
+		co_node->proc(sche, co, co_node->proc_arg);
 	}
 }
 
@@ -467,7 +504,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 			if (status >= 0) {
 				co_node->co.status = SWITCH_STATUS_CANCEL;
 				if (status > 0) {
-					co_node->proc(sche, &co_node->co);
+					co_node->proc(sche, &co_node->co, co_node->proc_arg);
 				}
 			}
 			free_child_switch_co_nodes(sche, co_node);
@@ -508,15 +545,18 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 			listPushNodeFront(&sche->root_co_list, lcur);
 		}
 		else if (SWITCH_CO_HDR_RESUME == hdr->type) {
-			SwitchCoResume_t* e = pod_container_of(hdr, SwitchCoResume_t, hdr);
+			SwitchCoResume_t* co_resume = pod_container_of(hdr, SwitchCoResume_t, hdr);
 			do {
 				HashtableNodeKey_t key;
 				HashtableNode_t* htnode;
 				SwitchCoNode_t* co_node;
 
-				key.i32 = e->co_id;
+				key.i32 = co_resume->co_id;
 				htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 				if (!htnode) {
+					if (co_resume->fn_ret_free) {
+						co_resume->fn_ret_free(co_resume->ret);
+					}
 					break;
 				}
 				htnode->key.i32 = 0;
@@ -525,12 +565,16 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 					rbtimerDetachEvent(co_node->timeout_event);
 				}
 				if (co_node->co.status < 0) {
+					if (co_resume->fn_ret_free) {
+						co_resume->fn_ret_free(co_resume->ret);
+					}
 					break;
 				}
+				co_node->fn_resume_ret_free = co_resume->fn_ret_free;
+				co_node->co.resume_ret = co_resume->ret;
 				co_node->co.status = SWITCH_STATUS_FINISH;
-				co_node->co.resume_ret = e->ret;
 			} while (0);
-			free(e);
+			free(co_resume);
 		}
 	}
 
@@ -547,7 +591,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 		SwitchCoNode_t* co_node = pod_container_of(lcur, SwitchCoNode_t, hdr.listnode);
 		lnext = lcur->next;
 
-		co_node->proc(sche, &co_node->co);
+		co_node->proc(sche, &co_node->co, co_node->proc_arg);
 		if (co_node->co.status < 0) {
 			listRemoveNode(&sche->root_co_list, lcur);
 			free_child_switch_co_nodes(sche, co_node);
