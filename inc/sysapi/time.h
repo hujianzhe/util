@@ -23,6 +23,7 @@ extern int TIMESTAMP_OFFSET_SECOND;
 /* time trasform */
 __declspec_dll int gmtimeTimezoneOffsetSecond(void);
 __declspec_dll time_t gmtimeSecond(void);
+__declspec_dll time_t localWeekBeginGmtSecond(time_t gmt_sec, int tz_off);
 __declspec_dll time_t localtimeSecond(void);
 __declspec_dll long long gmtimeMillisecond(void);
 __declspec_dll struct tm* gmtimeTM(time_t value, struct tm* datetime);

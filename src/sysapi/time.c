@@ -43,6 +43,11 @@ time_t gmtimeSecond(void) {
 	return time(&v);
 }
 
+time_t localWeekBeginGmtSecond(time_t gmt_sec, int tz_off) {
+	/* since from 1970-1-1 0:0:0 */
+	return (gmt_sec - tz_off - 345600) / 604800 * 604800 + 345600 + tz_off;
+}
+
 time_t localtimeSecond(void) {
 	return gmtimeSecond() - gmtimeTimezoneOffsetSecond();
 }
