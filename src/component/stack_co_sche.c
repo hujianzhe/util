@@ -47,6 +47,11 @@ typedef struct StackCoResume_t {
 
 typedef struct StackCoSche_t {
 	volatile int exit_flag;
+	void* userdata;
+	void(*fn_at_exit)(struct StackCoSche_t*, void*);
+	void* fn_at_exit_arg;
+	void(*fn_at_exit_arg_free)(void*);
+
 	DataQueue_t dq;
 	RBTimer_t timer;
 	Fiber_t* proc_fiber;
@@ -55,7 +60,6 @@ typedef struct StackCoSche_t {
 	int stack_size;
 	StackCoNode_t* exec_co_node;
 	StackCoNode_t* resume_co_node;
-	void* userdata;
 	List_t exec_co_list;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
@@ -206,13 +210,16 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	}
 	timer_ok = 1;
 	sche->exit_flag = 0;
+	sche->userdata = userdata;
+	sche->fn_at_exit = NULL;
+	sche->fn_at_exit_arg = NULL;
+	sche->fn_at_exit_arg_free = NULL;
 	sche->proc_fiber = NULL;
 	sche->cur_fiber = NULL;
 	sche->sche_fiber = NULL;
 	sche->stack_size = stack_size;
 	sche->exec_co_node = NULL;
 	sche->resume_co_node = NULL;
-	sche->userdata = userdata;
 	listInit(&sche->exec_co_list);
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
@@ -541,6 +548,13 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		}
 		fiberFree(sche->sche_fiber);
 		fiberFree(sche->proc_fiber);
+
+		if (sche->fn_at_exit) {
+			sche->fn_at_exit(sche, sche->fn_at_exit_arg);
+			if (sche->fn_at_exit_arg_free) {
+				sche->fn_at_exit_arg_free(sche->fn_at_exit_arg);
+			}
+		}
 		return 1;
 	}
 
@@ -626,6 +640,12 @@ void StackCoSche_exit(StackCoSche_t* sche) {
 
 void* StackCoSche_userdata(StackCoSche_t* sche) {
 	return sche->userdata;
+}
+
+void StackCoSche_at_exit(StackCoSche_t* sche, void(*fn_at_exit)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+	sche->fn_at_exit = fn_at_exit;
+	sche->fn_at_exit_arg = arg;
+	sche->fn_at_exit_arg_free = fn_arg_free;
 }
 
 #ifdef __cplusplus

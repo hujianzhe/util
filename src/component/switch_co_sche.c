@@ -45,6 +45,10 @@ typedef struct SwitchCoResume_t {
 typedef struct SwitchCoSche_t {
 	volatile int exit_flag;
 	void* userdata;
+	void(*fn_at_exit)(struct SwitchCoSche_t*, void*);
+	void* fn_at_exit_arg;
+	void(*fn_at_exit_arg_free)(void*);
+
 	DataQueue_t dq;
 	RBTimer_t timer;
 	CriticalSection_t resume_lock;
@@ -169,6 +173,9 @@ SwitchCoSche_t* SwitchCoSche_new(void* userdata) {
 	timer_ok = 1;
 	sche->exit_flag = 0;
 	sche->userdata = userdata;
+	sche->fn_at_exit = NULL;
+	sche->fn_at_exit_arg = NULL;
+	sche->fn_at_exit_arg_free = NULL;
 	listInit(&sche->root_co_list);
 	hashtableInit(&sche->block_co_htbl,
 		sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
@@ -511,6 +518,13 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 			free_switch_co_node(sche, co_node);
 		}
 		listInit(&sche->root_co_list);
+
+		if (sche->fn_at_exit) {
+			sche->fn_at_exit(sche, sche->fn_at_exit_arg);
+			if (sche->fn_at_exit_arg_free) {
+				sche->fn_at_exit_arg_free(sche->fn_at_exit_arg);
+			}
+		}
 		return 1;
 	}
 
@@ -613,6 +627,12 @@ void SwitchCoSche_exit(SwitchCoSche_t* sche) {
 
 void* SwitchCoSche_userdata(SwitchCoSche_t* sche) {
 	return sche->userdata;
+}
+
+void SwitchCoSche_at_exit(SwitchCoSche_t* sche, void(*fn_at_exit)(SwitchCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+	sche->fn_at_exit = fn_at_exit;
+	sche->fn_at_exit_arg = arg;
+	sche->fn_at_exit_arg_free = fn_arg_free;
 }
 
 #ifdef __cplusplus
