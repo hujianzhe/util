@@ -250,7 +250,7 @@ SwitchCo_t* SwitchCoSche_root_function(SwitchCoSche_t* sche, void(*proc)(SwitchC
 	return &co_node->co;
 }
 
-SwitchCo_t* SwitchCoSche_timeout_util(struct SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+SwitchCo_t* SwitchCoSche_timeout_util(SwitchCoSche_t* sche, long long tm_msec, void(*proc)(struct SwitchCoSche_t*, SwitchCo_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	SwitchCoNode_t* co_node;
 	RBTimerEvent_t* e;
 
