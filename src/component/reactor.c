@@ -1050,6 +1050,9 @@ void reactorDestroy(Reactor_t* reactor) {
 			next = cur->next;
 			if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
 				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
+				if (channel->proc->on_free) {
+					channel->proc->on_free(channel);
+				}
 				channelobject_free(channel);
 			}
 			else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
@@ -1065,9 +1068,13 @@ void reactorDestroy(Reactor_t* reactor) {
 		HashtableNode_t *cur, *next;
 		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
+			ChannelBase_t* channel = o->m_channel;
 			next = hashtableNextNode(cur);
-			if (o->m_channel) {
-				channelobject_free(o->m_channel);
+			if (channel) {
+				if (channel->proc->on_free) {
+					channel->proc->on_free(channel);
+				}
+				channelobject_free(channel);
 			}
 			reactorobject_free(o);
 		}
