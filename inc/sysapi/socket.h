@@ -151,6 +151,7 @@ __declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addr
 __declspec_dll FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec);
 __declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
 #define socketTcpListen(sockfd)		(listen(sockfd, SOMAXCONN) == 0)
+__declspec_dll FD_t socketTcpListen2(int family, const char* ip, unsigned short port);
 __declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);
 __declspec_dll FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* p_slen);
 #define	socketShutdown(sockfd, how)	(shutdown(sockfd, how) == 0)
