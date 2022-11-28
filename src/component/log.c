@@ -160,7 +160,7 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 	log_write(log, cache);
 }
 
-Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
+Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char* pathname) {
 	log->m_initok = 0;
 	log->pathname = strdup(pathname);
 	if (!log->pathname)
@@ -171,7 +171,7 @@ Log_t* logInit(Log_t* log, const char ident[64], const char* pathname) {
 	}
 	log->m_fd = INVALID_FD_HANDLE;
 	log->m_filesize = 0;
-	log->m_maxfilesize = ~0;
+	log->m_maxfilesize = maxfilesize;
 	log->m_filesegmentseq = 0;
 	listInit(&log->m_cachelist);
 	log->m_initok = 1;

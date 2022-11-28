@@ -29,7 +29,7 @@ typedef struct Log_t {
 extern "C" {
 #endif
 
-__declspec_dll Log_t* logInit(Log_t* log, const char ident[64], const char* pathname);
+__declspec_dll Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char* pathname);
 __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);
