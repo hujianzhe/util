@@ -13,10 +13,14 @@ enum {
 };
 
 typedef struct StackCo_t {
+	int status; /* switch status, user read only */
+} StackCo_t;
+
+typedef struct StackCoBlock_t {
 	int id; /* unique id, user read only */
 	int status; /* switch status, user read only */
 	void* resume_ret; /* resume result */
-} StackCo_t;
+} StackCoBlock_t;
 
 struct StackCoSche_t;
 
@@ -34,14 +38,14 @@ __declspec_dll void StackCoSche_at_exit(struct StackCoSche_t* sche, void(*fn_at_
 
 __declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 __declspec_dll StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
-__declspec_dll StackCo_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec);
-__declspec_dll StackCo_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long msec);
+__declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec);
+__declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long msec);
 
-__declspec_dll StackCo_t* StackCoSche_yield(struct StackCoSche_t* sche);
-__declspec_dll void* StackCoSche_pop_resume_ret(StackCo_t* co);
-__declspec_dll void StackCoSche_reuse_co(StackCo_t* co);
-__declspec_dll void StackCoSche_resume_co(struct StackCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*));
-__declspec_dll void StackCoSche_cancel_co(struct StackCoSche_t* sche, StackCo_t* co);
+__declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
+__declspec_dll void* StackCoSche_pop_resume_ret(StackCoBlock_t* block);
+__declspec_dll void StackCoSche_reuse_block(StackCoBlock_t* block);
+__declspec_dll void StackCoSche_resume_block(struct StackCoSche_t* sche, int block_id, void* ret, void(*fn_ret_free)(void*));
+__declspec_dll void StackCoSche_cancel_block(struct StackCoSche_t* sche, StackCoBlock_t* block);
 
 #ifdef __cplusplus
 }
