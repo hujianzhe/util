@@ -413,9 +413,6 @@ StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 		return NULL;
 	}
 
-	if (tm_msec < 0) {
-		tm_msec = 0;
-	}
 	exec_co_node = sche->exec_co_node;
 	if (listIsEmpty(&exec_co_node->reuse_block_list)) {
 		block_node = alloc_block_node();
@@ -429,26 +426,30 @@ StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 		block_node = pod_container_of(listnode, StackCoBlockNode_t, listnode);
 		reset_block_data(&block_node->block);
 	}
-	if (block_node->timeout_event) {
-		e = block_node->timeout_event;
-	}
-	else {
-		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-		if (!e) {
-			goto err;
+	if (tm_msec >= 0) {
+		if (block_node->timeout_event) {
+			e = block_node->timeout_event;
 		}
-		timeout_event_alloc = 1;
-		block_node->timeout_event = e;
+		else {
+			e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+			if (!e) {
+				goto err;
+			}
+			timeout_event_alloc = 1;
+			block_node->timeout_event = e;
+		}
 	}
 	if (!sche_update_proc_fiber(sche)) {
 		goto err;
 	}
 	block_node->exec_co_node = exec_co_node;
 
-	e->timestamp = tm_msec;
-	e->callback = timer_sleep_callback;
-	e->arg = block_node;
-	rbtimerAddEvent(&sche->timer, e);
+	if (e) {
+		e->timestamp = tm_msec;
+		e->callback = timer_sleep_callback;
+		e->arg = block_node;
+		rbtimerAddEvent(&sche->timer, e);
+	}
 
 	listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
 	return &block_node->block;

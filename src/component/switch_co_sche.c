@@ -309,9 +309,6 @@ SwitchCo_t* SwitchCoSche_sleep_util(SwitchCoSche_t* sche, SwitchCo_t* parent_co,
 	RBTimerEvent_t* e = NULL;
 	int co_node_alloc = 0, timeout_event_alloc = 0;
 
-	if (tm_msec < 0) {
-		tm_msec = 0;
-	}
 	if (listIsEmpty(&parent_co_node->childs_reuse_list)) {
 		co_node = alloc_switch_co_node();
 		if (!co_node) {
@@ -324,25 +321,29 @@ SwitchCo_t* SwitchCoSche_sleep_util(SwitchCoSche_t* sche, SwitchCo_t* parent_co,
 		co_node = pod_container_of(listnode, SwitchCoNode_t, hdr.listnode);
 		reset_switch_co_data(&co_node->co);
 	}
-	if (co_node->timeout_event) {
-		e = co_node->timeout_event;
-	}
-	else {
-		e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
-		if (!e) {
-			goto err;
+	if (tm_msec >= 0) {
+		if (co_node->timeout_event) {
+			e = co_node->timeout_event;
 		}
-		timeout_event_alloc = 1;
-		co_node->timeout_event = e;
+		else {
+			e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
+			if (!e) {
+				goto err;
+			}
+			timeout_event_alloc = 1;
+			co_node->timeout_event = e;
+		}
 	}
 	co_node->proc = empty_proc;
 	co_node->parent = parent_co_node;
 	co_node->root = sche->exec_root_co;
 
-	e->timestamp = tm_msec;
-	e->callback = timer_sleep_callback;
-	e->arg = co_node;
-	rbtimerAddEvent(&sche->timer, co_node->timeout_event);
+	if (e) {
+		e->timestamp = tm_msec;
+		e->callback = timer_sleep_callback;
+		e->arg = co_node;
+		rbtimerAddEvent(&sche->timer, e);
+	}
 
 	listPushNodeBack(&parent_co_node->childs_list, &co_node->hdr.listnode);
 	return &co_node->co;
