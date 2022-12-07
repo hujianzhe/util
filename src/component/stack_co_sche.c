@@ -48,7 +48,6 @@ typedef struct StackCoResume_t {
 	StackCoHdr_t hdr;
 	int block_id;
 	int status;
-	StackCoBlockNode_t* block_node;
 	void* ret;
 	void(*fn_ret_free)(void*);
 } StackCoResume_t;
@@ -486,11 +485,18 @@ void* StackCoSche_pop_resume_ret(StackCoBlock_t* block) {
 	return ret;
 }
 
-void StackCoSche_reuse_block(StackCoBlock_t* block) {
+void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 	StackCoBlockNode_t* block_node = pod_container_of(block, StackCoBlockNode_t, block);
 	StackCoNode_t* exec_co_node = block_node->exec_co_node;
 	if (!exec_co_node) {
 		return;
+	}
+	if (block_node->timeout_event) {
+		rbtimerDetachEvent(block_node->timeout_event);
+	}
+	if (block_node->htnode.key.i32) {
+		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
+		block_node->htnode.key.i32 = 0;
 	}
 	if (block_node->fn_resume_ret_free) {
 		block_node->fn_resume_ret_free(block->resume_ret);
@@ -512,43 +518,9 @@ void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int statu
 	e->hdr.type = STACK_CO_HDR_RESUME;
 	e->block_id = block_id;
 	e->status = status;
-	e->block_node = NULL;
 	e->ret = ret;
 	e->fn_ret_free = fn_ret_free;
 	dataqueuePush(&sche->dq, &e->hdr.listnode);
-}
-
-void StackCoSche_resume_block(StackCoSche_t* sche, StackCoBlock_t* block, int status, void* ret, void(*fn_ret_free)(void*)) {
-	StackCoBlockNode_t* block_node = pod_container_of(block, StackCoBlockNode_t, block);
-	if (block->status < 0) {
-		return;
-	}
-	if (status >= 0) {
-		return;
-	}
-	block->status = status;
-	if (block_node->timeout_event) {
-		rbtimerDetachEvent(block_node->timeout_event);
-		free(block_node->timeout_event);
-		block_node->timeout_event = NULL;
-	}
-	if (block_node->htnode.key.i32) {
-		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
-		block_node->htnode.key.i32 = 0;
-	}
-	if (sche->exec_co_node != block_node->exec_co_node) {
-		StackCoResume_t* e = (StackCoResume_t*)malloc(sizeof(StackCoResume_t));
-		if (!e) {
-			return;
-		}
-		e->hdr.type = STACK_CO_HDR_RESUME;
-		e->block_id = 0;
-		e->status = status;
-		e->block_node = block_node;
-		e->ret = ret;
-		e->fn_ret_free = fn_ret_free;
-		dataqueuePush(&sche->dq, &e->hdr.listnode);
-	}
 }
 
 int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
@@ -633,27 +605,25 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* co_resume = pod_container_of(hdr, StackCoResume_t, hdr);
-			StackCoBlockNode_t* block_node = co_resume->block_node;
-			if (!block_node) {
-				HashtableNode_t* htnode;
-				HashtableNodeKey_t key;
+			StackCoBlockNode_t* block_node;
+			HashtableNode_t* htnode;
+			HashtableNodeKey_t key;
 
-				key.i32 = co_resume->block_id;
-				htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
-				if (!htnode) {
-					if (co_resume->fn_ret_free) {
-						co_resume->fn_ret_free(co_resume->ret);
-					}
-					free(co_resume);
-					continue;
+			key.i32 = co_resume->block_id;
+			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
+			if (!htnode) {
+				if (co_resume->fn_ret_free) {
+					co_resume->fn_ret_free(co_resume->ret);
 				}
-				htnode->key.i32 = 0;
-				block_node = pod_container_of(htnode, StackCoBlockNode_t, htnode);
-				if (block_node->timeout_event) {
-					rbtimerDetachEvent(block_node->timeout_event);
-				}
-				block_node->block.status = co_resume->status;
+				free(co_resume);
+				continue;
 			}
+			htnode->key.i32 = 0;
+			block_node = pod_container_of(htnode, StackCoBlockNode_t, htnode);
+			if (block_node->timeout_event) {
+				rbtimerDetachEvent(block_node->timeout_event);
+			}
+			block_node->block.status = co_resume->status;
 			block_node->fn_resume_ret_free = co_resume->fn_ret_free;
 			block_node->block.resume_ret = co_resume->ret;
 			free(co_resume);
