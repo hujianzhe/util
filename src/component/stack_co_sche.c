@@ -491,6 +491,7 @@ void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 	if (!exec_co_node) {
 		return;
 	}
+	block_node->exec_co_node = NULL;
 	if (block_node->timeout_event) {
 		rbtimerDetachEvent(block_node->timeout_event);
 	}
