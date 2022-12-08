@@ -31,7 +31,7 @@ switch (co->status) { \
 		co->status = SWITCH_STATUS_DOING; \
 		do
 
-#define	SwitchCo_code_end(co) \
+#define	SwitchCo_code_end(sche, co) \
 		while (0); \
 	default: \
 		if (SWITCH_STATUS_DOING == co->status) { \
@@ -41,7 +41,7 @@ switch (co->status) { \
 			co->fn_ctx_free(co->ctx); \
 			co->fn_ctx_free = NULL; \
 		} \
-		SwitchCoSche_cancel_child_co(sche, co); \
+		SwitchCoSche_reuse_co(sche, co); \
 }
 
 #define SwitchCo_yield(co)	do { (co)->status = __COUNTER__ + 1; return; case __COUNTER__: (co)->status = SWITCH_STATUS_DOING; } while(0)
@@ -62,7 +62,7 @@ do {	\
 			break;	\
 		SwitchCo_yield(co);	\
 	} while (1);	\
-	SwitchCoSche_reuse_co(co->await_co);	\
+	SwitchCoSche_reuse_co(sche, co->await_co);	\
 } while (0)
 
 #ifdef __cplusplus
@@ -84,11 +84,9 @@ __declspec_dll SwitchCo_t* SwitchCoSche_sleep_util(struct SwitchCoSche_t* sche, 
 __declspec_dll SwitchCo_t* SwitchCoSche_block_point_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec);
 
 __declspec_dll void* SwitchCoSche_pop_resume_ret(SwitchCo_t* co);
-__declspec_dll void SwitchCoSche_reuse_co(SwitchCo_t* co);
+__declspec_dll void SwitchCoSche_reuse_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 __declspec_dll SwitchCo_t* SwitchCoSche_call_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 __declspec_dll void SwitchCoSche_resume_co(struct SwitchCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*));
-__declspec_dll void SwitchCoSche_cancel_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
-__declspec_dll void SwitchCoSche_cancel_child_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 
 #ifdef __cplusplus
 }
