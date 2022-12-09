@@ -993,8 +993,11 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 						if (o->stream.m_listened) {
 							reactor_stream_accept(o, timestamp_msec);
 						}
-						else {
+						else if (o->m_connected) {
 							reactor_stream_readev(reactor, o, timestamp_msec);
+						}
+						else {
+							o->m_valid = 0;
 						}
 					}
 					else {
