@@ -18,7 +18,6 @@
 				memref				基于引用计数实现的内存强引用和观察者  
 				reactor				Reactor模型的网络套接字库  
 				rbtimer				一个基于红黑树结构的定时器模块  
-				rpc_core			基于有栈协程/回调的调度核心机制(准备废弃)  
 				stack_co_sche		基于系统平台API实现的有栈协程调度器  
 				switch_co_sche		基于switch case语法的无栈协程调度器  
 			crt/  
