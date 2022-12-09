@@ -40,6 +40,7 @@ typedef struct SwitchCoNode_t {
 typedef struct SwitchCoResume_t {
 	SwitchCoHdr_t hdr;
 	int co_id;
+	int status;
 	void* ret;
 	void(*fn_ret_free)(void*);
 } SwitchCoResume_t;
@@ -469,13 +470,18 @@ SwitchCo_t* SwitchCoSche_call_co(SwitchCoSche_t* sche, SwitchCo_t* co) {
 	return co;
 }
 
-void SwitchCoSche_resume_co(SwitchCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*)) {
-	SwitchCoResume_t* e = (SwitchCoResume_t*)malloc(sizeof(SwitchCoResume_t));
+void SwitchCoSche_resume_co_by_id(SwitchCoSche_t* sche, int co_id, int status, void* ret, void(*fn_ret_free)(void*)) {
+	SwitchCoResume_t* e;
+	if (status >= 0) {
+		return;
+	}
+	e = (SwitchCoResume_t*)malloc(sizeof(SwitchCoResume_t));
 	if (!e) {
 		return;
 	}
 	e->hdr.type = SWITCH_CO_HDR_RESUME;
 	e->co_id = co_id;
+	e->status = status;
 	e->ret = ret;
 	e->fn_ret_free = fn_ret_free;
 
@@ -574,7 +580,7 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 				}
 				co_node->fn_resume_ret_free = co_resume->fn_ret_free;
 				co_node->co.resume_ret = co_resume->ret;
-				co_node->co.status = SWITCH_STATUS_FINISH;
+				co_node->co.status = co_resume->status;
 				if (co_node->root) {
 					co_node->root->ready = 1;
 				}

@@ -86,7 +86,7 @@ __declspec_dll SwitchCo_t* SwitchCoSche_block_point_util(struct SwitchCoSche_t* 
 __declspec_dll void* SwitchCoSche_pop_resume_ret(SwitchCo_t* co);
 __declspec_dll void SwitchCoSche_reuse_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 __declspec_dll SwitchCo_t* SwitchCoSche_call_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
-__declspec_dll void SwitchCoSche_resume_co(struct SwitchCoSche_t* sche, int co_id, void* ret, void(*fn_ret_free)(void*));
+__declspec_dll void SwitchCoSche_resume_co_by_id(struct SwitchCoSche_t* sche, int co_id, int status, void* ret, void(*fn_ret_free)(void*));
 
 #ifdef __cplusplus
 }
