@@ -53,11 +53,12 @@ void memrefDecr(MemRef_t** p_ref) {
 	if (sp_cnt > 1) {
 		return;
 	}
-	if (_xadd32(&ref->wp_cnt, -1) > 1) {
-		return;
-	}
 	if (ref->fn_free) {
 		ref->fn_free(ref->p);
+	}
+	ref->p = NULL;
+	if (_xadd32(&ref->wp_cnt, -1) > 1) {
+		return;
 	}
 	free(ref);
 }
