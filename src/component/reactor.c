@@ -9,9 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
+enum {
+	REACTOR_CHANNEL_REG_CMD = 1,
+	REACTOR_CHANNEL_FREE_CMD,
+	REACTOR_STREAM_SENDFIN_CMD,
+	REACTOR_SEND_PACKET_CMD
+};
 
 static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_msec) {
 	if (timestamp_msec <= 0) {
@@ -864,7 +867,7 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			continue;
 		}
 		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
-			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
 			channelobject_free(channel);
 			continue;
 		}
@@ -876,28 +879,6 @@ static int objht_keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeK
 }
 
 static unsigned int objht_keyhash(const HashtableNodeKey_t* key) { return *(FD_t*)(key->ptr); }
-
-Reactor_t* reactorInit(Reactor_t* reactor) {
-	if (!nioCreate(&reactor->m_nio)) {
-		return NULL;
-	}
-	if (!criticalsectionCreate(&reactor->m_cmdlistlock)) {
-		nioClose(&reactor->m_nio);
-		return NULL;
-	}
-	listInit(&reactor->m_cmdlist);
-	listInit(&reactor->m_invalidlist);
-	listInit(&reactor->m_connect_endlist);
-	hashtableInit(&reactor->m_objht,
-		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
-		objht_keycmp, objht_keyhash);
-	reactor->m_event_msec = 0;
-	return reactor;
-}
-
-void reactorWake(Reactor_t* reactor) {
-	nioWakeup(&reactor->m_nio);
-}
 
 static void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	if (REACTOR_CHANNEL_REG_CMD == cmdnode->type) {
@@ -918,7 +899,7 @@ static void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 		}
 	}
 	else if (REACTOR_CHANNEL_FREE_CMD == cmdnode->type) {
-		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, freecmd);
+		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, m_freecmd);
 		if (_xadd32(&channel->m_refcnt, -1) > 1) {
 			return;
 		}
@@ -942,6 +923,183 @@ static void reactor_commit_cmdlist(Reactor_t* reactor, List_t* cmdlist) {
 	listAppend(&reactor->m_cmdlist, cmdlist);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
 	reactorWake(reactor);
+}
+
+static void reactorpacketFreeList(List_t* pkglist) {
+	if (pkglist) {
+		ListNode_t* cur, *next;
+		for (cur = pkglist->head; cur; cur = next) {
+			next = cur->next;
+			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
+		}
+		listInit(pkglist);
+	}
+}
+
+static void reactorobject_init_comm(ReactorObject_t* o) {
+	o->detach_error = 0;
+	o->m_connected = 0;
+	o->m_channel = NULL;
+	o->m_hashnode.key.ptr = &o->fd;
+	o->m_valid = 1;
+	o->m_has_inserted = 0;
+	o->m_has_detached = 0;
+	o->m_readol_has_commit = 0;
+	o->m_writeol_has_commit = 0;
+	o->m_readol = NULL;
+	o->m_writeol = NULL;
+	o->m_io_event_mask = 0;
+	o->m_invalid_msec = 0;
+	o->m_inbuf = NULL;
+	o->m_inbuflen = 0;
+	o->m_inbufoff = 0;
+	o->m_inbufsize = 0;
+}
+
+static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
+	int fd_create;
+	ReactorObject_t* o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
+	if (!o) {
+		return NULL;
+	}
+	if (INVALID_FD_HANDLE == fd) {
+		fd = socket(domain, socktype, protocol);
+		if (INVALID_FD_HANDLE == fd) {
+			free(o);
+			return NULL;
+		}
+		fd_create = 1;
+	}
+	else {
+		fd_create = 0;
+	}
+	if (!socketNonBlock(fd, TRUE)) {
+		if (fd_create) {
+			socketClose(fd);
+		}
+		free(o);
+		return NULL;
+	}
+	if (SOCK_DGRAM == socktype) {
+		if (!socketUdpConnectReset(fd)) {
+			if (fd_create) {
+				socketClose(fd);
+			}
+			free(o);
+			return NULL;
+		}
+	}
+	o->fd = fd;
+	o->domain = domain;
+	o->socktype = socktype;
+	o->protocol = protocol;
+	o->detach_timeout_msec = 0;
+	if (SOCK_STREAM == socktype) {
+		memset(&o->stream, 0, sizeof(o->stream));
+		o->stream.inbuf_saved = 1;
+		o->dgram_read_fragment_size = 1460;
+	}
+	else {
+		o->dgram_read_fragment_size = 1464;
+	}
+	reactorobject_init_comm(o);
+	return o;
+}
+
+static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+	unsigned int i, nbytes = 0;
+	unsigned int hdrsz;
+	ReactorPacket_t* packet;
+	List_t pklist;
+
+	listInit(&pklist);
+	for (i = 0; i < iovcnt; ++i) {
+		nbytes += iobufLen(iov + i);
+	}
+	unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->proc->on_hdrsize;
+	if (nbytes) {
+		unsigned int off = 0, iov_i = 0, iov_off = 0;
+		unsigned int write_fragment_size = channel->write_fragment_size;
+		unsigned int shardsz = write_fragment_size;
+
+		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, shardsz) : 0);
+		if (shardsz <= hdrsz) {
+			return NULL;
+		}
+		shardsz -= hdrsz;
+		packet = NULL;
+		while (off < nbytes) {
+			unsigned int sz = nbytes - off;
+			if (sz > shardsz) {
+				sz = shardsz;
+			}
+			if (fn_on_hdrsize) {
+				hdrsz = fn_on_hdrsize(channel, sz);
+			}
+			packet = reactorpacketMake(pktype, hdrsz, sz);
+			if (!packet) {
+				break;
+			}
+			packet->channel = channel;
+			packet->_.fragment_eof = 0;
+			listPushNodeBack(&pklist, &packet->cmd._);
+			off += sz;
+			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+			if (channel->write_fragment_with_hdr) {
+				continue;
+			}
+			shardsz = write_fragment_size;
+			hdrsz = 0;
+			fn_on_hdrsize = NULL;
+		}
+		if (!packet) {
+			reactorpacketFreeList(&pklist);
+			return NULL;
+		}
+		packet->_.fragment_eof = 1;
+	}
+	else {
+		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, 0) : 0);
+		if (0 == hdrsz && SOCK_STREAM == channel->socktype) {
+			return packetlist;
+		}
+		packet = reactorpacketMake(pktype, hdrsz, 0);
+		if (!packet) {
+			return NULL;
+		}
+		packet->channel = channel;
+		listPushNodeBack(&pklist, &packet->cmd._);
+	}
+	listAppend(packetlist, &pklist);
+	return packetlist;
+}
+
+/*****************************************************************************************/
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+Reactor_t* reactorInit(Reactor_t* reactor) {
+	if (!nioCreate(&reactor->m_nio)) {
+		return NULL;
+	}
+	if (!criticalsectionCreate(&reactor->m_cmdlistlock)) {
+		nioClose(&reactor->m_nio);
+		return NULL;
+	}
+	listInit(&reactor->m_cmdlist);
+	listInit(&reactor->m_invalidlist);
+	listInit(&reactor->m_connect_endlist);
+	hashtableInit(&reactor->m_objht,
+		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
+		objht_keycmp, objht_keyhash);
+	reactor->m_event_msec = 0;
+	return reactor;
+}
+
+void reactorWake(Reactor_t* reactor) {
+	nioWakeup(&reactor->m_nio);
 }
 
 int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
@@ -1059,7 +1217,7 @@ void reactorDestroy(Reactor_t* reactor) {
 				channelobject_free(channel);
 			}
 			else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
-				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, freecmd);
+				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
 				channelobject_free(channel);
 			}
 			else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
@@ -1092,78 +1250,6 @@ void reactorDestroy(Reactor_t* reactor) {
 	} while (0);
 }
 
-/*****************************************************************************************/
-
-static void reactorobject_init_comm(ReactorObject_t* o) {
-	o->detach_error = 0;
-	o->m_connected = 0;
-	o->m_channel = NULL;
-	o->m_hashnode.key.ptr = &o->fd;
-	o->m_valid = 1;
-	o->m_has_inserted = 0;
-	o->m_has_detached = 0;
-	o->m_readol_has_commit = 0;
-	o->m_writeol_has_commit = 0;
-	o->m_readol = NULL;
-	o->m_writeol = NULL;
-	o->m_io_event_mask = 0;
-	o->m_invalid_msec = 0;
-	o->m_inbuf = NULL;
-	o->m_inbuflen = 0;
-	o->m_inbufoff = 0;
-	o->m_inbufsize = 0;
-}
-
-static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
-	int fd_create;
-	ReactorObject_t* o = (ReactorObject_t*)malloc(sizeof(ReactorObject_t));
-	if (!o) {
-		return NULL;
-	}
-	if (INVALID_FD_HANDLE == fd) {
-		fd = socket(domain, socktype, protocol);
-		if (INVALID_FD_HANDLE == fd) {
-			free(o);
-			return NULL;
-		}
-		fd_create = 1;
-	}
-	else {
-		fd_create = 0;
-	}
-	if (!socketNonBlock(fd, TRUE)) {
-		if (fd_create) {
-			socketClose(fd);
-		}
-		free(o);
-		return NULL;
-	}
-	if (SOCK_DGRAM == socktype) {
-		if (!socketUdpConnectReset(fd)) {
-			if (fd_create) {
-				socketClose(fd);
-			}
-			free(o);
-			return NULL;
-		}
-	}
-	o->fd = fd;
-	o->domain = domain;
-	o->socktype = socktype;
-	o->protocol = protocol;
-	o->detach_timeout_msec = 0;
-	if (SOCK_STREAM == socktype) {
-		memset(&o->stream, 0, sizeof(o->stream));
-		o->stream.inbuf_saved = 1;
-		o->dgram_read_fragment_size = 1460;
-	}
-	else {
-		o->dgram_read_fragment_size = 1464;
-	}
-	reactorobject_init_comm(o);
-	return o;
-}
-
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
 	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
 	if (pkg) {
@@ -1186,17 +1272,6 @@ ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int
 
 void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
-}
-
-void reactorpacketFreeList(List_t* pkglist) {
-	if (pkglist) {
-		ListNode_t* cur, *next;
-		for (cur = pkglist->head; cur; cur = next) {
-			next = cur->next;
-			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, cmd._));
-		}
-		listInit(pkglist);
-	}
 }
 
 ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr) {
@@ -1230,7 +1305,7 @@ ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, 
 	channel->socktype = socktype;
 	channel->m_refcnt = 1;
 	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
-	channel->freecmd.type = REACTOR_CHANNEL_FREE_CMD;
+	channel->m_freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 	if (SOCK_STREAM == socktype) {
 		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
 			int on = 1;
@@ -1263,7 +1338,7 @@ void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel) {
 }
 
 void channelbaseClose(ChannelBase_t* channel) {
-	reactorCommitCmd(NULL, &channel->freecmd);
+	reactorCommitCmd(NULL, &channel->m_freecmd);
 }
 
 ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
@@ -1287,74 +1362,6 @@ ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
 		reactorCommitCmd(channel->reactor, &packet->cmd);
 	}
 	return channel;
-}
-
-static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
-	unsigned int i, nbytes = 0;
-	unsigned int hdrsz;
-	ReactorPacket_t* packet;
-	List_t pklist;
-
-	listInit(&pklist);
-	for (i = 0; i < iovcnt; ++i) {
-		nbytes += iobufLen(iov + i);
-	}
-	unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->proc->on_hdrsize;
-	if (nbytes) {
-		unsigned int off = 0, iov_i = 0, iov_off = 0;
-		unsigned int write_fragment_size = channel->write_fragment_size;
-		unsigned int shardsz = write_fragment_size;
-
-		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, shardsz) : 0);
-		if (shardsz <= hdrsz) {
-			return NULL;
-		}
-		shardsz -= hdrsz;
-		packet = NULL;
-		while (off < nbytes) {
-			unsigned int sz = nbytes - off;
-			if (sz > shardsz) {
-				sz = shardsz;
-			}
-			if (fn_on_hdrsize) {
-				hdrsz = fn_on_hdrsize(channel, sz);
-			}
-			packet = reactorpacketMake(pktype, hdrsz, sz);
-			if (!packet) {
-				break;
-			}
-			packet->channel = channel;
-			packet->_.fragment_eof = 0;
-			listPushNodeBack(&pklist, &packet->cmd._);
-			off += sz;
-			iobufShardCopy(iov, iovcnt, &iov_i, &iov_off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
-			if (channel->write_fragment_with_hdr) {
-				continue;
-			}
-			shardsz = write_fragment_size;
-			hdrsz = 0;
-			fn_on_hdrsize = NULL;
-		}
-		if (!packet) {
-			reactorpacketFreeList(&pklist);
-			return NULL;
-		}
-		packet->_.fragment_eof = 1;
-	}
-	else {
-		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, 0) : 0);
-		if (0 == hdrsz && SOCK_STREAM == channel->socktype) {
-			return packetlist;
-		}
-		packet = reactorpacketMake(pktype, hdrsz, 0);
-		if (!packet) {
-			return NULL;
-		}
-		packet->channel = channel;
-		listPushNodeBack(&pklist, &packet->cmd._);
-	}
-	listAppend(packetlist, &pklist);
-	return packetlist;
 }
 
 ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {

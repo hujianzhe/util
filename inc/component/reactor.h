@@ -14,16 +14,6 @@
 #include "../datastruct/transport_ctx.h"
 
 enum {
-	REACTOR_CHANNEL_REG_CMD = 1,
-	REACTOR_CHANNEL_FREE_CMD,
-
-	REACTOR_STREAM_SENDFIN_CMD,
-
-	REACTOR_SEND_PACKET_CMD,
-
-	REACTOR_USER_CMD
-};
-enum {
 	REACTOR_REG_ERR = 1,
 	REACTOR_IO_ERR,
 	REACTOR_CONNECT_ERR,
@@ -97,7 +87,6 @@ typedef struct ReactorObject_t {
 struct ChannelBaseProc_t;
 
 typedef struct ChannelBase_t {
-	ReactorCmd_t freecmd;
 	ReactorObject_t* o;
 	Reactor_t* reactor;
 	int socktype;
@@ -140,6 +129,7 @@ typedef struct ChannelBase_t {
 	Atom8_t m_has_commit_fincmd;
 	Atom8_t m_reghaspost;
 	ReactorCmd_t m_regcmd;
+	ReactorCmd_t m_freecmd;
 } ChannelBase_t;
 
 typedef struct ChannelBaseProc_t {
@@ -170,7 +160,6 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
-__declspec_dll void reactorpacketFreeList(List_t* pkglist);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
