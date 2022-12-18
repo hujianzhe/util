@@ -1274,23 +1274,17 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr) {
 	ChannelBase_t* channel;
 	int sockaddrlen;
 	ReactorObject_t* o;
 
-	if (sz < sizeof(ChannelBase_t)) {
-		if (sz > 0) {
-			return NULL;
-		}
-		sz = sizeof(ChannelBase_t);
-	}
 	sockaddrlen = sockaddrLength(addr);
 	if (sockaddrlen <= 0) {
 		return NULL;
 	}
 
-	channel = (ChannelBase_t*)calloc(1, sz);
+	channel = (ChannelBase_t*)calloc(1, sizeof(ChannelBase_t));
 	if (!channel) {
 		return NULL;
 	}

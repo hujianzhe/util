@@ -161,7 +161,7 @@ __declspec_dll void reactorDestroy(Reactor_t* reactor);
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(size_t sz, unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr);
+__declspec_dll ChannelBase_t* channelbaseOpen(unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel);
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
