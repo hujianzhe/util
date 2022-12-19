@@ -1274,7 +1274,7 @@ void reactorpacketFree(ReactorPacket_t* pkg) {
 	free(pkg);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, FD_t fd, int socktype, int protocol, const struct sockaddr* addr) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int socktype, const struct sockaddr* addr) {
 	ChannelBase_t* channel;
 	int sockaddrlen;
 	ReactorObject_t* o;
@@ -1288,7 +1288,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, FD_t fd, int socktyp
 	if (!channel) {
 		return NULL;
 	}
-	o = reactorobjectOpen(fd, addr->sa_family, socktype, protocol);
+	o = reactorobjectOpen(fd, addr->sa_family, socktype, 0);
 	if (!o) {
 		free(channel);
 		return NULL;
@@ -1318,7 +1318,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, FD_t fd, int socktyp
 	memcpy(&channel->connect_addr, addr, sockaddrlen);
 	memcpy(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
-	channel->proc = NULL;
+	channel->proc = proc;
 	return channel;
 }
 
