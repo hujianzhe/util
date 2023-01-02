@@ -7,6 +7,8 @@
 #include "../../../inc/crt/geometry/triangle.h"
 #include <stddef.h>
 
+static const unsigned int DEFAULT_RECT_POLYGEN_VERTICE[4] = { 0, 1, 2, 3 };
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,42 +89,45 @@ void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 	mathVec3AddScalar(p[3], rect->w_axis, rect->half_w);
 }
 
-GeometryRect_t* mathRectFromVertices4(GeometryRect_t* rect, const float p[4][3]) {
-	float dot;
-	mathVec3Sub(rect->h_axis, p[1], p[0]);
-	mathVec3Sub(rect->w_axis, p[2], p[1]);
-	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
-	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
-		return NULL;
-	}
-	mathVec3Sub(rect->h_axis, p[3], p[2]);
-	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
-	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
-		return NULL;
-	}
-	mathVec3Sub(rect->w_axis, p[0], p[3]);
-	dot = mathVec3Dot(rect->h_axis, rect->w_axis);
-	if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
-		return NULL;
-	}
-	rect->half_h = mathVec3Normalized(rect->h_axis, rect->h_axis) * 0.5f;
-	rect->half_w = mathVec3Normalized(rect->w_axis, rect->w_axis) * 0.5f;
-	mathVec3Cross(rect->normal, rect->h_axis, rect->w_axis);
-	//mathVec3Normalized(rect->normal, rect->normal);
-	mathVec3Add(rect->o, p[0], p[2]);
-	mathVec3MultiplyScalar(rect->o, rect->o, 0.5f);
-	return rect;
+void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]) {
+	mathRectVertices(rect, p);
+	polygen->v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
+	polygen->v_indices_cnt = 4;
+	polygen->v = (const float(*)[3])p;
+	mathVec3Copy(polygen->normal, rect->normal);
 }
 
 int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
-	if (3 == polygen->v_indices_cnt) {
+	if (polygen->v_indices_cnt < 3) {
+		return 0;
+	}
+	else if (3 == polygen->v_indices_cnt) {
 		float tri[3][3];
 		mathVec3Copy(tri[0], polygen->v[polygen->v_indices[0]]);
 		mathVec3Copy(tri[1], polygen->v[polygen->v_indices[1]]);
 		mathVec3Copy(tri[2], polygen->v[polygen->v_indices[2]]);
 		return mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL);
 	}
-	else if (polygen->v_indices_cnt > 3) {
+	else if (polygen->v_indices == DEFAULT_RECT_POLYGEN_VERTICE) {
+		float ls_vec[3], v[3], dot;
+		mathVec3Sub(v, p, polygen->v[polygen->v_indices[0]]);
+		dot = mathVec3Dot(polygen->normal, v);
+		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+			return 0;
+		}
+		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[1]], polygen->v[polygen->v_indices[0]]);
+		dot = mathVec3Dot(ls_vec, v);
+		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
+			return 0;
+		}
+		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[3]], polygen->v[polygen->v_indices[0]]);
+		dot = mathVec3Dot(ls_vec, v);
+		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
+			return 0;
+		}
+		return 1;
+	}
+	else {
 		unsigned int i;
 		float v[3], dot;
 		mathVec3Sub(v, polygen->v[polygen->v_indices[0]], p);

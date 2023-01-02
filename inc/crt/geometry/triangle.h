@@ -33,7 +33,7 @@ __declspec_dll int mathTriangleHasPoint(const float tri[3][3], const float p[3])
 
 __declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]);
 __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
-__declspec_dll GeometryRect_t* mathRectFromVertices4(GeometryRect_t* rect, const float p[4][3]);
+__declspec_dll void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]);
 
 __declspec_dll int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]);
 

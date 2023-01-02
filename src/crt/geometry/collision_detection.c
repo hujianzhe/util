@@ -8,54 +8,23 @@
 #include "../../../inc/crt/geometry/collision_detection.h"
 #include <stddef.h>
 
-typedef struct GeometryPolygenInner_t {
-	const GeometryPolygen_t* polygen;
-	const GeometryRect_t* rect;
-} GeometryPolygenInner_t;
-
-static const unsigned int DEFAULT_RECT_POLYGEN_VERTICE[4] = { 0, 1, 2, 3 };
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int polygen_inner_has_point(const GeometryPolygenInner_t* inner, const float p[3]);
-
 extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 
-extern int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygenInner_t* gp, float p[3]);
-
-extern int mathPolygenIntersectPolygen(const GeometryPolygenInner_t* gp1, const GeometryPolygenInner_t* gp2);
-
-extern int mathPolygenIntersectPlane(const GeometryPolygenInner_t* gp, const float plane_v[3], const float plane_n[3], float p[3]);
-
-extern int mathSegmentIntersectRect(const float ls[2][3], const GeometryRect_t* rect, float p[3]);
-
-extern int mathRectIntersectRect(const GeometryRect_t* rect1, const GeometryRect_t* rect2);
-
-extern int mathRectIntersectPlane(const GeometryRect_t* rect, const float plane_v[3], const float plane_n[3], float p[3]);
-
-extern int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]);
+extern int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const GeometryPolygen_t* polygen2);
 
 extern int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]);
 
 extern int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
-
-extern int mathSphereIntersectPolygen(const float o[3], float radius, const GeometryPolygenInner_t* gp, float p[3]);
-
-extern int mathSphereIntersectRect(const float o[3], float radius, const GeometryRect_t* rect, float p[3]);
-
-extern int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb);
 
 extern int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]);
 
 extern int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius);
 
 extern int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]);
-
-extern int mathAABBIntersectPolygen(const float o[3], const float half[3], const GeometryPolygenInner_t* gp, float p[3]);
-
-extern int mathAABBIntersectRect(const float o[3], const float half[3], const GeometryRect_t* rect, float p[3]);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -166,16 +135,15 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 	return result;
 }
 
-static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], const GeometryPolygenInner_t* gp, CCTResult_t* result) {
+static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	CCTResult_t* p_result;
-	const GeometryPolygen_t* polygen = gp->polygen;
 	int i;
 	float dot;
 	if (!mathRaycastPlane(o, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->distance > CCT_EPSILON) {
-		return polygen_inner_has_point(gp, result->hit_point) ? result : NULL;
+		return mathPolygenHasPoint(polygen, result->hit_point) ? result : NULL;
 	}
 	dot = mathVec3Dot(dir, polygen->normal);
 	if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
@@ -196,18 +164,6 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 		}
 	}
 	return p_result;
-}
-
-static CCTResult_t* mathRaycastRect(const float o[3], const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, rect };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathRaycastPolygen(o, dir, &gp, result);
 }
 
 static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
@@ -479,15 +435,14 @@ static CCTResult_t* mathAABBcastSegment(const float o[3], const float half[3], c
 	return result;
 }
 
-static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir[3], const GeometryPolygenInner_t* gp, CCTResult_t* result) {
+static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	CCTResult_t *p_result;
-	const GeometryPolygen_t* polygen = gp->polygen;
 	int i;
 	if (!mathSegmentcastPlane(ls, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
-		if (polygen_inner_has_point(gp, result->hit_point)) {
+		if (mathPolygenHasPoint(polygen, result->hit_point)) {
 			return result;
 		}
 	}
@@ -496,7 +451,7 @@ static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir
 			float test_p[3];
 			mathVec3Copy(test_p, ls[i]);
 			mathVec3AddScalar(test_p, dir, result->distance);
-			if (polygen_inner_has_point(gp, test_p)) {
+			if (mathPolygenHasPoint(polygen, test_p)) {
 				return result;
 			}
 		}
@@ -518,34 +473,10 @@ static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir
 	return p_result;
 }
 
-static CCTResult_t* mathPolygencastSegment(const GeometryPolygenInner_t* gp, const float dir[3], const float ls[2][3], CCTResult_t* result) {
+static CCTResult_t* mathPolygencastSegment(const GeometryPolygen_t* polygen, const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	float neg_dir[3];
 	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastPolygen(ls, neg_dir, gp, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathSegmentcastRect(const float ls[2][3], const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, rect };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathSegmentcastPolygen(ls, dir, &gp, result);
-}
-
-static CCTResult_t* mathRectcastSegment(const GeometryRect_t* rect, const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastRect(ls, neg_dir, rect, result)) {
+	if (!mathSegmentcastPolygen(ls, neg_dir, polygen, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -646,10 +577,9 @@ static CCTResult_t* mathSpherecastSegment(const float o[3], const float radius, 
 	return result;
 }
 
-static CCTResult_t* mathPolygencastPlane(const GeometryPolygenInner_t* gp, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1, idx_min = -1;
 	float min_d, dot;
-	const GeometryPolygen_t* polygen = gp->polygen;
 	for (i = 0; i < polygen->v_indices_cnt; ++i) {
 		int cmp;
 		float d;
@@ -699,25 +629,11 @@ static CCTResult_t* mathPolygencastPlane(const GeometryPolygenInner_t* gp, const
 	return result;
 }
 
-static CCTResult_t* mathRectcastPlane(const GeometryRect_t* rect, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, rect };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathPolygencastPlane(&gp, dir, plane_v, plane_n, result);
-}
-
-static CCTResult_t* mathPolygencastPolygen(const GeometryPolygenInner_t* gp1, const float dir[3], const GeometryPolygenInner_t* gp2, CCTResult_t* result) {
+static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, const float dir[3], const GeometryPolygen_t* polygen2, CCTResult_t* result) {
 	CCTResult_t* p_result;
 	int i, flag;
 	float neg_dir[3];
-	const GeometryPolygen_t* polygen1 = gp1->polygen;
-	const GeometryPolygen_t* polygen2 = gp2->polygen;
-	if (mathPolygenIntersectPolygen(gp1, gp2)) {
+	if (mathPolygenIntersectPolygen(polygen1, polygen2)) {
 		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
@@ -746,7 +662,7 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygenInner_t* gp1, co
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygen1->v[polygen1->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygen1->v[polygen1->v_indices[i >= polygen1->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastPolygen((const float(*)[3])edge, dir, gp2, &result_temp)) {
+		if (!mathSegmentcastPolygen((const float(*)[3])edge, dir, polygen2, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -766,7 +682,7 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygenInner_t* gp1, co
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygen2->v[polygen2->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygen2->v[polygen2->v_indices[i >= polygen2->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastPolygen((const float(*)[3])edge, neg_dir, gp1, &result_temp)) {
+		if (!mathSegmentcastPolygen((const float(*)[3])edge, neg_dir, polygen1, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -778,25 +694,6 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygenInner_t* gp1, co
 		p_result->hit_point_cnt = -1;
 	}
 	return p_result;
-}
-
-static CCTResult_t* mathRectcastRect(const GeometryRect_t* rect1, const float dir[3], const GeometryRect_t* rect2, CCTResult_t* result) {
-	float v1[4][3], v2[4][3];
-	GeometryPolygen_t polygen1, polygen2;
-	GeometryPolygenInner_t gp1 = { &polygen1, rect1 }, gp2 = { &polygen2, rect2 };
-
-	mathRectVertices(rect1, v1);
-	polygen1.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen1.v_indices_cnt = 4;
-	polygen1.v = (const float(*)[3])v1;
-	mathVec3Copy(polygen1.normal, rect1->normal);
-
-	mathRectVertices(rect2, v2);
-	polygen2.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen2.v_indices_cnt = 4;
-	polygen2.v = (const float(*)[3])v2;
-	mathVec3Copy(polygen2.normal, rect2->normal);
-	return mathPolygencastPolygen(&gp1, dir, &gp2, result);
 }
 
 static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
@@ -877,23 +774,22 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 	}
 }
 
-static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], const float dir[3], const GeometryPolygenInner_t* gp, CCTResult_t* result) {
+static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	int i;
 	float v[8][3], neg_dir[3];
 	CCTResult_t *p_result;
-	const GeometryPolygen_t* polygen = gp->polygen;
 	if (!mathAABBcastPlane(o, half, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
-		if (polygen_inner_has_point(gp, result->hit_point)) {
+		if (mathPolygenHasPoint(polygen, result->hit_point)) {
 			return result;
 		}
 	}
 	else {
 		mathAABBVertices(o, half, v);
 		for (i = 0; i < 8; ++i) {
-			if (polygen_inner_has_point(gp, v[i])) {
+			if (mathPolygenHasPoint(polygen, v[i])) {
 				return result;
 			}
 		}
@@ -919,34 +815,10 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 	return p_result;
 }
 
-static CCTResult_t* mathPolygencastAABB(const GeometryPolygenInner_t* gp, const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
+static CCTResult_t* mathPolygencastAABB(const GeometryPolygen_t* polygen, const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
 	float neg_dir[3];
 	mathVec3Negate(neg_dir, dir);
-	if (!mathAABBcastPolygen(o, half, neg_dir, gp, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathAABBcastRect(const float o[3], const float half[3], const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, rect };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathAABBcastPolygen(o, half, dir, &gp, result);
-}
-
-static CCTResult_t* mathRectcastAABB(const GeometryRect_t* rect, const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathAABBcastRect(o, half, neg_dir, rect, result)) {
+	if (!mathAABBcastPolygen(o, half, neg_dir, polygen, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -1058,16 +930,15 @@ static CCTResult_t* mathAABBcastSphere(const float center[3], const float half[3
 	return result;
 }
 
-static CCTResult_t* mathSpherecastPolygen(const float o[3], float radius, const float dir[3], const GeometryPolygenInner_t* gp, CCTResult_t* result) {
+static CCTResult_t* mathSpherecastPolygen(const float o[3], float radius, const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	int i;
 	CCTResult_t *p_result = NULL;
-	const GeometryPolygen_t* polygen = gp->polygen;
 	float neg_dir[3];
 	if (!mathSpherecastPlane(o, radius, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
-		if (polygen_inner_has_point(gp, result->hit_point)) {
+		if (mathPolygenHasPoint(polygen, result->hit_point)) {
 			return result;
 		}
 	}
@@ -1092,34 +963,10 @@ static CCTResult_t* mathSpherecastPolygen(const float o[3], float radius, const 
 	return p_result;
 }
 
-static CCTResult_t* mathPolygencastSphere(const GeometryPolygenInner_t* gp, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
+static CCTResult_t* mathPolygencastSphere(const GeometryPolygen_t* polygen, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
 	float neg_dir[3];
 	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastPolygen(o, radius, dir, gp, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathSpherecastRect(const float o[3], float radius, const float dir[3], const GeometryRect_t* rect, CCTResult_t* result) {
-	GeometryPolygen_t polygen;
-	GeometryPolygenInner_t gp = { &polygen, rect };
-	float v[4][3];
-	mathRectVertices(rect, v);
-	polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-	polygen.v_indices_cnt = 4;
-	polygen.v = (const float(*)[3])v;
-	mathVec3Copy(polygen.normal, rect->normal);
-	return mathSpherecastPolygen(o, radius, dir, &gp, result);
-}
-
-static CCTResult_t* mathRectcastSphere(const GeometryRect_t* rect, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastRect(o, radius, neg_dir, rect, result)) {
+	if (!mathSpherecastPolygen(o, radius, dir, polygen, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -1158,14 +1005,9 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				return mathRaycastSegment(one->point, dir, two->segment->v, result);
 			}
-			case GEOMETRY_BODY_RECT:
-			{
-				return mathRaycastRect(one->point, dir, two->rect, result);
-			}
 			case GEOMETRY_BODY_POLYGEN:
 			{
-				GeometryPolygenInner_t gp = { two->polygen };
-				return mathRaycastPolygen(one->point, dir, &gp, result);
+				return mathRaycastPolygen(one->point, dir, two->polygen, result);
 			}
 		}
 	}
@@ -1187,14 +1029,9 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				return mathSegmentcastSphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
 			}
-			case GEOMETRY_BODY_RECT:
-			{
-				return mathSegmentcastRect(one->segment->v, dir, two->rect, result);
-			}
 			case GEOMETRY_BODY_POLYGEN:
 			{
-				GeometryPolygenInner_t gp = { two->polygen };
-				return mathSegmentcastPolygen(one->segment->v, dir, &gp, result);
+				return mathSegmentcastPolygen(one->segment->v, dir, two->polygen, result);
 			}
 		}
 	}
@@ -1216,14 +1053,9 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				return mathAABBcastSegment(one->aabb->o, one->aabb->half, dir, two->segment->v, result);
 			}
-			case GEOMETRY_BODY_RECT:
-			{
-				return mathAABBcastRect(one->aabb->o, one->aabb->half, dir, two->rect, result);
-			}
 			case GEOMETRY_BODY_POLYGEN:
 			{
-				GeometryPolygenInner_t gp = { two->polygen };
-				return mathAABBcastPolygen(one->aabb->o, one->aabb->half, dir, &gp, result);
+				return mathAABBcastPolygen(one->aabb->o, one->aabb->half, dir, two->polygen, result);
 			}
 		}
 	}
@@ -1245,89 +1077,33 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				return mathSpherecastSegment(one->sphere->o, one->sphere->radius, dir, two->segment->v, result);
 			}
-			case GEOMETRY_BODY_RECT:
-			{
-				return mathSpherecastRect(one->sphere->o, one->sphere->radius, dir, two->rect, result);
-			}
 			case GEOMETRY_BODY_POLYGEN:
 			{
-				GeometryPolygenInner_t gp = { two->polygen };
-				return mathSpherecastPolygen(one->sphere->o, one->sphere->radius, dir, &gp, result);
-			}
-		}
-	}
-	else if (GEOMETRY_BODY_RECT == one->type) {
-		switch (two->type) {
-			case GEOMETRY_BODY_SEGMENT:
-			{
-				return mathRectcastSegment(one->rect, dir, two->segment->v, result);
-			}
-			case GEOMETRY_BODY_PLANE:
-			{
-				return mathRectcastPlane(one->rect, dir, two->plane->v, two->plane->normal, result);
-			}
-			case GEOMETRY_BODY_SPHERE:
-			{
-				return mathRectcastSphere(one->rect, dir, two->sphere->o, two->sphere->radius, result);
-			}
-			case GEOMETRY_BODY_AABB:
-			{
-				return mathRectcastAABB(one->rect, dir, two->aabb->o, two->aabb->half, result);
-			}
-			case GEOMETRY_BODY_RECT:
-			{
-				return mathRectcastRect(one->rect, dir, two->rect, result);
-			}
-			case GEOMETRY_BODY_POLYGEN:
-			{
-				float v[4][3];
-				GeometryPolygen_t polygen;
-				GeometryPolygenInner_t gp1 = { &polygen, one->rect };
-				GeometryPolygenInner_t gp2 = { two->polygen };
-				mathRectVertices(one->rect, v);
-				polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-				polygen.v_indices_cnt = 4;
-				polygen.v = (const float(*)[3])v;
-				mathVec3Copy(polygen.normal, one->rect->normal);
-				return mathPolygencastPolygen(&gp1, dir, &gp2, result);
+				return mathSpherecastPolygen(one->sphere->o, one->sphere->radius, dir, two->polygen, result);
 			}
 		}
 	}
 	else if (GEOMETRY_BODY_POLYGEN == one->type) {
-		GeometryPolygenInner_t gp = { one->polygen };
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathPolygencastSegment(&gp, dir, two->segment->v, result);
+				return mathPolygencastSegment(one->polygen, dir, two->segment->v, result);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathPolygencastPlane(&gp, dir, two->plane->v, two->plane->normal, result);
+				return mathPolygencastPlane(one->polygen, dir, two->plane->v, two->plane->normal, result);
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathPolygencastSphere(&gp, dir, two->sphere->o, two->sphere->radius, result);
+				return mathPolygencastSphere(one->polygen, dir, two->sphere->o, two->sphere->radius, result);
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathPolygencastAABB(&gp, dir, two->aabb->o, two->aabb->half, result);
-			}
-			case GEOMETRY_BODY_RECT:
-			{
-				float v[4][3];
-				GeometryPolygen_t polygen;
-				GeometryPolygenInner_t gp2 = { &polygen, two->rect };
-				mathRectVertices(two->rect, v);
-				polygen.v_indices = DEFAULT_RECT_POLYGEN_VERTICE;
-				polygen.v_indices_cnt = 4;
-				polygen.v = (const float(*)[3])v;
-				mathVec3Copy(polygen.normal, two->rect->normal);
-				return mathPolygencastPolygen(&gp, dir, &gp2, result);
+				return mathPolygencastAABB(one->polygen, dir, two->aabb->o, two->aabb->half, result);
 			}
 			case GEOMETRY_BODY_POLYGEN:
 			{
-				GeometryPolygenInner_t gp2 = { two->polygen };
-				return mathPolygencastPolygen(&gp, dir, &gp2, result);
+				return mathPolygencastPolygen(one->polygen, dir, two->polygen, result);
 			}
 		}
 	}
