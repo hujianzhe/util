@@ -696,44 +696,46 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 	return p_result;
 }
 
-static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
-	int res = mathAABBIntersectPlane(o, half, vertice, normal, result->hit_point);
-	if (1 == res) {
-		set_result(result, 0.0f, result->hit_point, normal);
-		return result;
-	}
-	else if (2 == res) {
-		set_result(result, 0.0f, NULL, dir);
-		return result;
-	}
-	else {
-		CCTResult_t* p_result = NULL;
-		float v[8][3];
-		int i;
-		mathAABBVertices(o, half, v);
-		for (i = 0; i < sizeof(v) / sizeof(v[0]); ++i) {
-			int cmp;
-			CCTResult_t result_temp;
-			if (!mathRaycastPlane(v[i], dir, vertice, normal, &result_temp)) {
-				break;
+static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+	CCTResult_t* p_result = NULL;
+	int i, unhit = 0;
+	for (i = 0; i < 8; ++i) {
+		int cmp;
+		CCTResult_t result_temp;
+		if (!mathRaycastPlane(v[i], dir, plane_v, plane_n, &result_temp)) {
+			if (p_result) {
+				set_result(result, 0.0f, NULL, plane_n);
+				return result;
 			}
-			if (!p_result) {
-				copy_result(result, &result_temp);
-				p_result = result;
-				continue;
-			}
-			cmp = fcmpf(p_result->distance, result_temp.distance, CCT_EPSILON);
-			if (cmp < 0) {
-				continue;
-			}
-			if (0 == cmp) {
-				p_result->hit_point_cnt = -1;
-				continue;
-			}
-			copy_result(result, &result_temp);
+			unhit = 1;
+			continue;
 		}
-		return p_result;
+		if (unhit) {
+			set_result(result, 0.0f, NULL, plane_n);
+			return result;
+		}
+		if (!p_result) {
+			copy_result(result, &result_temp);
+			p_result = result;
+			continue;
+		}
+		cmp = fcmpf(p_result->distance, result_temp.distance, CCT_EPSILON);
+		if (cmp < 0) {
+			continue;
+		}
+		if (0 == cmp) {
+			p_result->hit_point_cnt = -1;
+			continue;
+		}
+		copy_result(result, &result_temp);
 	}
+	return p_result;
+}
+
+static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+	float v[8][3];
+	mathAABBVertices(o, half, v);
+	return mathBoxCastPlane((const float(*)[3])v, dir, plane_v, plane_n, result);
 }
 
 static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], const float dir[3], const float o2[3], const float half2[3], CCTResult_t* result) {
