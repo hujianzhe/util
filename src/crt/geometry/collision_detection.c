@@ -394,7 +394,7 @@ static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3]
 	else {
 		CCTResult_t* p_result = NULL;
 		int i;
-		float v[6][3];
+		float v[8][3];
 		mathAABBVertices(o, half, v);
 		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
 			float edge[2][3];
