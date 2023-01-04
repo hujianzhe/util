@@ -166,36 +166,6 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 	return p_result;
 }
 
-static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
-	if (mathAABBHasPoint(aabb_o, aabb_half, o)) {
-		set_result(result, 0.0f, o, dir);
-		return result;
-	}
-	else {
-		CCTResult_t *p_result = NULL;
-		int i;
-		for (i = 0; i < 6; ) {
-			CCTResult_t result_temp;
-			GeometryRect_t rect;
-			mathAABBPlaneRect(aabb_o, aabb_half, i, &rect);
-			if (!mathRaycastPlane(o, dir, rect.o, rect.normal, &result_temp)) {
-				i += 2;
-				continue;
-			}
-			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
-				++i;
-				continue;
-			}
-			if (!p_result || p_result->distance > result_temp.distance) {
-				copy_result(result, &result_temp);
-				p_result = result;
-			}
-			++i;
-		}
-		return p_result;
-	}
-}
-
 static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
 	if (mathOBBHasPoint(obb, o)) {
 		set_result(result, 0.0f, o, dir);
@@ -224,6 +194,12 @@ static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const G
 		}
 		return p_result;
 	}
+}
+
+static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
+	GeometryOBB_t obb;
+	mathOBBFromAABB(&obb, aabb_o, aabb_half);
+	return mathRaycastOBB(o, dir, &obb, result);
 }
 
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
@@ -791,7 +767,10 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 	else {
 		mathAABBVertices(o, half, v);
 		for (i = 0; i < 8; ++i) {
-			if (mathPolygenHasPoint(polygen, v[i])) {
+			float test_p[3];
+			mathVec3Copy(test_p, v[i]);
+			mathVec3AddScalar(test_p, dir, result->distance);
+			if (mathPolygenHasPoint(polygen, test_p)) {
 				return result;
 			}
 		}
