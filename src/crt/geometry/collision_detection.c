@@ -20,11 +20,9 @@ extern int mathSphereIntersectSegment(const float o[3], float radius, const floa
 
 extern int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
 
-extern int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]);
-
-extern int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius);
-
 extern int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3]);
+
+extern int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -809,6 +807,18 @@ static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir
 	return p_result;
 }
 
+static CCTResult_t* mathPolygencastOBB(const GeometryPolygen_t* polygen, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	float neg_dir[3];
+	mathVec3Negate(neg_dir, dir);
+	if (!mathOBBcastPolygen(obb, neg_dir, polygen, result)) {
+		return NULL;
+	}
+	if (result->hit_point_cnt > 0) {
+		mathVec3AddScalar(result->hit_point, dir, result->distance);
+	}
+	return result;
+}
+
 static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	GeometryOBB_t obb;
 	mathOBBFromAABB(&obb, o, half);
@@ -869,8 +879,8 @@ static CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const floa
 	return result;
 }
 
-static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result) {
-	if (mathAABBIntersectSphere(center, half, o, radius)) {
+static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	if (mathSphereIntersectOBB(o, radius, obb)) {
 		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
@@ -881,7 +891,7 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		for (i = 0; i < 6; ++i) {
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
-			mathAABBPlaneRect(center, half, i, &rect);
+			mathOBBPlaneRect(obb, i, &rect);
 			if (!mathSpherecastPlane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
@@ -899,7 +909,7 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		if (p_result) {
 			return p_result;
 		}
-		mathAABBVertices(center, half, v);
+		mathOBBVertices(obb, v);
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
 			float edge[2][3];
@@ -916,6 +926,12 @@ static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const flo
 		}
 		return p_result;
 	}
+}
+
+static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result) {
+	GeometryOBB_t obb;
+	mathOBBFromAABB(&obb, center, half);
+	return mathSpherecastOBB(o, radius, dir, &obb, result);
 }
 
 static CCTResult_t* mathAABBcastSphere(const float center[3], const float half[3], const float dir[3], const float o[3], float radius, CCTResult_t* result) {
@@ -1021,6 +1037,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				return mathSegmentcastPlane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
 			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathSegmentcastOBB(one->segment->v, dir, two->obb, result);
+			}
 			case GEOMETRY_BODY_AABB:
 			{
 				return mathSegmentcastAABB(one->segment->v, dir, two->aabb->o, two->aabb->half, result);
@@ -1061,6 +1081,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 	}
 	else if (GEOMETRY_BODY_SPHERE == one->type) {
 		switch (two->type) {
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, two->obb, result);
+			}
 			case GEOMETRY_BODY_AABB:
 			{
 				return mathSpherecastAABB(one->sphere->o, one->sphere->radius, dir, two->aabb->o, two->aabb->half, result);
@@ -1096,6 +1120,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathPolygencastSphere(one->polygen, dir, two->sphere->o, two->sphere->radius, result);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathPolygencastOBB(one->polygen, dir, two->obb, result);
 			}
 			case GEOMETRY_BODY_AABB:
 			{
