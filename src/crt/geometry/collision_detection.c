@@ -24,7 +24,7 @@ extern int mathAABBIntersectPlane(const float o[3], const float half[3], const f
 
 extern int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius);
 
-extern int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]);
+extern int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3]);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -362,8 +362,8 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 	}
 }
 
-static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
-	if (mathAABBIntersectSegment(o, half, ls)) {
+static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	if (mathOBBIntersectSegment(obb, ls)) {
 		set_result(result, 0.0f, NULL, dir);
 		return result;
 	}
@@ -371,7 +371,7 @@ static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3]
 		CCTResult_t* p_result = NULL;
 		int i;
 		float v[8][3];
-		mathAABBVertices(o, half, v);
+		mathOBBVertices(obb, v);
 		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
 			float edge[2][3];
 			CCTResult_t result_temp;
@@ -387,7 +387,7 @@ static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3]
 		}
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastAABB(ls[i], dir, o, half, &result_temp)) {
+			if (!mathRaycastOBB(ls[i], dir, obb, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -397,6 +397,12 @@ static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3]
 		}
 		return p_result;
 	}
+}
+
+static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
+	GeometryOBB_t obb;
+	mathOBBFromAABB(&obb, o, half);
+	return mathSegmentcastOBB(ls, dir, &obb, result);
 }
 
 static CCTResult_t* mathAABBcastSegment(const float o[3], const float half[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
@@ -708,6 +714,12 @@ static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], co
 	return p_result;
 }
 
+static CCTResult_t* mathOBBcastPlane(const GeometryOBB_t* obb, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+	float v[8][3];
+	mathOBBVertices(obb, v);
+	return mathBoxCastPlane((const float(*)[3])v, dir, plane_v, plane_n, result);
+}
+
 static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float v[8][3];
 	mathAABBVertices(o, half, v);
@@ -752,11 +764,13 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 	}
 }
 
-static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
+static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	int i;
 	float v[8][3], neg_dir[3];
 	CCTResult_t *p_result;
-	if (!mathAABBcastPlane(o, half, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
+
+	mathOBBVertices(obb, v);
+	if (!mathBoxCastPlane(v, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -765,7 +779,6 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 		}
 	}
 	else {
-		mathAABBVertices(o, half, v);
 		for (i = 0; i < 8; ++i) {
 			float test_p[3];
 			mathVec3Copy(test_p, v[i]);
@@ -782,7 +795,7 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastAABB((const float(*)[3])edge, neg_dir, o, half, &result_temp)) {
+		if (!mathSegmentcastOBB((const float(*)[3])edge, neg_dir, obb, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -794,6 +807,12 @@ static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], c
 		mathVec3AddScalar(p_result->hit_point, dir, p_result->distance);
 	}
 	return p_result;
+}
+
+static CCTResult_t* mathAABBcastPolygen(const float o[3], const float half[3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
+	GeometryOBB_t obb;
+	mathOBBFromAABB(&obb, o, half);
+	return mathOBBcastPolygen(&obb, dir, polygen, result);
 }
 
 static CCTResult_t* mathPolygencastAABB(const GeometryPolygen_t* polygen, const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
