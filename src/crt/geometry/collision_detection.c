@@ -14,8 +14,6 @@ extern "C" {
 
 extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 
-extern int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const GeometryPolygen_t* polygen2);
-
 extern int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]);
 
 extern int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
@@ -637,10 +635,6 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 	CCTResult_t* p_result;
 	int i, flag;
 	float neg_dir[3];
-	if (mathPolygenIntersectPolygen(polygen1, polygen2)) {
-		set_result(result, 0.0f, dir);
-		return result;
-	}
 	flag = mathPlaneIntersectPlane(polygen1->v[polygen1->v_indices[0]], polygen1->normal, polygen2->v[polygen2->v_indices[0]], polygen2->normal);
 	if (0 == flag) {
 		float d, dot;
@@ -654,12 +648,6 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 			return NULL;
 		}
 	}
-	else if (2 == flag) {
-		float dot = mathVec3Dot(dir, polygen2->normal);
-		if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
-			return NULL;
-		}
-	}
 	p_result = NULL;
 	for (i = 0; i < polygen1->v_indices_cnt; ) {
 		CCTResult_t result_temp;
@@ -669,16 +657,13 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 		if (!mathSegmentcastPolygen((const float(*)[3])edge, dir, polygen2, &result_temp)) {
 			continue;
 		}
+		if (result_temp.distance <= 0.0f) {
+			return set_result(result, 0.0f, result_temp.hit_normal);
+		}
 		if (!p_result || p_result->distance > result_temp.distance) {
 			p_result = result;
 			copy_result(result, &result_temp);
 		}
-	}
-	if (2 == flag) {
-		if (p_result) {
-			p_result->hit_point_cnt = -1;
-		}
-		return p_result;
 	}
 	mathVec3Negate(neg_dir, dir);
 	for (i = 0; i < polygen2->v_indices_cnt; ) {
@@ -688,6 +673,9 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 		mathVec3Copy(edge[1], polygen2->v[polygen2->v_indices[i >= polygen2->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastPolygen((const float(*)[3])edge, neg_dir, polygen1, &result_temp)) {
 			continue;
+		}
+		if (result_temp.distance <= 0.0f) {
+			return set_result(result, 0.0f, result_temp.hit_normal);
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
 			p_result = result;
