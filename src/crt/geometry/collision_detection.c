@@ -312,7 +312,41 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		set_result(result, 0.0f, dir);
 		return result;
 	}
-	else if (GEOMETRY_LINE_PARALLEL == line_mask || GEOMETRY_LINE_CROSS == line_mask) {
+	else if (GEOMETRY_LINE_PARALLEL == line_mask) {
+		CCTResult_t* p_result = NULL;
+		float neg_dir[3];
+		int i;
+		for (i = 0; i < 2; ++i) {
+			CCTResult_t result_temp;
+			if (!mathRaycastSegment(ls1[i], dir, ls2, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		if (p_result) {
+			p_result->hit_point_cnt = -1;
+			return p_result;
+		}
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < 2; ++i) {
+			CCTResult_t result_temp;
+			if (!mathRaycastSegment(ls2[i], neg_dir, ls1, &result_temp)) {
+				continue;
+			}
+			if (!p_result || p_result->distance > result_temp.distance) {
+				p_result = result;
+				copy_result(p_result, &result_temp);
+			}
+		}
+		if (p_result) {
+			p_result->hit_point_cnt = -1;
+		}
+		return p_result;
+	}
+	else if (GEOMETRY_LINE_CROSS == line_mask) {
 		CCTResult_t* p_result = NULL;
 		float neg_dir[3];
 		int i;
