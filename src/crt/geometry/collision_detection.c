@@ -267,7 +267,7 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 		}
 		else {
 			const float *p = NULL;
-			if (fcmpf(d[0], 0.0f, CCT_EPSILON) > 0) {
+			if (d[0] > 0.0f) {
 				if (d[0] < d[1]) {
 					min_d = d[0];
 					p = ls[0];
