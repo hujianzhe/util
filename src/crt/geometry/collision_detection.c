@@ -559,8 +559,9 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 					float new_ls[2][3], d;
 					if (res > 0) {
 						float cos_theta = mathVec3Dot(plo, dir);
-						if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) <= 0)
+						if (cos_theta <= CCT_EPSILON) {
 							return NULL;
+						}
 						d = mathVec3Normalized(plo, plo);
 						cos_theta = mathVec3Dot(plo, dir);
 						d -= circle_radius;
@@ -612,7 +613,7 @@ static CCTResult_t* mathSpherecastSegment(const float o[3], const float radius, 
 }
 
 static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
-	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1, idx_min = -1;
+	int i, has_gt0 = 0, has_le0 = 0, idx_min = -1;
 	float min_d, dot;
 	for (i = 0; i < polygen->v_indices_cnt; ++i) {
 		int cmp;
@@ -633,26 +634,16 @@ static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const
 			}
 			has_le0 = 1;
 		}
-		else if (idx_0 >= 0) {
-			set_result(result, 0.0f, dir);
-			return result;
+		if (!i || fabsf(min_d) > fabsf(d)) {
+			min_d = d;
+			idx_min = i;
 		}
-		else {
-			idx_0 = i;
+		else if (fabsf(min_d) >= fabsf(d) - CCT_EPSILON) {
+			idx_min = -1;
 		}
-		if (i && fabsf(min_d) < fabsf(d)) {
-			continue;
-		}
-		min_d = d;
-		idx_min = i;
-	}
-	if (idx_0 >= 0) {
-		set_result(result, 0.0f, plane_n);
-		add_result_hit_point(result, polygen->v[polygen->v_indices[idx_0]]);
-		return result;
 	}
 	dot = mathVec3Dot(dir, plane_n);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+	if (dot <= CCT_EPSILON && dot >= -CCT_EPSILON) {
 		return NULL;
 	}
 	min_d /= dot;
@@ -660,8 +651,10 @@ static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const
 		return NULL;
 	}
 	set_result(result, min_d, plane_n);
-	add_result_hit_point(result, polygen->v[polygen->v_indices[idx_min]]);
-	mathVec3AddScalar(result->hit_point, dir, min_d);
+	if (idx_min >= 0) {
+		add_result_hit_point(result, polygen->v[polygen->v_indices[idx_min]]);
+		mathVec3AddScalar(result->hit_point, dir, min_d);
+	}
 	return result;
 }
 
