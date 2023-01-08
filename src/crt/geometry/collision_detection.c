@@ -810,7 +810,7 @@ static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir
 	CCTResult_t *p_result;
 
 	mathOBBVertices(obb, v);
-	if (!mathBoxCastPlane(v, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
+	if (!mathBoxCastPlane((const float(*)[3])v, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
