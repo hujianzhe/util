@@ -32,7 +32,7 @@ static CCTResult_t* copy_result(CCTResult_t* dst, CCTResult_t* src) {
 	}
 	dst->distance = src->distance;
 	dst->hit_point_cnt = src->hit_point_cnt;
-	if (1 == src->hit_point_cnt) {
+	if (src->hit_point_cnt > 0) {
 		mathVec3Copy(dst->hit_point, src->hit_point);
 	}
 	mathVec3Copy(dst->hit_normal, src->hit_normal);
@@ -796,6 +796,9 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 				p_result = result;
 				copy_result(p_result, &result_temp);
 			}
+		}
+		if (p_result) {
+			p_result->hit_point_cnt = -1;
 		}
 		return p_result;
 	}
