@@ -472,16 +472,14 @@ static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec)
 }
 
 static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
-	List_t finishedlist;
 	ListNode_t* cur, *next;
 	ChannelBase_t* channel = o->m_channel;
 	StreamTransportCtx_t* ctxptr = &channel->stream_ctx;
-	for (cur = ctxptr->sendlist.head; cur; cur = cur->next) {
+	for (cur = ctxptr->sendlist.head; cur; cur = next) {
 		int res;
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
-		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			continue;
-		}
+		next = cur->next;
+
 		res = send(o->fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
@@ -493,21 +491,16 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
+			listRemoveNode(&ctxptr->sendlist, cur);
+			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
 		if (reactorobject_request_write(reactor, o)) {
 			break;
 		}
-		else {
-			o->m_valid = 0;
-			o->detach_error = REACTOR_IO_ERR;
-			return;
-		}
-	}
-	finishedlist = streamtransportctxRemoveFinishedSendPacket(ctxptr);
-	for (cur = finishedlist.head; cur; cur = next) {
-		next = cur->next;
-		reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
+		o->m_valid = 0;
+		o->detach_error = REACTOR_IO_ERR;
+		return;
 	}
 	if (ctxptr->sendlist.head) {
 		return;
@@ -725,9 +718,6 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-		if (packet->_.off >= packet->_.hdrlen + packet->_.bodylen) {
-			return;
-		}
 		if (!reactorobject_request_write(reactor, o)) {
 			o->m_valid = 0;
 			o->detach_error = REACTOR_IO_ERR;
