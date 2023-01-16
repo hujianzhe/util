@@ -939,7 +939,7 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 			if (!mathSpherecastPlane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
-			if (fcmpf(result_temp.distance, 0.0, CCT_EPSILON) == 0) {
+			if (fcmpf(result_temp.distance, 0.0f, CCT_EPSILON) == 0) {
 				continue;
 			}
 			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
