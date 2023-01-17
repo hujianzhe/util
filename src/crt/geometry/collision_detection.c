@@ -68,7 +68,7 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 	mathVec3Cross(N, v0, v1);
 	if (mathVec3IsZero(N)) {
 		dot = mathVec3Dot(v0, v1);
-		if (dot <= CCT_EPSILON) {
+		if (dot <= 0.0f) {
 			set_result(result, 0.0f, dir);
 			add_result_hit_point(result, o);
 			return result;
@@ -78,7 +78,7 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 			return NULL;
 		}
 		dot = mathVec3Dot(dir, v0);
-		if (dot < -CCT_EPSILON) {
+		if (dot < 0.0f) {
 			return NULL;
 		}
 		if (mathVec3LenSq(v0) < mathVec3LenSq(v1)) {
@@ -110,7 +110,7 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 		mathVec3Sub(v0, ls[0], p);
 		mathVec3Sub(v1, ls[1], p);
 		dot = mathVec3Dot(v0, v1);
-		if (dot > CCT_EPSILON) {
+		if (dot > 0.0f) {
 			return NULL;
 		}
 		set_result(result, d, op);
@@ -132,7 +132,7 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 		return NULL;
 	}
 	d /= cos_theta;
-	if (d < -CCT_EPSILON) {
+	if (d < 0.0f) {
 		return NULL;
 	}
 	set_result(result, d, plane_n);
@@ -148,7 +148,7 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 	if (!mathRaycastPlane(o, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
-	if (result->distance > CCT_EPSILON) {
+	if (result->distance > 0.0f) {
 		return mathPolygenHasPoint(polygen, result->hit_point) ? result : NULL;
 	}
 	dot = mathVec3Dot(dir, polygen->normal);
@@ -215,7 +215,7 @@ static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], cons
 	float radius2 = sp_radius * sp_radius;
 	mathVec3Sub(oc, sp_o, o);
 	oc2 = mathVec3LenSq(oc);
-	if (oc2 <= radius2 + CCT_EPSILON) {
+	if (oc2 <= radius2) {
 		set_result(result, 0.0f, dir);
 		add_result_hit_point(result, o);
 		return result;
@@ -225,7 +225,7 @@ static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], cons
 		return NULL;
 	}
 	dr2 = oc2 - dir_d * dir_d;
-	if (dr2 > radius2 + CCT_EPSILON) {
+	if (dr2 > radius2) {
 		return NULL;
 	}
 	dir_d -= sqrtf(radius2 - dr2);
@@ -260,7 +260,7 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 		if (fcmpf(d[0], d[1], CCT_EPSILON) == 0) {
 			min_d = d[0];
 			min_d /= cos_theta;
-			if (min_d < -CCT_EPSILON) {
+			if (min_d < 0.0f) {
 				return NULL;
 			}
 			set_result(result, min_d, normal);
@@ -288,7 +288,7 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 				}
 			}
 			min_d /= cos_theta;
-			if (min_d < -CCT_EPSILON) {
+			if (min_d < 0.0f) {
 				return NULL;
 			}
 			set_result(result, min_d, normal);
@@ -384,7 +384,7 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		mathSegmentClosestSegmentVertice(ls1, ls2, closest_p);
 		mathVec3Sub(v, closest_p[1], closest_p[0]);
 		dot = mathVec3Dot(v, dir);
-		if (dot < -CCT_EPSILON) {
+		if (dot < 0.0f) {
 			return NULL;
 		}
 		set_result(result, dot, dir);
@@ -566,7 +566,7 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 				mathVec3Normalized(lsdir, lsdir);
 				mathPointProjectionLine(circle_o, ls[0], lsdir, p);
 				mathVec3Sub(plo, circle_o, p);
-				res = fcmpf(mathVec3LenSq(plo), circle_radius * circle_radius, CCT_EPSILON);
+				res = fcmpf(mathVec3LenSq(plo), circle_radius * circle_radius, 0.0f);
 				if (res >= 0) {
 					float new_ls[2][3], d;
 					if (res > 0) {
@@ -659,7 +659,7 @@ static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const
 		return NULL;
 	}
 	min_d /= dot;
-	if (min_d < -CCT_EPSILON) {
+	if (min_d < 0.0f) {
 		return NULL;
 	}
 	set_result(result, min_d, plane_n);
@@ -683,7 +683,7 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 			return NULL;
 		}
 		d /= dot;
-		if (d < -CCT_EPSILON) {
+		if (d < 0.0f) {
 			return NULL;
 		}
 	}
@@ -921,7 +921,7 @@ static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const fl
 	int res;
 	float dn, d;
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &dn);
-	res = fcmpf(dn * dn, radius * radius, CCT_EPSILON);
+	res = fcmpf(dn * dn, radius * radius, 0.0f);
 	if (res < 0) {
 		set_result(result, 0.0f, dir);
 		return result;
@@ -938,7 +938,7 @@ static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const fl
 			return NULL;
 		}
 		d = dn / cos_theta;
-		if (d < -CCT_EPSILON) {
+		if (d < 0.0f) {
 			return NULL;
 		}
 		dn_abs = (dn >= 0.0f ? dn : -dn);

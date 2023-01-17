@@ -233,7 +233,7 @@ int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* 
 		if (dot < 0.0f) {
 			dot = -dot;
 		}
-		if (dot > obb->half[i] + radius + CCT_EPSILON) {
+		if (dot > obb->half[i] + radius) {
 			return 0;
 		}
 	}
@@ -291,7 +291,7 @@ int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], con
 	float closest_v[3];
 	mathAABBClosestPointTo(aabb_o, aabb_half, sp_o, closest_v);
 	mathVec3Sub(closest_v, closest_v, sp_o);
-	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius + CCT_EPSILON;
+	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius;
 }
 
 int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
