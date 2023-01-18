@@ -17,9 +17,12 @@ __declspec_dll float* mathQuatFromUnitVec3(float q[4], const float from[3], cons
 __declspec_dll float* mathQuatFromAxisRadian(float q[4], const float axis[3], float radian);
 __declspec_dll void mathQuatToAxisRadian(const float q[4], float axis[3], float* radian);
 __declspec_dll float* mathQuatIdentity(float q[4]);
+__declspec_dll float* mathQuatToMat44(const float q[4], float m[16]);
+__declspec_dll float mathQuatDot(const float q1[4], const float q2[4]);
 __declspec_dll float* mathQuatConjugate(float r[4], const float q[4]);
 __declspec_dll float* mathQuatMulQuat(float r[4], const float q1[4], const float q2[4]);
 __declspec_dll float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]);
+__declspec_dll float* mathQuatMulVec3Inv(float r[3], const float q[4], const float v[3]);
 
 #ifdef	__cplusplus
 }

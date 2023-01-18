@@ -133,6 +133,55 @@ float* mathQuatIdentity(float q[4]) {
 	return q;
 }
 
+float* mathQuatToMat44(const float q[4], float m[16]) {
+	float x = q[0];
+	float y = q[1];
+	float z = q[2];
+	float w = q[3];
+
+	float x2 = x + x;
+	float y2 = y + y;
+	float z2 = z + z;
+
+	float xx = x2 * x;
+	float yy = y2 * y;
+	float zz = z2 * z;
+
+	float xy = x2 * y;
+	float xz = x2 * z;
+	float xw = x2 * w;
+
+	float yz = y2 * z;
+	float yw = y2 * w;
+	float zw = z2 * w;
+
+	/* column 0 */
+	m[0] = 1.0f - yy - zz;
+	m[1] = xy + zw;
+	m[2] = xz - yw;
+	m[3] = 0.0f;
+	/* column 1 */
+	m[4] = xy - zw;
+	m[5] = 1.0f - xx - zz;
+	m[6] = yz + xw;
+	m[7] = 0.0f;
+	/* column 2 */
+	m[8] = xz + yw;
+	m[9] = yz - xw;
+	m[10] = 1.0f - xx - yy;
+	m[11] = 0.0f;
+	/* column 3 */
+	m[12] = 0.0f;
+	m[13] = 0.0f;
+	m[14] = 0.0f;
+	m[15] = 1.0f;
+	return m;
+}
+
+float mathQuatDot(const float q1[4], const float q2[4]) {
+	return q1[0]* q2[0] + q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3];
+}
+
 /* r = -q */
 float* mathQuatConjugate(float r[4], const float q[4]) {
 	r[0] = -q[0];
@@ -164,6 +213,20 @@ float* mathQuatMulVec3(float r[3], const float q[4], const float v[3]) {
 	r[0] = vx*qw2 + (qy * vz - qz * vy)*qw + qx*dot2;
 	r[1] = vy*qw2 + (qz * vx - qx * vz)*qw + qy*dot2;
 	r[2] = vz*qw2 + (qx * vy - qy * vx)*qw + qz*dot2;
+	return r;
+}
+
+/* r = q * v */
+float* mathQuatMulVec3Inv(float r[3], const float q[4], const float v[3]) {
+	const float vx = 2.0f * v[0];
+	const float vy = 2.0f * v[1];
+	const float vz = 2.0f * v[2];
+	const float qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+	const float qw2 = qw*qw - 0.5f;
+	const float dot2 = qx*vx + qy*vy + qz*vz;
+	r[0] = vx*qw2 - (qy * vz - qz * vy)*qw + qx*dot2;
+	r[1] = vy*qw2 - (qz * vx - qx * vz)*qw + qy*dot2;
+	r[2] = vz*qw2 - (qx * vy - qy * vx)*qw + qz*dot2;
 	return r;
 }
 
