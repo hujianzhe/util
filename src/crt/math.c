@@ -35,6 +35,20 @@ int fcmp(double a, double b, double epsilon) {
 	return 0;
 }
 
+float facosf(float x) {
+	/* MacLaurin series */
+	if (x < -1.0f) x = -1.0f;
+	if (x > 1.0f) x = 1.0f;
+	float x2 = x*x;
+	float angle = (35.0f/1152.0f)*x2;
+	angle = (5.0f/112.0f) + angle*x2;
+	angle = (3.0f/40.0f) + angle*x2;
+	angle = (1.0f/6.0f) + angle*x2;
+	angle = 1 + angle*x2;
+	angle =	1.5707963267948966f - angle * x;
+	return angle;
+}
+
 float finvsqrtf(float x) {
 	float xhalf = 0.5f * x;
 	int i = *(int*)&x;

@@ -38,6 +38,20 @@ int mathVec3Equal(const float v1[3], const float v2[3]) {
 		fcmpf(v1[2], v2[2], CCT_EPSILON) == 0;
 }
 
+float mathVec3MinElement(const float v[3]) {
+	if (v[0] < v[1]) {
+		return v[0] < v[2] ? v[0] : v[2];
+	}
+	return v[1] < v[2] ? v[1] : v[2];
+}
+
+float mathVec3MaxElement(const float v[3]) {
+	if (v[0] > v[1]) {
+		return v[0] > v[2] ? v[0] : v[2];
+	}
+	return v[1] > v[2] ? v[1] : v[2];
+}
+
 /* r = v */
 float* mathVec3Copy(float r[3], const float v[3]) {
 	r[0] = v[0];
