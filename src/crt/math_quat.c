@@ -11,6 +11,14 @@
 extern "C" {
 #endif
 
+float* mathQuatSet(float q[4], float x, float y, float z, float w) {
+	q[0] = x;
+	q[1] = y;
+	q[2] = z;
+	q[3] = w;
+	return q;
+}
+
 float* mathQuatNormalized(float r[4], const float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
 	if (m > CCT_EPSILON) {
@@ -178,6 +186,32 @@ float* mathQuatToMat44(const float q[4], float m[16]) {
 	return m;
 }
 
+float* mathQuatFromMat33(float q[4], const float m[9]) {
+	float t;
+	if (m[8] < 0.0f) {
+		if (m[0] > m[4]) {
+			t = 1 + m[0] - m[4] - m[8];
+			mathQuatSet(q, t, m[1]+m[3], m[6]+m[2], m[5]-m[7]);
+		}
+		else {
+			t = 1 - m[0] + m[4] - m[8];
+			mathQuatSet(q, m[1]+m[3], t, m[5]+m[7], m[6]-m[2]);
+		}
+	}
+	else {
+		if (m[0] < -m[4]) {
+			t = 1 - m[0] - m[4] + m[8];
+			mathQuatSet(q, m[6]+m[2], m[5]+m[7], t, m[1]-m[3]);
+		}
+		else {
+			t = 1 + m[0] + m[4] + m[8];
+			mathQuatSet(q, m[5]-m[7], m[6]-m[2], m[1]-m[3], t);
+		}
+	}
+	mathQuatMultiplyScalar(q, q, 0.5f / sqrtf(t));
+	return q;
+}
+
 float mathQuatDot(const float q1[4], const float q2[4]) {
 	return q1[0]* q2[0] + q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3];
 }
@@ -188,6 +222,27 @@ float* mathQuatConjugate(float r[4], const float q[4]) {
 	r[1] = -q[1];
 	r[2] = -q[2];
 	r[3] = q[3];
+	return r;
+}
+
+/* r = q*n */
+float* mathQuatMultiplyScalar(float r[4], const float q[4], float n) {
+	r[0] = q[0] * n;
+	r[1] = q[1] * n;
+	r[2] = q[2] * n;
+	r[3] = q[3] * n;
+	return r;
+}
+
+/* r = q/n */
+float* mathQuatDivisionScalar(float r[4], const float q[4], float n) {
+	if (n > 1e-6f || n < -1e-6f) {
+		float inv = 1.0f / n;
+		r[0] = q[0] * inv;
+		r[1] = q[1] * inv;
+		r[2] = q[2] * inv;
+		r[3] = q[3] * inv;
+	}
 	return r;
 }
 

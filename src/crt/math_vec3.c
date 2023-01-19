@@ -125,11 +125,22 @@ float* mathVec3Sub(float r[3], const float v1[3], const float v2[3]) {
 	return r;
 }
 
-/* r = v * n */
+/* r = v*n */
 float* mathVec3MultiplyScalar(float r[3], const float v[3], float n) {
 	r[0] = v[0] * n;
 	r[1] = v[1] * n;
 	r[2] = v[2] * n;
+	return r;
+}
+
+/* r = v/n */
+float* mathVec3DivisionScalar(float r[3], const float v[3], float n) {
+	if (n > 1e-6f || n < -1e-6f) {
+		float inv = 1.0f / n;
+		r[0] = v[0] * inv;
+		r[1] = v[1] * inv;
+		r[2] = v[2] * inv;
+	}
 	return r;
 }
 
