@@ -77,6 +77,22 @@ float* mathMat44Identity(float m[16]) {
 	return m;
 }
 
+float* mathMat44RotatePoint(float r[3], const float m[16], const float v[3]) {
+	float x = v[0], y = v[1], z = v[2];
+	r[0] = m[0]*x + m[4]*y + m[8]*z + m[12];
+	r[1] = m[1]*x + m[5]*y + m[9]*z + m[13];
+	r[2] = m[2]*x + m[6]*y + m[10]*z + m[14];
+	return r;
+}
+
+float* mathMat44RotateVector(float r[3], const float m[16], const float v[3]) {
+	float x = v[0], y = v[1], z = v[2];
+	r[0] = m[0]*x + m[4]*y + m[8]*z;
+	r[1] = m[1]*x + m[5]*y + m[9]*z;
+	r[2] = m[2]*x + m[6]*y + m[10]*z;
+	return r;
+}
+
 #ifdef	__cplusplus
 }
 #endif
