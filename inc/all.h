@@ -29,6 +29,8 @@
 #include "crt/export_free.h"
 #include "crt/json.h"
 #include "crt/math.h"
+#include "crt/math_matrix3.h"
+#include "crt/math_quat.h"
 #include "crt/math_vec3.h"
 #include "crt/octree.h"
 #include "crt/string.h"

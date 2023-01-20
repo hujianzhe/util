@@ -19,8 +19,8 @@ void mathMat44TransformSplit(const float m[16], float T[3], float S[3], float R[
 	S[1] = mathVec3Len(m + 4);
 	S[2] = mathVec3Len(m + 8);
 	mathVec3MultiplyScalar(R + 0, m + 0, 1.0f / S[0]);
-	mathVec3MultiplyScalar(R + 3, m + 3, 1.0f / S[1]);
-	mathVec3MultiplyScalar(R + 6, m + 6, 1.0f / S[2]);
+	mathVec3MultiplyScalar(R + 3, m + 4, 1.0f / S[1]);
+	mathVec3MultiplyScalar(R + 6, m + 8, 1.0f / S[2]);
 }
 
 float* mathMat44Element(const float m[16], unsigned int column, unsigned int row) {
