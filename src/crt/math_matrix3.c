@@ -23,6 +23,13 @@ void mathMat44TransformSplit(const float m[16], float T[3], float S[3], float R[
 	mathVec3MultiplyScalar(R + 6, m + 8, 1.0f / S[2]);
 }
 
+float* mathMat44SetPositionPart(float m[16], const float p[3]) {
+	m[12] = p[0];
+	m[13] = p[1];
+	m[14] = p[2];
+	return m;
+}
+
 float* mathMat44Element(const float m[16], unsigned int column, unsigned int row) {
 	return (float*)&m[(column << 2) + row];
 }
@@ -77,7 +84,7 @@ float* mathMat44Identity(float m[16]) {
 	return m;
 }
 
-float* mathMat44RotatePoint(float r[3], const float m[16], const float v[3]) {
+float* mathMat44TransformVec3(float r[3], const float m[16], const float v[3]) {
 	float x = v[0], y = v[1], z = v[2];
 	r[0] = m[0]*x + m[4]*y + m[8]*z + m[12];
 	r[1] = m[1]*x + m[5]*y + m[9]*z + m[13];
@@ -85,7 +92,7 @@ float* mathMat44RotatePoint(float r[3], const float m[16], const float v[3]) {
 	return r;
 }
 
-float* mathMat44RotateVector(float r[3], const float m[16], const float v[3]) {
+float* mathMat44RotateVec3(float r[3], const float m[16], const float v[3]) {
 	float x = v[0], y = v[1], z = v[2];
 	r[0] = m[0]*x + m[4]*y + m[8]*z;
 	r[1] = m[1]*x + m[5]*y + m[9]*z;
