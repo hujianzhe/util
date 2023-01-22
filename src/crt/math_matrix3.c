@@ -84,6 +84,33 @@ float* mathMat44Identity(float m[16]) {
 	return m;
 }
 
+float* mathMat44Add(float r[16], const float m1[16], const float m2[16]) {
+	int i;
+	for (i = 0; i < 16; ++i) {
+		r[i] = m1[i] + m2[i];
+	}
+	return r;
+}
+
+float* mathMat44MultiplyScalar(float r[16], const float m[16], float n) {
+	int i;
+	for (i = 0; i < 16; ++i) {
+		r[i] = m[i] * n;
+	}
+	return r;
+}
+
+/* r = m1*m2  */
+float* mathMat44MulMat44(float r[16], const float m1[16], const float m2[16]) {
+	int i, j;
+	for (i = 0; i < 4; ++i) {
+		for (j = 0; j < 16; j += 4) {
+			r[j+i] = m1[i]*m2[j] + m1[i+4]*m2[1+j] + m1[i+8]*m2[2+j] + m1[i+12]*m2[3+j];
+		}
+	}
+	return r;
+}
+
 float* mathMat44Transpose(float r[16], const float m[16]) {
 	float t;
 
