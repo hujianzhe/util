@@ -19,6 +19,8 @@ __declspec_dll float* mathMat44Element(const float m[16], unsigned int column, u
 __declspec_dll float* mathMat44ToMat33(const float m44[16], float m33[9]);
 __declspec_dll float* mathMat44Copy(float r[16], const float m[16]);
 __declspec_dll float* mathMat44Identity(float m[16]);
+__declspec_dll float* mathMat44Transpose(float r[16], const float m[16]);
+__declspec_dll float* mathMat44Inverse(float r[16], const float m[16]);
 __declspec_dll float* mathMat44TransformVec3(float r[3], const float m[16], const float v[3]);
 __declspec_dll float* mathMat44RotateVec3(float r[3], const float m[16], const float v[3]);
 

@@ -84,6 +84,77 @@ float* mathMat44Identity(float m[16]) {
 	return m;
 }
 
+float* mathMat44Transpose(float r[16], const float m[16]) {
+	float t;
+
+	t = m[1];
+	r[1] = m[4];
+	r[4] = t;
+
+	t = m[2];
+	r[2] = m[8];
+	r[8] = t;
+
+	t = m[3];
+	r[3] = m[12];
+	r[12] = t;
+
+	t = m[6];
+	r[6] = m[9];
+	r[9] = t;
+
+	t = m[7];
+	r[7] = m[13];
+	r[13] = t;
+
+	t = m[11];
+	r[11] = m[14];
+	r[14] = t;
+
+	if (r != m) {
+		r[0] = m[0];
+		r[5] = m[5];
+		r[10] = m[10];
+		r[15] = m[15];
+	}
+
+	return r;
+}
+
+float* mathMat44Inverse(float r[16], const float m[16]) {
+	float t;
+
+	r[3] = -m[0]*m[12] - m[1]*m[13] - m[2]*m[14];
+	r[7] = -m[4]*m[12] - m[5]*m[13] - m[6]*m[14];
+	r[11] = -m[8]*m[12] - m[9]*m[13] - m[10]*m[14];
+
+	r[12] = r[3];
+	r[13] = r[7];
+	r[14] = r[11];
+	r[3] = r[7] = r[11] = 0.0f;
+	r[15] = 1.0f;
+
+	t = m[1];
+	r[1] = m[4];
+	r[4] = t;
+
+	t = m[2];
+	r[2] = m[8];
+	r[8] = t;
+
+	t = m[6];
+	r[6] = m[9];
+	r[9] = t;
+
+	if (r != m) {
+		r[0] = m[0];
+		r[5] = m[5];
+		r[10] = m[10];
+	}
+
+	return r;
+}
+
 float* mathMat44TransformVec3(float r[3], const float m[16], const float v[3]) {
 	float x = v[0], y = v[1], z = v[2];
 	r[0] = m[0]*x + m[4]*y + m[8]*z + m[12];
