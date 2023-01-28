@@ -41,18 +41,18 @@ int mathSphereIntersectSphere(const float o1[3], float r1, const float o2[3], fl
 }
 
 int mathSphereContainSphere(const float o1[3], float r1, const float o2[3], float r2) {
-	if (r1 < r2 - CCT_EPSILON) {
+	if (r1 < r2) {
 		return 0;
 	}
 	else {
 		float o1o2[3], d;
 		mathVec3Sub(o1o2, o2, o1);
 		d = mathVec3LenSq(o1o2);
-		if (d >= r1 * r1 - CCT_EPSILON) {
+		if (d >= r1 * r1) {
 			return 0;
 		}
 		d = sqrtf(d);
-		return d + r2 > r1 + CCT_EPSILON;
+		return d + r2 <= r1;
 	}
 }
 

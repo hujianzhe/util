@@ -8,7 +8,7 @@
 #include "../compiler_define.h"
 
 #ifndef CCT_EPSILON
-	#define	CCT_EPSILON		1E-5f
+	#define	CCT_EPSILON		1E-6f
 #endif
 
 #ifdef	__cplusplus

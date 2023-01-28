@@ -63,7 +63,7 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 	}
 	nlen = mathVec3Normalized(N, n);
 	dot = mathVec3Dot(v, N);
-	if (dot < -CCT_EPSILON) {
+	if (dot < 0.0f) {
 		dot = -dot;
 	}
 	if (min_d) {
