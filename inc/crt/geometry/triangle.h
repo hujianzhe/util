@@ -30,6 +30,7 @@ extern "C" {
 __declspec_dll void mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]);
 __declspec_dll int mathTrianglePointUV(const float tri[3][3], const float p[3], float* p_u, float* p_v);
 __declspec_dll int mathTriangleHasPoint(const float tri[3][3], const float p[3]);
+__declspec_dll void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen);
 
 __declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]);
 __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);

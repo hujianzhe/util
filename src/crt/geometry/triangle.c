@@ -4,9 +4,11 @@
 
 #include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/plane.h"
 #include "../../../inc/crt/geometry/triangle.h"
 #include <stddef.h>
 
+static const unsigned int DEFAULT_TRIANGLE_POLYGEN_VERTICE[3] = { 0, 1, 2 };
 static const unsigned int DEFAULT_RECT_POLYGEN_VERTICE[4] = { 0, 1, 2, 3 };
 
 #ifdef __cplusplus
@@ -58,6 +60,13 @@ int mathTrianglePointUV(const float tri[3][3], const float p[3], float* p_u, flo
 
 int mathTriangleHasPoint(const float tri[3][3], const float p[3]) {
 	return mathTrianglePointUV(tri, p, NULL, NULL);
+}
+
+void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen) {
+	polygen->v_indices = DEFAULT_TRIANGLE_POLYGEN_VERTICE;
+	polygen->v_indices_cnt = 3;
+	polygen->v = tri;
+	mathPlaneNormalByVertices3(tri, polygen->normal);
 }
 
 int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
