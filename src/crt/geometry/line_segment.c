@@ -308,6 +308,16 @@ int mathSegmentHasPoint(const float ls[2][3], const float p[3]) {
 	return dot <= CCT_EPSILON;
 }
 
+int mathSegmentIsSame(const float ls1[2][3], const float ls2[2][3]) {
+	if (mathVec3Equal(ls1[0], ls2[0])) {
+		return mathVec3Equal(ls1[1], ls2[1]);
+	}
+	if (mathVec3Equal(ls1[0], ls2[1])) {
+		return mathVec3Equal(ls1[1], ls2[0]);
+	}
+	return 0;
+}
+
 void mathSegmentClosestPointTo(const float ls[2][3], const float p[3], float closest_p[3]) {
 	float lsdir[3], lslen, dot;
 	mathVec3Sub(lsdir, ls[1], ls[0]);
