@@ -19,8 +19,10 @@ typedef struct GeometryRect_t {
 typedef struct GeometryPolygen_t {
 	const float (*v)[3]; /* vertices vec3 */
 	float normal[3];
-	unsigned int v_indices_cnt; /* number of vertices and index */
-	const unsigned int* v_indices; /* vertices index, must be ordered(clockwise or counterclockwise) */
+	unsigned int edge_indices_cnt; /* number of edge vertices index */
+	unsigned int tri_indices_cnt;  /* number of triangle vertices index */
+	const unsigned int* edge_indices; /* edge vertices index, must be ordered(clockwise or counterclockwise) */
+	const unsigned int* tri_indices; /* triangle vertices index */
 } GeometryPolygen_t;
 
 #ifdef	__cplusplus
@@ -37,6 +39,8 @@ __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
 __declspec_dll void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]);
 
 __declspec_dll int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]);
+
+__declspec_dll int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** edge_indices, unsigned int* edge_indices_cnt);
 
 #ifdef	__cplusplus
 }

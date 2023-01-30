@@ -52,7 +52,7 @@ int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* p
 	if (!p) {
 		p = point;
 	}
-	res = mathSegmentIntersectPlane(ls, polygen->v[polygen->v_indices[0]], polygen->normal, p);
+	res = mathSegmentIntersectPlane(ls, polygen->v[polygen->edge_indices[0]], polygen->normal, p);
 	if (0 == res) {
 		return 0;
 	}
@@ -64,10 +64,10 @@ int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* p
 	}
 	else {
 		int i;
-		for (i = 0; i < polygen->v_indices_cnt; ) {
+		for (i = 0; i < polygen->edge_indices_cnt; ) {
 			float edge[2][3];
-			mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-			mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+			mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
+			mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
 			if (mathSegmentIntersectSegment(ls, (const float(*)[3])edge, NULL, NULL)) {
 				return 2;
 			}
@@ -78,13 +78,13 @@ int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* p
 
 int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const GeometryPolygen_t* polygen2) {
 	int i;
-	if (!mathPlaneIntersectPlane(polygen1->v[polygen1->v_indices[0]], polygen1->normal, polygen2->v[polygen2->v_indices[0]], polygen2->normal)) {
+	if (!mathPlaneIntersectPlane(polygen1->v[polygen1->edge_indices[0]], polygen1->normal, polygen2->v[polygen2->edge_indices[0]], polygen2->normal)) {
 		return 0;
 	}
-	for (i = 0; i < polygen1->v_indices_cnt; ) {
+	for (i = 0; i < polygen1->edge_indices_cnt; ) {
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen1->v[polygen1->v_indices[i++]]);
-		mathVec3Copy(edge[1], polygen1->v[polygen1->v_indices[i >= polygen1->v_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen1->v[polygen1->edge_indices[i++]]);
+		mathVec3Copy(edge[1], polygen1->v[polygen1->edge_indices[i >= polygen1->edge_indices_cnt ? 0 : i]]);
 		if (mathSegmentIntersectPolygen((const float(*)[3])edge, polygen2, NULL)) {
 			return 1;
 		}
@@ -94,15 +94,15 @@ int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const Geometr
 
 int mathPolygenIntersectPlane(const GeometryPolygen_t* polygen, const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0, has_le0, idx_0;
-	if (!mathPlaneIntersectPlane(polygen->v[polygen->v_indices[0]], polygen->normal, plane_v, plane_n)) {
+	if (!mathPlaneIntersectPlane(polygen->v[polygen->edge_indices[0]], polygen->normal, plane_v, plane_n)) {
 		return 0;
 	}
 	idx_0 = -1;
 	has_gt0 = has_le0 = 0;
-	for (i = 0; i < polygen->v_indices_cnt; ++i) {
+	for (i = 0; i < polygen->edge_indices_cnt; ++i) {
 		int cmp;
 		float d;
-		mathPointProjectionPlane(polygen->v[polygen->v_indices[i]], plane_v, plane_n, NULL, &d);
+		mathPointProjectionPlane(polygen->v[polygen->edge_indices[i]], plane_v, plane_n, NULL, &d);
 		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
 		if (cmp > 0) {
 			if (has_le0) {
@@ -127,7 +127,7 @@ int mathPolygenIntersectPlane(const GeometryPolygen_t* polygen, const float plan
 		return 0;
 	}
 	if (p) {
-		mathVec3Copy(p, polygen->v[polygen->v_indices[idx_0]]);
+		mathVec3Copy(p, polygen->v[polygen->edge_indices[idx_0]]);
 	}
 	return 1;
 }
@@ -205,17 +205,17 @@ int mathSphereIntersectPolygen(const float o[3], float radius, const GeometryPol
 	if (!p) {
 		p = point;
 	}
-	res = mathSphereIntersectPlane(o, radius, polygen->v[polygen->v_indices[0]], polygen->normal, p, NULL);
+	res = mathSphereIntersectPlane(o, radius, polygen->v[polygen->edge_indices[0]], polygen->normal, p, NULL);
 	if (0 == res) {
 		return 0;
 	}
 	if (mathPolygenHasPoint(polygen, p)) {
 		return res;
 	}
-	for (i = 0; i < polygen->v_indices_cnt; ) {
+	for (i = 0; i < polygen->edge_indices_cnt; ) {
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
 		res = mathSphereIntersectSegment(o, radius, (const float(*)[3])edge, p);
 		if (res != 0) {
 			return res;
@@ -337,21 +337,21 @@ int mathAABBIntersectPolygen(const float o[3], const float half[3], const Geomet
 	if (!p) {
 		p = point;
 	}
-	res = mathAABBIntersectPlane(o, half, polygen->v[polygen->v_indices[0]], polygen->normal, p);
+	res = mathAABBIntersectPlane(o, half, polygen->v[polygen->edge_indices[0]], polygen->normal, p);
 	if (0 == res) {
 		return 0;
 	}
 	if (1 == res) {
 		return mathPolygenHasPoint(polygen, p);
 	}
-	mathPointProjectionPlane(o, polygen->v[polygen->v_indices[0]], polygen->normal, p, NULL);
+	mathPointProjectionPlane(o, polygen->v[polygen->edge_indices[0]], polygen->normal, p, NULL);
 	if (mathPolygenHasPoint(polygen, p)) {
 		return 2;
 	}
-	for (i = 0; i < polygen->v_indices_cnt; ) {
+	for (i = 0; i < polygen->edge_indices_cnt; ) {
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
 		if (mathAABBIntersectSegment(o, half, (const float(*)[3])edge)) {
 			return 2;
 		}
@@ -365,21 +365,21 @@ int mathOBBIntersectPolygen(const GeometryOBB_t* obb, const GeometryPolygen_t* p
 	if (!p) {
 		p = point;
 	}
-	res = mathOBBIntersectPlane(obb, polygen->v[polygen->v_indices[0]], polygen->normal, p);
+	res = mathOBBIntersectPlane(obb, polygen->v[polygen->edge_indices[0]], polygen->normal, p);
 	if (0 == res) {
 		return 0;
 	}
 	if (1 == res) {
 		return mathPolygenHasPoint(polygen, p);
 	}
-	mathPointProjectionPlane(obb->o, polygen->v[polygen->v_indices[0]], polygen->normal, p, NULL);
+	mathPointProjectionPlane(obb->o, polygen->v[polygen->edge_indices[0]], polygen->normal, p, NULL);
 	if (mathPolygenHasPoint(polygen, p)) {
 		return 2;
 	}
-	for (i = 0; i < polygen->v_indices_cnt; ) {
+	for (i = 0; i < polygen->edge_indices_cnt; ) {
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
 		if (mathOBBIntersectSegment(obb, (const float(*)[3])edge)) {
 			return 2;
 		}
