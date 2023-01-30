@@ -169,8 +169,21 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 	unsigned int ret_edge_indices_cnt = 0;
 	float v1[3], v2[3], N[3];
 
-	if (tri_indices_cnt % 3 != 0) {
+	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
+	}
+	if (tri_indices_cnt == 3) {
+		ret_edge_indices = (unsigned int*)malloc(3 * sizeof(ret_edge_indices[0]));
+		if (!ret_edge_indices) {
+			return 0;
+		}
+		ret_edge_indices[0] = tri_indices[0];
+		ret_edge_indices[1] = tri_indices[1];
+		ret_edge_indices[2] = tri_indices[2];
+
+		*edge_indices = ret_edge_indices;
+		*edge_indices_cnt = 3;
+		return 1;
 	}
 	for (i = 0; i < tri_indices_cnt; i += 3) {
 		unsigned int ei[3][2] = {
