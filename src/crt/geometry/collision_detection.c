@@ -145,7 +145,7 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 	CCTResult_t* p_result;
 	int i;
 	float dot;
-	if (!mathRaycastPlane(o, dir, polygen->v[polygen->edge_indices[0]], polygen->normal, result)) {
+	if (!mathRaycastPlane(o, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->distance > 0.0f) {
@@ -156,11 +156,11 @@ static CCTResult_t* mathRaycastPolygen(const float o[3], const float dir[3], con
 		return NULL;
 	}
 	p_result = NULL;
-	for (i = 0; i < polygen->edge_indices_cnt; ) {
+	for (i = 0; i < polygen->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
 		if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
@@ -481,7 +481,7 @@ static CCTResult_t* mathAABBcastSegment(const float o[3], const float half[3], c
 static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir[3], const GeometryPolygen_t* polygen, CCTResult_t* result) {
 	CCTResult_t *p_result;
 	int i;
-	if (!mathSegmentcastPlane(ls, dir, polygen->v[polygen->edge_indices[0]], polygen->normal, result)) {
+	if (!mathSegmentcastPlane(ls, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -500,11 +500,11 @@ static CCTResult_t* mathSegmentcastPolygen(const float ls[2][3], const float dir
 		}
 	}
 	p_result = NULL;
-	for (i = 0; i < polygen->edge_indices_cnt; ) {
+	for (i = 0; i < polygen->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastSegment(ls, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
@@ -627,10 +627,10 @@ static CCTResult_t* mathSpherecastSegment(const float o[3], const float radius, 
 static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_min = -1;
 	float min_d, dot;
-	for (i = 0; i < polygen->edge_indices_cnt; ++i) {
+	for (i = 0; i < polygen->v_indices_cnt; ++i) {
 		int cmp;
 		float d;
-		mathPointProjectionPlane(polygen->v[polygen->edge_indices[i]], plane_v, plane_n, NULL, &d);
+		mathPointProjectionPlane(polygen->v[polygen->v_indices[i]], plane_v, plane_n, NULL, &d);
 		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
 		if (cmp > 0) {
 			if (has_le0) {
@@ -664,7 +664,7 @@ static CCTResult_t* mathPolygencastPlane(const GeometryPolygen_t* polygen, const
 	}
 	set_result(result, min_d, plane_n);
 	if (idx_min >= 0) {
-		add_result_hit_point(result, polygen->v[polygen->edge_indices[idx_min]]);
+		add_result_hit_point(result, polygen->v[polygen->v_indices[idx_min]]);
 		mathVec3AddScalar(result->hit_point, dir, min_d);
 	}
 	return result;
@@ -674,10 +674,10 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 	CCTResult_t* p_result;
 	int i, flag;
 	float neg_dir[3];
-	flag = mathPlaneIntersectPlane(polygen1->v[polygen1->edge_indices[0]], polygen1->normal, polygen2->v[polygen2->edge_indices[0]], polygen2->normal);
+	flag = mathPlaneIntersectPlane(polygen1->v[polygen1->v_indices[0]], polygen1->normal, polygen2->v[polygen2->v_indices[0]], polygen2->normal);
 	if (0 == flag) {
 		float d, dot;
-		mathPointProjectionPlane(polygen1->v[polygen1->edge_indices[0]], polygen2->v[polygen2->edge_indices[0]], polygen2->normal, NULL, &d);
+		mathPointProjectionPlane(polygen1->v[polygen1->v_indices[0]], polygen2->v[polygen2->v_indices[0]], polygen2->normal, NULL, &d);
 		dot = mathVec3Dot(dir, polygen2->normal);
 		if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
 			return NULL;
@@ -688,11 +688,11 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 		}
 	}
 	p_result = NULL;
-	for (i = 0; i < polygen1->edge_indices_cnt; ) {
+	for (i = 0; i < polygen1->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen1->v[polygen1->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen1->v[polygen1->edge_indices[i >= polygen1->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen1->v[polygen1->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen1->v[polygen1->v_indices[i >= polygen1->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastPolygen((const float(*)[3])edge, dir, polygen2, &result_temp)) {
 			continue;
 		}
@@ -705,11 +705,11 @@ static CCTResult_t* mathPolygencastPolygen(const GeometryPolygen_t* polygen1, co
 		}
 	}
 	mathVec3Negate(neg_dir, dir);
-	for (i = 0; i < polygen2->edge_indices_cnt; ) {
+	for (i = 0; i < polygen2->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen2->v[polygen2->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen2->v[polygen2->edge_indices[i >= polygen2->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen2->v[polygen2->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen2->v[polygen2->v_indices[i >= polygen2->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastPolygen((const float(*)[3])edge, neg_dir, polygen1, &result_temp)) {
 			continue;
 		}
@@ -822,7 +822,7 @@ static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir
 	CCTResult_t *p_result;
 
 	mathOBBVertices(obb, v);
-	if (!mathBoxCastPlane((const float(*)[3])v, dir, polygen->v[polygen->edge_indices[0]], polygen->normal, result)) {
+	if (!mathBoxCastPlane((const float(*)[3])v, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -842,11 +842,11 @@ static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir
 	}
 	p_result = NULL;
 	mathVec3Negate(neg_dir, dir);
-	for (i = 0; i < polygen->edge_indices_cnt; ) {
+	for (i = 0; i < polygen->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastOBB((const float(*)[3])edge, neg_dir, obb, &result_temp)) {
 			continue;
 		}
@@ -1044,7 +1044,7 @@ static CCTResult_t* mathSpherecastPolygen(const float o[3], float radius, const 
 	int i;
 	CCTResult_t *p_result = NULL;
 	float neg_dir[3];
-	if (!mathSpherecastPlane(o, radius, dir, polygen->v[polygen->edge_indices[0]], polygen->normal, result)) {
+	if (!mathSpherecastPlane(o, radius, dir, polygen->v[polygen->v_indices[0]], polygen->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -1054,11 +1054,11 @@ static CCTResult_t* mathSpherecastPolygen(const float o[3], float radius, const 
 	}
 	p_result = NULL;
 	mathVec3Negate(neg_dir, dir);
-	for (i = 0; i < polygen->edge_indices_cnt; ) {
+	for (i = 0; i < polygen->v_indices_cnt; ) {
 		CCTResult_t result_temp;
 		float edge[2][3];
-		mathVec3Copy(edge[0], polygen->v[polygen->edge_indices[i++]]);
-		mathVec3Copy(edge[1], polygen->v[polygen->edge_indices[i >= polygen->edge_indices_cnt ? 0 : i]]);
+		mathVec3Copy(edge[0], polygen->v[polygen->v_indices[i++]]);
+		mathVec3Copy(edge[1], polygen->v[polygen->v_indices[i >= polygen->v_indices_cnt ? 0 : i]]);
 		if (!mathSegmentcastSphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
 			continue;
 		}

@@ -10,8 +10,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-static const unsigned int DEFAULT_TRIANGLE_EDGE_INDICES[3] = { 0, 1, 2 };
-static const unsigned int DEFAULT_RECT_EDGE_INDICES[4] = { 0, 1, 2, 3 };
+static const unsigned int DEFAULT_TRIANGLE_VERTICE_INDICES[3] = { 0, 1, 2 };
+static const unsigned int DEFAULT_RECT_VERTICE_INDICES[4] = { 0, 1, 2, 3 };
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,8 +65,8 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3]) {
 }
 
 void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen) {
-	polygen->edge_indices = DEFAULT_TRIANGLE_EDGE_INDICES;
-	polygen->edge_indices_cnt = 3;
+	polygen->v_indices = DEFAULT_TRIANGLE_VERTICE_INDICES;
+	polygen->v_indices_cnt = 3;
 	polygen->v = tri;
 	mathPlaneNormalByVertices3(tri[0], tri[1], tri[2], polygen->normal);
 }
@@ -102,36 +102,36 @@ void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 
 void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]) {
 	mathRectVertices(rect, p);
-	polygen->edge_indices = DEFAULT_RECT_EDGE_INDICES;
-	polygen->edge_indices_cnt = 4;
+	polygen->v_indices = DEFAULT_RECT_VERTICE_INDICES;
+	polygen->v_indices_cnt = 4;
 	polygen->v = (const float(*)[3])p;
 	mathVec3Copy(polygen->normal, rect->normal);
 }
 
 int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
-	if (polygen->edge_indices_cnt < 3) {
+	if (polygen->v_indices_cnt < 3) {
 		return 0;
 	}
-	else if (3 == polygen->edge_indices_cnt) {
+	else if (3 == polygen->v_indices_cnt) {
 		float tri[3][3];
-		mathVec3Copy(tri[0], polygen->v[polygen->edge_indices[0]]);
-		mathVec3Copy(tri[1], polygen->v[polygen->edge_indices[1]]);
-		mathVec3Copy(tri[2], polygen->v[polygen->edge_indices[2]]);
+		mathVec3Copy(tri[0], polygen->v[polygen->v_indices[0]]);
+		mathVec3Copy(tri[1], polygen->v[polygen->v_indices[1]]);
+		mathVec3Copy(tri[2], polygen->v[polygen->v_indices[2]]);
 		return mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL);
 	}
-	else if (polygen->edge_indices == DEFAULT_RECT_EDGE_INDICES) {
+	else if (polygen->v_indices == DEFAULT_RECT_VERTICE_INDICES) {
 		float ls_vec[3], v[3], dot;
-		mathVec3Sub(v, p, polygen->v[polygen->edge_indices[0]]);
+		mathVec3Sub(v, p, polygen->v[polygen->v_indices[0]]);
 		dot = mathVec3Dot(polygen->normal, v);
 		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
 			return 0;
 		}
-		mathVec3Sub(ls_vec, polygen->v[polygen->edge_indices[1]], polygen->v[polygen->edge_indices[0]]);
+		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[1]], polygen->v[polygen->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
 		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
 		}
-		mathVec3Sub(ls_vec, polygen->v[polygen->edge_indices[3]], polygen->v[polygen->edge_indices[0]]);
+		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[3]], polygen->v[polygen->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
 		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
@@ -159,7 +159,7 @@ int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
 	return 0;
 }
 
-int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** edge_indices, unsigned int* edge_indices_cnt) {
+int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** v_indices, unsigned int* v_indices_cnt) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
 	unsigned int tmp_edge_pair_indices_cnt = 0;
@@ -185,8 +185,8 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 		ret_edge_indices[1] = tri_indices[1];
 		ret_edge_indices[2] = tri_indices[2];
 
-		*edge_indices = ret_edge_indices;
-		*edge_indices_cnt = 3;
+		*v_indices = ret_edge_indices;
+		*v_indices_cnt = 3;
 		return 1;
 	}
 	for (i = 0; i < tri_indices_cnt; i += 3) {
@@ -200,7 +200,6 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 		for (j = 0; j < tri_indices_cnt; j += 3) {
 			unsigned int k;
 			unsigned int ej[3][2];
-			float dot;
 			if (i == j) {
 				continue;
 			}
@@ -335,8 +334,8 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 	}
 	free(tmp_edge_indices);
 
-	*edge_indices = ret_edge_indices;
-	*edge_indices_cnt = ret_edge_indices_cnt;
+	*v_indices = ret_edge_indices;
+	*v_indices_cnt = ret_edge_indices_cnt;
 	return 1;
 }
 
