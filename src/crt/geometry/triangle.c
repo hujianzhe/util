@@ -165,8 +165,8 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	unsigned int tmp_edge_pair_indices_cnt = 0;
 	unsigned int* tmp_edge_indices = NULL;
 	unsigned int tmp_edge_indices_cnt = 0;
-	unsigned int* ret_edge_indices = NULL;
-	unsigned int ret_edge_indices_cnt = 0;
+	unsigned int* ret_v_indices = NULL;
+	unsigned int ret_v_indices_cnt = 0;
 	float v1[3], v2[3], N[3];
 
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
@@ -177,15 +177,15 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		return 0;
 	}
 	if (tri_indices_cnt == 3) {
-		ret_edge_indices = (unsigned int*)malloc(3 * sizeof(ret_edge_indices[0]));
-		if (!ret_edge_indices) {
+		ret_v_indices = (unsigned int*)malloc(3 * sizeof(ret_v_indices[0]));
+		if (!ret_v_indices) {
 			return 0;
 		}
-		ret_edge_indices[0] = tri_indices[0];
-		ret_edge_indices[1] = tri_indices[1];
-		ret_edge_indices[2] = tri_indices[2];
+		ret_v_indices[0] = tri_indices[0];
+		ret_v_indices[1] = tri_indices[1];
+		ret_v_indices[2] = tri_indices[2];
 
-		*v_indices = ret_edge_indices;
+		*v_indices = ret_v_indices;
 		*v_indices_cnt = 3;
 		return 1;
 	}
@@ -296,7 +296,7 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		return 0;
 	}
 	--tmp_edge_indices_cnt;
-	++ret_edge_indices_cnt;
+	++ret_v_indices_cnt;
 	last_s = 0;
 	first_s = -1;
 	for (i = 1; i < tmp_edge_indices_cnt; ++i) {
@@ -308,7 +308,7 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 			if (-1 == first_s) {
 				first_s = i;
 			}
-			++ret_edge_indices_cnt;
+			++ret_v_indices_cnt;
 			continue;
 		}
 		tmp_edge_indices[i] = -1;
@@ -318,24 +318,24 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	mathVec3Cross(N, v1, v2);
 	if (mathVec3IsZero(N)) {
 		tmp_edge_indices[0] = -1;
-		--ret_edge_indices_cnt;
+		--ret_v_indices_cnt;
 	}
-	ret_edge_indices = (unsigned int*)malloc(ret_edge_indices_cnt * sizeof(ret_edge_indices[0]));
-	if (!ret_edge_indices) {
+	ret_v_indices = (unsigned int*)malloc(ret_v_indices_cnt * sizeof(ret_v_indices[0]));
+	if (!ret_v_indices) {
 		free(tmp_edge_indices);
 		return 0;
 	}
 	n = 0;
-	for (i = 0; i < tmp_edge_indices_cnt && n < ret_edge_indices_cnt; ++i) {
+	for (i = 0; i < tmp_edge_indices_cnt && n < ret_v_indices_cnt; ++i) {
 		if (-1 == tmp_edge_indices[i]) {
 			continue;
 		}
-		ret_edge_indices[n++] = tmp_edge_indices[i];
+		ret_v_indices[n++] = tmp_edge_indices[i];
 	}
 	free(tmp_edge_indices);
 
-	*v_indices = ret_edge_indices;
-	*v_indices_cnt = ret_edge_indices_cnt;
+	*v_indices = ret_v_indices;
+	*v_indices_cnt = ret_v_indices_cnt;
 	return 1;
 }
 
