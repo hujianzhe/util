@@ -68,7 +68,7 @@ void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen) {
 	polygen->edge_indices = DEFAULT_TRIANGLE_EDGE_INDICES;
 	polygen->edge_indices_cnt = 3;
 	polygen->v = tri;
-	mathPlaneNormalByVertices3(tri, polygen->normal);
+	mathPlaneNormalByVertices3(tri[0], tri[1], tri[2], polygen->normal);
 }
 
 int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
@@ -172,6 +172,10 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
 	}
+	mathPlaneNormalByVertices3(v[tri_indices[0]], v[tri_indices[1]], v[tri_indices[2]], N);
+	if (mathVec3IsZero(N)) {
+		return 0;
+	}
 	if (tri_indices_cnt == 3) {
 		ret_edge_indices = (unsigned int*)malloc(3 * sizeof(ret_edge_indices[0]));
 		if (!ret_edge_indices) {
@@ -196,8 +200,15 @@ int mathPolygenEdgeCooking(const float (*v)[3], const unsigned int* tri_indices,
 		for (j = 0; j < tri_indices_cnt; j += 3) {
 			unsigned int k;
 			unsigned int ej[3][2];
+			float dot;
 			if (i == j) {
 				continue;
+			}
+			for (k = 0; k < 3; ++k) {
+				if (!mathPlaneHasPoint(v[tri_indices[0]], N, v[tri_indices[j+k]])) {
+					free(tmp_edge_pair_indices);
+					return 0;
+				}
 			}
 			ej[0][0] = tri_indices[j];
 			ej[0][1] = tri_indices[j+1];

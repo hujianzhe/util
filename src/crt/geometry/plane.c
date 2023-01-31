@@ -23,10 +23,10 @@ void mathPointProjectionPlane(const float p[3], const float plane_v[3], const fl
 	}
 }
 
-void mathPlaneNormalByVertices3(const float vertices[3][3], float normal[3]) {
+void mathPlaneNormalByVertices3(const float v0[3], const float v1[3], const float v2[3], float normal[3]) {
 	float v0v1[3], v0v2[3];
-	mathVec3Sub(v0v1, vertices[1], vertices[0]);
-	mathVec3Sub(v0v2, vertices[2], vertices[0]);
+	mathVec3Sub(v0v1, v1, v0);
+	mathVec3Sub(v0v2, v2, v0);
 	mathVec3Cross(normal, v0v1, v0v2);
 	mathVec3Normalized(normal, normal);
 }
