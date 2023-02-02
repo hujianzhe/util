@@ -190,58 +190,61 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		return 1;
 	}
 	for (i = 0; i < tri_indices_cnt; i += 3) {
-		unsigned int ei[3][2] = {
-			{ tri_indices[i], tri_indices[i+1] },
-			{ tri_indices[i+1], tri_indices[i+2] },
-			{ tri_indices[i+2], tri_indices[i] }
+		unsigned int ei[6] = {
+			tri_indices[i], tri_indices[i+1],
+			tri_indices[i+1], tri_indices[i+2],
+			tri_indices[i+2], tri_indices[i]
 		};
 		int same[3] = { 0 };
 		unsigned int j;
 		for (j = 0; j < tri_indices_cnt; j += 3) {
 			unsigned int k;
-			unsigned int ej[3][2];
+			unsigned int ej[6];
 			if (i == j) {
 				continue;
 			}
 			for (k = 0; k < 3; ++k) {
-				if (!mathPlaneHasPoint(v[tri_indices[0]], N, v[tri_indices[j+k]])) {
+				if (!mathPlaneHasPoint(v[tri_indices[i]], N, v[tri_indices[j+k]])) {
 					free(tmp_edge_pair_indices);
 					return 0;
 				}
 			}
-			ej[0][0] = tri_indices[j];
-			ej[0][1] = tri_indices[j+1];
-			ej[1][0] = tri_indices[j+1];
-			ej[1][1] = tri_indices[j+2];
-			ej[2][0] = tri_indices[j+2];
-			ej[2][1] = tri_indices[j];
-			for (k = 0; k < 3; ++k) {
+			ej[0] = tri_indices[j]; ej[1] = tri_indices[j+1];
+			ej[2] = tri_indices[j+1]; ej[3] = tri_indices[j+2];
+			ej[4] = tri_indices[j+2]; ej[5] = tri_indices[j];
+			for (k = 0; k < 6; k += 2) {
 				unsigned int m;
-				if (same[k]) {
+				if (same[k>>1]) {
 					continue;
 				}
-				for (m = 0; m < 3; ++m) {
-					if (ei[k][0] == ej[m][0] || mathVec3Equal(v[ei[k][0]], v[ej[m][0]])) {
-						same[k] = (ei[k][1] == ej[m][1] || mathVec3Equal(v[ei[k][1]], v[ej[m][1]]));
+				for (m = 0; m < 6; m += 2) {
+					if (ei[k] == ej[m] || mathVec3Equal(v[ei[k]], v[ej[m]])) {
+						same[k>>1] = (ei[k+1] == ej[m+1] || mathVec3Equal(v[ei[k+1]], v[ej[m+1]]));
 					}
-					else if (ei[k][0] == ej[m][1] || mathVec3Equal(v[ei[k][0]], v[ej[m][1]])) {
-						same[k] = (ei[k][1] == ej[m][0] || mathVec3Equal(v[ei[k][1]], v[ej[m][0]]));
+					else if (ei[k] == ej[m+1] || mathVec3Equal(v[ei[k]], v[ej[m+1]])) {
+						same[k>>1] = (ei[k+1] == ej[m] || mathVec3Equal(v[ei[k+1]], v[ej[m]]));
 					}
 					else {
 						continue;
 					}
-					if (same[k]) {
+					if (same[k>>1]) {
 						break;
 					}
 				}
 			}
+			if (same[0] && same[1] && same[2]) {
+				break;
+			}
+		}
+		if (j != tri_indices_cnt) {
+			continue;
 		}
 		if (!same[0] && !same[1] && !same[2]) {
 			free(tmp_edge_pair_indices);
 			return 0;
 		}
-		for (j = 0; j < 3; ++j) {
-			if (same[j]) {
+		for (j = 0; j < 6; j += 2) {
+			if (same[j>>1]) {
 				continue;
 			}
 			tmp_edge_pair_indices_cnt += 2;
@@ -249,8 +252,8 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 			if (!tmp_edge_pair_indices) {
 				return 0;
 			}
-			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 2] = ei[j][0];
-			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 1] = ei[j][1];
+			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 2] = ei[j];
+			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 1] = ei[j+1];
 		}
 	}
 	if (!tmp_edge_pair_indices) {
