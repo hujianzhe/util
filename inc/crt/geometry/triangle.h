@@ -40,7 +40,8 @@ __declspec_dll void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolyge
 
 __declspec_dll int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]);
 
-__declspec_dll int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** v_indices, unsigned int* v_indices_cnt);
+__declspec_dll int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t** polygens, unsigned int* polygen_cnt);
+__declspec_dll void mathTriangleMeshFreePolygenData(GeometryPolygen_t* polygen);
 
 #ifdef	__cplusplus
 }

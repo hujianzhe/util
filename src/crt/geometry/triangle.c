@@ -159,7 +159,7 @@ int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
 	return 0;
 }
 
-int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** v_indices, unsigned int* v_indices_cnt) {
+static int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, unsigned int** v_indices, unsigned int* v_indices_cnt) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
 	unsigned int tmp_edge_pair_indices_cnt = 0;
@@ -244,14 +244,17 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 			return 0;
 		}
 		for (j = 0; j < 6; j += 2) {
+			unsigned int* ptr;
 			if (same[j>>1]) {
 				continue;
 			}
 			tmp_edge_pair_indices_cnt += 2;
-			tmp_edge_pair_indices = (unsigned int*)realloc(tmp_edge_pair_indices, tmp_edge_pair_indices_cnt * sizeof(tmp_edge_pair_indices[0]));
-			if (!tmp_edge_pair_indices) {
+			ptr = (unsigned int*)realloc(tmp_edge_pair_indices, tmp_edge_pair_indices_cnt * sizeof(tmp_edge_pair_indices[0]));
+			if (!ptr) {
+				free(tmp_edge_pair_indices);
 				return 0;
 			}
+			tmp_edge_pair_indices = ptr;
 			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 2] = ei[j];
 			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 1] = ei[j+1];
 		}
@@ -340,6 +343,137 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	*v_indices = ret_v_indices;
 	*v_indices_cnt = ret_v_indices_cnt;
 	return 1;
+}
+
+static GeometryPolygen_t* _insert_tri_indices(GeometryPolygen_t* polygen, const unsigned int* tri_indices) {
+	unsigned int cnt = polygen->tri_indices_cnt;
+	unsigned int* new_p = (unsigned int*)realloc((void*)polygen->tri_indices, sizeof(polygen->tri_indices[0]) * (cnt + 3));
+	if (!new_p) {
+		return NULL;
+	}
+	new_p[cnt++] = tri_indices[0];
+	new_p[cnt++] = tri_indices[1];
+	new_p[cnt++] = tri_indices[2];
+	polygen->tri_indices = new_p;
+	polygen->tri_indices_cnt = cnt;
+	return polygen;
+}
+
+int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t** polygens, unsigned int* polygen_cnt) {
+	unsigned int i, pi;
+	GeometryPolygen_t** tmp_polygens = NULL;
+	unsigned int tmp_polygens_arrcnt = 0;
+	GeometryPolygen_t* tmp_ret_polygens = NULL;
+	GeometryPolygen_t** tmp_ret_polygens_unique = NULL;
+	unsigned int tmp_ret_polygens_cnt = 0;
+
+	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
+		return 0;
+	}
+	tmp_polygens_arrcnt = tri_indices_cnt / 3;
+	tmp_polygens = (GeometryPolygen_t**)calloc(1, tmp_polygens_arrcnt * sizeof(tmp_polygens[0]));
+	if (!tmp_polygens) {
+		return 0;
+	}
+	for (pi = i = 0; i < tri_indices_cnt; i += 3, pi++) {
+		unsigned int j, pj;
+		float N[3];
+		mathPlaneNormalByVertices3(v[tri_indices[i]], v[tri_indices[i+1]], v[tri_indices[i+2]], N);
+		if (mathVec3IsZero(N)) {
+			goto err;
+		}
+		if (!tmp_polygens[pi]) {
+			GeometryPolygen_t *new_p, **new_parr;
+			new_p = (GeometryPolygen_t*)calloc(1, sizeof(GeometryPolygen_t));
+			if (!new_p) {
+				goto err;
+			}
+			tmp_polygens[pi] = new_p;
+			new_p->v = v;
+			mathVec3Normalized(new_p->normal, N);
+
+			new_parr = (GeometryPolygen_t**)realloc(tmp_ret_polygens_unique, (tmp_ret_polygens_cnt + 1) * sizeof(tmp_ret_polygens_unique[0]));
+			if (!new_parr) {
+				goto err;
+			}
+			tmp_ret_polygens_unique = new_parr;
+			tmp_ret_polygens_unique[tmp_ret_polygens_cnt++] = tmp_polygens[pi];
+		}
+		if (!_insert_tri_indices(tmp_polygens[pi], tri_indices + i)) {
+			goto err;
+		}
+		for (pj = j = 0; j < tri_indices_cnt; j += 3, pj++) {
+			unsigned int k, same_cnt;
+			if (i == j) {
+				continue;
+			}
+			same_cnt = 0;
+			for (k = 0; k < 3; ++k) {
+				if (!mathPlaneHasPoint(v[tri_indices[i]], N, v[tri_indices[j+k]])) {
+					break;
+				}
+				if (mathVec3Equal(v[tri_indices[i]], v[tri_indices[j+k]]) ||
+					mathVec3Equal(v[tri_indices[i+1]], v[tri_indices[j+k]]) ||
+					mathVec3Equal(v[tri_indices[i+2]], v[tri_indices[j+k]]))
+				{
+					same_cnt++;
+				}
+			}
+			if (k < 3) {
+				continue;
+			}
+			if (3 == same_cnt) {
+				goto err;
+			}
+			if (2 != same_cnt) {
+				continue;
+			}
+			tmp_polygens[pj] = tmp_polygens[pi];
+		}
+	}
+	free(tmp_polygens);
+	tmp_polygens = NULL;
+
+	tmp_ret_polygens = (GeometryPolygen_t*)malloc(tmp_ret_polygens_cnt * sizeof(tmp_ret_polygens[0]));
+	if (!tmp_ret_polygens) {
+		goto err;
+	}
+	for (i = 0; i < tmp_ret_polygens_cnt; ++i) {
+		GeometryPolygen_t* polygen = tmp_ret_polygens_unique[i];
+		if (!mathPolygenCooking(polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, (unsigned int**)&polygen->v_indices, &polygen->v_indices_cnt)) {
+			goto err;
+		}
+		tmp_ret_polygens[i] = *polygen;
+		free(polygen);
+	}
+	free(tmp_ret_polygens_unique);
+
+	*polygens = tmp_ret_polygens;
+	*polygen_cnt = tmp_ret_polygens_cnt;
+	return 1;
+err:
+	if (tmp_polygens) {
+		for (i = 0; i < tmp_polygens_arrcnt; ++i) {
+			if (!tmp_polygens[i]) {
+				continue;
+			}
+			mathTriangleMeshFreePolygenData(tmp_polygens[i]);
+		}
+		free(tmp_polygens);
+	}
+	free(tmp_ret_polygens_unique);
+	free(tmp_ret_polygens);
+	return 0;
+}
+
+void mathTriangleMeshFreePolygenData(GeometryPolygen_t* polygen) {
+	free((void*)polygen->tri_indices);
+	polygen->tri_indices = NULL;
+	polygen->tri_indices_cnt = 0;
+
+	free((void*)polygen->v_indices);
+	polygen->v_indices = NULL;
+	polygen->v_indices_cnt = 0;
 }
 
 #ifdef __cplusplus
