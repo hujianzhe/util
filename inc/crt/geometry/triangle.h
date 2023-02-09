@@ -25,6 +25,14 @@ typedef struct GeometryPolygen_t {
 	const unsigned int* tri_indices; /* triangle vertices index */
 } GeometryPolygen_t;
 
+typedef struct GeometryTriangleMesh_t {
+	const float (*v)[3]; /* vertices vec3 */
+	unsigned int polygens_cnt; /* number of polygen plane */
+	unsigned int edge_indices_cnt; /* number of edge vertices index */
+	GeometryPolygen_t* polygens; /* array of polygens */
+	const unsigned int* edge_indices; /* edge vertices index */
+} GeometryTriangleMesh_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -40,8 +48,8 @@ __declspec_dll void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolyge
 
 __declspec_dll int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]);
 
-__declspec_dll int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t** polygens, unsigned int* polygen_cnt);
-__declspec_dll void mathTriangleMeshFreePolygenData(GeometryPolygen_t* polygen);
+__declspec_dll int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh);
+__declspec_dll void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh);
 
 #ifdef	__cplusplus
 }
