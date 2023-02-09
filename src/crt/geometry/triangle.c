@@ -376,7 +376,7 @@ static int mathTriangleMeshCookingEdge(const float (*v)[3], GeometryTriangleMesh
 				continue;
 			}
 			ret_edge_indices_cnt += 2;
-			new_p = realloc(ret_edge_indices, ret_edge_indices_cnt * sizeof(ret_edge_indices[0]));
+			new_p = (unsigned int*)realloc(ret_edge_indices, ret_edge_indices_cnt * sizeof(ret_edge_indices[0]));
 			if (!new_p) {
 				free(ret_edge_indices);
 				return 0;
