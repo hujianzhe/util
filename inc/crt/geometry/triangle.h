@@ -29,8 +29,10 @@ typedef struct GeometryTriangleMesh_t {
 	const float (*v)[3]; /* vertices vec3 */
 	unsigned int polygens_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */
+	unsigned int v_indices_cnt; /* number of triangle vertices index */
 	GeometryPolygen_t* polygens; /* array of polygens */
 	const unsigned int* edge_indices; /* edge vertices index */
+	const unsigned int* v_indices; /* triangle vertices index */
 } GeometryTriangleMesh_t;
 
 #ifdef	__cplusplus
