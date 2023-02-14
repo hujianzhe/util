@@ -49,6 +49,7 @@ __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
 __declspec_dll void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]);
 
 __declspec_dll int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]);
+__declspec_dll int mathMeshVerticesToAABB(const float (*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]);
 
 __declspec_dll int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh);
 __declspec_dll void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh);
