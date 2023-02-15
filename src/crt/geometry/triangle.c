@@ -67,7 +67,7 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3]) {
 void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen) {
 	polygen->v_indices = DEFAULT_TRIANGLE_VERTICE_INDICES;
 	polygen->v_indices_cnt = 3;
-	polygen->v = tri;
+	polygen->v = (float(*)[3])tri;
 	mathPlaneNormalByVertices3(tri[0], tri[1], tri[2], polygen->normal);
 }
 
@@ -104,7 +104,7 @@ void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, f
 	mathRectVertices(rect, p);
 	polygen->v_indices = DEFAULT_RECT_VERTICE_INDICES;
 	polygen->v_indices_cnt = 4;
-	polygen->v = (const float(*)[3])p;
+	polygen->v = p;
 	mathVec3Copy(polygen->normal, rect->normal);
 }
 
@@ -481,7 +481,7 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 				goto err;
 			}
 			tmp_polygens[pi] = new_p;
-			new_p->v = v;
+			new_p->v = (float(*)[3])v;
 			mathVec3Normalized(new_p->normal, N);
 
 			new_parr = (GeometryPolygen_t**)realloc(tmp_ret_polygens_unique, (tmp_ret_polygens_cnt + 1) * sizeof(tmp_ret_polygens_unique[0]));
@@ -593,7 +593,9 @@ static int mathTriangleMeshCookingMergeVertices(const float (*v)[3], GeometryTri
 	return 1;
 }
 
-int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh) {
+int mathTriangleMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh) {
+	unsigned int i;
+	float (*vbuf)[3];
 	if (!mathTriangleMeshCookingPolygen(v, tri_indices, tri_indices_cnt, mesh)) {
 		return 0;
 	}
@@ -603,7 +605,14 @@ int mathTriangleMeshCooking(const float (*v)[3], const unsigned int* tri_indices
 	if (!mathTriangleMeshCookingMergeVertices(v, mesh)) {
 		return 0;
 	}
-	mesh->v = v;
+	vbuf = (float(*)[3])malloc(v_cnt * sizeof(v[0]));
+	if (!vbuf) {
+		return 0;
+	}
+	for (i = 0; i < v_cnt; ++i) {
+		mathVec3Copy(vbuf[i], v[i]);
+	}
+	mesh->v = vbuf;
 	return 1;
 }
 
@@ -612,12 +621,14 @@ void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh) {
 	for (i = 0; i < mesh->polygens_cnt; ++i) {
 		mathPolygenFreeCookingData(mesh->polygens + i);
 	}
-	free((void*)mesh->polygens);
+	free(mesh->polygens);
 	mesh->polygens_cnt = 0;
 	free((void*)mesh->edge_indices);
 	mesh->edge_indices_cnt = 0;
 	free((void*)mesh->v_indices);
 	mesh->v_indices_cnt = 0;
+	free(mesh->v);
+	mesh->v = NULL;
 }
 
 #ifdef __cplusplus
