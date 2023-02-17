@@ -5,13 +5,7 @@
 #ifndef	UTIL_C_CRT_GEOMETRY_AABB_H
 #define	UTIL_C_CRT_GEOMETRY_AABB_H
 
-#include "../../compiler_define.h"
-#include "triangle.h"
-
-typedef struct GeometryAABB_t {
-	float o[3];
-	float half[3];
-} GeometryAABB_t;
+#include "geometry_def.h"
 
 #ifdef	__cplusplus
 extern "C" {

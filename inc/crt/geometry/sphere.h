@@ -5,12 +5,7 @@
 #ifndef	UTIL_C_CRT_GEOMETRY_SPHERE_H
 #define	UTIL_C_CRT_GEOMETRY_SPHERE_H
 
-#include "../../compiler_define.h"
-
-typedef struct GeometrySphere_t {
-	float o[3];
-	float radius;
-} GeometrySphere_t;
+#include "geometry_def.h"
 
 #ifdef	__cplusplus
 extern "C" {

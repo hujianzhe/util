@@ -6,12 +6,63 @@
 #define	UTIL_C_CRT_GEOMETRY_GEOMETRY_DEF_H
 
 #include "../../compiler_define.h"
-#include "line_segment.h"
-#include "plane.h"
-#include "sphere.h"
-#include "aabb.h"
-#include "triangle.h"
-#include "obb.h"
+
+/*********************************************************************/
+
+typedef struct GeometrySegment_t {
+	float v[2][3];
+} GeometrySegment_t;
+
+typedef struct GeometryPlane_t {
+	float v[3];
+	float normal[3];
+} GeometryPlane_t;
+
+typedef struct GeometrySphere_t {
+	float o[3];
+	float radius;
+} GeometrySphere_t;
+
+typedef struct GeometryAABB_t {
+	float o[3];
+	float half[3];
+} GeometryAABB_t;
+
+typedef struct GeometryOBB_t {
+	float o[3];
+	float half[3];
+	float axis[3][3];
+} GeometryOBB_t;
+
+typedef struct GeometryRect_t {
+	float o[3];
+	float w_axis[3];
+	float h_axis[3];
+	float normal[3];
+	float half_w;
+	float half_h;
+} GeometryRect_t;
+
+typedef struct GeometryPolygen_t {
+	float (*v)[3]; /* vertices vec3 */
+	float normal[3];
+	unsigned int v_indices_cnt; /* number of edge vertices index */
+	unsigned int tri_indices_cnt;  /* number of triangle vertices index */
+	const unsigned int* v_indices; /* edge vertices index, must be ordered(clockwise or counterclockwise) */
+	const unsigned int* tri_indices; /* triangle vertices index */
+} GeometryPolygen_t;
+
+typedef struct GeometryTriangleMesh_t {
+	float (*v)[3]; /* vertices vec3 */
+	unsigned int polygens_cnt; /* number of polygen plane */
+	unsigned int edge_indices_cnt; /* number of edge vertices index */
+	unsigned int v_indices_cnt; /* number of triangle vertices index */
+	GeometryPolygen_t* polygens; /* array of polygens */
+	const unsigned int* edge_indices; /* edge vertices index */
+	const unsigned int* v_indices; /* triangle vertices index */
+} GeometryTriangleMesh_t;
+
+/*********************************************************************/
 
 enum GeometryBodyType {
 	GEOMETRY_BODY_POINT = 1,

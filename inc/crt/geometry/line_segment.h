@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_CRT_GEOMETRY_LINE_SEGMENT_H
 #define	UTIL_C_CRT_GEOMETRY_LINE_SEGMENT_H
 
-#include "../../compiler_define.h"
+#include "geometry_def.h"
 
 enum {
 	GEOMETRY_LINE_SKEW = 0,
@@ -16,15 +16,6 @@ enum {
 	GEOMETRY_SEGMENT_CONTACT = 1,
 	GEOMETRY_SEGMENT_OVERLAP = 2,
 };
-
-typedef struct GeometryLine_t {
-	float v[3];
-	float dir[3];
-} GeometryLine_t;
-
-typedef struct GeometrySegment_t {
-	float v[2][3];
-} GeometrySegment_t;
 
 #ifdef	__cplusplus
 extern "C" {

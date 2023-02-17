@@ -5,12 +5,7 @@
 #ifndef	UTIL_C_CRT_GEOMETRY_PLANE_H
 #define	UTIL_C_CRT_GEOMETRY_PLANE_H
 
-#include "../../compiler_define.h"
-
-typedef struct GeometryPlane_t {
-	float v[3];
-	float normal[3];
-} GeometryPlane_t;
+#include "geometry_def.h"
 
 #ifdef	__cplusplus
 extern "C" {

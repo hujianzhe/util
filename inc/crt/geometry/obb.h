@@ -5,13 +5,7 @@
 #ifndef	UTIL_C_CRT_GEOMETRY_OBB_H
 #define	UTIL_C_CRT_GEOMETRY_OBB_H
 
-#include "aabb.h"
-
-typedef struct GeometryOBB_t {
-	float o[3];
-	float half[3];
-	float axis[3][3];
-} GeometryOBB_t;
+#include "geometry_def.h"
 
 #ifdef	__cplusplus
 extern "C" {

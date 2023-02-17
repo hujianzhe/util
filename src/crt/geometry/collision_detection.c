@@ -4,6 +4,12 @@
 
 #include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/line_segment.h"
+#include "../../../inc/crt/geometry/plane.h"
+#include "../../../inc/crt/geometry/sphere.h"
+#include "../../../inc/crt/geometry/aabb.h"
+#include "../../../inc/crt/geometry/obb.h"
+#include "../../../inc/crt/geometry/triangle.h"
 #include "../../../inc/crt/geometry/collision_intersect.h"
 #include "../../../inc/crt/geometry/collision_detection.h"
 #include <stddef.h>
