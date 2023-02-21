@@ -3,7 +3,6 @@
 //
 
 #include "../../inc/sysapi/mmap.h"
-#include "../../inc/sysapi/assert.h"
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <errno.h>
 #include <fcntl.h>
@@ -72,8 +71,11 @@ BOOL memoryCreateFileMapping(MemoryMapping_t* mm, FD_t fd) {
 BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
+	if (!handle) {
+		return FALSE;
+	}
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
-		assertTRUE(CloseHandle(handle));
+		CloseHandle(handle);
 		return FALSE;
 	}
 	mm->__handle = handle;
@@ -84,7 +86,7 @@ BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 		return FALSE;
 	}
 	mm->__is_shm = 1;
-	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT);
+	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT | IPC_EXCL);
 	return -1 != mm->__fd;
 #endif
 }
