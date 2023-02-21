@@ -13,6 +13,9 @@ struct MemHeap_t;
 extern "C" {
 #endif
 
+__declspec_dll UnsignedPtr_t memheapLength(struct MemHeap_t* h);
+__declspec_dll UnsignedPtr_t shmheapLength(struct MemHeap_t* h);
+
 __declspec_dll struct MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len);
 __declspec_dll void* memheapAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes);
 __declspec_dll void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment);

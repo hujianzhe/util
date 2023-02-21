@@ -69,15 +69,18 @@ BOOL memoryCreateFileMapping(MemoryMapping_t* mm, FD_t fd) {
 }
 
 BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
+/* note: if already exist, size is lesser or equal than the size of that segment */
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
 	if (!handle) {
 		return FALSE;
 	}
+	/*
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
 		CloseHandle(handle);
 		return FALSE;
 	}
+	*/
 	mm->__handle = handle;
 	return TRUE;
 #else
@@ -86,7 +89,7 @@ BOOL memoryCreateMapping(MemoryMapping_t* mm, const char* name, size_t nbytes) {
 		return FALSE;
 	}
 	mm->__is_shm = 1;
-	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT | IPC_EXCL);
+	mm->__fd = shmget(k, nbytes, 0666 | IPC_CREAT);
 	return -1 != mm->__fd;
 #endif
 }
@@ -110,6 +113,9 @@ BOOL memoryCloseMapping(MemoryMapping_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(mm->__handle);
 #else
+	if (mm->__is_shm) {
+		return shmctl(mm->__fd, IPC_RMID, NULL) == 0;
+	}
 	return TRUE;
 #endif
 }

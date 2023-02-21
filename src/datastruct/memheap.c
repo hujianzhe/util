@@ -39,6 +39,10 @@ typedef struct MemHeap_t {
 extern "C" {
 #endif
 
+UnsignedPtr_t memheapLength(struct MemHeap_t* memheap) { return memheap->len; }
+
+UnsignedPtr_t shmheapLength(struct MemHeap_t* memheap) { return memheap->len; }
+
 MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
 	MemHeap_t* memheap;
 	if (len < sizeof(MemHeap_t)) {
