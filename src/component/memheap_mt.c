@@ -26,7 +26,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 	}
 	semaphoreWait(&memheap->seminit);
 	do {
-		Iobuf_t res;
+		void* addr;
 		ok = 0;
 		name_ext[namelen] = 0;
 		if (!semaphoreCreate(&memheap->semlock, strcat(name_ext, "lock"), 1))
@@ -36,9 +36,9 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		if (!memoryCreateMapping(&memheap->mm, strcat(name_ext, "mem"), len))
 			break;
 		ok = 2;
-		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &res))
+		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &addr))
 			break;
-		memheap->ptr = (struct MemHeap_t*)iobufPtr(&res);
+		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
 		shmheapSetup(memheap->ptr, len);
@@ -81,7 +81,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 	}
 	semaphoreWait(&memheap->seminit);
 	do {
-		Iobuf_t res;
+		void* addr;
 		ok = 0;
 		name_ext[namelen] = 0;
 		if (!semaphoreOpen(&memheap->semlock, strcat(name_ext, "lock")))
@@ -91,9 +91,9 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		if (!memoryOpenMapping(&memheap->mm, strcat(name_ext, "mem")))
 			break;
 		ok = 2;
-		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &res))
+		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &addr))
 			break;
-		memheap->ptr = (struct MemHeap_t*)iobufPtr(&res);
+		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
 		ok = 3;
@@ -134,9 +134,8 @@ void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 
 void memheapmtClose(MemHeapMt_t* memheap) {
 	if (memheap->initok) {
-		Iobuf_t ib = iobufStaticInit(memheap->ptr, memheap->len);
 		memheap->initok = 0;
-		memoryUndoMapping(&memheap->mm, &ib);
+		memoryUndoMapping(&memheap->mm, memheap->ptr, memheap->len);
 		memoryCloseMapping(&memheap->mm);
 		semaphoreClose(&memheap->semlock);
 		if (!memheap->is_open) {
