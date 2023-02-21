@@ -38,7 +38,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		ok = 2;
 		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
-		memheap->ptr = (struct MemHeap_t*)addr;
+		memheap->ptr = (struct ShmHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
 		shmheapSetup(memheap->ptr, len);
@@ -93,7 +93,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		ok = 2;
 		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
-		memheap->ptr = (struct MemHeap_t*)addr;
+		memheap->ptr = (struct ShmHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
 		ok = 3;
