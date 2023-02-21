@@ -11,7 +11,7 @@
 typedef struct MemHeapMt_t {
 	Semaphore_t seminit;
 	Semaphore_t semlock;
-	MemoryMapping_t mm;
+	ShareMemMap_t mm;
 	struct MemHeap_t* ptr;
 	size_t len;
 	short initok;

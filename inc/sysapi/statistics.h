@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+__declspec_dll long memoryPageSize(void);
+__declspec_dll unsigned long long memorySize(void);
 __declspec_dll size_t processorCount(void);
 __declspec_dll char* systemCurrentLoginUsername(char* buffer, size_t nbytes);
 __declspec_dll char* systemHostname(char* buf, size_t len);

@@ -568,6 +568,63 @@ BOOL fileHardLinkCount(FD_t fd, unsigned int* count) {
 #endif
 }
 
+/* file memory map */
+BOOL fdCreateMapping(FD_t fd, FD_Mapping_t* ret_mfd) {
+#if defined(_WIN32) || defined(_WIN64)
+	HANDLE handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
+	if (!handle) {
+		return FALSE;
+	}
+	*ret_mfd = handle;
+	return TRUE;
+#else
+	*ret_mfd = fd;
+	return TRUE;
+#endif
+}
+
+BOOL fdMapping(FD_Mapping_t mfd, void* va_base, long long offset, size_t nbytes, void** ret_mptr) {
+#if defined(_WIN32) || defined(_WIN64)
+	void* addr = MapViewOfFileEx(mfd, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
+	if (!addr) {
+		return FALSE;
+	}
+	*ret_mptr = addr;
+	return TRUE;
+#else
+	void* addr = mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, offset);
+	if (MAP_FAILED == addr) {
+		return FALSE;
+	}
+	*ret_mptr = addr;
+	return TRUE;
+#endif
+}
+
+BOOL fdMappingSyncMemory(void* addr, size_t nbytes) {
+#if defined(_WIN32) || defined(_WIN64)
+	return FlushViewOfFile(addr, nbytes);
+#else
+	return msync(addr, nbytes, MS_SYNC) == 0;
+#endif
+}
+
+BOOL fdMappingUndoMemory(void* mptr, size_t nbytes) {
+#if defined(_WIN32) || defined(_WIN64)
+	return UnmapViewOfFile(mptr);
+#else
+	return munmap(mptr, nbytes) == 0;
+#endif
+}
+
+BOOL fdMappingClose(FD_Mapping_t mfd) {
+#if defined(_WIN32) || defined(_WIN64)
+	return CloseHandle(mfd);
+#else
+	return TRUE;
+#endif
+}
+
 /* directory operator */
 BOOL dirCreate(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)

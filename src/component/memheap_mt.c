@@ -36,7 +36,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		if (!memoryCreateMapping(&memheap->mm, strcat(name_ext, "mem"), len))
 			break;
 		ok = 2;
-		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &addr))
+		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
 		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
@@ -53,7 +53,7 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 			semaphoreUnlink(strcat(strcpy(name_ext, name), "lock"));
 		}
 		if (ok > 1) {
-			memoryCloseMapping(&memheap->mm);
+			memoryCloseMapping(memheap->mm);
 		}
 		free(name_ext);
 		return NULL;
@@ -91,7 +91,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		if (!memoryOpenMapping(&memheap->mm, strcat(name_ext, "mem")))
 			break;
 		ok = 2;
-		if (!memoryDoMapping(&memheap->mm, NULL, 0, len, &addr))
+		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
 		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
@@ -105,7 +105,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		if (ok > 0)
 			semaphoreClose(&memheap->semlock);
 		if (ok > 1)
-			memoryCloseMapping(&memheap->mm);
+			memoryCloseMapping(memheap->mm);
 		return NULL;
 	}
 	memheap->len = len;
@@ -135,8 +135,8 @@ void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 void memheapmtClose(MemHeapMt_t* memheap) {
 	if (memheap->initok) {
 		memheap->initok = 0;
-		memoryUndoMapping(&memheap->mm, memheap->ptr, memheap->len);
-		memoryCloseMapping(&memheap->mm);
+		memoryUndoMapping(memheap->ptr);
+		memoryCloseMapping(memheap->mm);
 		semaphoreClose(&memheap->semlock);
 		if (!memheap->is_open) {
 			semaphoreClose(&memheap->seminit);

@@ -9,6 +9,47 @@
 extern "C" {
 #endif
 
+long memoryPageSize(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	return si.dwPageSize;
+#else
+	return sysconf(_SC_PAGESIZE);
+#endif
+}
+
+unsigned long long memorySize(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	MEMORYSTATUSEX statex = { 0 };
+	statex.dwLength = sizeof(statex);
+	if (GlobalMemoryStatusEx(&statex)) {
+		return statex.ullTotalPhys;
+		//*avail = statex.ullAvailPhys;
+		//return TRUE;
+	}
+	return 0;
+	//return FALSE;
+#elif __linux__
+	unsigned long page_size, total_page;
+	if ((page_size = sysconf(_SC_PAGESIZE)) == -1)
+		return 0;
+	if ((total_page = sysconf(_SC_PHYS_PAGES)) == -1)
+		return 0;
+	//if((free_page = sysconf(_SC_AVPHYS_PAGES)) == -1)
+	//return FALSE;
+	return (unsigned long long)total_page * (unsigned long long)page_size;
+	//*avail = (unsigned long long)free_page * (unsigned long long)page_size;
+	//return TRUE;
+#elif __APPLE__
+	int64_t value;
+	size_t len = sizeof(value);
+	return sysctlbyname("hw.memsize", &value, &len, NULL, 0) != -1 ? value : 0;
+	//*avail = 0;// sorry...
+	//return TRUE;
+#endif
+}
+
 size_t processorCount(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;

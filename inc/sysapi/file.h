@@ -10,13 +10,16 @@
 #if defined(_WIN32) || defined(_WIN64)
 	typedef HANDLE					Dir_t;
 	typedef	WIN32_FIND_DATAA		DirItem_t;
+	typedef HANDLE					FD_Mapping_t;
 	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <fcntl.h>
 	#include <sys/stat.h>
+	#include <sys/mman.h>
 	#include <dirent.h>
 	typedef	DIR*					Dir_t;
 	typedef	struct dirent*			DirItem_t;
+	typedef int						FD_Mapping_t;
 #endif
 
 enum {
@@ -77,6 +80,12 @@ __declspec_dll BOOL fileCreateSymlink(const char* actualpath, const char* sympat
 __declspec_dll BOOL fileCreateHardLink(const char* existpath, const char* newpath);
 __declspec_dll BOOL fileHardLinkCount(FD_t fd, unsigned int* count);
 __declspec_dll BOOL fileDeleteHardLink(const char* existpath);
+/* file memory map */
+__declspec_dll BOOL fdCreateMapping(FD_t fd, FD_Mapping_t* ret_mfd);
+__declspec_dll BOOL fdMapping(FD_Mapping_t mfd, void* va_base, long long offset, size_t nbytes, void** ret_mptr);
+__declspec_dll BOOL fdMappingSyncMemory(void* addr, size_t nbytes);
+__declspec_dll BOOL fdMappingUndoMemory(void* mptr, size_t nbytes);
+__declspec_dll BOOL fdMappingClose(FD_Mapping_t mfd);
 /* directory  operator */
 __declspec_dll BOOL dirCreate(const char* path);
 __declspec_dll BOOL dirCurrentPath(char* buf, size_t n);
