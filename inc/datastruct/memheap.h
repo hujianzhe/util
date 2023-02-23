@@ -18,8 +18,10 @@ __declspec_dll void* shmheapStartAddr(struct ShmHeap_t* shmheap);
 
 __declspec_dll struct ShmHeap_t* shmheapSetup(void* addr, UnsignedPtr_t len);
 __declspec_dll void* shmheapAlloc(struct ShmHeap_t* shmheap, UnsignedPtr_t nbytes);
+__declspec_dll void* shmheapAlignAlloc(struct ShmHeap_t* shmheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment);
 __declspec_dll void* shmheapRealloc(struct ShmHeap_t* shmheap, void* addr, UnsignedPtr_t nbytes);
 __declspec_dll void shmheapFree(struct ShmHeap_t* shmheap, void* addr);
+__declspec_dll void shmheapFreeAll(struct ShmHeap_t* shmheap);
 
 #ifdef	__cplusplus
 }

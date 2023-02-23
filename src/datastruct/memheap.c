@@ -77,20 +77,37 @@ ShmHeap_t* shmheapSetup(void* addr, UnsignedPtr_t len) {
 }
 
 void* shmheapAlloc(ShmHeap_t* shmheap, UnsignedPtr_t nbytes) {
-	UnsignedPtr_t realbytes, curoff, prevoff;
+	if (sizeof(void*) > 4) {
+		return shmheapAlignAlloc(shmheap, nbytes, 16);
+	}
+	else {
+		return shmheapAlignAlloc(shmheap, nbytes, 8);
+	}
+}
+
+void* shmheapAlignAlloc(struct ShmHeap_t* shmheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment) {
+	UnsignedPtr_t realbytes, curoff, prevoff, mask;
 	if (PTR_VALUE_MAX - sizeof(MemHeapBlock_t) < nbytes) {
 		return (void*)0;
 	}
+	mask = alignment - 1;
 	realbytes = nbytes + sizeof(MemHeapBlock_t);
 	for (curoff = shmheap->tailoff; curoff; curoff = prevoff) {
 		MemHeapBlock_t* block = (MemHeapBlock_t*)(curoff + (UnsignedPtr_t)shmheap);
+		UnsignedPtr_t leftlen = __shmheapblock_leftlen(shmheap, block);
 		prevoff = block->prevoff;
-		if (__shmheapblock_leftlen(shmheap, block) >= realbytes) {
+		if (leftlen >= realbytes) {
 			UnsignedPtr_t newoff = curoff + sizeof(MemHeapBlock_t) + block->uselen;
-			MemHeapBlock_t* newblock = (MemHeapBlock_t*)(newoff + (UnsignedPtr_t)shmheap);
+			UnsignedPtr_t ptr = newoff + (UnsignedPtr_t)shmheap + sizeof(MemHeapBlock_t);
+			UnsignedPtr_t newptr = (ptr + mask) & (~mask);
+			realbytes += newptr - ptr;
+			if (leftlen < realbytes) {
+				continue;
+			}
+			MemHeapBlock_t* newblock = ptr_memheapblock(newptr);
 			newblock->uselen = nbytes;
 			__insertback(shmheap, block, newblock);
-			return memheapblock_ptr(newblock);
+			return (void*)newptr;
 		}
 	}
 	return (void*)0;
@@ -138,6 +155,11 @@ void shmheapFree(ShmHeap_t* shmheap, void* addr) {
 		MemHeapBlock_t* block = ptr_memheapblock(addr);
 		__remove(shmheap, block);
 	}
+}
+
+void shmheapFreeAll(ShmHeap_t* shmheap) {
+	shmheap->tailoff = (UnsignedPtr_t)&shmheap->guard_block - (UnsignedPtr_t)shmheap;
+	shmheap->guard_block.nextoff = 0;
 }
 
 #ifdef	__cplusplus
