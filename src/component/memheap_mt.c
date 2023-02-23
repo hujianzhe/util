@@ -38,10 +38,10 @@ MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name)
 		ok = 2;
 		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
-		memheap->ptr = (struct ShmHeap_t*)addr;
+		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
-		shmheapSetup(memheap->ptr, len);
+		memheapSetup(memheap->ptr, len);
 		ok = 3;
 	} while (0);
 	semaphorePost(&memheap->seminit);
@@ -93,7 +93,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 		ok = 2;
 		if (!memoryDoMapping(memheap->mm, NULL, len, &addr))
 			break;
-		memheap->ptr = (struct ShmHeap_t*)addr;
+		memheap->ptr = (struct MemHeap_t*)addr;
 		if (!memheap->ptr)
 			break;
 		ok = 3;
@@ -119,7 +119,7 @@ MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name) {
 void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes) {
 	void* addr;
 	semaphoreWait(&memheap->semlock);
-	addr = shmheapAlloc(memheap->ptr, nbytes);
+	addr = memheapAlloc(memheap->ptr, nbytes);
 	semaphorePost(&memheap->semlock);
 	return addr;
 }
@@ -127,7 +127,7 @@ void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes) {
 void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 	if (addr) {
 		semaphoreWait(&memheap->semlock);
-		shmheapFree(memheap->ptr, addr);
+		memheapFree(memheap->ptr, addr);
 		semaphorePost(&memheap->semlock);
 	}
 }

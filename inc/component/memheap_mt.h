@@ -8,13 +8,13 @@
 #include "../../inc/sysapi/ipc.h"
 #include "../../inc/sysapi/mmap.h"
 
-struct ShmHeap_t;
+struct MemHeap_t;
 
 typedef struct MemHeapMt_t {
 	Semaphore_t seminit;
 	Semaphore_t semlock;
 	ShareMemMap_t mm;
-	struct ShmHeap_t* ptr;
+	struct MemHeap_t* ptr;
 	size_t len;
 	short initok;
 	short is_open;
