@@ -451,7 +451,7 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 		case GEOMETRY_BODY_POLYGEN:
 		{
 			const GeometryPolygen_t* polygen = b->polygen;
-			if (!mathMeshVerticesToAABB(polygen->v, polygen->v_indices, polygen->v_indices_cnt, aabb->o, aabb->half)) {
+			if (!mathMeshVerticesToAABB((const float(*)[3])polygen->v, polygen->v_indices, polygen->v_indices_cnt, aabb->o, aabb->half)) {
 				return NULL;
 			}
 			break;
@@ -459,7 +459,7 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 		case GEOMETRY_BODY_TRIANGLE_MESH:
 		{
 			const GeometryTriangleMesh_t* mesh = b->mesh;
-			if (!mathMeshVerticesToAABB(mesh->v, mesh->v_indices, mesh->v_indices_cnt, aabb->o, aabb->half)) {
+			if (!mathMeshVerticesToAABB((const float(*)[3])mesh->v, mesh->v_indices, mesh->v_indices_cnt, aabb->o, aabb->half)) {
 				return NULL;
 			}
 			break;

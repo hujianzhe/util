@@ -532,7 +532,7 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 	}
 	for (i = 0; i < tmp_ret_polygens_cnt; ++i) {
 		GeometryPolygen_t* polygen = tmp_ret_polygens_unique[i];
-		if (!mathPolygenCookingVertices(polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, polygen)) {
+		if (!mathPolygenCookingVertices((const float(*)[3])polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, polygen)) {
 			goto err;
 		}
 		tmp_ret_polygens[i] = *polygen;
