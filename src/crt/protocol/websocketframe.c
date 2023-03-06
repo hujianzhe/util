@@ -133,13 +133,13 @@ int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		ext_payload_filed_len = 2;
 		if (len < header_size + ext_payload_filed_len + mask_len)
 			return 0;
-		payload_len = memToBE16(*(unsigned short*)&buf[header_size]);
+		payload_len = memFromBE16(*(unsigned short*)&buf[header_size]);
 	}
 	else if (payload_len == 127) {
 		ext_payload_filed_len = 8;
 		if (len < header_size + ext_payload_filed_len + mask_len)
 			return 0;
-		payload_len = memToBE64(*(unsigned long long*)&data[header_size]);
+		payload_len = memFromBE64(*(unsigned long long*)&data[header_size]);
 	}
 	else
 		return -1;
@@ -191,11 +191,11 @@ void websocketframeEncode(void* headbuf, int is_fin, int prev_is_fin, int type, 
 	}
 	else if (datalen <= 0xffff) {
 		phead[1] = 126;
-		*(unsigned short*)&phead[2] = memFromBE16(datalen);
+		*(unsigned short*)&phead[2] = memToBE16(datalen);
 	}
 	else {
 		phead[1] = 127;
-		*(unsigned long long*)&phead[2] = memFromBE64(datalen);
+		*(unsigned long long*)&phead[2] = memToBE64(datalen);
 	}
 }
 
