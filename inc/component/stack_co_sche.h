@@ -42,6 +42,7 @@ __declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t
 __declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long msec);
 
 __declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
+__declspec_dll void StackCoSche_no_arg_free(struct StackCoSche_t* sche);
 __declspec_dll void* StackCoSche_pop_resume_ret(StackCoBlock_t* block);
 __declspec_dll void StackCoSche_reuse_block(struct StackCoSche_t* sche, StackCoBlock_t* block);
 __declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int block_id, int status, void* ret, void(*fn_ret_free)(void*));

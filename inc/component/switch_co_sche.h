@@ -83,6 +83,7 @@ __declspec_dll SwitchCo_t* SwitchCoSche_new_child_co(struct SwitchCoSche_t* sche
 __declspec_dll SwitchCo_t* SwitchCoSche_sleep_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec);
 __declspec_dll SwitchCo_t* SwitchCoSche_block_point_util(struct SwitchCoSche_t* sche, SwitchCo_t* parent_co, long long tm_msec);
 
+__declspec_dll void SwitchCoSche_no_arg_free(SwitchCo_t* co);
 __declspec_dll void* SwitchCoSche_pop_resume_ret(SwitchCo_t* co);
 __declspec_dll void SwitchCoSche_reuse_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);
 __declspec_dll SwitchCo_t* SwitchCoSche_call_co(struct SwitchCoSche_t* sche, SwitchCo_t* co);

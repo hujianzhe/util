@@ -477,6 +477,12 @@ StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
 	return NULL;
 }
 
+void StackCoSche_no_arg_free(struct StackCoSche_t* sche) {
+	if (sche->exec_co_node) {
+		sche->exec_co_node->fn_proc_arg_free = NULL;
+	}
+}
+
 void* StackCoSche_pop_resume_ret(StackCoBlock_t* block) {
 	StackCoBlockNode_t* block_node = pod_container_of(block, StackCoBlockNode_t, block);
 	void* ret = block->resume_ret;

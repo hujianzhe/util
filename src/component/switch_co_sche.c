@@ -441,6 +441,11 @@ err:
 	return NULL;
 }
 
+void SwitchCoSche_no_arg_free(SwitchCo_t* co) {
+	SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
+	co_node->fn_proc_arg_free = NULL;
+}
+
 void* SwitchCoSche_pop_resume_ret(SwitchCo_t* co) {
 	SwitchCoNode_t* co_node = pod_container_of(co, SwitchCoNode_t, co);
 	void* ret = co->resume_ret;
