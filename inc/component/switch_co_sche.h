@@ -25,9 +25,24 @@ typedef struct SwitchCo_t {
 
 struct SwitchCoSche_t;
 
-#define	SwitchCo_code_begin(co) \
+#define	SwitchCo_code_begin_no_ctx(co) \
 switch (co->status) { \
 	case SWITCH_STATUS_START: \
+		co->status = SWITCH_STATUS_DOING; \
+		do
+
+#define	SwitchCo_code_begin(co, ctx, ctx_create_expr, fn_ctx_free) \
+*(void**)&ctx = co->ctx; \
+switch (co->status) { \
+	case SWITCH_STATUS_START: \
+		co->ctx = ctx_create_expr; \
+		if (!co->ctx) { \
+			co->status = SWITCH_STATUS_CANCEL; \
+			SwitchCoSche_reuse_co(sche, co); \
+			break; \
+		} \
+		co->fn_ctx_free = fn_ctx_free; \
+		*(void**)&ctx = co->ctx; \
 		co->status = SWITCH_STATUS_DOING; \
 		do
 
