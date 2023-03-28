@@ -80,6 +80,16 @@ do {\
 	--((dynarr)->len);\
 } while (0)
 
+#define	dynarrSwapRemoveIdx(dynarr, idx)\
+do {\
+	size_t __i = idx;\
+	if (__i >= (dynarr)->len) {\
+		break;\
+	}\
+	(dynarr)->buf[__i] = (dynarr)->buf[(dynarr)->len - 1];\
+	--((dynarr)->len);\
+} while (0)
+
 #define	dynarrCopyAppend(dst, _buf, _len, ret_ok)\
 do {\
 	size_t __i;\
