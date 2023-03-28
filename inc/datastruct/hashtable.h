@@ -30,7 +30,7 @@ typedef struct Hashtable_t {
 	unsigned int buckets_size;
 	int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
 	unsigned int (*keyhash)(const HashtableNodeKey_t*);
-	struct HashtableNode_t* head;
+	struct HashtableNode_t *head, *tail;
 	UnsignedPtr_t count;
 } Hashtable_t;
 
@@ -62,6 +62,8 @@ __declspec_dll struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* ha
 __declspec_dll int hashtableIsEmpty(const struct Hashtable_t* hashtable);
 __declspec_dll struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable);
 __declspec_dll struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node);
+__declspec_dll struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable);
+__declspec_dll struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node);
 
 __declspec_dll void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size);
 __declspec_dll void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2);

@@ -102,7 +102,7 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 	hashtable->keycmp = keycmp;
 	hashtable->keyhash = keyhash;
 	hashtable->count = 0;
-	hashtable->head = 0;
+	hashtable->head = hashtable->tail = (struct HashtableNode_t*)0;
 	return hashtable;
 }
 
@@ -120,12 +120,16 @@ struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struc
 	node->next = *bucket_list_head;
 	node->bucket_index = (unsigned int)(bucket_list_head - hashtable->buckets);
 	*bucket_list_head = node;
-	if (hashtable->head) {
-		hashtable->head->ele_prev = node;
+
+	node->ele_prev = hashtable->tail;
+	node->ele_next = (struct HashtableNode_t*)0;
+	if (hashtable->tail) {
+		hashtable->tail->ele_next = node;
 	}
-	node->ele_prev = (struct HashtableNode_t*)0;
-	node->ele_next = hashtable->head;
-	hashtable->head = node;
+	else {
+		hashtable->head = node;
+	}
+	hashtable->tail = node;
 	return node;
 }
 
@@ -152,6 +156,9 @@ void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t*
 		if (old_node->ele_next) {
 			old_node->ele_next->ele_prev = new_node;
 		}
+		else {
+			hashtable->tail = new_node;
+		}
 
 		*new_node = *old_node;
 		new_node->key = key;
@@ -172,6 +179,9 @@ void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* 
 	--(hashtable->count);
 	if (hashtable->head == node) {
 		hashtable->head = node->ele_next;
+	}
+	if (hashtable->tail == node) {
+		hashtable->tail = node->ele_prev;
 	}
 	if (node->ele_prev) {
 		node->ele_prev->ele_next = node->ele_next;
@@ -203,6 +213,14 @@ struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable) 
 
 struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node) {
 	return node->ele_next;
+}
+
+struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable) {
+	return hashtable->tail;
+}
+
+struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node) {
+	return node->ele_prev;
 }
 
 void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size) {
