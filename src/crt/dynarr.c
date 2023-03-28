@@ -11,7 +11,7 @@ extern "C" {
 
 void* dynarrReserve_raw(DynArrRaw_t* dynarr, size_t capacity, size_t ele_size) {
 	if (dynarr->capacity < capacity) {
-		void* p = realloc(dynarr->buf, sizeof(ele_size) * capacity);
+		void* p = realloc(dynarr->buf, ele_size * capacity);
 		if (!p) {
 			return NULL;
 		}
