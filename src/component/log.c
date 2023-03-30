@@ -81,25 +81,24 @@ static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
 }
 
 static void log_write(Log_t* log, CacheBlock_t* cache) {
-	unsigned char is_async = log->async_print_file;
+	unsigned char is_async = log->async_print;
 
-	if (log->print_stderr) {
+	if (log->print_stdio) {
 		fputs(cache->txt, stderr);
 	}
 
-	criticalsectionEnter(&log->m_lock);
-
-	if (is_async) {
-		listInsertNodeBack(&log->m_cachelist, log->m_cachelist.tail, &cache->m_listnode);
+	if (log->print_file) {
+		criticalsectionEnter(&log->m_lock);
+		if (is_async) {
+			listInsertNodeBack(&log->m_cachelist, log->m_cachelist.tail, &cache->m_listnode);
+			criticalsectionLeave(&log->m_lock);
+		}
+		else {
+			log_do_write_cache(log, cache);
+			criticalsectionLeave(&log->m_lock);
+			free(cache);
+		}
 	}
-	else {
-		log_do_write_cache(log, cache);
-	}
-
-	criticalsectionLeave(&log->m_lock);
-
-	if (!is_async)
-		free(cache);
 }
 
 static const char* log_get_priority_str(int level) {
@@ -128,8 +127,6 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 	const char* priority_str = log_get_priority_str(priority);
 
 	if (!format || 0 == *format)
-		return;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority))
 		return;
 	if (!gmtimeLocalTM(gmtimeSecond(), &dt))
 		return;
@@ -196,41 +193,19 @@ Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char*
 
 	strncpy(log->ident, ident, sizeof(log->ident) - 1);
 	log->ident[sizeof(log->ident) - 1] = 0;
-	log->print_stderr = 0;
-	log->async_print_file = 0;
+	if (log->pathname[0]) {
+		log->print_file = 1;
+	}
+	log->print_stdio = 0;
+	log->async_print = 0;
 	log->fn_priority_filter = NULL;
 	log->filter_priority = -1;
 
 	return log;
 }
 
-int logFilterPriorityLess(int log_priority, int filter_priority) {
-	return log_priority < filter_priority;
-}
-
-int logFilterPriorityLessEqual(int log_priority, int filter_priority) {
-	return log_priority <= filter_priority;
-}
-
-int logFilterPriorityGreater(int log_priority, int filter_priority) {
-	return log_priority > filter_priority;
-}
-
-int logFilterPriorityGreaterEqual(int log_priority, int filter_priority) {
-	return log_priority >= filter_priority;
-}
-
-int logFilterPriorityEqual(int log_priority, int filter_priority) {
-	return log_priority == filter_priority;
-}
-
-int logFilterPriorityNotEqual(int log_priority, int filter_priority) {
-	return log_priority != filter_priority;
-}
-
-void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filter)(int, int)) {
-	log->filter_priority = filter_priority;
-	log->fn_priority_filter = fn_priority_filter;
+void logEnableStdio(Log_t* log, int enabled) {
+	log->print_stdio = enabled;
 }
 
 void logFlush(Log_t* log) {
@@ -320,7 +295,7 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 
 	if (!format || 0 == *format)
 		return;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority))
+	if (logCheckPriorityFilter(log, priority))
 		return;
 	va_start(varg, format);
 	len = vsnprintf(&test_buf, 0, format, varg);
@@ -344,12 +319,48 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 
 void logPrintln(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority)) {
+	if (logCheckPriorityFilter(log, priority)) {
 		return;
 	}
 	va_start(varg, format);
 	log_build(log, priority, format, varg);
 	va_end(varg);
+}
+
+int logFilterPriorityLess(int log_priority, int filter_priority) {
+	return log_priority < filter_priority;
+}
+
+int logFilterPriorityLessEqual(int log_priority, int filter_priority) {
+	return log_priority <= filter_priority;
+}
+
+int logFilterPriorityGreater(int log_priority, int filter_priority) {
+	return log_priority > filter_priority;
+}
+
+int logFilterPriorityGreaterEqual(int log_priority, int filter_priority) {
+	return log_priority >= filter_priority;
+}
+
+int logFilterPriorityEqual(int log_priority, int filter_priority) {
+	return log_priority == filter_priority;
+}
+
+int logFilterPriorityNotEqual(int log_priority, int filter_priority) {
+	return log_priority != filter_priority;
+}
+
+void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filter)(int, int)) {
+	log->filter_priority = filter_priority;
+	log->fn_priority_filter = fn_priority_filter;
+}
+
+int logCheckPriorityFilter(Log_t* log, int priority) {
+	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority)) {
+		return 1;
+	}
+	return 0;
 }
 
 #ifdef	__cplusplus
