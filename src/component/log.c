@@ -18,10 +18,6 @@ typedef struct CacheBlock_t {
 	char txt[1];
 } CacheBlock_t;
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 static int log_rotate(Log_t* log) {
 	FD_t fd;
 	char* pathname;
@@ -106,12 +102,30 @@ static void log_write(Log_t* log, CacheBlock_t* cache) {
 		free(cache);
 }
 
-static void log_build(Log_t* log, const char* priority, const char* format, va_list ap) {
+static const char* log_get_priority_str(int level) {
+	static const char* s_priority_str[] = {
+		"Emerg",
+		"Alert",
+		"Crit",
+		"Err",
+		"Warning",
+		"Notice",
+		"Info",
+		"Debug"
+	};
+	if (level < 0 || level >= sizeof(s_priority_str) / sizeof(s_priority_str[0])) {
+		return "";
+	}
+	return s_priority_str[level];
+}
+
+static void log_build(Log_t* log, int priority, const char* format, va_list ap) {
 	va_list varg;
 	int len, res;
 	char test_buf;
 	CacheBlock_t* cache;
 	struct tm dt;
+	const char* priority_str = log_get_priority_str(priority);
 
 	if (!format || 0 == *format)
 		return;
@@ -124,7 +138,7 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 						log->ident,
 						dt.tm_year, dt.tm_mon, dt.tm_mday,
 						dt.tm_hour, dt.tm_min, dt.tm_sec,
-						priority);
+						priority_str);
 	if (res <= 0)
 		return;
 	len = res;
@@ -142,7 +156,7 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 					log->ident,
 					dt.tm_year, dt.tm_mon, dt.tm_mday,
 					dt.tm_hour, dt.tm_min, dt.tm_sec,
-					priority);
+					priority_str);
 	if (res <= 0 || res >= len) {
 		free(cache);
 		return;
@@ -159,6 +173,10 @@ static void log_build(Log_t* log, const char* priority, const char* format, va_l
 	cache->len = len;
 	log_write(log, cache);
 }
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char* pathname) {
 	log->m_initok = 0;
@@ -229,15 +247,13 @@ void logDestroy(Log_t* log) {
 	}
 }
 
-void logPrintRaw(Log_t* log, const char* priority, const char* format, ...) {
+void logPrintRawNoFilter(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
 	int len;
 	char test_buf;
 	CacheBlock_t* cache;
 
 	if (!format || 0 == *format)
-		return;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority ? priority : ""))
 		return;
 	va_start(varg, format);
 	len = vsnprintf(&test_buf, 0, format, varg);
@@ -259,59 +275,50 @@ void logPrintRaw(Log_t* log, const char* priority, const char* format, ...) {
 	log_write(log, cache);
 }
 
-void logPrintln(Log_t* log, const char* priority, const char* format, ...) {
+void logPrintlnNoFilter(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
 	va_start(varg, format);
-	log_build(log, priority ? priority : "", format, varg);
+	log_build(log, priority, format, varg);
 	va_end(varg);
 }
 
-void logEmerg(Log_t* log, const char* format, ...) {
+void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
+	int len;
+	char test_buf;
+	CacheBlock_t* cache;
+
+	if (!format || 0 == *format)
+		return;
+	if (log->fn_priority_filter && log->fn_priority_filter(priority))
+		return;
 	va_start(varg, format);
-	log_build(log, "EMERG", format, varg);
+	len = vsnprintf(&test_buf, 0, format, varg);
 	va_end(varg);
-}
-void logAlert(Log_t* log, const char* format, ...) {
-	va_list varg;
+	if (len <= 0)
+		return;
+	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
+	if (!cache)
+		return;
 	va_start(varg, format);
-	log_build(log, "ALERT", format, varg);
+	len = vsnprintf(cache->txt, len + 1, format, varg);
 	va_end(varg);
+	if (len <= 0) {
+		free(cache);
+		return;
+	}
+	cache->txt[len] = 0;
+	cache->len = len;
+	log_write(log, cache);
 }
-void logCrit(Log_t* log, const char* format, ...) {
+
+void logPrintln(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
+	if (log->fn_priority_filter && log->fn_priority_filter(priority)) {
+		return;
+	}
 	va_start(varg, format);
-	log_build(log, "CRIT", format, varg);
-	va_end(varg);
-}
-void logErr(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "ERR", format, varg);
-	va_end(varg);
-}
-void logWarning(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "WARNING", format, varg);
-	va_end(varg);
-}
-void logNotice(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "NOTICE", format, varg);
-	va_end(varg);
-}
-void logInfo(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "INFO", format, varg);
-	va_end(varg);
-}
-void logDebug(Log_t* log, const char* format, ...) {
-	va_list varg;
-	va_start(varg, format);
-	log_build(log, "DEBUG", format, varg);
+	log_build(log, priority, format, varg);
 	va_end(varg);
 }
 

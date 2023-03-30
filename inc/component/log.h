@@ -14,7 +14,7 @@ typedef struct Log_t {
 	char* pathname;
 	unsigned char print_stderr;
 	unsigned char async_print_file;
-	int(*fn_priority_filter)(const char* priority);
+	int(*fn_priority_filter)(int priority);
 /* private */
 	unsigned char m_initok;
 	FD_t m_fd;
@@ -34,17 +34,23 @@ __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);
 
-__declspec_dll void logPrintRaw(Log_t* log, const char* priority, const char* format, ...);
-__declspec_dll void logPrintln(Log_t* log, const char* priority, const char* format, ...);
+__declspec_dll void logPrintRawNoFilter(Log_t* log, int priority, const char* format, ...);
+__declspec_dll void logPrintlnNoFilter(Log_t* log, int priority, const char* format, ...);
+__declspec_dll void logPrintRaw(Log_t* log, int priority, const char* format, ...);
+__declspec_dll void logPrintln(Log_t* log, int priority, const char* format, ...);
 
-__declspec_dll void logEmerg(Log_t* log, const char* format, ...);
-__declspec_dll void logAlert(Log_t* log, const char* format, ...);
-__declspec_dll void logCrit(Log_t* log, const char* format, ...);
-__declspec_dll void logErr(Log_t* log, const char* format, ...);
-__declspec_dll void logWarning(Log_t* log, const char* format, ...);
-__declspec_dll void logNotice(Log_t* log, const char* format, ...);
-__declspec_dll void logInfo(Log_t* log, const char* format, ...);
-__declspec_dll void logDebug(Log_t* log, const char* format, ...);
+#define logPrintlnTempletePrivate(log, priority, format, ...)	\
+if (!(log)->fn_priority_filter || !(log)->fn_priority_filter(priority))	\
+	logPrintlnNoFilter(log, priority, "%s(%d)|" format, __FILE__, __LINE__, ##__VA_ARGS__)
+
+#define	logEmerg(log, format, ...)	logPrintlnTempletePrivate(log, 0, format, ##__VA_ARGS__)
+#define	logAlert(log, format, ...)	logPrintlnTempletePrivate(log, 1, format, ##__VA_ARGS__)
+#define	logCrit(log, format, ...)	logPrintlnTempletePrivate(log, 2, format, ##__VA_ARGS__)
+#define	logErr(log, format, ...)	logPrintlnTempletePrivate(log, 3, format, ##__VA_ARGS__)
+#define	logWarn(log, format, ...)	logPrintlnTempletePrivate(log, 4, format, ##__VA_ARGS__)
+#define	logNotice(log, format, ...)	logPrintlnTempletePrivate(log, 5, format, ##__VA_ARGS__)
+#define	logInfo(log, format, ...)	logPrintlnTempletePrivate(log, 6, format, ##__VA_ARGS__)
+#define	logDebug(log, format, ...)	logPrintlnTempletePrivate(log, 7, format, ##__VA_ARGS__)
 
 #ifdef	__cplusplus
 }
