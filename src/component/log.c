@@ -2,15 +2,35 @@
 // Created by hujianzhe
 //
 
+#include "../../inc/datastruct/list.h"
+#include "../../inc/sysapi/ipc.h"
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/file.h"
 #include "../../inc/sysapi/time.h"
 #include "../../inc/crt/string.h"
 #include "../../inc/component/log.h"
+#include <stddef.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct Log_t {
+	char ident[64];
+	char* pathname;
+	unsigned char print_file;
+	unsigned char print_stdio;
+	unsigned char async_print;
+	int(*fn_priority_filter)(int log_priority, int filter_priority);
+	int filter_priority;
+/* private */
+	FD_t m_fd;
+	size_t m_filesize;
+	size_t m_maxfilesize;
+	unsigned int m_filesegmentseq;
+	List_t m_cachelist;
+	CriticalSection_t m_lock;
+} Log_t;
 
 typedef struct CacheBlock_t {
 	ListNode_t m_listnode;
@@ -175,13 +195,19 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 extern "C" {
 #endif
 
-Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char* pathname) {
-	log->m_initok = 0;
-	log->pathname = strdup(pathname);
-	if (!log->pathname)
+Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname) {
+	Log_t* log = (Log_t*)malloc(sizeof(Log_t));
+	if (!log) {
 		return NULL;
+	}
+	log->pathname = strdup(pathname ? pathname : "");
+	if (!log->pathname) {
+		free(log);
+		return NULL;
+	}
 	if (!criticalsectionCreate(&log->m_lock)) {
 		free(log->pathname);
+		free(log);
 		return NULL;
 	}
 	log->m_fd = INVALID_FD_HANDLE;
@@ -189,7 +215,6 @@ Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char*
 	log->m_maxfilesize = maxfilesize;
 	log->m_filesegmentseq = 0;
 	listInit(&log->m_cachelist);
-	log->m_initok = 1;
 
 	strncpy(log->ident, ident, sizeof(log->ident) - 1);
 	log->ident[sizeof(log->ident) - 1] = 0;
@@ -243,12 +268,14 @@ void logClear(Log_t* log) {
 }
 
 void logDestroy(Log_t* log) {
-	if (log && log->m_initok) {
+	if (log) {
 		logClear(log);
 		criticalsectionClose(&log->m_lock);
 		free(log->pathname);
-		if (INVALID_FD_HANDLE != log->m_fd)
+		if (INVALID_FD_HANDLE != log->m_fd) {
 			fdClose(log->m_fd);
+		}
+		free(log);
 	}
 }
 
