@@ -229,6 +229,15 @@ Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname) {
 	return log;
 }
 
+void logEnableFile(struct Log_t* log, int enabled) {
+	if (enabled) {
+		if (!log->pathname || 0 == log->pathname[0] || log->m_maxfilesize <= 0) {
+			return;
+		}
+	}
+	log->print_file = enabled;
+}
+
 void logEnableStdio(Log_t* log, int enabled) {
 	log->print_stdio = enabled;
 }
