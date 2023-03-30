@@ -218,7 +218,7 @@ Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname) {
 
 	strncpy(log->ident, ident, sizeof(log->ident) - 1);
 	log->ident[sizeof(log->ident) - 1] = 0;
-	if (log->pathname[0]) {
+	if (log->pathname[0] && log->m_maxfilesize > 0) {
 		log->print_file = 1;
 	}
 	log->print_stdio = 0;
