@@ -14,7 +14,8 @@ typedef struct Log_t {
 	char* pathname;
 	unsigned char print_stderr;
 	unsigned char async_print_file;
-	int(*fn_priority_filter)(int priority);
+	int(*fn_priority_filter)(int log_priority, int filter_priority);
+	int filter_priority;
 /* private */
 	unsigned char m_initok;
 	FD_t m_fd;
@@ -34,13 +35,21 @@ __declspec_dll void logFlush(Log_t* log);
 __declspec_dll void logClear(Log_t* log);
 __declspec_dll void logDestroy(Log_t* log);
 
+__declspec_dll int logFilterPriorityLess(int log_priority, int filter_priority);
+__declspec_dll int logFilterPriorityLessEqual(int log_priority, int filter_priority);
+__declspec_dll int logFilterPriorityGreater(int log_priority, int filter_priority);
+__declspec_dll int logFilterPriorityGreaterEqual(int log_priority, int filter_priority);
+__declspec_dll int logFilterPriorityEqual(int log_priority, int filter_priority);
+__declspec_dll int logFilterPriorityNotEqual(int log_priority, int filter_priority);
+__declspec_dll void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filter)(int, int));
+
 __declspec_dll void logPrintRawNoFilter(Log_t* log, int priority, const char* format, ...);
 __declspec_dll void logPrintlnNoFilter(Log_t* log, int priority, const char* format, ...);
 __declspec_dll void logPrintRaw(Log_t* log, int priority, const char* format, ...);
 __declspec_dll void logPrintln(Log_t* log, int priority, const char* format, ...);
 
 #define logPrintlnTempletePrivate(log, priority, format, ...)	\
-if (!(log)->fn_priority_filter || !(log)->fn_priority_filter(priority))	\
+if (!(log)->fn_priority_filter || !(log)->fn_priority_filter(priority, (log)->filter_priority))	\
 	logPrintlnNoFilter(log, priority, "%s(%d)|" format, __FILE__, __LINE__, ##__VA_ARGS__)
 
 #define	logEmerg(log, format, ...)	logPrintlnTempletePrivate(log, 0, format, ##__VA_ARGS__)

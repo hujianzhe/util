@@ -129,7 +129,7 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 
 	if (!format || 0 == *format)
 		return;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority))
+	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority))
 		return;
 	if (!gmtimeLocalTM(gmtimeSecond(), &dt))
 		return;
@@ -199,8 +199,38 @@ Log_t* logInit(Log_t* log, size_t maxfilesize, const char ident[64], const char*
 	log->print_stderr = 0;
 	log->async_print_file = 0;
 	log->fn_priority_filter = NULL;
+	log->filter_priority = -1;
 
 	return log;
+}
+
+int logFilterPriorityLess(int log_priority, int filter_priority) {
+	return log_priority < filter_priority;
+}
+
+int logFilterPriorityLessEqual(int log_priority, int filter_priority) {
+	return log_priority <= filter_priority;
+}
+
+int logFilterPriorityGreater(int log_priority, int filter_priority) {
+	return log_priority > filter_priority;
+}
+
+int logFilterPriorityGreaterEqual(int log_priority, int filter_priority) {
+	return log_priority >= filter_priority;
+}
+
+int logFilterPriorityEqual(int log_priority, int filter_priority) {
+	return log_priority == filter_priority;
+}
+
+int logFilterPriorityNotEqual(int log_priority, int filter_priority) {
+	return log_priority != filter_priority;
+}
+
+void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filter)(int, int)) {
+	log->filter_priority = filter_priority;
+	log->fn_priority_filter = fn_priority_filter;
 }
 
 void logFlush(Log_t* log) {
@@ -290,7 +320,7 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 
 	if (!format || 0 == *format)
 		return;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority))
+	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority))
 		return;
 	va_start(varg, format);
 	len = vsnprintf(&test_buf, 0, format, varg);
@@ -314,7 +344,7 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 
 void logPrintln(Log_t* log, int priority, const char* format, ...) {
 	va_list varg;
-	if (log->fn_priority_filter && log->fn_priority_filter(priority)) {
+	if (log->fn_priority_filter && log->fn_priority_filter(priority, log->filter_priority)) {
 		return;
 	}
 	va_start(varg, format);
