@@ -162,8 +162,6 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 	char test_buf;
 	CacheBlock_t* cache;
 	LogItemInfo_t item_info;
-	struct tm dt;
-	const char* priority_str;
 
 	if (!format || 0 == *format) {
 		return;
