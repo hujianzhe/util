@@ -13,7 +13,7 @@ struct Log_t;
 extern "C" {
 #endif
 
-__declspec_dll struct Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname);
+__declspec_dll struct Log_t* logOpen(size_t maxfilesize, const char* pathname);
 __declspec_dll void logEnableFile(struct Log_t* log, int enabled);
 __declspec_dll void logEnableStdio(struct Log_t* log, int enabled);
 __declspec_dll void logFlush(struct Log_t* log);

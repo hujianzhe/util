@@ -16,7 +16,6 @@
 #include <string.h>
 
 typedef struct Log_t {
-	char ident[64];
 	char* pathname;
 	unsigned char print_file;
 	unsigned char print_stdio;
@@ -144,33 +143,37 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 	char test_buf;
 	CacheBlock_t* cache;
 	struct tm dt;
-	const char* priority_str = log_get_priority_str(priority);
+	const char* priority_str;
 
-	if (!format || 0 == *format)
+	if (!format || 0 == *format) {
 		return;
-	if (!gmtimeLocalTM(gmtimeSecond(), &dt))
+	}
+	if (!gmtimeLocalTM(gmtimeSecond(), &dt)) {
 		return;
+	}
 	structtmNormal(&dt);
-	res = strFormatLen("%s|%d-%d-%d %d:%d:%d|%s|",
-						log->ident,
+	priority_str = log_get_priority_str(priority);
+	res = strFormatLen("%d-%d-%d %d:%d:%d|%s|",
 						dt.tm_year, dt.tm_mon, dt.tm_mday,
 						dt.tm_hour, dt.tm_min, dt.tm_sec,
 						priority_str);
-	if (res <= 0)
+	if (res <= 0) {
 		return;
+	}
 	len = res;
 	va_copy(varg, ap);
 	res = vsnprintf(&test_buf, 0, format, varg);
 	va_end(varg);
-	if (res <= 0)
+	if (res <= 0) {
 		return;
+	}
 	len += res;
 	++len;/* append '\n' */
 	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
-	if (!cache)
+	if (!cache) {
 		return;
-	res = snprintf(cache->txt, len + 1, "%s|%d-%d-%d %d:%d:%d|%s|",
-					log->ident,
+	}
+	res = snprintf(cache->txt, len + 1, "%d-%d-%d %d:%d:%d|%s|",
 					dt.tm_year, dt.tm_mon, dt.tm_mday,
 					dt.tm_hour, dt.tm_min, dt.tm_sec,
 					priority_str);
@@ -195,7 +198,7 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 extern "C" {
 #endif
 
-Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname) {
+Log_t* logOpen(size_t maxfilesize, const char* pathname) {
 	Log_t* log = (Log_t*)malloc(sizeof(Log_t));
 	if (!log) {
 		return NULL;
@@ -216,8 +219,6 @@ Log_t* logOpen(size_t maxfilesize, const char ident[64], const char* pathname) {
 	log->m_filesegmentseq = 0;
 	listInit(&log->m_cachelist);
 
-	strncpy(log->ident, ident, sizeof(log->ident) - 1);
-	log->ident[sizeof(log->ident) - 1] = 0;
 	if (log->pathname[0] && log->m_maxfilesize > 0) {
 		log->print_file = 1;
 	}
