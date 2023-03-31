@@ -6,14 +6,24 @@
 #define	UTIL_C_COMPONENT_LOG_H
 
 #include "../../inc/platform_define.h"
+#include <time.h>
 
 struct Log_t;
+
+typedef struct LogItemInfo_t {
+	const char* priority_str;
+	const char* source_file;
+	const char* func_name;
+	unsigned int source_line;
+	struct tm dt;
+} LogItemInfo_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 __declspec_dll struct Log_t* logOpen(size_t maxfilesize, const char* pathname);
+__declspec_dll void logPrefix(struct Log_t* log, int(*fn_prefix_length)(LogItemInfo_t*), void(*fn_sprintf_prefix)(char*, LogItemInfo_t*));
 __declspec_dll void logEnableFile(struct Log_t* log, int enabled);
 __declspec_dll void logEnableStdio(struct Log_t* log, int enabled);
 __declspec_dll void logFlush(struct Log_t* log);
@@ -34,9 +44,10 @@ __declspec_dll void logPrintlnNoFilter(struct Log_t* log, int priority, const ch
 __declspec_dll void logPrintRaw(struct Log_t* log, int priority, const char* format, ...);
 __declspec_dll void logPrintln(struct Log_t* log, int priority, const char* format, ...);
 
+__declspec_dll struct Log_t* logSaveSourceFile(struct Log_t* log, const char* source_file, const char* func_name, unsigned int source_line);
 #define logPrintlnTempletePrivate(log, priority, format, ...)	\
 if (!logCheckPriorityFilter(log, priority))	\
-	logPrintlnNoFilter(log, priority, "%s(%d)|" format, __FILE__, __LINE__, ##__VA_ARGS__)
+	logPrintlnNoFilter(logSaveSourceFile(log, __FILE__, __func__, __LINE__), priority, "" format, ##__VA_ARGS__)
 
 #define	logEmerg(log, format, ...)	logPrintlnTempletePrivate(log, 0, format, ##__VA_ARGS__)
 #define	logAlert(log, format, ...)	logPrintlnTempletePrivate(log, 1, format, ##__VA_ARGS__)

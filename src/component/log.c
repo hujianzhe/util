@@ -20,8 +20,13 @@ typedef struct Log_t {
 	unsigned char print_file;
 	unsigned char print_stdio;
 	unsigned char async_print;
-	int(*fn_priority_filter)(int log_priority, int filter_priority);
 	int filter_priority;
+	const char* source_file;
+	const char* func_name;
+	unsigned int source_line;
+	int(*fn_priority_filter)(int, int);
+	int(*fn_prefix_length)(LogItemInfo_t*);
+	void(*fn_sprintf_prefix)(char*, LogItemInfo_t*);
 /* private */
 	FD_t m_fd;
 	size_t m_filesize;
@@ -137,52 +142,60 @@ static const char* log_get_priority_str(int level) {
 	return s_priority_str[level];
 }
 
+static int log_default_prefix_length(LogItemInfo_t* item_info) {
+	return strFormatLen("%d-%d-%d %d:%d:%d|%s|%s(%u)|",
+						item_info->dt.tm_year, item_info->dt.tm_mon, item_info->dt.tm_mday,
+						item_info->dt.tm_hour, item_info->dt.tm_min, item_info->dt.tm_sec,
+						item_info->priority_str, item_info->source_file, item_info->source_line);
+}
+
+static void log_default_sprintf_prefix(char* buf, LogItemInfo_t* item_info) {
+	sprintf(buf, "%d-%d-%d %d:%d:%d|%s|%s(%u)|",
+			item_info->dt.tm_year, item_info->dt.tm_mon, item_info->dt.tm_mday,
+			item_info->dt.tm_hour, item_info->dt.tm_min, item_info->dt.tm_sec,
+			item_info->priority_str, item_info->source_file, item_info->source_line);
+}
+
 static void log_build(Log_t* log, int priority, const char* format, va_list ap) {
 	va_list varg;
-	int len, res;
+	int len, res, prefix_len;
 	char test_buf;
 	CacheBlock_t* cache;
+	LogItemInfo_t item_info;
 	struct tm dt;
 	const char* priority_str;
 
 	if (!format || 0 == *format) {
 		return;
 	}
-	if (!gmtimeLocalTM(gmtimeSecond(), &dt)) {
+	if (!gmtimeLocalTM(gmtimeSecond(), &item_info.dt)) {
 		return;
 	}
-	structtmNormal(&dt);
-	priority_str = log_get_priority_str(priority);
-	res = strFormatLen("%d-%d-%d %d:%d:%d|%s|",
-						dt.tm_year, dt.tm_mon, dt.tm_mday,
-						dt.tm_hour, dt.tm_min, dt.tm_sec,
-						priority_str);
-	if (res <= 0) {
+	structtmNormal(&item_info.dt);
+	item_info.priority_str = log_get_priority_str(priority);
+	item_info.source_file = log->source_file;
+	item_info.source_line = log->source_line;
+	item_info.func_name = log->func_name;
+
+	prefix_len = log->fn_prefix_length(&item_info);
+	if (prefix_len < 0) {
 		return;
 	}
-	len = res;
 	va_copy(varg, ap);
 	res = vsnprintf(&test_buf, 0, format, varg);
 	va_end(varg);
 	if (res <= 0) {
 		return;
 	}
-	len += res;
+	len = prefix_len + res;
 	++len;/* append '\n' */
 	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
 	if (!cache) {
 		return;
 	}
-	res = snprintf(cache->txt, len + 1, "%d-%d-%d %d:%d:%d|%s|",
-					dt.tm_year, dt.tm_mon, dt.tm_mday,
-					dt.tm_hour, dt.tm_min, dt.tm_sec,
-					priority_str);
-	if (res <= 0 || res >= len) {
-		free(cache);
-		return;
-	}
+	log->fn_sprintf_prefix(cache->txt, &item_info);
 	va_copy(varg, ap);
-	res = vsnprintf(cache->txt + res, len - res + 1, format, varg);
+	res = vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg);
 	va_end(varg);
 	if (res <= 0) {
 		free(cache);
@@ -224,10 +237,20 @@ Log_t* logOpen(size_t maxfilesize, const char* pathname) {
 	}
 	log->print_stdio = 0;
 	log->async_print = 0;
-	log->fn_priority_filter = NULL;
 	log->filter_priority = -1;
+	log->source_file = "";
+	log->func_name = "";
+	log->source_line = 0;
+	log->fn_priority_filter = NULL;
+	log->fn_prefix_length = log_default_prefix_length;
+	log->fn_sprintf_prefix = log_default_sprintf_prefix;
 
 	return log;
+}
+
+void logPrefix(Log_t* log, int(*fn_prefix_length)(LogItemInfo_t*), void(*fn_sprintf_prefix)(char*, LogItemInfo_t*)) {
+	log->fn_prefix_length = fn_prefix_length;
+	log->fn_sprintf_prefix = fn_sprintf_prefix;
 }
 
 void logEnableFile(struct Log_t* log, int enabled) {
@@ -398,6 +421,13 @@ int logCheckPriorityFilter(Log_t* log, int priority) {
 		return 1;
 	}
 	return 0;
+}
+
+Log_t* logSaveSourceFile(Log_t* log, const char* source_file, const char* func_name, unsigned int source_line) {
+	log->source_file = source_file;
+	log->func_name = func_name;
+	log->source_line = source_line;
+	return log;
 }
 
 #ifdef	__cplusplus
