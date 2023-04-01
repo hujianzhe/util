@@ -19,7 +19,6 @@ typedef struct Log_t {
 	char* pathname;
 	unsigned char print_file;
 	unsigned char print_stdio;
-	unsigned char async_print;
 	int filter_priority;
 	const char* source_file;
 	const char* func_name;
@@ -32,12 +31,10 @@ typedef struct Log_t {
 	size_t m_filesize;
 	size_t m_maxfilesize;
 	unsigned int m_filesegmentseq;
-	List_t m_cachelist;
 	CriticalSection_t m_lock;
 } Log_t;
 
 typedef struct CacheBlock_t {
-	ListNode_t m_listnode;
 	size_t len;
 	char txt[1];
 } CacheBlock_t;
@@ -86,39 +83,36 @@ static int log_rotate(Log_t* log) {
 }
 
 static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
+	criticalsectionEnter(&log->m_lock);
 	/* force open fd */
 	if (INVALID_FD_HANDLE == log->m_fd) {
-		if (!log_rotate(log))
-			return;
+		if (!log_rotate(log)) {
+			goto end;
+		}
 	}
 	/* size rotate */
 	while (log->m_maxfilesize <= log->m_filesize || cache->len > log->m_maxfilesize - log->m_filesize) {
-		if (!log_rotate(log))
+		if (!log_rotate(log)) {
 			break;
+		}
 	}
 	/* io */
 	if (INVALID_FD_HANDLE != log->m_fd) {
 		int res = fdWrite(log->m_fd, cache->txt, cache->len);
-		if (res > 0)
+		if (res > 0) {
 			log->m_filesize += res;
+		}
 	}
+end:
+	criticalsectionLeave(&log->m_lock);
 }
 
 static void log_write(Log_t* log, CacheBlock_t* cache) {
-	if (log->async_print) {
-		criticalsectionEnter(&log->m_lock);
-		listPushNodeBack(&log->m_cachelist, &cache->m_listnode);
-		criticalsectionLeave(&log->m_lock);
-		return;
-	}
-
 	if (log->print_stdio) {
 		fputs(cache->txt, stderr);
 	}
 	if (log->print_file) {
-		criticalsectionEnter(&log->m_lock);
 		log_do_write_cache(log, cache);
-		criticalsectionLeave(&log->m_lock);
 	}
 	free(cache);
 }
@@ -203,46 +197,6 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 	log_write(log, cache);
 }
 
-static void log_clear_cachelist(Log_t* log) {
-	ListNode_t *cur, *next;
-
-	criticalsectionEnter(&log->m_lock);
-
-	cur = log->m_cachelist.head;
-	listInit(&log->m_cachelist);
-
-	criticalsectionLeave(&log->m_lock);
-
-	for (; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, CacheBlock_t, m_listnode));
-	}
-}
-
-static void log_flush_cachelist(Log_t* log) {
-	ListNode_t *cur, *next;
-
-	criticalsectionEnter(&log->m_lock);
-
-	cur = log->m_cachelist.head;
-	listInit(&log->m_cachelist);
-
-	criticalsectionLeave(&log->m_lock);
-
-	for (; cur; cur = next) {
-		CacheBlock_t* cache = pod_container_of(cur, CacheBlock_t, m_listnode);
-		next = cur->next;
-
-		if (log->print_stdio) {
-			fputs(cache->txt, stderr);
-		}
-		if (log->print_file) {
-			log_do_write_cache(log, cache);
-		}
-		free(cache);
-	}
-}
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -266,13 +220,10 @@ Log_t* logOpen(size_t maxfilesize, const char* pathname) {
 	log->m_filesize = 0;
 	log->m_maxfilesize = maxfilesize;
 	log->m_filesegmentseq = 0;
-	listInit(&log->m_cachelist);
-
 	if (log->pathname[0] && log->m_maxfilesize > 0) {
 		log->print_file = 1;
 	}
 	log->print_stdio = 0;
-	log->async_print = 0;
 	log->filter_priority = -1;
 	log->source_file = "";
 	log->func_name = "";
@@ -304,7 +255,6 @@ void logEnableStdio(Log_t* log, int enabled) {
 
 void logDestroy(Log_t* log) {
 	if (log) {
-		log_clear_cachelist(log);
 		criticalsectionClose(&log->m_lock);
 		free(log->pathname);
 		if (INVALID_FD_HANDLE != log->m_fd) {
