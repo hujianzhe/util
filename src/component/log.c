@@ -105,24 +105,22 @@ static void log_do_write_cache(Log_t* log, CacheBlock_t* cache) {
 }
 
 static void log_write(Log_t* log, CacheBlock_t* cache) {
-	unsigned char is_async = log->async_print;
+	if (log->async_print) {
+		criticalsectionEnter(&log->m_lock);
+		listPushNodeBack(&log->m_cachelist, &cache->m_listnode);
+		criticalsectionLeave(&log->m_lock);
+		return;
+	}
 
 	if (log->print_stdio) {
 		fputs(cache->txt, stderr);
 	}
-
 	if (log->print_file) {
 		criticalsectionEnter(&log->m_lock);
-		if (is_async) {
-			listInsertNodeBack(&log->m_cachelist, log->m_cachelist.tail, &cache->m_listnode);
-			criticalsectionLeave(&log->m_lock);
-		}
-		else {
-			log_do_write_cache(log, cache);
-			criticalsectionLeave(&log->m_lock);
-			free(cache);
-		}
+		log_do_write_cache(log, cache);
+		criticalsectionLeave(&log->m_lock);
 	}
+	free(cache);
 }
 
 static const char* log_get_priority_str(int level) {
@@ -277,7 +275,13 @@ void logFlush(Log_t* log) {
 	for (; cur; cur = next) {
 		CacheBlock_t* cache = pod_container_of(cur, CacheBlock_t, m_listnode);
 		next = cur->next;
-		log_do_write_cache(log, cache);
+
+		if (log->print_stdio) {
+			fputs(cache->txt, stderr);
+		}
+		if (log->print_file) {
+			log_do_write_cache(log, cache);
+		}
 		free(cache);
 	}
 }
