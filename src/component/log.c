@@ -203,6 +203,46 @@ static void log_build(Log_t* log, int priority, const char* format, va_list ap) 
 	log_write(log, cache);
 }
 
+static void log_clear_cachelist(Log_t* log) {
+	ListNode_t *cur, *next;
+
+	criticalsectionEnter(&log->m_lock);
+
+	cur = log->m_cachelist.head;
+	listInit(&log->m_cachelist);
+
+	criticalsectionLeave(&log->m_lock);
+
+	for (; cur; cur = next) {
+		next = cur->next;
+		free(pod_container_of(cur, CacheBlock_t, m_listnode));
+	}
+}
+
+static void log_flush_cachelist(Log_t* log) {
+	ListNode_t *cur, *next;
+
+	criticalsectionEnter(&log->m_lock);
+
+	cur = log->m_cachelist.head;
+	listInit(&log->m_cachelist);
+
+	criticalsectionLeave(&log->m_lock);
+
+	for (; cur; cur = next) {
+		CacheBlock_t* cache = pod_container_of(cur, CacheBlock_t, m_listnode);
+		next = cur->next;
+
+		if (log->print_stdio) {
+			fputs(cache->txt, stderr);
+		}
+		if (log->print_file) {
+			log_do_write_cache(log, cache);
+		}
+		free(cache);
+	}
+}
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -262,49 +302,9 @@ void logEnableStdio(Log_t* log, int enabled) {
 	log->print_stdio = enabled;
 }
 
-void logFlush(Log_t* log) {
-	ListNode_t *cur, *next;
-
-	criticalsectionEnter(&log->m_lock);
-
-	cur = log->m_cachelist.head;
-	listInit(&log->m_cachelist);
-
-	criticalsectionLeave(&log->m_lock);
-
-	for (; cur; cur = next) {
-		CacheBlock_t* cache = pod_container_of(cur, CacheBlock_t, m_listnode);
-		next = cur->next;
-
-		if (log->print_stdio) {
-			fputs(cache->txt, stderr);
-		}
-		if (log->print_file) {
-			log_do_write_cache(log, cache);
-		}
-		free(cache);
-	}
-}
-
-void logClear(Log_t* log) {
-	ListNode_t *cur, *next;
-
-	criticalsectionEnter(&log->m_lock);
-
-	cur = log->m_cachelist.head;
-	listInit(&log->m_cachelist);
-
-	criticalsectionLeave(&log->m_lock);
-
-	for (; cur; cur = next) {
-		next = cur->next;
-		free(pod_container_of(cur, CacheBlock_t, m_listnode));
-	}
-}
-
 void logDestroy(Log_t* log) {
 	if (log) {
-		logClear(log);
+		log_clear_cachelist(log);
 		criticalsectionClose(&log->m_lock);
 		free(log->pathname);
 		if (INVALID_FD_HANDLE != log->m_fd) {

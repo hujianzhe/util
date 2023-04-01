@@ -26,8 +26,6 @@ __declspec_dll struct Log_t* logOpen(size_t maxfilesize, const char* pathname);
 __declspec_dll void logPrefix(struct Log_t* log, int(*fn_prefix_length)(LogItemInfo_t*), void(*fn_sprintf_prefix)(char*, LogItemInfo_t*));
 __declspec_dll void logEnableFile(struct Log_t* log, int enabled);
 __declspec_dll void logEnableStdio(struct Log_t* log, int enabled);
-__declspec_dll void logFlush(struct Log_t* log);
-__declspec_dll void logClear(struct Log_t* log);
 __declspec_dll void logDestroy(struct Log_t* log);
 
 __declspec_dll int logFilterPriorityLess(int log_priority, int filter_priority);
