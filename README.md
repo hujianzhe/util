@@ -71,12 +71,13 @@
 			array					给98标准提供std::array  
 			astar					基于格子和邻接点的A*寻路算法  
 			cpp_compiler_define		判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
-			exception				包含文件名称,行号,出错语句的异常  
+			hash					给98标准提供hash兼容实现  
 			lexical_cast			简陋但可用的通用类型转换接口  
+			misc					一些无法归类的  
 			nullptr					给98标准提供nullptr关键字  
 			optional				提供std::optional  
 			shared_ptr				提供std::shared_ptr  
-			string					一些简陋的字符串分割和to_string方法  
+			string_helper			一些简陋的字符串分割和to_string方法  
 			unique_ptr				提供std::unique_ptr  
 			unordered_map			提供std::unordered_map(与标准库相同的CRUD接口,但不支持其他STL接口风骚的用法)  
 			unordered_set			提供std::unordered_set(同上)  
