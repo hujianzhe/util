@@ -156,11 +156,8 @@ typedef struct Session_t {
 	ChannelBase_t* channel_server;
 	char* ident;
 	void* userdata;
-	int socktype;
-	IPString_t ip;
-	unsigned short port;
 	/* interface */
-	ChannelBase_t*(*do_connect_handshake)(struct Session_t*); /* optional */
+	ChannelBase_t*(*do_connect_handshake)(struct Session_t*, int socktype, const char* ip, unsigned short port); /* optional */
 	void(*on_disconnect)(struct Session_t*); /* optional */
 } Session_t;
 

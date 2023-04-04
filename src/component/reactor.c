@@ -1382,9 +1382,6 @@ Session_t* initSession(Session_t* session) {
 	session->channel_server = NULL;
 	session->ident = NULL;
 	session->userdata = NULL;
-	session->socktype = AF_UNSPEC;
-	session->ip[0] = 0;
-	session->port = 0;
 	session->do_connect_handshake = NULL;
 	session->on_disconnect = NULL;
 	return session;
