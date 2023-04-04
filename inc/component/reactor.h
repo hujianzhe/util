@@ -85,6 +85,7 @@ typedef struct ReactorObject_t {
 } ReactorObject_t;
 
 struct ChannelBaseProc_t;
+struct Session_t;
 
 typedef struct ChannelBase_t {
 	ReactorObject_t* o;
@@ -116,6 +117,7 @@ typedef struct ChannelBase_t {
 	unsigned int readcache_max_size;
 	void* userdata; /* user use, library not use these field */
 	const struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
+	struct Session_t* session; /* user use, set your logic session status */
 	union {
 		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
 		void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
@@ -149,6 +151,19 @@ typedef struct ReactorPacket_t {
 	NetPacket_t _;
 } ReactorPacket_t;
 
+typedef struct Session_t {
+	ChannelBase_t* channel_client;
+	ChannelBase_t* channel_server;
+	char* ident;
+	void* userdata;
+	int socktype;
+	IPString_t ip;
+	unsigned short port;
+	/* interface */
+	ChannelBase_t*(*do_connect_handshake)(struct Session_t*); /* optional */
+	void(*on_disconnect)(struct Session_t*); /* optional */
+} Session_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -169,6 +184,12 @@ __declspec_dll void channelbaseClose(ChannelBase_t* channel);
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
+
+__declspec_dll Session_t* initSession(Session_t* session);
+__declspec_dll void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel);
+__declspec_dll void sessionDisconnect(Session_t* session);
+__declspec_dll void sessionUnbindChannel(Session_t* session);
+__declspec_dll ChannelBase_t* sessionChannel(Session_t* session);
 
 #ifdef	__cplusplus
 }
