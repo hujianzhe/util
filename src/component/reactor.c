@@ -1377,7 +1377,7 @@ ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], uns
 	return channel;
 }
 
-Session_t* initSession(Session_t* session) {
+Session_t* sessionInit(Session_t* session) {
 	session->channel_client = NULL;
 	session->channel_server = NULL;
 	session->ident = NULL;

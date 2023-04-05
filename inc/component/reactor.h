@@ -182,7 +182,7 @@ __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void
 __declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 __declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
 
-__declspec_dll Session_t* initSession(Session_t* session);
+__declspec_dll Session_t* sessionInit(Session_t* session);
 __declspec_dll void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel);
 __declspec_dll void sessionDisconnect(Session_t* session);
 __declspec_dll void sessionUnbindChannel(Session_t* session);
