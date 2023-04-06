@@ -1001,12 +1001,13 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 	unsigned int hdrsz;
 	ReactorPacket_t* packet;
 	List_t pklist;
+	unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int);
 
 	listInit(&pklist);
 	for (i = 0; i < iovcnt; ++i) {
 		nbytes += iobufLen(iov + i);
 	}
-	unsigned int(*fn_on_hdrsize)(ChannelBase_t*, unsigned int) = channel->proc->on_hdrsize;
+	fn_on_hdrsize = channel->proc->on_hdrsize;
 	if (nbytes) {
 		unsigned int off = 0, iov_i = 0, iov_off = 0;
 		unsigned int write_fragment_size = channel->write_fragment_size;
