@@ -12,6 +12,7 @@ struct SerialExecObj_t;
 typedef struct SerialExecQueue_t {
 	List_t list;
 	struct SerialExecObj_t* exec_obj;
+	UnsignedPtr_t cur_count;
 } SerialExecQueue_t;
 
 typedef struct SerialExecObj_t {
