@@ -49,6 +49,7 @@
 				memheap				简单内存堆分配与释放  
 				random				随机数算法,提供rand48与MT19937算法  
 				rbtree				类型无关的红黑树(内部基于linux内核红黑树代码)  
+				serial_exec			任务串行执行队列结构  
 				sha1				SHA1编解码,来源于Redis源码  
 				transport_ctx		提供ACK确认与滑动窗口的传输控制接口,不包含OS对应的IO系统接口,并于标准库无关  
 				tree				类型无关的普通树  
