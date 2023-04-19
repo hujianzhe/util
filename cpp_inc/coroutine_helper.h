@@ -140,16 +140,15 @@ public:
 
     const std::any& getAny() const { return m_co_node->m_value; }
 
-    CoroutinePromiseBase(const CoroutinePromiseBase& other)
+protected:
+    CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
+	CoroutinePromiseBase(const CoroutinePromiseBase& other)
         :m_delete_co_node(other.m_delete_co_node)
         ,m_co_node(other.m_co_node)
     {
         other.m_delete_co_node = false;
         m_co_node->m_promise_base = this;
     }
-
-protected:
-    CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
     CoroutinePromiseBase()
         :m_delete_co_node(true)
         ,m_co_node(new CoroutineNode())
