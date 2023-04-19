@@ -12,7 +12,13 @@
 namespace std {}
 
 #ifdef _MSC_VER
-	#if		_MSVC_LANG > 201402L
+	#if		_MSVC_LANG > 201703L
+		#define	__CPP_VERSION	2020
+		namespace std20 = ::std;
+		namespace std17 = ::std;
+		namespace std14 = ::std;
+		namespace std11 = ::std;
+	#elif		_MSVC_LANG > 201402L
 		#define	__CPP_VERSION	2017
 		namespace std17 = ::std;
 		namespace std14 = ::std;
@@ -29,7 +35,13 @@ namespace std {}
 	#endif
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
-	#if		__cplusplus > 201402L
+	#if		__cplusplus > 201703L
+		#define	__CPP_VERSION	2020
+		namespace std20 = ::std;
+		namespace std17 = ::std;
+		namespace std14 = ::std;
+		namespace std11 = ::std;
+	#elif	__cplusplus > 201402L
 		#define	__CPP_VERSION	2017
 		namespace std17 = ::std;
 		namespace std14 = ::std;
