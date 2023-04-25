@@ -322,7 +322,7 @@ int httpframeDecodeHeader(HttpFrame_t* frame, const char* buf, unsigned int len)
 	return e - buf + 4;
 }
 
-int httpframeDecodeChunked(char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
+int httpframeDecodeChunked(const char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) {
 	unsigned int chunked_length, frame_length;
 	const char* p;
 	char* e = strStr(buf, len, "\r\n", -1);
@@ -386,9 +386,9 @@ static HttpMultipartFormData_t* new_http_multipart_form_data(const void* data, u
 	return form_data;
 }
 
-int httpframeDecodeMultipartFormData(const char* boundary, unsigned char* buf, unsigned int len, HttpMultipartFormData_t** form_data) {
+int httpframeDecodeMultipartFormData(const char* boundary, const unsigned char* buf, unsigned int len, HttpMultipartFormData_t** form_data) {
 	unsigned int boundarylen, datalen;
-	unsigned char *s, *e, *data;
+	const unsigned char *s, *e, *data;
 
 	if (!boundary || '\0' == *boundary)
 		return -1;
@@ -448,7 +448,6 @@ int httpframeDecodeMultipartFormData(const char* boundary, unsigned char* buf, u
 		if (s[2] != '\r' || s[3] != '\n')
 			return -1;
 		*form_data = NULL;
-		// *form_data = new_http_multipart_form_data(NULL, 0, NULL);
 		return s + 4 - buf;
 	}
 	else {
@@ -456,7 +455,7 @@ int httpframeDecodeMultipartFormData(const char* boundary, unsigned char* buf, u
 	}
 }
 
-HttpFrame_t* httpframeDecodeMultipartFormDataList(HttpFrame_t* frame, unsigned char* buf, unsigned int content_length) {
+HttpFrame_t* httpframeDecodeMultipartFormDataList(HttpFrame_t* frame, const unsigned char* buf, unsigned int content_length) {
 	unsigned int decodelen = 0;
 	List_t list;
 	listInit(&list);
