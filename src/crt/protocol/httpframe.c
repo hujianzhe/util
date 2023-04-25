@@ -251,7 +251,7 @@ static int parse_and_add_header(Hashtable_t* tbl, const char* h) {
 	return 1;
 }
 
-int httpframeDecodeHeader(HttpFrame_t* frame, char* buf, unsigned int len) {
+int httpframeDecodeHeader(HttpFrame_t* frame, const char* buf, unsigned int len) {
 	const char *h, *e;
 
 	httpframeInit(frame);
