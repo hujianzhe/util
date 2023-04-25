@@ -7,7 +7,6 @@
 
 #include "../sysapi/io.h"
 #include "../sysapi/ipc.h"
-#include "../sysapi/process.h"
 #include "../sysapi/socket.h"
 #include "../datastruct/list.h"
 #include "../datastruct/hashtable.h"
@@ -32,7 +31,7 @@ struct ChannelBaseProc_t;
 struct Session_t;
 
 typedef struct ReactorCmd_t {
-	struct ListNode_t _;
+	ListNode_t _;
 	int type;
 } ReactorCmd_t;
 

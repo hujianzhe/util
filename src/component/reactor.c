@@ -19,7 +19,6 @@ enum {
 typedef struct Reactor_t {
 	/* private */
 	long long m_event_msec;
-	Thread_t m_runthread;
 	Nio_t m_nio;
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
