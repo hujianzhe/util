@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-unsigned int urlParsePrepare(URL_t* url, const char* str) {
+URL_t* urlParse(URL_t* url, const char* str) {
 	const char* schema;
 	unsigned int schemalen;
 	const char* user;
@@ -24,97 +24,156 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	const char* fragment;
 	unsigned int fragmentlen;
 	const char* port;
+	unsigned short portlen;
 	unsigned short port_number;
-
-	unsigned int buflen;
-	const char* p = str, *alpha;
-	while (*p && *p != ':')
+	const char* first_colon, *first_at, *p;
+	/* parse schema */
+	p = str;
+	while (*p && *p != ':') {
 		++p;
-	if ('\0' == *p || p[1] != '/' || p[2] != '/')
-		return 0;
+	}
+	if ('\0' == *p || p[1] != '/' || p[2] != '/') {
+		return (URL_t*)0;
+	}
 	schema = str;
 	schemalen = (unsigned int)(p - str);
 	p += 3;
 	str = p;
-	while (*p && *p != '/')
+	/* find path start */
+	while (*p && *p != '/') {
 		++p;
-	if ('\0' == *p)
-		return 0;
-	path = p;
-
-	port = (char*)0;
-	alpha = (char*)0;
-	user = (char*)0;
-	pwd = (char*)0;
-	userlen = 0;
-	pwdlen = 0;
-	for (p = str; p < path; ++p) {
-		if ('@' == *p) {
-			user = str;
-			for (; str < p; ++str) {
-				if (':' == *str)
-					break;
-			}
-			if (str != p) {
-				userlen = (unsigned int)(str - user);
-				pwd = str + 1;
-				pwdlen = (unsigned int)(p - pwd);
-			}
-			else
-				userlen = (unsigned int)(p - user);
-			alpha = p;
-			port = (char*)0;
-		}
-		else if (':' == *p)
-			port = p;
 	}
-	if (alpha)
-		host = alpha + 1;
-	else
-		host = str;
-	if (port) {
-		hostlen = (unsigned int)(port - host);
-		if (0 == hostlen)
-			return 0;
-		if (path - port > 6)
-			return 0;
-		++port;
-		for (port_number = 0; port < path; ++port) {
-			if (*port < '0' || *port > '9')
-				return 0;
-			port_number *= 10;
-			port_number += *port - '0';
+	if ('\0' == *p) {
+		return (URL_t*)0;
+	}
+	path = p;
+	/* prepare parse user,pwd,host,port */
+	first_colon = (char*)0;
+	first_at = (char*)0;
+	for (--p; p >= str; --p) {
+		if (':' == *p) {
+			if (!first_colon) {
+				first_colon = p;
+				if (first_at) {
+					break;
+				}
+			}
 		}
-		if (0 == port_number)
+		else if ('@' == *p) {
+			if (!first_at) {
+				first_at = p;
+				if (first_colon) {
+					break;
+				}
+			}
+		}
+	}
+	if (first_colon < first_at) {
+		first_colon = (char*)0;
+	}
+	/* parse host */
+	if (!first_colon && !first_at) {
+		hostlen = path - str;
+		if (!hostlen) {
+			return (URL_t*)0;
+		}
+		host = str;
+	}
+	else if (first_colon && first_at) {
+		hostlen = first_colon - first_at - 1;
+		if (!hostlen) {
+			return (URL_t*)0;
+		}
+		host = first_at + 1;
+	}
+	else if (first_colon) {
+		hostlen = first_colon - str;
+		if (!hostlen) {
+			return (URL_t*)0;
+		}
+		host = str;
+	}
+	else if (first_at) {
+		hostlen = path - first_at - 1;
+		if (!hostlen) {
+			return (URL_t*)0;
+		}
+		host = first_at + 1;
+	}
+	/* parse port */
+	if (first_colon) {
+		portlen = (unsigned short)(path - first_colon - 1);
+		if (portlen) {
+			const char* sp = first_colon + 1;
+			port = sp;
+			for (port_number = 0; sp < path; ++sp) {
+				if (*sp < '0' || *sp > '9') {
+					return (URL_t*)0;
+				}
+				port_number *= 10;
+				port_number += *sp - '0';
+			}
+		}
+		else {
+			port = (char*)0;
 			port_number = 80;
+		}
 	}
 	else {
-		hostlen = (unsigned int)(path - host);
-		if (0 == hostlen)
-			return 0;
+		port = (char*)0;
+		portlen = 0;
 		port_number = 80;
 	}
-
+	/* parse user,pwd */
+	if (first_at) {
+		for (p = str; p < first_at && ':' != *p; ++p);
+		userlen = p - str;
+		if (userlen) {
+			user = str;
+		}
+		else {
+			user = (char*)0;
+		}
+		if (':' == *p) {
+			pwdlen = first_at - p - 1;
+			if (pwdlen) {
+				pwd = p + 1;
+			}
+			else {
+				pwd = (char*)0;
+			}
+		}
+	}
+	else {
+		user = (char*)0;
+		userlen = 0;
+		pwd = (char*)0;
+		pwdlen = 0;
+	}
+	/* parse path length */
 	p = path;
-	while (*p && *p != '?' && *p != '#')
+	while (*p && *p != '?' && *p != '#') {
 		++p;
+	}
 	pathlen = (unsigned int)(p - path);
-
+	/* parse query */
 	if ('?' == *p) {
 		query = ++p;
-		while (*p && *p != '#')
+		while (*p && *p != '#') {
 			++p;
+		}
 		querylen = (unsigned int)(p - query);
 	}
 	else {
 		query = (char*)0;
 		querylen = 0;
 	}
-
+	/* parse fragment */
 	if ('#' == *p) {
 		fragment = ++p;
-		while (*p)
+		while (*p) {
 			++p;
+		}
 		fragmentlen = (unsigned int)(p - fragment);
 	}
 	else {
@@ -130,14 +189,18 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	url->pwdlen = pwdlen;
 	url->host = host;
 	url->hostlen = hostlen;
+	url->port = port;
+	url->portlen = portlen;
 	url->path = path;
 	url->pathlen = pathlen;
 	url->query = query;
 	url->querylen = querylen;
 	url->fragment = fragment;
 	url->fragmentlen = fragmentlen;
-	url->port = port_number;
+	url->port_number = port_number;
+	return url;
 	/* return buffer space */
+	/*
 	buflen = 1;
 	buflen += schemalen + hostlen + pathlen + 3;
 	if (userlen)
@@ -149,83 +212,7 @@ unsigned int urlParsePrepare(URL_t* url, const char* str) {
 	if (fragmentlen)
 		buflen += fragmentlen + 1;
 	return buflen;
-}
-
-static char* copy(char* dst, const char* src, unsigned int n) {
-	unsigned int i;
-	for (i = 0; i < n; ++i)
-		dst[i] = src[i];
-	return dst;
-}
-
-URL_t* urlParseFinish(URL_t* url, char* buf) {
-	char *schema;
-	char *user;
-	char *pwd;
-	char *host;
-	char *path;
-	char *query;
-	char *fragment;
-	char *t;
-
-	schema = buf;
-	copy(schema, url->schema, url->schemalen);
-	schema[url->schemalen] = 0;
-
-	host = schema + url->schemalen + 1;
-	copy(host, url->host, url->hostlen);
-	host[url->hostlen] = 0;
-
-	path = host + url->hostlen + 1;
-	copy(path, url->path, url->pathlen);
-	path[url->pathlen] = 0;
-
-	t = path + url->pathlen;
-
-	if (url->userlen) {
-		user = ++t;
-		t += url->userlen;
-		copy(user, url->user, url->userlen);
-		*t = 0;
-	}
-	else
-		user = t;
-
-	if (url->pwdlen) {
-		pwd = ++t;
-		t += url->pwdlen;
-		copy(pwd, url->pwd, url->pwdlen);
-		*t = 0;
-	}
-	else
-		pwd = t;
-
-	if (url->querylen) {
-		query = ++t;
-		t += url->querylen;
-		copy(query, url->query, url->querylen);
-		*t = 0;
-	}
-	else
-		query = t;
-
-	if (url->fragmentlen) {
-		fragment = ++t;
-		t += url->fragmentlen;
-		copy(fragment, url->fragment, url->fragmentlen);
-		*t = 0;
-	}
-	else
-		fragment = t;
-
-	url->schema = schema;
-	url->user = user;
-	url->pwd = pwd;
-	url->host = host;
-	url->path = path;
-	url->query = query;
-	url->fragment = fragment;
-	return url;
+	*/
 }
 
 #define char_isdigit(c)		((unsigned int)(((int)(c)) - '0') < 10u)
