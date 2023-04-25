@@ -320,41 +320,15 @@ char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char
 UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
 	UnsignedPtr_t u8_len = 0;
 	UnsignedPtr_t i;
-	for (i = 0; i < s_bytelen; ) {
-		unsigned char c = s[i];
-		if (0 == c) {
-			break;
+	for (i = 0; i < s_bytelen && s[i]; ++u8_len) {
+		int bn = strUtf8CharacterByteNum(s + i);
+		if (bn < 0) {
+			return -1;
 		}
-		else if (c < 0x80) {
-			i += 1;
-		}
-		else if (c < 0xc0) {
-			u8_len = -1;
-			break;
-		}
-		else if (c < 0xe0) {
-			i += 2;
-		}
-		else if (c < 0xf0) {
-			i += 3;
-		}
-		else if (c < 0xf8) {
-			i += 4;
-		}
-		else if (c < 0xfc) {
-			i += 5;
-		}
-		else if (c < 0xfe) {
-			i += 6;
-		}
-		else {
-			u8_len = -1;
-			break;
-		}
+		i += bn;
 		if (i > s_bytelen) {
 			break;
 		}
-		++u8_len;
 	}
 	return u8_len;
 }
