@@ -16,6 +16,19 @@ enum {
 	REACTOR_SEND_PACKET_CMD
 };
 
+typedef struct Reactor_t {
+	/* private */
+	long long m_event_msec;
+	Thread_t m_runthread;
+	Nio_t m_nio;
+	CriticalSection_t m_cmdlistlock;
+	List_t m_cmdlist;
+	List_t m_invalidlist;
+	List_t m_connect_endlist;
+	Hashtable_t m_objht;
+	HashtableNode_t* m_objht_bulks[2048];
+} Reactor_t;
+
 static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_msec) {
 	if (timestamp_msec <= 0) {
 		return;
@@ -1071,12 +1084,18 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 extern "C" {
 #endif
 
-Reactor_t* reactorInit(Reactor_t* reactor) {
+Reactor_t* reactorCreate(void) {
+	Reactor_t* reactor = (Reactor_t*)malloc(sizeof(Reactor_t));
+	if (!reactor) {
+		return NULL;
+	}
 	if (!nioCreate(&reactor->m_nio)) {
+		free(reactor);
 		return NULL;
 	}
 	if (!criticalsectionCreate(&reactor->m_cmdlistlock)) {
 		nioClose(&reactor->m_nio);
+		free(reactor);
 		return NULL;
 	}
 	listInit(&reactor->m_cmdlist);
@@ -1193,6 +1212,9 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 }
 
 void reactorDestroy(Reactor_t* reactor) {
+	if (!reactor) {
+		return;
+	}
 	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
 	do {
@@ -1239,6 +1261,8 @@ void reactorDestroy(Reactor_t* reactor) {
 			reactorobject_free(o);
 		}
 	} while (0);
+
+	free(reactor);
 }
 
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {

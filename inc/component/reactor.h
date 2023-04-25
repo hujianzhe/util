@@ -26,25 +26,15 @@ enum {
 	CHANNEL_FLAG_LISTEN = 1 << 2
 };
 
-typedef struct Reactor_t {
-	/* private */
-	long long m_event_msec;
-	Thread_t m_runthread;
-	Nio_t m_nio;
-	CriticalSection_t m_cmdlistlock;
-	List_t m_cmdlist;
-	List_t m_invalidlist;
-	List_t m_connect_endlist;
-	Hashtable_t m_objht;
-	HashtableNode_t* m_objht_bulks[2048];
-} Reactor_t;
+struct Reactor_t;
+struct ChannelBase_t;
+struct ChannelBaseProc_t;
+struct Session_t;
 
 typedef struct ReactorCmd_t {
 	struct ListNode_t _;
 	int type;
 } ReactorCmd_t;
-
-struct ChannelBase_t;
 
 typedef struct ReactorObject_t {
 /* public */
@@ -84,12 +74,9 @@ typedef struct ReactorObject_t {
 	int m_inbufsize;
 } ReactorObject_t;
 
-struct ChannelBaseProc_t;
-struct Session_t;
-
 typedef struct ChannelBase_t {
 	ReactorObject_t* o;
-	Reactor_t* reactor;
+	struct Reactor_t* reactor;
 	int socktype;
 	Sockaddr_t to_addr;
 	union {
@@ -165,17 +152,17 @@ typedef struct Session_t {
 extern "C" {
 #endif
 
-__declspec_dll Reactor_t* reactorInit(Reactor_t* reactor);
-__declspec_dll void reactorWake(Reactor_t* reactor);
-__declspec_dll int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
-__declspec_dll void reactorDestroy(Reactor_t* reactor);
+__declspec_dll struct Reactor_t* reactorCreate(void);
+__declspec_dll void reactorWake(struct Reactor_t* reactor);
+__declspec_dll int reactorHandle(struct Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
+__declspec_dll void reactorDestroy(struct Reactor_t* reactor);
 
 __declspec_dll ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
 __declspec_dll void reactorpacketFree(ReactorPacket_t* pkg);
 
 __declspec_dll ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int socktype, const struct sockaddr* addr);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
-__declspec_dll void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel);
+__declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* channel);
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
 
 __declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
