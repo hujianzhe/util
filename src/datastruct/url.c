@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-URL_t* urlParse(URL_t* url, const char* str) {
+URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 	const char* schema;
 	unsigned int schemalen;
 	const char* user;
@@ -26,157 +26,208 @@ URL_t* urlParse(URL_t* url, const char* str) {
 	const char* port;
 	unsigned short portlen;
 	unsigned short port_number;
-	const char* first_colon, *first_at, *p;
-	/* parse schema */
+	const char* p;
+	UnsignedPtr_t si = 0;
+	/* prepare parse */
 	p = str;
-	while (*p && *p != ':') {
+	while (si < slen && *p && *p != '/') {
 		++p;
+		++si;
 	}
-	if ('\0' == *p || p[1] != '/' || p[2] != '/') {
+	if (si >= slen || '\0' == *p) {
 		return (URL_t*)0;
 	}
-	schema = str;
-	schemalen = (unsigned int)(p - str);
-	p += 3;
-	str = p;
-	/* find path start */
-	while (*p && *p != '/') {
-		++p;
+	/* parse schema */
+	if (si > 0 && si + 1 < slen && p[-1] == ':' && p[1] == '/') {
+		schemalen = (unsigned int)(p - str - 1);
+		if (!schemalen) {
+			return (URL_t*)0;
+		}
+		schema = str;
+		/* find path start */
+		p += 2;
+		si += 2;
+		while (si < slen && *p && *p != '/') {
+			++p;
+			++si;
+		}
+		if (si >= slen || '\0' == *p) {
+			return (URL_t*)0;
+		}
+		path = p;
 	}
-	if ('\0' == *p) {
-		return (URL_t*)0;
+	else {
+		if (si > 0) {
+			return (URL_t*)0;
+		}
+		schema = (char*)0;
+		schemalen = 0;
+		/* find path start */
+		path = p;
 	}
-	path = p;
 	/* prepare parse user,pwd,host,port */
-	first_colon = (char*)0;
-	first_at = (char*)0;
-	for (--p; p >= str; --p) {
-		if (':' == *p) {
-			if (!first_colon) {
-				first_colon = p;
-				if (first_at) {
-					break;
+	if (schemalen) {
+		const char* ps = schema + schemalen + 3;
+		const char* first_colon = (char*)0;
+		const char* first_at = (char*)0;
+		for (--p; p >= ps; --p) {
+			if (':' == *p) {
+				if (!first_colon) {
+					first_colon = p;
+					if (first_at) {
+						break;
+					}
+				}
+			}
+			else if ('@' == *p) {
+				if (!first_at) {
+					first_at = p;
+					if (first_colon) {
+						break;
+					}
 				}
 			}
 		}
-		else if ('@' == *p) {
-			if (!first_at) {
-				first_at = p;
-				if (first_colon) {
-					break;
+		if (first_colon < first_at) {
+			first_colon = (char*)0;
+		}
+		/* parse host */
+		if (!first_colon && !first_at) {
+			hostlen = path - ps;
+			if (!hostlen) {
+				return (URL_t*)0;
+			}
+			host = ps;
+		}
+		else if (first_colon && first_at) {
+			hostlen = first_colon - first_at - 1;
+			if (!hostlen) {
+				return (URL_t*)0;
+			}
+			host = first_at + 1;
+		}
+		else if (first_colon) {
+			hostlen = first_colon - ps;
+			if (!hostlen) {
+				return (URL_t*)0;
+			}
+			host = ps;
+		}
+		else if (first_at) {
+			hostlen = path - first_at - 1;
+			if (!hostlen) {
+				return (URL_t*)0;
+			}
+			host = first_at + 1;
+		}
+		/* parse port */
+		if (first_colon) {
+			portlen = (unsigned short)(path - first_colon - 1);
+			if (portlen) {
+				const char* sp = first_colon + 1;
+				port = sp;
+				for (port_number = 0; sp < path; ++sp) {
+					if (*sp < '0' || *sp > '9') {
+						return (URL_t*)0;
+					}
+					port_number *= 10;
+					port_number += *sp - '0';
 				}
 			}
-		}
-	}
-	if (first_colon < first_at) {
-		first_colon = (char*)0;
-	}
-	/* parse host */
-	if (!first_colon && !first_at) {
-		hostlen = path - str;
-		if (!hostlen) {
-			return (URL_t*)0;
-		}
-		host = str;
-	}
-	else if (first_colon && first_at) {
-		hostlen = first_colon - first_at - 1;
-		if (!hostlen) {
-			return (URL_t*)0;
-		}
-		host = first_at + 1;
-	}
-	else if (first_colon) {
-		hostlen = first_colon - str;
-		if (!hostlen) {
-			return (URL_t*)0;
-		}
-		host = str;
-	}
-	else if (first_at) {
-		hostlen = path - first_at - 1;
-		if (!hostlen) {
-			return (URL_t*)0;
-		}
-		host = first_at + 1;
-	}
-	/* parse port */
-	if (first_colon) {
-		portlen = (unsigned short)(path - first_colon - 1);
-		if (portlen) {
-			const char* sp = first_colon + 1;
-			port = sp;
-			for (port_number = 0; sp < path; ++sp) {
-				if (*sp < '0' || *sp > '9') {
-					return (URL_t*)0;
-				}
-				port_number *= 10;
-				port_number += *sp - '0';
+			else {
+				port = (char*)0;
+				port_number = 80;
 			}
 		}
 		else {
 			port = (char*)0;
+			portlen = 0;
 			port_number = 80;
 		}
-	}
-	else {
-		port = (char*)0;
-		portlen = 0;
-		port_number = 80;
-	}
-	/* parse user,pwd */
-	if (first_at) {
-		for (p = str; p < first_at && ':' != *p; ++p);
-		userlen = p - str;
-		if (userlen) {
-			user = str;
+		/* parse user,pwd */
+		if (first_at) {
+			for (p = ps; p < first_at && ':' != *p; ++p);
+			userlen = p - ps;
+			if (userlen) {
+				user = ps;
+			}
+			else {
+				user = (char*)0;
+			}
+			if (':' == *p) {
+				pwdlen = first_at - p - 1;
+				if (pwdlen) {
+					pwd = p + 1;
+				}
+				else {
+					pwd = (char*)0;
+				}
+			}
 		}
 		else {
 			user = (char*)0;
-		}
-		if (':' == *p) {
-			pwdlen = first_at - p - 1;
-			if (pwdlen) {
-				pwd = p + 1;
-			}
-			else {
-				pwd = (char*)0;
-			}
+			userlen = 0;
+			pwd = (char*)0;
+			pwdlen = 0;
 		}
 	}
 	else {
 		user = (char*)0;
-		userlen = 0;
 		pwd = (char*)0;
+		host = (char*)0;
+		port = (char*)0;
+		userlen = 0;
 		pwdlen = 0;
+		hostlen = 0;
+		portlen = 0;
+		port_number = 0;
 	}
 	/* parse path length */
 	p = path;
-	while (*p && *p != '?' && *p != '#') {
+	while (si < slen && *p && *p != '?' && *p != '#') {
 		++p;
+		++si;
 	}
 	pathlen = (unsigned int)(p - path);
-	/* parse query */
-	if ('?' == *p) {
-		query = ++p;
-		while (*p && *p != '#') {
-			++p;
+	if (si < slen) {
+		/* parse query */
+		if ('?' == *p) {
+			query = ++p;
+			++si;
+			while (si < slen && *p && *p != '#') {
+				++p;
+				++si;
+			}
+			querylen = (unsigned int)(p - query);
+			if (!querylen) {
+				query = (char*)0;
+			}
 		}
-		querylen = (unsigned int)(p - query);
+		else {
+			query = (char*)0;
+			querylen = 0;
+		}
+		/* parse fragment */
+		if (si < slen && '#' == *p) {
+			fragment = ++p;
+			++si;
+			while (si < slen && *p) {
+				++p;
+				++si;
+			}
+			fragmentlen = (unsigned int)(p - fragment);
+			if (!fragmentlen) {
+				fragment = (char*)0;
+			}
+		}
+		else {
+			fragment = (char*)0;
+			fragmentlen = 0;
+		}
 	}
 	else {
 		query = (char*)0;
 		querylen = 0;
-	}
-	/* parse fragment */
-	if ('#' == *p) {
-		fragment = ++p;
-		while (*p) {
-			++p;
-		}
-		fragmentlen = (unsigned int)(p - fragment);
-	}
-	else {
 		fragment = (char*)0;
 		fragmentlen = 0;
 	}

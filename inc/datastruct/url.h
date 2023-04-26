@@ -32,7 +32,7 @@ typedef struct URL_t {
 extern "C" {
 #endif
 
-__declspec_dll URL_t* urlParse(URL_t* url, const char* str);
+__declspec_dll URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen);
 __declspec_dll unsigned int urlEncode(const char* src, unsigned int srclen, char* dst);
 __declspec_dll unsigned int urlDecode(const char* src, unsigned int srclen, char* dst);
 
