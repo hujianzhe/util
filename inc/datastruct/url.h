@@ -17,14 +17,14 @@ typedef struct URL_t {
 	const char* query;
 	const char* fragment;
 
-	unsigned int schemalen;
-	unsigned int userlen;
-	unsigned int pwdlen;
-	unsigned int hostlen;
-	unsigned int pathlen;
-	unsigned int querylen;
-	unsigned int fragmentlen;
-	unsigned short portlen;
+	unsigned int schema_slen;
+	unsigned int user_slen;
+	unsigned int pwd_slen;
+	unsigned int host_slen;
+	unsigned int path_slen;
+	unsigned int query_slen;
+	unsigned int fragment_slen;
+	unsigned short port_slen;
 	unsigned short port_number;
 } URL_t;
 

@@ -233,21 +233,21 @@ URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 	}
 	/* save parse result */
 	url->schema = schema;
-	url->schemalen = schemalen;
+	url->schema_slen = schemalen;
 	url->user = user;
-	url->userlen = userlen;
+	url->user_slen = userlen;
 	url->pwd = pwd;
-	url->pwdlen = pwdlen;
+	url->pwd_slen = pwdlen;
 	url->host = host;
-	url->hostlen = hostlen;
+	url->host_slen = hostlen;
 	url->port = port;
-	url->portlen = portlen;
+	url->port_slen = portlen;
 	url->path = path;
-	url->pathlen = pathlen;
+	url->path_slen = pathlen;
 	url->query = query;
-	url->querylen = querylen;
+	url->query_slen = querylen;
 	url->fragment = fragment;
-	url->fragmentlen = fragmentlen;
+	url->fragment_slen = fragmentlen;
 	url->port_number = port_number;
 	return url;
 	/* return buffer space */
