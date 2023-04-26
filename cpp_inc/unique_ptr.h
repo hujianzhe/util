@@ -11,17 +11,9 @@
 #else
 #include "hash.h"
 #include "nullptr.h"
+#include "default_delete.h"
 
 namespace std11 {
-template<typename T>
-struct default_delete {
-	void operator()(T* ptr) const { delete ptr; }
-};
-template<typename T>
-struct default_delete<T[]> {
-	void operator()(T *ptr) const { delete[] ptr; }
-};
-
 template <typename T, typename Deleter = default_delete<T> >
 class unique_ptr {
 public:
