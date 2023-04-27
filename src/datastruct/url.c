@@ -113,7 +113,7 @@ URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 			}
 			host = ps;
 		}
-		else if (first_at) {
+		else {
 			hostlen = path - first_at - 1;
 			if (!hostlen) {
 				return (URL_t*)0;
@@ -162,6 +162,10 @@ URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 				else {
 					pwd = (char*)0;
 				}
+			}
+			else {
+				pwd = (char*)0;
+				pwdlen = 0;
 			}
 		}
 		else {
