@@ -239,15 +239,13 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 	return 1;
 }
 
-static int reactorobject_request_connect(Reactor_t* reactor, ReactorObject_t* o) {
+static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
 	if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 		if (!o->m_writeol)
 			return 0;
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol,
-		&o->stream.m_connect_addr.sa, sockaddrLength(&o->stream.m_connect_addr.sa)))
-	{
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, saddr, saddrlen)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -278,7 +276,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 		}
 		else {
 			o->m_connected = 0;
-			if (!reactorobject_request_connect(reactor, o)) {
+			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa))) {
 				return 0;
 			}
 			if (o->stream.max_connect_timeout_sec > 0) {
@@ -1319,7 +1317,6 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 			int on = 1;
 			setsockopt(o->fd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
 		}
-		memcpy(&o->stream.m_connect_addr, addr, sockaddrlen);
 		streamtransportctxInit(&channel->stream_ctx);
 		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		channel->write_fragment_size = ~0;

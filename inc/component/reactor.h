@@ -45,7 +45,6 @@ typedef struct ReactorObject_t {
 	int detach_timeout_msec;
 	unsigned short dgram_read_fragment_size;
 	struct {
-		Sockaddr_t m_connect_addr;
 		char m_listened;
 		char inbuf_saved;
 		short max_connect_timeout_sec;
