@@ -91,6 +91,7 @@ typedef struct GeometryBody_t {
 
 typedef struct GeometryBodyRef_t {
 	union {
+		void* data;
 		const float* point; /* float[3] */
 		const GeometrySegment_t* segment;
 		const GeometryPlane_t* plane;

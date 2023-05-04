@@ -38,6 +38,7 @@
 #include "crt/geometry/aabb.h"
 #include "crt/geometry/collision_detection.h"
 #include "crt/geometry/line_segment.h"
+#include "crt/geometry/obb.h"
 #include "crt/geometry/plane.h"
 #include "crt/geometry/sphere.h"
 #include "crt/geometry/triangle.h"
