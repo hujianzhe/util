@@ -12,15 +12,28 @@ extern "C" {
 #endif
 
 void mathMat44TransformSplit(const float m[16], float T[3], float S[3], float R[9]) {
-	T[0] = m[12];
-	T[1] = m[13];
-	T[2] = m[14];
-	S[0] = mathVec3Len(m + 0);
-	S[1] = mathVec3Len(m + 4);
-	S[2] = mathVec3Len(m + 8);
-	mathVec3MultiplyScalar(R + 0, m + 0, 1.0f / S[0]);
-	mathVec3MultiplyScalar(R + 3, m + 4, 1.0f / S[1]);
-	mathVec3MultiplyScalar(R + 6, m + 8, 1.0f / S[2]);
+	if (T) {
+		T[0] = m[12];
+		T[1] = m[13];
+		T[2] = m[14];
+	}
+	if (R) {
+		float s[3];
+		if (!S) {
+			S = s;
+		}
+		S[0] = mathVec3Len(m + 0);
+		S[1] = mathVec3Len(m + 4);
+		S[2] = mathVec3Len(m + 8);
+		mathVec3MultiplyScalar(R + 0, m + 0, 1.0f / S[0]);
+		mathVec3MultiplyScalar(R + 3, m + 4, 1.0f / S[1]);
+		mathVec3MultiplyScalar(R + 6, m + 8, 1.0f / S[2]);
+	}
+	else if (S) {
+		S[0] = mathVec3Len(m + 0);
+		S[1] = mathVec3Len(m + 4);
+		S[2] = mathVec3Len(m + 8);
+	}
 }
 
 float* mathMat44SetPositionPart(float m[16], const float p[3]) {
