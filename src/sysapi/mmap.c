@@ -9,7 +9,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
+/*#include <sys/sysctl.h>*/
 #endif
 
 #ifdef	__cplusplus

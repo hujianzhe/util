@@ -46,6 +46,9 @@
 	#include <sys/time.h>
 	#include <sys/wait.h>
 	#include <ucontext.h>
+#if	__linux__
+	#include <sched.h>
+#endif
 /*
 	#include <execinfo.h>	
 */

@@ -264,9 +264,14 @@ void threadYield(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	SwitchToThread();
 #elif	__linux__
+	/**
+	  *	pthread_yield is deprecated
+	  *
 	int res = pthread_yield();
 	if (res)
 		errno = res;
+	*/
+	sched_yield();
 #else
 	sleep(0);
 #endif
