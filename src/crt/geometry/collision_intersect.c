@@ -480,10 +480,10 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 }
 
 int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two) {
-	if (one == two) {
+	if (one->data == two->data) {
 		return 1;
 	}
-	else if (GEOMETRY_BODY_POINT == one->type) {
+	if (GEOMETRY_BODY_POINT == one->type) {
 		switch (two->type) {
 			case GEOMETRY_BODY_POINT:
 			{

@@ -1096,10 +1096,10 @@ static CCTResult_t* mathPolygencastSphere(const GeometryPolygen_t* polygen, cons
 ///////////////////////////////////////////////////////////////////////////////
 
 CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
-	if (one == two || mathVec3IsZero(dir)) {
+	if (one->data == two->data || mathVec3IsZero(dir)) {
 		return NULL;
 	}
-	else if (GEOMETRY_BODY_POINT == one->type) {
+	if (GEOMETRY_BODY_POINT == one->type) {
 		switch (two->type) {
 			case GEOMETRY_BODY_AABB:
 			{
