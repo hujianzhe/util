@@ -184,6 +184,13 @@ void mathVec3ComputeBasis(const float dir[3], float right[3], float up[3]) {
 	}
 }
 
+float* mathVec3DelComponent(float r[3], const float v[3], const float dir[3]) {
+	float va[3];
+	float d = mathVec3Dot(v, dir);
+	mathVec3MultiplyScalar(va, dir, d);
+	return mathVec3Sub(r, v, va);
+}
+
 #ifdef	__cplusplus
 }
 #endif

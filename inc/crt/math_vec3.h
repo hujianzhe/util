@@ -39,6 +39,7 @@ __declspec_dll float mathVec3Radian(const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3Cross(float r[3], const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3Reflect(float r[3], const float v[3], const float n[3]);
 __declspec_dll void mathVec3ComputeBasis(const float dir[3], float right[3], float up[3]);
+__declspec_dll float* mathVec3DelComponent(float r[3], const float v[3], const float dir[3]);
 
 #ifdef	__cplusplus
 }
