@@ -246,6 +246,22 @@ int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* 
 	return 1;
 }
 
+int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], float radius) {
+	int i;
+	float v[3];
+	mathVec3Sub(v, o, obb->o);
+	for (i = 0; i < 3; ++i) {
+		float dot = mathVec3Dot(v, obb->axis[i]);
+		if (dot < 0.0f) {
+			dot = -dot;
+		}
+		if (dot > obb->half[i] - radius) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 static int mathBoxIntersectPlane(const float vertices[8][3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1;
 	for (i = 0; i < 8; ++i) {
@@ -709,6 +725,145 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathOBBIntersectPolygen(one->obb, two->polygen, NULL);
 			}
+		}
+	}
+	return 0;
+}
+
+int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two) {
+	if (one->data == two->data) {
+		return 1;
+	}
+	if (GEOMETRY_BODY_AABB == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathAABBHasPoint(one->aabb->o, one->aabb->half, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathAABBHasPoint(one->aabb->o, one->aabb->half, two->segment->v[0]) &&
+						mathAABBHasPoint(one->aabb->o, one->aabb->half, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				return mathAABBContainAABB(one->aabb->o, one->aabb->half, two->aabb->o, two->aabb->half);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				GeometryOBB_t one_obb;
+				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
+				return mathOBBContainOBB(&one_obb, two->obb);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				GeometryOBB_t one_obb;
+				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
+				return mathOBBContainSphere(&one_obb, two->sphere->o, two->sphere->radius);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_OBB == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathOBBHasPoint(one->obb, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathOBBHasPoint(one->obb, two->segment->v[0]) &&
+						mathOBBHasPoint(one->obb, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				GeometryOBB_t two_obb;
+				mathOBBFromAABB(&two_obb, two->aabb->o, two->aabb->half);
+				return mathOBBContainOBB(one->obb, &two_obb);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathOBBContainOBB(one->obb, two->obb);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathOBBContainSphere(one->obb, two->sphere->o, two->sphere->radius);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_SPHERE == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathSphereHasPoint(one->sphere->o, one->sphere->radius, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathSphereHasPoint(one->sphere->o, one->sphere->radius, two->segment->v[0]) &&
+						mathSphereHasPoint(one->sphere->o, one->sphere->radius, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				float v[3];
+				mathAABBMinVertice(two->aabb->o, two->aabb->half, v);
+				if (!mathSphereHasPoint(one->sphere->o, one->sphere->radius, v)) {
+					return 0;
+				}
+				mathAABBMaxVertice(two->aabb->o, two->aabb->half, v);
+				return mathSphereHasPoint(one->sphere->o, one->sphere->radius, v);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				float v[3];
+				mathOBBMinVertice(two->obb, v);
+				if (!mathSphereHasPoint(one->sphere->o, one->sphere->radius, v)) {
+					return 0;
+				}
+				mathOBBMaxVertice(two->obb, v);
+				return mathSphereHasPoint(one->sphere->o, one->sphere->radius, v);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathSphereContainSphere(one->sphere->o, one->sphere->radius, two->sphere->o, two->sphere->radius);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_PLANE == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathPlaneHasPoint(one->plane->v, one->plane->normal, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathPlaneHasPoint(one->plane->v, one->plane->normal, two->segment->v[0]) &&
+						mathPlaneHasPoint(one->plane->v, one->plane->normal, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_PLANE:
+			{
+				return mathPlaneIntersectPlane(one->plane->v, one->plane->normal, two->plane->v, two->plane->normal) == 2;
+			}
+			case GEOMETRY_BODY_POLYGEN:
+			{
+				const GeometryPolygen_t* polygen = two->polygen;
+				return mathPlaneIntersectPlane(one->plane->v, one->plane->normal, polygen->v[polygen->v_indices[0]], polygen->normal) == 2;
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_SEGMENT == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathSegmentHasPoint(one->segment->v, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return mathSegmentContainSegment(one->segment->v, two->segment->v);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_POINT == one->type) {
+		if (GEOMETRY_BODY_POINT == two->type) {
+			return mathVec3Equal(one->point, two->point);
 		}
 	}
 	return 0;

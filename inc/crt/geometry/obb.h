@@ -15,6 +15,8 @@ __declspec_dll GeometryOBB_t* mathOBBFromAABB(GeometryOBB_t* obb, const float o[
 __declspec_dll void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]);
 
 __declspec_dll void mathOBBVertices(const GeometryOBB_t* obb, float v[8][3]);
+__declspec_dll void mathOBBMinVertice(const GeometryOBB_t* obb, float v[3]);
+__declspec_dll void mathOBBMaxVertice(const GeometryOBB_t* obb, float v[3]);
 
 __declspec_dll void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]);
 __declspec_dll GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect);
