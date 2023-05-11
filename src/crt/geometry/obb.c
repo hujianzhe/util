@@ -317,6 +317,71 @@ int mathOBBIntersectOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1) {
 	return 1;
 }
 
+int mathOBBContainOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1) {
+	float AX[3][3], p[3];
+	mathVec3MultiplyScalar(AX[0], obb1->axis[0], obb1->half[0]);
+	mathVec3MultiplyScalar(AX[1], obb1->axis[1], obb1->half[1]);
+	mathVec3MultiplyScalar(AX[2], obb1->axis[2], obb1->half[2]);
+
+	mathVec3Copy(p, obb->o);
+	mathVec3Sub(p, p, AX[0]);
+	mathVec3Sub(p, p, AX[1]);
+	mathVec3Sub(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Add(p, p, AX[0]);
+	mathVec3Sub(p, p, AX[1]);
+	mathVec3Sub(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Add(p, p, AX[0]);
+	mathVec3Add(p, p, AX[1]);
+	mathVec3Sub(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Sub(p, p, AX[0]);
+	mathVec3Add(p, p, AX[1]);
+	mathVec3Sub(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Sub(p, p, AX[0]);
+	mathVec3Sub(v[4], p, AX[1]);
+	mathVec3Add(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Add(p, p, AX[0]);
+	mathVec3Sub(v[5], p, AX[1]);
+	mathVec3Add(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Add(p, p, AX[0]);
+	mathVec3Add(p, p, AX[1]);
+	mathVec3Add(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	mathVec3Copy(p, obb->o);
+	mathVec3Sub(p, p, AX[0]);
+	mathVec3Add(p, p, AX[1]);
+	mathVec3Add(p, p, AX[2]);
+	if (!mathOBBHasPoint(obb0, p)) {
+		return 0;
+	}
+	return 1;
+}
+
 #ifdef __cplusplus
 }
 #endif
