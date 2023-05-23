@@ -187,23 +187,20 @@ static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const G
 	else {
 		CCTResult_t *p_result = NULL;
 		int i;
-		for (i = 0; i < 6; ) {
+		for (i = 0; i < 6; ++i) {
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
 			mathOBBPlaneRect(obb, i, &rect);
 			if (!mathRaycastPlane(o, dir, rect.o, rect.normal, &result_temp)) {
-				i += 2;
 				continue;
 			}
 			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
-				++i;
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
 				copy_result(result, &result_temp);
 				p_result = result;
 			}
-			++i;
 		}
 		return p_result;
 	}
