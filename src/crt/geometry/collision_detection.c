@@ -836,7 +836,7 @@ static CCTResult_t* mathOBBcastPolygen(const GeometryOBB_t* obb, const float dir
 			return result;
 		}
 	}
-	else {
+	else if (result->distance != 0.0f) {
 		for (i = 0; i < 8; ++i) {
 			float test_p[3];
 			mathVec3Copy(test_p, v[i]);
