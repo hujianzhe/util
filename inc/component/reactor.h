@@ -17,7 +17,8 @@ enum {
 	REACTOR_IO_ERR,
 	REACTOR_CONNECT_ERR,
 	REACTOR_ZOMBIE_ERR,
-	REACTOR_ONREAD_ERR
+	REACTOR_ONREAD_ERR,
+	REACTOR_CACHE_OVERFLOW_ERR
 };
 enum {
 	CHANNEL_FLAG_CLIENT = 1 << 0,
@@ -48,6 +49,7 @@ typedef struct ReactorObject_t {
 		char m_listened;
 		char inbuf_saved;
 		short max_connect_timeout_sec;
+		int m_inbufmaxlen;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
@@ -100,6 +102,7 @@ typedef struct ChannelBase_t {
 	long long event_msec;
 	unsigned int write_fragment_size;
 	unsigned int readcache_max_size;
+	unsigned int sendcache_max_size;
 	void* userdata; /* user use, library not use these field */
 	const struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
 	struct Session_t* session; /* user use, set your logic session status */

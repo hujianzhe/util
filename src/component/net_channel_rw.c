@@ -42,6 +42,16 @@ static void channel_set_timestamp(ChannelBase_t* channel, long long timestamp_ms
 	channel->event_msec = timestamp_msec;
 }
 
+static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_bytes, unsigned int max_limit_bytes) {
+	if (max_limit_bytes <= 0) {
+		return 0;
+	}
+	if (max_limit_bytes < add_bytes) {
+		return 1;
+	}
+	return already_cache_bytes > max_limit_bytes - add_bytes;
+}
+
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
 	ReactorPacket_t* packet;
@@ -116,14 +126,14 @@ static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int 
 	if (pktype != 0) {
 		unsigned int pkseq = decode_result.pkseq;
 		StreamTransportCtx_t* ctx = &channel->stream_ctx;
-		if (channel->readcache_max_size > 0 &&
-			channel->readcache_max_size < channel->stream_ctx.cache_recv_bytes + decode_result.bodylen)
-		{
-			return -1;
-		}
 		if (ctx->recvlist.head || !decode_result.fragment_eof) {
 			List_t list;
-			ReactorPacket_t* packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+			ReactorPacket_t* packet;
+			if (check_cache_overflow(ctx->cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
+				channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+				return -1;
+			}
+			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
 			if (!packet) {
 				return -1;
 			}
@@ -383,9 +393,8 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 	}
 	else if (dgramtransportctxRecvCheck(&channel->dgram_ctx, pkseq, pktype)) {
 		List_t list;
-		if (channel->readcache_max_size > 0 &&
-			channel->readcache_max_size < channel->dgram_ctx.cache_recv_bytes + decode_result.bodylen)
-		{
+		if (check_cache_overflow(channel->dgram_ctx.cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
+			channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
 			return -1;
 		}
 		rw->proc->on_reply_ack(channel, pkseq, from_saddr);
@@ -425,26 +434,33 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 
 static int on_pre_send_reliable_dgram(ChannelRWData_t* rw, NetPacket_t* packet, long long timestamp_msec) {
 	ChannelBase_t* channel = rw->channel;
-	packet->seq = dgramtransportctxNextSendSeq(&channel->dgram_ctx, packet->type);
+	DgramTransportCtx_t* ctx = &channel->dgram_ctx;
+	packet->seq = dgramtransportctxNextSendSeq(ctx, packet->type);
 	if (rw->proc->on_encode) {
 		rw->proc->on_encode(channel, packet);
 	}
-	if (dgramtransportctxCacheSendPacket(&channel->dgram_ctx, packet)) {
-		if (rw->dgram.m_synpacket_doing) {
-			return 0;
-		}
-		if (!dgramtransportctxSendWindowHasPacket(&channel->dgram_ctx, packet)) {
-			return 0;
-		}
-		if (NETPACKET_FIN == packet->type) {
-			channel->has_sendfin = 1;
-		}
-		packet->wait_ack = 1;
-		packet->resend_msec = timestamp_msec + rw->dgram.rto;
-		channel_set_timestamp(channel, packet->resend_msec);
-		return 1;
+	if (packet->type < NETPACKET_DGRAM_HAS_SEND_SEQ) {
+		return 0 == rw->dgram.m_synpacket_doing;
 	}
-	return 0 == rw->dgram.m_synpacket_doing;
+	if (check_cache_overflow(ctx->cache_send_bytes, packet->hdrlen + packet->bodylen, channel->sendcache_max_size)) {
+		channel->valid = 0;
+		channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+		return 0;
+	}
+	dgramtransportctxCacheSendPacket(ctx, packet);
+	if (rw->dgram.m_synpacket_doing) {
+		return 0;
+	}
+	if (!dgramtransportctxSendWindowHasPacket(ctx, packet)) {
+		return 0;
+	}
+	if (NETPACKET_FIN == packet->type) {
+		channel->has_sendfin = 1;
+	}
+	packet->wait_ack = 1;
+	packet->resend_msec = timestamp_msec + rw->dgram.rto;
+	channel_set_timestamp(channel, packet->resend_msec);
+	return 1;
 }
 
 static void on_exec_dgram_listener(ChannelRWData_t* rw, long long timestamp_msec) {

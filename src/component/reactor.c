@@ -59,6 +59,16 @@ static long long channel_next_heartbeat_timestamp(ChannelBase_t* channel, long l
 	return 0;
 }
 
+static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_bytes, unsigned int max_limit_bytes) {
+	if (max_limit_bytes <= 0) {
+		return 0;
+	}
+	if (max_limit_bytes < add_bytes) {
+		return 1;
+	}
+	return already_cache_bytes > max_limit_bytes - add_bytes;
+}
+
 static void channel_detach_handler(ChannelBase_t* channel, int error, long long timestamp_msec) {
 	ReactorObject_t* o;
 	if (channel->m_has_detached) {
@@ -172,7 +182,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		if (REACTOR_CONNECT_ERR == o->detach_error) {
 			channel->detach_error = o->detach_error;
 		}
-		else if (REACTOR_IO_ERR == o->detach_error && 0 == channel->detach_error) {
+		else if (0 == channel->detach_error) {
 			channel->detach_error = o->detach_error;
 		}
 		channel->m_has_detached = 1;
@@ -197,7 +207,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
-	else if (SOCK_STREAM == o->socktype && o->stream.m_listened) {
+	if (SOCK_STREAM == o->socktype && o->stream.m_listened) {
 		opcode = NIO_OP_ACCEPT;
 	}
 	else {
@@ -222,10 +232,10 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 	if (!o->m_valid) {
 		return 0;
 	}
-	else if (o->m_writeol_has_commit) {
+	if (o->m_writeol_has_commit) {
 		return 1;
 	}
-	else if (!o->m_writeol) {
+	if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
 		if (!o->m_writeol) {
 			return 0;
@@ -242,8 +252,9 @@ static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
 	if (!o->m_writeol) {
 		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
-		if (!o->m_writeol)
+		if (!o->m_writeol) {
 			return 0;
+		}
 	}
 	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, saddr, saddrlen)) {
 		return 0;
@@ -501,7 +512,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		}
 		packet->off += res;
 		if (packet->off >= packet->hdrlen + packet->bodylen) {
-			listRemoveNode(&ctxptr->sendlist, cur);
+			streamtransportctxRemoveCacheSendPacket(ctxptr, packet);
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
@@ -546,14 +557,14 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		o->m_valid = 0;
 		return;
 	}
-	else if (0 == res) {
+	if (0 == res) {
 		stream_recvfin_handler(reactor, o, timestamp_msec);
 		return;
 	}
 	channel = o->m_channel;
-	if (channel->readcache_max_size > 0 && channel->readcache_max_size < o->m_inbuflen + res) {
+	if (check_cache_overflow(o->m_inbuflen, res, o->stream.m_inbufmaxlen)) {
 		o->m_valid = 0;
-		o->detach_error = REACTOR_ONREAD_ERR;
+		channel->detach_error = REACTOR_ONREAD_ERR;
 		return;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
@@ -573,7 +584,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		}
 		return;
 	}
-	else if (0 == res) {
+	if (0 == res) {
 		stream_recvfin_handler(reactor, o, timestamp_msec);
 		return;
 	}
@@ -719,12 +730,24 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 						reactorpacketFree(packet);
 					}
 					o->m_valid = 0;
+					o->detach_error = REACTOR_IO_ERR;
 					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 					return;
 				}
 				res = 0;
 			}
 			packet->_.off = res;
+		}
+	}
+	if (packet->_.off < packet->_.hdrlen + packet->_.bodylen) {
+		if (check_cache_overflow(ctx->cache_send_bytes, packet->_.hdrlen + packet->_.bodylen, channel->sendcache_max_size)) {
+			if (!packet->_.cached) {
+				reactorpacketFree(packet);
+			}
+			o->m_valid = 0;
+			channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			return;
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
@@ -781,10 +804,9 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		addrlen = sockaddrLength(paddr);
 	}
 	sendto(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
-	if (packet->_.cached) {
-		return;
+	if (!packet->_.cached) {
+		reactorpacketFree(packet);
 	}
-	reactorpacketFree(packet);
 }
 
 static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {

@@ -46,9 +46,10 @@ typedef struct NetPacket_t {
 typedef struct DgramTransportCtx_t {
 	List_t recvlist;
 	List_t sendlist;
+	unsigned int cache_recv_bytes;
+	unsigned int cache_send_bytes;
 	unsigned char send_all_acked;
 	unsigned char cwndsize;
-	unsigned int cache_recv_bytes;
 	/* private */
 	unsigned int m_sendseq;
 	unsigned int m_recvseq;
@@ -61,6 +62,7 @@ typedef struct StreamTransportCtx_t {
 	List_t recvlist;
 	List_t sendlist;
 	unsigned int cache_recv_bytes;
+	unsigned int cache_send_bytes;
 } StreamTransportCtx_t;
 
 #ifdef	__cplusplus
@@ -81,7 +83,7 @@ __declspec_dll void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx,
 __declspec_dll int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list);
 __declspec_dll int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx);
 __declspec_dll int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll List_t streamtransportctxRemoveFinishedSendPacket(StreamTransportCtx_t* ctx);
+__declspec_dll void streamtransportctxRemoveCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
 
 #ifdef	__cplusplus
 }
