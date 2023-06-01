@@ -390,6 +390,22 @@ int strCmpNoCase(const char* s1, const char* s2, UnsignedPtr_t n) {
 	return 0;
 }
 
+int strIsInteger(const char* s, UnsignedPtr_t n) {
+	UnsignedPtr_t i;
+	for (i = 0; i < n && s[i]; ++i) {
+		if ('+' == s[i] || '-' == s[i]) {
+			if (i != 0) {
+				return 0;
+			}
+			continue;
+		}
+		if (s[i] < '0' || s[i] > '9') {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 #ifdef	__cplusplus
 }
 #endif

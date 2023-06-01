@@ -46,6 +46,7 @@ __declspec_dll char* strSplit(const char* str, UnsignedPtr_t len, const char** p
 __declspec_dll UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen);
 __declspec_dll int strUtf8CharacterByteNum(const char* s);
 __declspec_dll int strCmpNoCase(const char* s1, const char* s2, UnsignedPtr_t n);
+__declspec_dll int strIsInteger(const char* s, UnsignedPtr_t n);
 
 #ifdef	__cplusplus
 }
