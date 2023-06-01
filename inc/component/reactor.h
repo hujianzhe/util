@@ -44,12 +44,9 @@ typedef struct ReactorObject_t {
 	int protocol;
 	int detach_error;
 	int detach_timeout_msec;
-	unsigned short dgram_read_fragment_size;
 	struct {
 		char m_listened;
-		char inbuf_saved;
 		short max_connect_timeout_sec;
-		int m_inbufmaxlen;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
@@ -64,6 +61,7 @@ typedef struct ReactorObject_t {
 	char m_has_detached;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
+	char m_inbuf_saved;
 	void* m_readol;
 	void* m_writeol;
 	unsigned int m_io_event_mask;
@@ -72,6 +70,7 @@ typedef struct ReactorObject_t {
 	int m_inbufoff;
 	int m_inbuflen;
 	int m_inbufsize;
+	int m_inbufmaxlen;
 } ReactorObject_t;
 
 typedef struct ChannelBase_t {

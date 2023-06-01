@@ -214,7 +214,11 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 		opcode = NIO_OP_READ;
 	}
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, SOCK_STREAM != o->socktype ? o->dgram_read_fragment_size : 0);
+		unsigned int sz = 0;
+		if (SOCK_STREAM != o->socktype) {
+			sz = o->m_inbufmaxlen;
+		}
+		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, sz);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -562,7 +566,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		return;
 	}
 	channel = o->m_channel;
-	if (check_cache_overflow(o->m_inbuflen, res, o->stream.m_inbufmaxlen)) {
+	if (check_cache_overflow(o->m_inbuflen, res, o->m_inbufmaxlen)) {
 		o->m_valid = 0;
 		channel->detach_error = REACTOR_ONREAD_ERR;
 		return;
@@ -608,7 +612,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
 	if (o->m_inbufoff >= o->m_inbuflen) {
-		if (o->stream.inbuf_saved) {
+		if (o->m_inbuf_saved) {
 			o->m_inbufoff = 0;
 			o->m_inbuflen = 0;
 		}
@@ -628,12 +632,12 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		socklen_t slen = sizeof(from_addr.st);
 		if (readtimes) {
 			if (!o->m_inbuf) {
-				o->m_inbuf = (unsigned char*)malloc(o->dgram_read_fragment_size + 1);
+				o->m_inbuf = (unsigned char*)malloc(o->m_inbufmaxlen + 1);
 				if (!o->m_inbuf) {
 					o->m_valid = 0;
 					return;
 				}
-				o->m_inbuflen = o->m_inbufsize = o->dgram_read_fragment_size;
+				o->m_inbuflen = o->m_inbufsize = o->m_inbufmaxlen;
 			}
 			ptr = o->m_inbuf;
 			len = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
@@ -960,6 +964,7 @@ static void reactorpacketFreeList(List_t* pkglist) {
 
 static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->detach_error = 0;
+	o->detach_timeout_msec = 0;
 	o->m_connected = 0;
 	o->m_channel = NULL;
 	o->m_hashnode.key.ptr = &o->fd;
@@ -968,6 +973,7 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->m_has_detached = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
+	o->m_inbuf_saved = 1;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_io_event_mask = 0;
@@ -976,6 +982,7 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
+	o->m_inbufmaxlen = 0;
 }
 
 static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
@@ -1011,20 +1018,17 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 			return NULL;
 		}
 	}
+	reactorobject_init_comm(o);
 	o->fd = fd;
 	o->domain = domain;
 	o->socktype = socktype;
 	o->protocol = protocol;
-	o->detach_timeout_msec = 0;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
-		o->stream.inbuf_saved = 1;
-		o->dgram_read_fragment_size = 1460;
 	}
 	else {
-		o->dgram_read_fragment_size = 1464;
+		o->m_inbufmaxlen = 1464;
 	}
-	reactorobject_init_comm(o);
 	return o;
 }
 
