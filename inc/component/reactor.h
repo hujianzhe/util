@@ -51,7 +51,6 @@ typedef struct ReactorObject_t {
 		ListNode_t m_connect_endnode;
 	} stream;
 /* protected */
-	int m_connected;
 /* private */
 	struct ChannelBase_t* m_channel;
 	HashtableNode_t m_hashnode;
@@ -59,6 +58,7 @@ typedef struct ReactorObject_t {
 	char m_valid;
 	char m_has_inserted;
 	char m_has_detached;
+	char m_connected;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
 	char m_inbuf_saved;
