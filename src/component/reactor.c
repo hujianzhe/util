@@ -69,13 +69,13 @@ static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_byt
 	return already_cache_bytes > max_limit_bytes - add_bytes;
 }
 
-static void channel_detach_handler(ChannelBase_t* channel, int error, long long timestamp_msec) {
+static void channel_detach_handler(ChannelBase_t* channel, short detach_error, long long timestamp_msec) {
 	ReactorObject_t* o;
 	if (channel->m_has_detached) {
 		return;
 	}
 	channel->m_has_detached = 1;
-	channel->detach_error = error;
+	channel->detach_error = detach_error;
 	o = channel->o;
 	o->m_channel = NULL;
 	o->m_valid = 0;

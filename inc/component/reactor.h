@@ -42,15 +42,14 @@ typedef struct ReactorObject_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int detach_error;
 	int detach_timeout_msec;
+	short detach_error;
 	struct {
 		char m_listened;
-		short max_connect_timeout_sec;
+		unsigned short max_connect_timeout_sec;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
-/* protected */
 /* private */
 	struct ChannelBase_t* m_channel;
 	HashtableNode_t m_hashnode;
@@ -83,21 +82,21 @@ typedef struct ChannelBase_t {
 		Sockaddr_t connect_addr;
 	};
 	union {
-		StreamTransportCtx_t stream_ctx;
+		struct {
+			StreamTransportCtx_t stream_ctx;
+			ReactorCmd_t m_stream_fincmd;
+			char m_stream_delay_send_fin;
+		};
 		DgramTransportCtx_t dgram_ctx;
 	};
-	struct {
-		ReactorCmd_t m_stream_fincmd;
-		char m_stream_delay_send_fin;
-	};
+	unsigned short heartbeat_timeout_sec; /* optional */
+	unsigned short heartbeat_maxtimes; /* client use, optional */
 	char has_recvfin;
 	char has_sendfin;
-	unsigned int heartbeat_maxtimes; /* client use, optional */
-	int heartbeat_timeout_sec; /* optional */
 	char valid;
 	unsigned char write_fragment_with_hdr;
 	unsigned short flag;
-	int detach_error;
+	short detach_error;
 	long long event_msec;
 	unsigned int write_fragment_size;
 	unsigned int readcache_max_size;
@@ -111,7 +110,7 @@ typedef struct ChannelBase_t {
 	};
 /* private */
 	long long m_heartbeat_msec;
-	unsigned int m_heartbeat_times; /* client use */
+	unsigned short m_heartbeat_times; /* client use */
 	Atom32_t m_refcnt;
 	char m_has_detached;
 	char m_catch_fincmd;

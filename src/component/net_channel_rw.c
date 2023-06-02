@@ -23,7 +23,7 @@ extern "C" {
 
 /*******************************************************************************/
 
-static void channel_invalid(ChannelBase_t* base, int detach_error) {
+static void channel_invalid(ChannelBase_t* base, short detach_error) {
 	base->valid = 0;
 	base->detach_error = detach_error;
 }
