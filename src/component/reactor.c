@@ -1457,7 +1457,7 @@ void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel) {
 	}
 	if (old_channel) {
 		old_channel->session = NULL;
-		channelbaseSendv(old_channel, NULL, 0, NETPACKET_FIN);
+		channelbaseSendFin(old_channel);
 	}
 	if (channel) {
 		channel->session = session;
@@ -1466,12 +1466,12 @@ void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel) {
 
 void sessionDisconnect(Session_t* session) {
 	if (session->channel_client) {
-		channelbaseSendv(session->channel_client, NULL, 0, NETPACKET_FIN);
+		channelbaseSendFin(session->channel_client);
 		session->channel_client->session = NULL;
 		session->channel_client = NULL;
 	}
 	if (session->channel_server) {
-		channelbaseSendv(session->channel_server, NULL, 0, NETPACKET_FIN);
+		channelbaseSendFin(session->channel_server);
 		session->channel_server->session = NULL;
 		session->channel_server = NULL;
 	}
