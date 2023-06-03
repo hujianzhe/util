@@ -28,6 +28,32 @@ typedef struct Reactor_t {
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
+ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
+	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
+	if (pkg) {
+		pkg->cmd.type = REACTOR_SEND_PACKET_CMD;
+		pkg->channel = NULL;
+		pkg->_.type = pktype;
+		pkg->_.wait_ack = 0;
+		pkg->_.cached = 0;
+		pkg->_.fragment_eof = 1;
+		pkg->_.hdrlen = hdrlen;
+		pkg->_.bodylen = bodylen;
+		pkg->_.seq = 0;
+		pkg->_.off = 0;
+		pkg->_.resend_msec = 0;
+		pkg->_.resend_times = 0;
+		pkg->_.buf[hdrlen + bodylen] = 0;
+	}
+	return pkg;
+}
+
+void reactorpacketFree(ReactorPacket_t* pkg) {
+	free(pkg);
+}
+
+/*****************************************************************************************/
+
 static void reactor_set_event_timestamp(Reactor_t* reactor, long long timestamp_msec) {
 	if (timestamp_msec <= 0) {
 		return;
@@ -1286,30 +1312,6 @@ void reactorDestroy(Reactor_t* reactor) {
 	} while (0);
 
 	free(reactor);
-}
-
-ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
-	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
-	if (pkg) {
-		pkg->cmd.type = REACTOR_SEND_PACKET_CMD;
-		pkg->channel = NULL;
-		pkg->_.type = pktype;
-		pkg->_.wait_ack = 0;
-		pkg->_.cached = 0;
-		pkg->_.fragment_eof = 1;
-		pkg->_.hdrlen = hdrlen;
-		pkg->_.bodylen = bodylen;
-		pkg->_.seq = 0;
-		pkg->_.off = 0;
-		pkg->_.resend_msec = 0;
-		pkg->_.resend_times = 0;
-		pkg->_.buf[hdrlen + bodylen] = 0;
-	}
-	return pkg;
-}
-
-void reactorpacketFree(ReactorPacket_t* pkg) {
-	free(pkg);
 }
 
 ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int socktype, const struct sockaddr* addr) {

@@ -14,10 +14,6 @@
 #include "../../../inc/crt/geometry/collision_detection.h"
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 
 extern int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]);
@@ -1091,6 +1087,10 @@ static CCTResult_t* mathPolygencastSphere(const GeometryPolygen_t* polygen, cons
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
 	if (one->data == two->data || mathVec3IsZero(dir)) {

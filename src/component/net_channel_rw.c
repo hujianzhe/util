@@ -17,11 +17,14 @@ typedef struct DgramHalfConn_t {
 	NetPacket_t syn_ack_pkg;
 } DgramHalfConn_t;
 
+extern ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
+extern void reactorpacketFree(ReactorPacket_t* pkg);
+
+/*******************************************************************************/
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-/*******************************************************************************/
 
 static void channel_invalid(ChannelBase_t* base, short detach_error) {
 	base->valid = 0;

@@ -13,10 +13,6 @@
 #include "../../../inc/crt/geometry/collision_intersect.h"
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]) {
 	int cmp[2];
 	float d[2], lsdir[3], dot;
@@ -52,7 +48,7 @@ int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], cons
 	return 1;
 }
 
-int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* polygen, float p[3]) {
+static int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* polygen, float p[3]) {
 	int res;
 	float point[3];
 	if (!p) {
@@ -82,7 +78,7 @@ int mathSegmentIntersectPolygen(const float ls[2][3], const GeometryPolygen_t* p
 	}
 }
 
-int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const GeometryPolygen_t* polygen2) {
+static int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const GeometryPolygen_t* polygen2) {
 	int i;
 	if (!mathPlaneIntersectPlane(polygen1->v[polygen1->v_indices[0]], polygen1->normal, polygen2->v[polygen2->v_indices[0]], polygen2->normal)) {
 		return 0;
@@ -98,7 +94,7 @@ int mathPolygenIntersectPolygen(const GeometryPolygen_t* polygen1, const Geometr
 	return 0;
 }
 
-int mathPolygenIntersectPlane(const GeometryPolygen_t* polygen, const float plane_v[3], const float plane_n[3], float p[3]) {
+static int mathPolygenIntersectPlane(const GeometryPolygen_t* polygen, const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0, has_le0, idx_0;
 	if (!mathPlaneIntersectPlane(polygen->v[polygen->v_indices[0]], polygen->normal, plane_v, plane_n)) {
 		return 0;
@@ -138,7 +134,8 @@ int mathPolygenIntersectPlane(const GeometryPolygen_t* polygen, const float plan
 	return 1;
 }
 
-int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]) {
+/*
+static int mathSphereIntersectLine(const float o[3], float radius, const float ls_vertice[3], const float lsdir[3], float distance[2]) {
 	int cmp;
 	float vo[3], lp[3], lpo[3], lpolensq, radiussq, dot;
 	mathVec3Sub(vo, o, ls_vertice);
@@ -162,6 +159,7 @@ int mathSphereIntersectLine(const float o[3], float radius, const float ls_verti
 		return 2;
 	}
 }
+*/
 
 int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]) {
 	int res;
@@ -205,7 +203,7 @@ int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v
 	}
 }
 
-int mathSphereIntersectPolygen(const float o[3], float radius, const GeometryPolygen_t* polygen, float p[3]) {
+static int mathSphereIntersectPolygen(const float o[3], float radius, const GeometryPolygen_t* polygen, float p[3]) {
 	int res, i;
 	float point[3];
 	if (!p) {
@@ -246,7 +244,7 @@ int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* 
 	return 1;
 }
 
-int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], float radius) {
+static int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], float radius) {
 	int i;
 	float v[3];
 	mathVec3Sub(v, o, obb->o);
@@ -297,26 +295,26 @@ static int mathBoxIntersectPlane(const float vertices[8][3], const float plane_v
 	return 1;
 }
 
-int mathOBBIntersectPlane(const GeometryOBB_t* obb, const float plane_v[3], const float plane_n[3], float p[3]) {
+static int mathOBBIntersectPlane(const GeometryOBB_t* obb, const float plane_v[3], const float plane_n[3], float p[3]) {
 	float vertices[8][3];
 	mathOBBVertices(obb, vertices);
 	return mathBoxIntersectPlane((const float(*)[3])vertices, plane_v, plane_n, p);
 }
 
-int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
+static int mathAABBIntersectPlane(const float o[3], const float half[3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	float vertices[8][3];
 	mathAABBVertices(o, half, vertices);
 	return mathBoxIntersectPlane((const float(*)[3])vertices, plane_v, plane_n, p);
 }
 
-int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
+static int mathAABBIntersectSphere(const float aabb_o[3], const float aabb_half[3], const float sp_o[3], float sp_radius) {
 	float closest_v[3];
 	mathAABBClosestPointTo(aabb_o, aabb_half, sp_o, closest_v);
 	mathVec3Sub(closest_v, closest_v, sp_o);
 	return mathVec3LenSq(closest_v) <= sp_radius * sp_radius;
 }
 
-int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
+static int mathAABBIntersectSegment(const float o[3], const float half[3], const float ls[2][3]) {
 	int i;
 	GeometryPolygen_t polygen;
 	if (mathAABBHasPoint(o, half, ls[0]) || mathAABBHasPoint(o, half, ls[1])) {
@@ -353,7 +351,7 @@ int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3]) {
 	return 0;
 }
 
-int mathAABBIntersectPolygen(const float o[3], const float half[3], const GeometryPolygen_t* polygen, float p[3]) {
+static int mathAABBIntersectPolygen(const float o[3], const float half[3], const GeometryPolygen_t* polygen, float p[3]) {
 	int res, i;
 	float point[3];
 	if (!p) {
@@ -381,7 +379,7 @@ int mathAABBIntersectPolygen(const float o[3], const float half[3], const Geomet
 	return 0;
 }
 
-int mathOBBIntersectPolygen(const GeometryOBB_t* obb, const GeometryPolygen_t* polygen, float p[3]) {
+static int mathOBBIntersectPolygen(const GeometryOBB_t* obb, const GeometryPolygen_t* polygen, float p[3]) {
 	int res, i;
 	float point[3];
 	if (!p) {
@@ -445,6 +443,10 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const float delta_half_v[3], GeometryAABB_t* aabb) {
 	switch (b->type) {
