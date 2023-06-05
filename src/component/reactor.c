@@ -95,29 +95,12 @@ static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_byt
 	return already_cache_bytes > max_limit_bytes - add_bytes;
 }
 
-static void channel_detach_handler(ChannelBase_t* channel, short detach_error, long long timestamp_msec) {
-	ReactorObject_t* o;
-	if (channel->m_has_detached) {
-		return;
-	}
-	channel->m_has_detached = 1;
-	channel->detach_error = detach_error;
-	o = channel->o;
-	o->m_channel = NULL;
-	o->m_valid = 0;
-	channel->o = NULL;
-	channel->proc->on_detach(channel);
-}
-
 static int after_call_channel_interface(ChannelBase_t* channel) {
 	if (channel->valid) {
 		reactor_set_event_timestamp(channel->reactor, channel->event_msec);
 		return 1;
 	}
-	else {
-		channel_detach_handler(channel, channel->detach_error, 0);
-		return 0;
-	}
+	return 0;
 }
 
 static void free_inbuf(ReactorObject_t* o) {
@@ -184,12 +167,13 @@ static int cmp_sorted_reactor_object_stream_connect_timeout(ListNode_t* node, Li
 	return o->stream.m_connect_end_msec > new_o->stream.m_connect_end_msec;
 }
 
-static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObject_t* o, long long now_msec) {
-	ChannelBase_t* channel;
-	if (o->m_has_detached) {
+static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_t* channel, long long now_msec) {
+	ReactorObject_t* o;
+	if (channel->m_has_detached) {
 		return;
 	}
-	o->m_has_detached = 1;
+	o = channel->o;
+	o->m_channel = NULL;
 	o->m_invalid_msec = now_msec;
 	if (o->m_has_inserted) {
 		o->m_has_inserted = 0;
@@ -203,19 +187,10 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ReactorObjec
 		free_io_resource(o);
 	}
 
-	channel = o->m_channel;
-	if (channel) {
-		if (REACTOR_CONNECT_ERR == o->detach_error) {
-			channel->detach_error = o->detach_error;
-		}
-		else if (0 == channel->detach_error) {
-			channel->detach_error = o->detach_error;
-		}
-		channel->m_has_detached = 1;
-		channel->o = NULL;
-		channel->valid = 0;
-		channel->proc->on_detach(channel);
-	}
+	channel->m_has_detached = 1;
+	channel->o = NULL;
+	channel->valid = 0;
+	channel->proc->on_detach(channel);
 
 	if (o->detach_timeout_msec <= 0) {
 		reactorobject_free(o);
@@ -242,7 +217,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	if (!o->m_readol) {
 		unsigned int sz = 0;
 		if (SOCK_STREAM != o->socktype) {
-			sz = o->m_inbufmaxlen;
+			sz = o->inbuf_maxlen;
 		}
 		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, sz);
 		if (!o->m_readol) {
@@ -259,9 +234,6 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 
 static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
 	Sockaddr_t saddr;
-	if (!o->m_valid) {
-		return 0;
-	}
 	if (o->m_writeol_has_commit) {
 		return 1;
 	}
@@ -293,13 +265,12 @@ static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObjec
 	return 1;
 }
 
-static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	if (!nioReg(&reactor->m_nio, o->fd)) {
 		return 0;
 	}
 	if (SOCK_STREAM == o->socktype) {
 		BOOL ret;
-		ChannelBase_t* channel = o->m_channel;
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
 			o->stream.m_listened = 1;
 			if (!reactorobject_request_read(reactor, o)) {
@@ -320,8 +291,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa))) {
 				return 0;
 			}
-			if (o->stream.connect_timeout_sec > 0) {
-				o->stream.m_connect_end_msec = o->stream.connect_timeout_sec;
+			if (o->stream_connect_timeout_sec > 0) {
+				o->stream.m_connect_end_msec = o->stream_connect_timeout_sec;
 				o->stream.m_connect_end_msec *= 1000;
 				o->stream.m_connect_end_msec += timestamp_msec;
 				listInsertNodeSorted(&reactor->m_connect_endlist, &o->stream.m_connect_endnode,
@@ -355,15 +326,15 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 	return 1;
 }
 
-static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	if (reactor_reg_object_check(reactor, o, timestamp_msec)) {
+static int reactor_reg_object(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
+	ReactorObject_t* o = channel->o;
+	if (reactor_reg_object_check(reactor, channel, o, timestamp_msec)) {
 		HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
 		if (htnode != &o->m_hashnode) {
 			ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
 			hashtableReplaceNode(&reactor->m_objht, htnode, &o->m_hashnode);
-			exist_o->m_valid = 0;
 			exist_o->m_has_inserted = 0;
-			reactorobject_invalid_inner_handler(reactor, exist_o, timestamp_msec);
+			reactorobject_invalid_inner_handler(reactor, exist_o->m_channel, timestamp_msec);
 		}
 		o->m_has_inserted = 1;
 		return 1;
@@ -371,20 +342,20 @@ static int reactor_reg_object(Reactor_t* reactor, ReactorObject_t* o, long long 
 	return 0;
 }
 
-static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel = o->m_channel;
-	if (channel) {
-		channel->reactor = reactor;
-		if (channel->proc->on_reg) {
-			channel->proc->on_reg(channel, timestamp_msec);
-			if (!after_call_channel_interface(channel)) {
-				return;
-			}
-		}
-		else {
-			reactor_set_event_timestamp(reactor, channel->event_msec);
+static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
+	ReactorObject_t* o;
+
+	channel->reactor = reactor;
+	if (channel->proc->on_reg) {
+		channel->proc->on_reg(channel, timestamp_msec);
+		if (!after_call_channel_interface(channel)) {
+			return;
 		}
 	}
+	else {
+		reactor_set_event_timestamp(reactor, channel->event_msec);
+	}
+	o = channel->o;
 	if (SOCK_STREAM != o->socktype) {
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
@@ -399,7 +370,9 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 	if (channel->flag & CHANNEL_FLAG_CLIENT) {
 		if (channel->on_syn_ack) {
 			channel->on_syn_ack(channel, timestamp_msec);
-			after_call_channel_interface(channel);
+			if (!after_call_channel_interface(channel)) {
+				return;
+			}
 		}
 	}
 	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
@@ -407,7 +380,6 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ReactorObject_t
 }
 
 static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
-	ReactorObject_t* o = channel->o;
 	StreamTransportCtx_t* ctx = &channel->stream_ctx;
 
 	channel->m_catch_fincmd = 1;
@@ -415,18 +387,17 @@ static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
 		channel->m_stream_delay_send_fin = 1;
 		return;
 	}
-	socketShutdown(o->fd, SHUT_WR);
+	socketShutdown(channel->o->fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
-		o->m_valid = 0;
+		channel->valid = 0;
 	}
 }
 
-static void stream_recvfin_handler(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel = o->m_channel;
+static void stream_recvfin_handler(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
 	channel->has_recvfin = 1;
 	if (channel->has_sendfin) {
-		o->m_valid = 0;
+		channel->valid = 0;
 		return;
 	}
 	if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
@@ -464,32 +435,33 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 	HashtableNode_t *cur, *next;
 	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
+		ChannelBase_t* channel = o->m_channel;
 		next = hashtableNextNode(cur);
-		if (o->m_valid) {
-			ChannelBase_t* channel = o->m_channel;
-			if (channel) {
-				if (channel->event_msec <= 0) {
-					continue;
-				}
-				if (now_msec < channel->event_msec) {
-					reactor_set_event_timestamp(reactor, channel->event_msec);
-					continue;
-				}
-				channel->event_msec = 0;
-				if (!channel_heartbeat_handler(channel, now_msec)) {
-					channel->valid = 0;
-					channel_detach_handler(channel, REACTOR_ZOMBIE_ERR, now_msec);
-				}
-				else if (channel->proc->on_exec) {
-					channel->proc->on_exec(channel, now_msec);
-					after_call_channel_interface(channel);
-				}
-			}
-			if (o->m_valid) {
-				continue;
-			}
+
+		if (!channel->valid) {
+			reactorobject_invalid_inner_handler(reactor, channel, now_msec);
+			continue;
 		}
-		reactorobject_invalid_inner_handler(reactor, o, now_msec);
+		if (channel->event_msec <= 0) {
+			continue;
+		}
+		if (now_msec < channel->event_msec) {
+			reactor_set_event_timestamp(reactor, channel->event_msec);
+			continue;
+		}
+		channel->event_msec = 0;
+		if (!channel_heartbeat_handler(channel, now_msec)) {
+			channel->valid = 0;
+			channel->detach_error = REACTOR_ZOMBIE_ERR;
+		}
+		else if (channel->proc->on_exec) {
+			channel->proc->on_exec(channel, now_msec);
+			after_call_channel_interface(channel);
+		}
+		if (channel->valid) {
+			continue;
+		}
+		reactorobject_invalid_inner_handler(reactor, channel, now_msec);
 	}
 }
 
@@ -511,20 +483,21 @@ static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec)
 	ListNode_t* cur, *next;
 	for (cur = reactor->m_connect_endlist.head; cur; cur = next) {
 		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, stream.m_connect_endnode);
+		ChannelBase_t* channel;
 		next = cur->next;
 		if (o->stream.m_connect_end_msec > now_msec) {
 			reactor_set_event_timestamp(reactor, o->stream.m_connect_end_msec);
 			break;
 		}
-		o->m_valid = 0;
-		o->detach_error = REACTOR_CONNECT_ERR;
-		reactorobject_invalid_inner_handler(reactor, o, now_msec);
+		channel = o->m_channel;
+		channel->valid = 0;
+		channel->detach_error = REACTOR_CONNECT_ERR;
+		reactorobject_invalid_inner_handler(reactor, channel, now_msec);
 	}
 }
 
-static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
+static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o) {
 	ListNode_t* cur, *next;
-	ChannelBase_t* channel = o->m_channel;
 	StreamTransportCtx_t* ctxptr = &channel->stream_ctx;
 	for (cur = ctxptr->sendlist.head; cur; cur = next) {
 		int res;
@@ -534,8 +507,8 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		res = send(o->fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
-				o->m_valid = 0;
-				o->detach_error = REACTOR_IO_ERR;
+				channel->valid = 0;
+				channel->detach_error = REACTOR_IO_ERR;
 				return;
 			}
 			res = 0;
@@ -549,8 +522,8 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 		if (reactorobject_request_write(reactor, o)) {
 			break;
 		}
-		o->m_valid = 0;
-		o->detach_error = REACTOR_IO_ERR;
+		channel->valid = 0;
+		channel->detach_error = REACTOR_IO_ERR;
 		return;
 	}
 	if (ctxptr->sendlist.head) {
@@ -562,12 +535,11 @@ static void reactor_stream_writeev(Reactor_t* reactor, ReactorObject_t* o) {
 	socketShutdown(o->fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
-		o->m_valid = 0;
+		channel->valid = 0;
 	}
 }
 
-static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel = o->m_channel;
+static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t saddr;
 	socklen_t slen = sizeof(saddr.st);
 	FD_t connfd;
@@ -580,27 +552,26 @@ static void reactor_stream_accept(ReactorObject_t* o, long long timestamp_msec) 
 	}
 }
 
-static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel;
+static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	int res = socketTcpReadableBytes(o->fd);
 	if (res < 0) {
-		o->m_valid = 0;
+		channel->valid = 0;
+		channel->detach_error = REACTOR_IO_ERR;
 		return;
 	}
 	if (0 == res) {
-		stream_recvfin_handler(reactor, o, timestamp_msec);
+		stream_recvfin_handler(reactor, channel, timestamp_msec);
 		return;
 	}
-	channel = o->m_channel;
-	if (check_cache_overflow(o->m_inbuflen, res, o->m_inbufmaxlen)) {
-		o->m_valid = 0;
+	if (check_cache_overflow(o->m_inbuflen, res, o->inbuf_maxlen)) {
+		channel->valid = 0;
 		channel->detach_error = REACTOR_ONREAD_ERR;
 		return;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
 		unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
 		if (!ptr) {
-			o->m_valid = 0;
+			channel->valid = 0;
 			return;
 		}
 		o->m_inbuf = ptr;
@@ -609,13 +580,13 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	res = recv(o->fd, (char*)(o->m_inbuf + o->m_inbuflen), res, 0);
 	if (res < 0) {
 		if (errnoGet() != EWOULDBLOCK) {
-			o->m_valid = 0;
-			o->detach_error = REACTOR_IO_ERR;
+			channel->valid = 0;
+			channel->detach_error = REACTOR_IO_ERR;
 		}
 		return;
 	}
 	if (0 == res) {
-		stream_recvfin_handler(reactor, o, timestamp_msec);
+		stream_recvfin_handler(reactor, channel, timestamp_msec);
 		return;
 	}
 	o->m_inbuflen += res;
@@ -623,8 +594,8 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	while (o->m_inbufoff < o->m_inbuflen) {
 		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
 		if (res < 0 || !after_call_channel_interface(channel)) {
-			o->m_valid = 0;
-			o->detach_error = REACTOR_ONREAD_ERR;
+			channel->valid = 0;
+			channel->detach_error = REACTOR_ONREAD_ERR;
 			return;
 		}
 		if (0 == res) {
@@ -638,7 +609,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
 	if (o->m_inbufoff >= o->m_inbuflen) {
-		if (o->m_inbuf_saved) {
+		if (o->inbuf_saved) {
 			o->m_inbufoff = 0;
 			o->m_inbuflen = 0;
 		}
@@ -648,9 +619,8 @@ static void reactor_stream_readev(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 }
 
-static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
+static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
-	ChannelBase_t* channel = o->m_channel;
 	unsigned int readtimes, readmaxtimes = 8;
 	for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
 		int len, off;
@@ -658,12 +628,12 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		socklen_t slen = sizeof(from_addr.st);
 		if (readtimes) {
 			if (!o->m_inbuf) {
-				o->m_inbuf = (unsigned char*)malloc(o->m_inbufmaxlen + 1);
+				o->m_inbuf = (unsigned char*)malloc(o->inbuf_maxlen + 1);
 				if (!o->m_inbuf) {
-					o->m_valid = 0;
+					channel->valid = 0;
 					return;
 				}
-				o->m_inbuflen = o->m_inbufsize = o->m_inbufmaxlen;
+				o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
 			}
 			ptr = o->m_inbuf;
 			len = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
@@ -679,7 +649,8 @@ static void reactor_dgram_readev(Reactor_t* reactor, ReactorObject_t* o, long lo
 		}
 		if (len < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
-				o->m_valid = 0;
+				channel->valid = 0;
+				channel->detach_error = REACTOR_IO_ERR;
 			}
 			return;
 		}
@@ -737,9 +708,6 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
 			}
-			if (!o->m_valid) {
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-			}
 			return;
 		}
 		if (!continue_send) {
@@ -759,9 +727,8 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 					if (!packet->_.cached) {
 						reactorpacketFree(packet);
 					}
-					o->m_valid = 0;
-					o->detach_error = REACTOR_IO_ERR;
-					reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+					channel->valid = 0;
+					channel->detach_error = REACTOR_IO_ERR;
 					return;
 				}
 				res = 0;
@@ -774,17 +741,15 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
 			}
-			o->m_valid = 0;
+			channel->valid = 0;
 			channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
-			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
 			return;
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
 		if (!reactorobject_request_write(reactor, o)) {
-			o->m_valid = 0;
-			o->detach_error = REACTOR_IO_ERR;
-			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			channel->valid = 0;
+			channel->detach_error = REACTOR_IO_ERR;
 		}
 		return;
 	}
@@ -813,9 +778,6 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 			if (!packet->_.cached) {
 				reactorpacketFree(packet);
 			}
-			if (!o->m_valid) {
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
-			}
 			return;
 		}
 		if (!continue_send) {
@@ -839,8 +801,7 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 	}
 }
 
-static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long long timestamp_msec) {
-	ChannelBase_t* channel;
+static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	if (o->m_writeol) {
 		nioFreeOverlapped(o->m_writeol);
 		o->m_writeol = NULL;
@@ -856,7 +817,6 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 		return 0;
 	}
 	o->m_connected = 1;
-	channel = o->m_channel;
 	if (channel->on_syn_ack) {
 		channel->on_syn_ack(channel, timestamp_msec);
 		if (!after_call_channel_interface(channel)) {
@@ -865,7 +825,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ReactorObject_t* o, long l
 	}
 	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
 	channel_set_timestamp(channel, channel->m_heartbeat_msec);
-	reactor_stream_writeev(reactor, o);
+	reactor_stream_writeev(reactor, channel, o);
 	return 1;
 }
 
@@ -887,33 +847,34 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 			else {
 				reactor_packet_send_proc_dgram(reactor, packet, timestamp_msec);
 			}
+			if (!channel->valid) {
+				reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
+				continue;
+			}
 			continue;
 		}
 		else if (REACTOR_STREAM_SENDFIN_CMD == cmd->type) {
-			ReactorObject_t* o;
 			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_stream_fincmd);
 			if (!channel->valid) {
 				continue;
 			}
 			stream_sendfin_handler(reactor, channel);
-			o = channel->o;
-			if (!o->m_valid) {
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			if (!channel->valid) {
+				reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
 			}
 			continue;
 		}
 		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
 			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
-			ReactorObject_t* o = channel->o;
-			if (!reactor_reg_object(reactor, o, timestamp_msec)) {
-				o->m_valid = 0;
-				o->detach_error = REACTOR_REG_ERR;
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			if (!reactor_reg_object(reactor, channel, timestamp_msec)) {
+				channel->valid = 0;
+				channel->detach_error = REACTOR_REG_ERR;
+				reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
 				continue;
 			}
-			reactor_exec_object_reg_callback(reactor, o, timestamp_msec);
-			if (!o->m_valid) {
-				reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			reactor_exec_object_reg_callback(reactor, channel, timestamp_msec);
+			if (!channel->valid) {
+				reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
 				continue;
 			}
 			continue;
@@ -989,17 +950,17 @@ static void reactorpacketFreeList(List_t* pkglist) {
 }
 
 static void reactorobject_init_comm(ReactorObject_t* o) {
-	o->detach_error = 0;
 	o->detach_timeout_msec = 0;
+	o->inbuf_maxlen = 0;
+	o->inbuf_saved = 1;
+	o->stream_connect_timeout_sec = 0;
+
 	o->m_connected = 0;
 	o->m_channel = NULL;
 	o->m_hashnode.key.ptr = &o->fd;
-	o->m_valid = 1;
 	o->m_has_inserted = 0;
-	o->m_has_detached = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
-	o->m_inbuf_saved = 1;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
 	o->m_io_event_mask = 0;
@@ -1008,7 +969,6 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
-	o->m_inbufmaxlen = 0;
 }
 
 static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
@@ -1053,7 +1013,7 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 		memset(&o->stream, 0, sizeof(o->stream));
 	}
 	else {
-		o->m_inbufmaxlen = 1464;
+		o->inbuf_maxlen = 1464;
 	}
 	return o;
 }
@@ -1187,8 +1147,10 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 			HashtableNodeKey_t hkey;
 			HashtableNode_t* find_node;
 			ReactorObject_t* o;
+			ChannelBase_t* channel;
 			FD_t fd;
 			int ev_mask;
+
 			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i)) {
 				continue;
 			}
@@ -1199,7 +1161,8 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 				continue;
 			}
 			o = pod_container_of(find_node, ReactorObject_t, m_hashnode);
-			if (!o->m_valid) {
+			channel = o->m_channel;
+			if (!channel) {
 				continue;
 			}
 			ev_mask = nioEventOpcode(e + i, &o->m_io_event_mask);
@@ -1208,24 +1171,24 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					o->m_readol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
 						if (o->stream.m_listened) {
-							reactor_stream_accept(o, timestamp_msec);
+							reactor_stream_accept(channel, o, timestamp_msec);
 						}
 						else if (o->m_connected) {
-							reactor_stream_readev(reactor, o, timestamp_msec);
+							reactor_stream_readev(reactor, channel, o, timestamp_msec);
 						}
 						else {
-							o->m_valid = 0;
+							channel->valid = 0;
 						}
 					}
 					else {
-						reactor_dgram_readev(reactor, o, timestamp_msec);
+						reactor_dgram_readev(reactor, channel, o, timestamp_msec);
 					}
-					if (!o->m_valid) {
+					if (!channel->valid) {
 						break;
 					}
 					if (!reactorobject_request_read(reactor, o)) {
-						o->m_valid = 0;
-						o->detach_error = REACTOR_IO_ERR;
+						channel->valid = 0;
+						channel->detach_error = REACTOR_IO_ERR;
 						break;
 					}
 				}
@@ -1235,19 +1198,19 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 						break;
 					}
 					if (o->m_connected) {
-						reactor_stream_writeev(reactor, o);
+						reactor_stream_writeev(reactor, channel, o);
 					}
-					else if (!reactor_stream_connect(reactor, o, timestamp_msec)) {
-						o->m_valid = 0;
-						o->detach_error = REACTOR_CONNECT_ERR;
+					else if (!reactor_stream_connect(reactor, channel, o, timestamp_msec)) {
+						channel->valid = 0;
+						channel->detach_error = REACTOR_CONNECT_ERR;
 						break;
 					}
 				}
 			} while (0);
-			if (o->m_valid) {
+			if (channel->valid) {
 				continue;
 			}
-			reactorobject_invalid_inner_handler(reactor, o, timestamp_msec);
+			reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
 		}
 	}
 	reactor_exec_cmdlist(reactor, timestamp_msec);

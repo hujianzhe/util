@@ -42,25 +42,23 @@ typedef struct ReactorObject_t {
 	int domain;
 	int socktype;
 	int protocol;
-	int detach_timeout_msec;
-	short detach_error;
-	struct {
-		char m_listened;
-		unsigned short connect_timeout_sec;
-		long long m_connect_end_msec;
-		ListNode_t m_connect_endnode;
-	} stream;
+	unsigned short detach_timeout_msec;
+	int inbuf_maxlen;
+	char inbuf_saved;
+	unsigned short stream_connect_timeout_sec;
 /* private */
 	struct ChannelBase_t* m_channel;
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
-	char m_valid;
+	struct {
+		char m_listened;
+		long long m_connect_end_msec;
+		ListNode_t m_connect_endnode;
+	} stream;
 	char m_has_inserted;
-	char m_has_detached;
 	char m_connected;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
-	char m_inbuf_saved;
 	void* m_readol;
 	void* m_writeol;
 	unsigned int m_io_event_mask;
@@ -69,26 +67,14 @@ typedef struct ReactorObject_t {
 	int m_inbufoff;
 	int m_inbuflen;
 	int m_inbufsize;
-	int m_inbufmaxlen;
 } ReactorObject_t;
 
 typedef struct ChannelBase_t {
+/* public */
 	ReactorObject_t* o;
 	struct Reactor_t* reactor;
 	int socktype;
 	Sockaddr_t to_addr;
-	union {
-		Sockaddr_t listen_addr;
-		Sockaddr_t connect_addr;
-	};
-	union {
-		struct {
-			StreamTransportCtx_t stream_ctx;
-			ReactorCmd_t m_stream_fincmd;
-			char m_stream_delay_send_fin;
-		};
-		DgramTransportCtx_t dgram_ctx;
-	};
 	unsigned short heartbeat_timeout_sec; /* optional */
 	unsigned short heartbeat_maxtimes; /* client use, optional */
 	char has_recvfin;
@@ -105,10 +91,24 @@ typedef struct ChannelBase_t {
 	const struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
 	struct Session_t* session; /* user use, set your logic session status */
 	union {
-		void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
-		void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
+		struct {
+			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
+			Sockaddr_t listen_addr;
+		};
+		struct {
+			void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
+			Sockaddr_t connect_addr;
+		};
 	};
 /* private */
+	union {
+		struct {
+			StreamTransportCtx_t stream_ctx;
+			ReactorCmd_t m_stream_fincmd;
+			char m_stream_delay_send_fin;
+		};
+		DgramTransportCtx_t dgram_ctx;
+	};
 	long long m_heartbeat_msec;
 	unsigned short m_heartbeat_times; /* client use */
 	Atom32_t m_refcnt;
@@ -142,7 +142,6 @@ typedef struct Session_t {
 	ChannelBase_t* channel_server;
 	char* ident;
 	void* userdata;
-	/* interface */
 	ChannelBase_t*(*do_connect_handshake)(struct Session_t*, int socktype, const char* ip, unsigned short port); /* optional */
 	void(*on_disconnect)(struct Session_t*); /* optional */
 } Session_t;
