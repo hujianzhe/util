@@ -46,7 +46,7 @@ typedef struct ReactorObject_t {
 	short detach_error;
 	struct {
 		char m_listened;
-		unsigned short max_connect_timeout_sec;
+		unsigned short connect_timeout_sec;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;

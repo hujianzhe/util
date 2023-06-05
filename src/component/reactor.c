@@ -320,8 +320,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ReactorObject_t* o, long
 			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa))) {
 				return 0;
 			}
-			if (o->stream.max_connect_timeout_sec > 0) {
-				o->stream.m_connect_end_msec = o->stream.max_connect_timeout_sec;
+			if (o->stream.connect_timeout_sec > 0) {
+				o->stream.m_connect_end_msec = o->stream.connect_timeout_sec;
 				o->stream.m_connect_end_msec *= 1000;
 				o->stream.m_connect_end_msec += timestamp_msec;
 				listInsertNodeSorted(&reactor->m_connect_endlist, &o->stream.m_connect_endnode,
