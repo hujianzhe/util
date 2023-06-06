@@ -813,8 +813,9 @@ BOOL socketIsConnected(FD_t fd, BOOL* bool_value) {
 	return TRUE;
 }
 
+/*
 BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
-	/* note: Mac Darwin call getsockopt(SO_ACCEPTCONN) always return FALSE ??? */
+	// note: Mac Darwin call getsockopt(SO_ACCEPTCONN) always return FALSE ???
 	socklen_t len = sizeof(*bool_value);
 	if (getsockopt(sockfd, SOL_SOCKET, SO_ACCEPTCONN, (char*)bool_value, &len)) {
 		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTSOCK))
@@ -823,6 +824,7 @@ BOOL socketIsListened(FD_t sockfd, BOOL* bool_value) {
 	}
 	return TRUE;
 }
+*/
 
 FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* p_slen) {
 	FD_t confd = INVALID_SOCKET;
