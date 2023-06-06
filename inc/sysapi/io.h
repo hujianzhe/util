@@ -71,7 +71,7 @@ __declspec_dll BOOL nioCreate(Nio_t* nio);
 __declspec_dll BOOL nioReg(Nio_t* nio, FD_t fd);
 __declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void nioFreeOverlapped(void* ol);
-__declspec_dll BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, struct sockaddr* saddr, socklen_t addrlen);
+__declspec_dll BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, const struct sockaddr* saddr, socklen_t addrlen);
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
 __declspec_dll void nioWakeup(Nio_t* nio);
 __declspec_dll void* nioEventOverlappedCheck(Nio_t* nio, const NioEv_t* e);

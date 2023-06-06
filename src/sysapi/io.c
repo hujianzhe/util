@@ -394,7 +394,7 @@ void nioFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, struct sockaddr* saddr, socklen_t addrlen) {
+BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, const struct sockaddr* saddr, socklen_t addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol->commit) {

@@ -203,7 +203,6 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 }
 
 static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
-	Sockaddr_t saddr;
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
@@ -217,8 +216,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 			return 0;
 		}
 	}
-	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, (const struct sockaddr*)(size_t)1, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -1197,7 +1195,14 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					if (!channel->valid) {
 						break;
 					}
-					if (!reactorobject_request_read(reactor, o)) {
+					if (SOCK_STREAM == o->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
+						if (!reactorobject_request_stream_accept(reactor, o)) {
+							channel->valid = 0;
+							channel->detach_error = REACTOR_IO_ERR;
+							break;
+						}
+					}
+					else if (!reactorobject_request_read(reactor, o)) {
 						channel->valid = 0;
 						channel->detach_error = REACTOR_IO_ERR;
 						break;
