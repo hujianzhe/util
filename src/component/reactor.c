@@ -204,22 +204,34 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 
 static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	Sockaddr_t saddr;
-	int opcode;
 	if (o->m_readol_has_commit) {
 		return 1;
-	}
-	if (SOCK_STREAM == o->socktype && o->stream.m_listened) {
-		opcode = NIO_OP_ACCEPT;
-	}
-	else {
-		opcode = NIO_OP_READ;
 	}
 	if (!o->m_readol) {
 		unsigned int sz = 0;
 		if (SOCK_STREAM != o->socktype) {
 			sz = o->inbuf_maxlen;
 		}
-		o->m_readol = nioAllocOverlapped(opcode, NULL, 0, sz);
+		o->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, sz);
+		if (!o->m_readol) {
+			return 0;
+		}
+	}
+	saddr.sa.sa_family = o->domain;
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+		return 0;
+	}
+	o->m_readol_has_commit = 1;
+	return 1;
+}
+
+static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject_t* o) {
+	Sockaddr_t saddr;
+	if (o->m_readol_has_commit) {
+		return 1;
+	}
+	if (!o->m_readol) {
+		o->m_readol = nioAllocOverlapped(NIO_OP_ACCEPT, NULL, 0, 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -272,8 +284,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	if (SOCK_STREAM == o->socktype) {
 		BOOL ret;
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			o->stream.m_listened = 1;
-			if (!reactorobject_request_read(reactor, o)) {
+			if (!reactorobject_request_stream_accept(reactor, o)) {
 				return 0;
 			}
 		}
@@ -361,7 +372,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return;
 	}
-	if (o->stream.m_listened) {
+	if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		return;
 	}
 	if (!o->m_connected) {
@@ -1170,7 +1181,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 				if (ev_mask & NIO_OP_READ) {
 					o->m_readol_has_commit = 0;
 					if (SOCK_STREAM == o->socktype) {
-						if (o->stream.m_listened) {
+						if (channel->flag & CHANNEL_FLAG_LISTEN) {
 							reactor_stream_accept(channel, o, timestamp_msec);
 						}
 						else if (o->m_connected) {

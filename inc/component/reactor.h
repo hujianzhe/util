@@ -51,7 +51,6 @@ typedef struct ReactorObject_t {
 	HashtableNode_t m_hashnode;
 	ListNode_t m_invalidnode;
 	struct {
-		char m_listened;
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
