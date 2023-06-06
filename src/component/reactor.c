@@ -1348,11 +1348,12 @@ void channelbaseClose(ChannelBase_t* channel) {
 	reactorCommitCmd(NULL, &channel->m_freecmd);
 }
 
-ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
+void channelbaseSendFin(ChannelBase_t* channel) {
 	if (SOCK_STREAM == channel->socktype) {
 		reactorCommitCmd(channel->reactor, &channel->m_stream_fincmd);
+		return;
 	}
-	else if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
+	if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
 		ReactorPacket_t* packet;
 		unsigned int hdrsize;
 		if (channel->proc->on_hdrsize) {
@@ -1363,41 +1364,40 @@ ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel) {
 		}
 		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
 		if (!packet) {
-			return NULL;
+			return;
 		}
 		packet->channel = channel;
 		reactorCommitCmd(channel->reactor, &packet->cmd);
 	}
-	return channel;
 }
 
-ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
+void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
 	if (NETPACKET_FIN == pktype) {
-		return channelbaseSendFin(channel);
+		channelbaseSendFin(channel);
 	}
 	else {
 		Iobuf_t iov = iobufStaticInit(data, len);
-		return channelbaseSendv(channel, &iov, 1, pktype);
+		channelbaseSendv(channel, &iov, 1, pktype);
 	}
 }
 
-ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
 	List_t pklist;
 	if (NETPACKET_FIN == pktype) {
-		return channelbaseSendFin(channel);
+		channelbaseSendFin(channel);
+		return;
 	}
 	if (!channel->valid || channel->m_has_commit_fincmd) {
-		return NULL;
+		return;
 	}
 	listInit(&pklist);
 	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist)) {
-		return NULL;
+		return;
 	}
 	if (listIsEmpty(&pklist)) {
-		return channel;
+		return;
 	}
 	reactor_commit_cmdlist(channel->reactor, &pklist);
-	return channel;
 }
 
 Session_t* sessionInit(Session_t* session) {

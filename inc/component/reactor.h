@@ -159,9 +159,9 @@ __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* channel);
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
 
-__declspec_dll ChannelBase_t* channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
-__declspec_dll ChannelBase_t* channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
-__declspec_dll ChannelBase_t* channelbaseSendFin(ChannelBase_t* channel);
+__declspec_dll void channelbaseSendFin(ChannelBase_t* channel);
+__declspec_dll void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
+__declspec_dll void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
 
 __declspec_dll Session_t* sessionInit(Session_t* session);
 __declspec_dll void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel);
