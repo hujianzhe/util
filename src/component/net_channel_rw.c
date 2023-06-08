@@ -197,7 +197,6 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 			FD_t new_sockfd = INVALID_FD_HANDLE;
 			halfconn = NULL;
 			do {
-				ReactorObject_t* o;
 				unsigned short local_port;
 				Sockaddr_t local_saddr;
 				socklen_t local_slen;
@@ -207,8 +206,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
 					break;
 				}
-				o = channel->o;
-				new_sockfd = socket(o->domain, channel->socktype, o->protocol);
+				new_sockfd = socket(channel->listen_addr.sa.sa_family, channel->socktype, 0);
 				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
 				}
@@ -249,7 +247,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				syn_ack_pkg->fragment_eof = 1;
 				rw->proc->on_encode(channel, syn_ack_pkg);
 				*(unsigned short*)(syn_ack_pkg->buf + hdrlen) = htons(local_port);
-				sendto(o->fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
+				sendto(channel->o->fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
 					&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
 			} while (0);
 			if (!halfconn) {
