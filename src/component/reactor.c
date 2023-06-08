@@ -179,7 +179,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 		o->m_has_inserted = 0;
 		hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
 	}
-	if (SOCK_STREAM == o->socktype) {
+	if (SOCK_STREAM == channel->socktype) {
 		if (o->stream.m_connect_end_msec > 0) {
 			listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 			o->stream.m_connect_end_msec = 0;
@@ -202,13 +202,13 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 	}
 }
 
-static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
+static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, int socktype) {
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
 	if (!o->m_readol) {
 		unsigned int sz = 0;
-		if (SOCK_STREAM != o->socktype) {
+		if (SOCK_STREAM != socktype) {
 			sz = o->inbuf_maxlen;
 		}
 		o->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, sz);
@@ -279,7 +279,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	if (!nioReg(&reactor->m_nio, o->fd)) {
 		return 0;
 	}
-	if (SOCK_STREAM == o->socktype) {
+	if (SOCK_STREAM == channel->socktype) {
 		BOOL ret;
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
 			if (!reactorobject_request_stream_accept(reactor, o)) {
@@ -291,7 +291,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		}
 		else if (ret) {
 			o->m_connected = 1;
-			if (!reactorobject_request_read(reactor, o)) {
+			if (!reactorobject_request_read(reactor, o, SOCK_STREAM)) {
 				return 0;
 			}
 		}
@@ -313,7 +313,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			}
 		}
 	}
-	else if (SOCK_DGRAM == o->socktype) {
+	else if (SOCK_DGRAM == channel->socktype) {
 		BOOL bval;
 		if (!socketHasAddr(o->fd, &bval)) {
 			return 0;
@@ -327,7 +327,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 				return 0;
 			}
 		}
-		if (!reactorobject_request_read(reactor, o)) {
+		if (!reactorobject_request_read(reactor, o, SOCK_DGRAM)) {
 			return 0;
 		}
 		o->m_connected = (socketIsConnected(o->fd, &bval) && bval);
@@ -364,8 +364,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 	else {
 		reactor_set_event_timestamp(reactor, channel->event_msec);
 	}
-	o = channel->o;
-	if (SOCK_STREAM != o->socktype) {
+	if (SOCK_STREAM != channel->socktype) {
 		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return;
@@ -373,6 +372,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 	if (channel->flag & CHANNEL_FLAG_LISTEN) {
 		return;
 	}
+	o = channel->o;
 	if (!o->m_connected) {
 		return;
 	}
@@ -822,7 +822,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 	if (!nioConnectCheckSuccess(o->fd)) {
 		return 0;
 	}
-	if (!reactorobject_request_read(reactor, o)) {
+	if (!reactorobject_request_read(reactor, o, SOCK_STREAM)) {
 		return 0;
 	}
 	o->m_connected = 1;
@@ -1016,7 +1016,6 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 	reactorobject_init_comm(o);
 	o->fd = fd;
 	o->domain = domain;
-	o->socktype = socktype;
 	o->protocol = protocol;
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
@@ -1178,7 +1177,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 			do {
 				if (ev_mask & NIO_OP_READ) {
 					o->m_readol_has_commit = 0;
-					if (SOCK_STREAM == o->socktype) {
+					if (SOCK_STREAM == channel->socktype) {
 						if (channel->flag & CHANNEL_FLAG_LISTEN) {
 							reactor_stream_accept(channel, o, timestamp_msec);
 						}
@@ -1195,14 +1194,14 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					if (!channel->valid) {
 						break;
 					}
-					if (SOCK_STREAM == o->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
+					if (SOCK_STREAM == channel->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
 						if (!reactorobject_request_stream_accept(reactor, o)) {
 							channel->valid = 0;
 							channel->detach_error = REACTOR_IO_ERR;
 							break;
 						}
 					}
-					else if (!reactorobject_request_read(reactor, o)) {
+					else if (!reactorobject_request_read(reactor, o, channel->socktype)) {
 						channel->valid = 0;
 						channel->detach_error = REACTOR_IO_ERR;
 						break;
@@ -1210,7 +1209,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 				}
 				if (ev_mask & NIO_OP_WRITE) {
 					o->m_writeol_has_commit = 0;
-					if (SOCK_STREAM != o->socktype) {
+					if (SOCK_STREAM != channel->socktype) {
 						break;
 					}
 					if (o->m_connected) {

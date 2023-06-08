@@ -40,7 +40,6 @@ typedef struct ReactorObject_t {
 /* public */
 	FD_t fd;
 	int domain;
-	int socktype;
 	int protocol;
 	unsigned short detach_timeout_msec;
 	int inbuf_maxlen;

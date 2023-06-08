@@ -208,7 +208,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 					break;
 				}
 				o = channel->o;
-				new_sockfd = socket(o->domain, o->socktype, o->protocol);
+				new_sockfd = socket(o->domain, channel->socktype, o->protocol);
 				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
 				}
