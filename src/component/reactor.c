@@ -211,12 +211,12 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 		if (SOCK_STREAM != socktype) {
 			sz = o->inbuf_maxlen;
 		}
-		o->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, sz);
+		o->m_readol = nioAllocOverlapped(o->domain, NIO_OP_READ, NULL, 0, sz);
 		if (!o->m_readol) {
 			return 0;
 		}
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, (const struct sockaddr*)(size_t)1, 0)) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -224,18 +224,16 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 }
 
 static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject_t* o) {
-	Sockaddr_t saddr;
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(NIO_OP_ACCEPT, NULL, 0, 0);
+		o->m_readol = nioAllocOverlapped(o->domain, NIO_OP_ACCEPT, NULL, 0, 0);
 		if (!o->m_readol) {
 			return 0;
 		}
 	}
-	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -243,18 +241,16 @@ static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject
 }
 
 static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_t* o) {
-	Sockaddr_t saddr;
 	if (o->m_writeol_has_commit) {
 		return 1;
 	}
 	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
+		o->m_writeol = nioAllocOverlapped(o->domain, NIO_OP_WRITE, NULL, 0, 0);
 		if (!o->m_writeol) {
 			return 0;
 		}
 	}
-	saddr.sa.sa_family = o->domain;
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, &saddr.sa, sockaddrLength(&saddr.sa))) {
+	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, NULL, 0)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -263,7 +259,7 @@ static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_
 
 static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
 	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
+		o->m_writeol = nioAllocOverlapped(o->domain, NIO_OP_CONNECT, NULL, 0, 0);
 		if (!o->m_writeol) {
 			return 0;
 		}

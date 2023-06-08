@@ -287,6 +287,7 @@ typedef struct IocpOverlapped {
 	unsigned char commit;
 	unsigned char free;
 	unsigned short opcode;
+	int domain;
 } IocpOverlapped;
 typedef struct IocpReadOverlapped {
 	IocpOverlapped base;
@@ -311,7 +312,7 @@ typedef struct IocpAcceptExOverlapped {
 } IocpAcceptExOverlapped;
 #endif
 
-void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
+void* nioAllocOverlapped(int domain, int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (opcode) {
 		case NIO_OP_READ:
@@ -320,6 +321,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			if (ol) {
 				memset(ol, 0, sizeof(IocpReadOverlapped));
 				ol->base.opcode = NIO_OP_READ;
+				ol->base.domain = domain;
 				ol->saddr.ss_family = AF_UNSPEC;
 				ol->saddrlen = sizeof(ol->saddr);
 				ol->dwFlags = 0;
@@ -342,6 +344,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			if (ol) {
 				memset(ol, 0, sizeof(IocpWriteOverlapped));
 				ol->base.opcode = opcode;
+				ol->base.domain = domain;
 				ol->saddr.ss_family = AF_UNSPEC;
 				if (refbuf && refsize) {
 					ol->wsabuf.buf = (char*)refbuf;
@@ -360,13 +363,16 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			IocpAcceptExOverlapped* ol = (IocpAcceptExOverlapped*)calloc(1, sizeof(IocpAcceptExOverlapped));
 			if (ol) {
 				ol->base.opcode = NIO_OP_ACCEPT;
+				ol->base.domain = domain;
 				ol->acceptsocket = INVALID_SOCKET;
 			}
 			return ol;
 		}
 		default:
+		{
 			SetLastError(ERROR_INVALID_PARAMETER);
 			return NULL;
+		}
 	}
 #else
 	return (void*)(size_t)opcode;
@@ -402,7 +408,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 	}
 	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
-		if (saddr) {
+		if (iocp_ol->domain != AF_UNSPEC) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
 			read_ol->dwFlags = 0;
 			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)ol, NULL)) {
@@ -429,9 +435,17 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 	}
 	else if (NIO_OP_WRITE == iocp_ol->opcode) {
 		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
-		if (saddr) {
-			memcpy(&write_ol->saddr, saddr, addrlen);
-			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, (struct sockaddr*)&write_ol->saddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
+		if (iocp_ol->domain != AF_UNSPEC) {
+			const struct sockaddr* toaddr;
+			if (addrlen > 0 && saddr) {
+				toaddr = (const struct sockaddr*)&write_ol->saddr;
+				memcpy(&write_ol->saddr, saddr, addrlen);
+			}
+			else {
+				toaddr = NULL;
+				addrlen = 0;
+			}
+			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
 				write_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -467,7 +481,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 			}
 		}
 		if (INVALID_SOCKET == accept_ol->acceptsocket) {
-			accept_ol->acceptsocket = socket(saddr->sa_family, SOCK_STREAM, 0);
+			accept_ol->acceptsocket = socket(iocp_ol->domain, SOCK_STREAM, 0);
 			if (INVALID_SOCKET == accept_ol->acceptsocket) {
 				return FALSE;
 			}
@@ -506,12 +520,12 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 			}
 		}
 		memset(&st, 0, sizeof(st));
-		st.ss_family = saddr->sa_family;
+		st.ss_family = iocp_ol->domain;
 		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
 			return FALSE;
 		}
 		memcpy(&conn_ol->saddr, saddr, addrlen);
-		if (lpfnConnectEx((SOCKET)fd, (struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
+		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
 			conn_ol->base.commit = 1;
 			return TRUE;
 		}
