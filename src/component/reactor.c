@@ -570,7 +570,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	if (check_cache_overflow(o->m_inbuflen, res, o->inbuf_maxlen)) {
 		channel->valid = 0;
-		channel->detach_error = REACTOR_ONREAD_ERR;
+		channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
 		return;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
@@ -621,6 +621,11 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 		else {
 			free_inbuf(o);
 		}
+	}
+	else if (o->m_inbufoff > 0 && o->m_inbuflen - o->m_inbufoff <= 512) { /* temp default 512 bytes */
+		memcpy(o->m_inbuf, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff);
+		o->m_inbuflen -= o->m_inbufoff;
+		o->m_inbufoff = 0;
 	}
 }
 
