@@ -242,7 +242,7 @@ static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject
 	return 1;
 }
 
-static int reactorobject_request_write(Reactor_t* reactor, ReactorObject_t* o) {
+static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_t* o) {
 	Sockaddr_t saddr;
 	if (o->m_writeol_has_commit) {
 		return 1;
@@ -528,7 +528,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
-		if (reactorobject_request_write(reactor, o)) {
+		if (reactorobject_request_stream_write(reactor, o)) {
 			break;
 		}
 		channel->valid = 0;
@@ -756,7 +756,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-		if (!reactorobject_request_write(reactor, o)) {
+		if (!reactorobject_request_stream_write(reactor, o)) {
 			channel->valid = 0;
 			channel->detach_error = REACTOR_IO_ERR;
 		}
