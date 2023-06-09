@@ -115,9 +115,9 @@ static void free_inbuf(ReactorObject_t* o) {
 
 static void free_io_resource(ReactorObject_t* o) {
 	free_inbuf(o);
-	if (INVALID_FD_HANDLE != o->fd) {
-		socketClose(o->fd);
-		o->fd = INVALID_FD_HANDLE;
+	if (INVALID_FD_HANDLE != o->niofd.fd) {
+		socketClose(o->niofd.fd);
+		o->niofd.fd = INVALID_FD_HANDLE;
 	}
 	if (o->m_readol) {
 		nioFreeOverlapped(o->m_readol);
@@ -216,7 +216,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 			return 0;
 		}
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_readol, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -233,7 +233,7 @@ static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject
 			return 0;
 		}
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_readol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_readol, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -250,7 +250,7 @@ static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_
 			return 0;
 		}
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_writeol, NULL, 0)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -264,7 +264,7 @@ static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObjec
 			return 0;
 		}
 	}
-	if (!nioCommit(&reactor->m_nio, o->fd, &o->m_io_event_mask, o->m_writeol, saddr, saddrlen)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_writeol, saddr, saddrlen)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -272,9 +272,6 @@ static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObjec
 }
 
 static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	if (!nioReg(&reactor->m_nio, o->fd)) {
-		return 0;
-	}
 	if (SOCK_STREAM == channel->socktype) {
 		BOOL ret;
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
@@ -282,7 +279,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 				return 0;
 			}
 		}
-		else if (!socketIsConnected(o->fd, &ret)) {
+		else if (!socketIsConnected(o->niofd.fd, &ret)) {
 			return 0;
 		}
 		else if (ret) {
@@ -311,7 +308,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	}
 	else if (SOCK_DGRAM == channel->socktype) {
 		BOOL bval;
-		if (!socketHasAddr(o->fd, &bval)) {
+		if (!socketHasAddr(o->niofd.fd, &bval)) {
 			return 0;
 		}
 		if (!bval) {
@@ -319,14 +316,14 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			if (!sockaddrEncode(&local_addr.sa, channel->to_addr.sa.sa_family, NULL, 0)) {
 				return 0;
 			}
-			if (bind(o->fd, &local_addr.sa, sockaddrLength(&local_addr.sa))) {
+			if (bind(o->niofd.fd, &local_addr.sa, sockaddrLength(&local_addr.sa))) {
 				return 0;
 			}
 		}
 		if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family, SOCK_DGRAM)) {
 			return 0;
 		}
-		o->m_connected = (socketIsConnected(o->fd, &bval) && bval);
+		o->m_connected = (socketIsConnected(o->niofd.fd, &bval) && bval);
 	}
 	return 1;
 }
@@ -392,7 +389,7 @@ static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
 		channel->m_stream_delay_send_fin = 1;
 		return;
 	}
-	socketShutdown(channel->o->fd, SHUT_WR);
+	socketShutdown(channel->o->niofd.fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
 		channel->valid = 0;
@@ -509,7 +506,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
 		next = cur->next;
 
-		res = send(o->fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
+		res = send(o->niofd.fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				channel->valid = 0;
@@ -537,7 +534,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 	if (!channel->m_stream_delay_send_fin) {
 		return;
 	}
-	socketShutdown(o->fd, SHUT_WR);
+	socketShutdown(o->niofd.fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
 		channel->valid = 0;
@@ -548,9 +545,9 @@ static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, lo
 	Sockaddr_t saddr;
 	socklen_t slen = sizeof(saddr.st);
 	FD_t connfd;
-	for (connfd = nioAcceptFirst(o->fd, o->m_readol, &saddr.sa, &slen);
+	for (connfd = nioAcceptFirst(o->niofd.fd, o->m_readol, &saddr.sa, &slen);
 		connfd != INVALID_FD_HANDLE;
-		connfd = accept(o->fd, &saddr.sa, &slen))
+		connfd = accept(o->niofd.fd, &saddr.sa, &slen))
 	{
 		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
 		slen = sizeof(saddr.st);
@@ -558,7 +555,7 @@ static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, lo
 }
 
 static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	int res = socketTcpReadableBytes(o->fd);
+	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
 		channel->detach_error = REACTOR_IO_ERR;
@@ -582,7 +579,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 		o->m_inbuf = ptr;
 		o->m_inbufsize = o->m_inbuflen + res;
 	}
-	res = recv(o->fd, (char*)(o->m_inbuf + o->m_inbuflen), res, 0);
+	res = recv(o->niofd.fd, (char*)(o->m_inbuf + o->m_inbuflen), res, 0);
 	if (res < 0) {
 		if (errnoGet() != EWOULDBLOCK) {
 			channel->valid = 0;
@@ -646,7 +643,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 				o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
 			}
 			ptr = o->m_inbuf;
-			len = socketRecvFrom(o->fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
+			len = socketRecvFrom(o->niofd.fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		}
 		else {
 			Iobuf_t iov;
@@ -731,7 +728,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	packet->_.off = 0;
 	if (packet_allow_send) {
 		if (!streamtransportctxSendCheckBusy(ctx)) {
-			int res = send(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
+			int res = send(o->niofd.fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0);
 			if (res < 0) {
 				if (errnoGet() != EWOULDBLOCK) {
 					if (!packet->_.cached) {
@@ -805,7 +802,7 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		paddr = &channel->to_addr.sa;
 		addrlen = sockaddrLength(paddr);
 	}
-	sendto(o->fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
+	sendto(o->niofd.fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
 	if (!packet->_.cached) {
 		reactorpacketFree(packet);
 	}
@@ -820,7 +817,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 		o->stream.m_connect_end_msec = 0;
 	}
-	if (!nioConnectCheckSuccess(o->fd)) {
+	if (!nioConnectCheckSuccess(o->niofd.fd)) {
 		return 0;
 	}
 	if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family, SOCK_STREAM)) {
@@ -959,7 +956,7 @@ static void reactorpacketFreeList(List_t* pkglist) {
 	}
 }
 
-static void reactorobject_init_comm(ReactorObject_t* o) {
+static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd) {
 	o->detach_timeout_msec = 0;
 	o->inbuf_maxlen = 0;
 	o->inbuf_saved = 1;
@@ -967,18 +964,19 @@ static void reactorobject_init_comm(ReactorObject_t* o) {
 
 	o->m_connected = 0;
 	o->m_channel = NULL;
-	o->m_hashnode.key.ptr = &o->fd;
+	o->m_hashnode.key.ptr = &o->niofd.fd;
 	o->m_has_inserted = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
 	o->m_readol = NULL;
 	o->m_writeol = NULL;
-	o->m_io_event_mask = 0;
 	o->m_invalid_msec = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
+	memset(&o->niofd, 0, sizeof(o->niofd));
+	o->niofd.fd = fd;
 }
 
 static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
@@ -1014,8 +1012,7 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 			return NULL;
 		}
 	}
-	reactorobject_init_comm(o);
-	o->fd = fd;
+	reactorobject_init_comm(o, fd);
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 	}
@@ -1151,28 +1148,20 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 		int i;
 		timestamp_msec = gmtimeMillisecond();
 		for (i = 0; i < n; ++i) {
-			HashtableNodeKey_t hkey;
-			HashtableNode_t* find_node;
+			NioFD_t* niofd;
 			ReactorObject_t* o;
 			ChannelBase_t* channel;
-			FD_t fd;
 			int ev_mask;
 
-			if (!nioEventOverlappedCheck(&reactor->m_nio, e + i)) {
+			niofd = nioEventCheck(&reactor->m_nio, e + i, &ev_mask);
+			if (!niofd) {
 				continue;
 			}
-			fd = nioEventFD(e + i);
-			hkey.ptr = &fd;
-			find_node = hashtableSearchKey(&reactor->m_objht, hkey);
-			if (!find_node) {
-				continue;
-			}
-			o = pod_container_of(find_node, ReactorObject_t, m_hashnode);
+			o = pod_container_of(niofd, ReactorObject_t, niofd);
 			channel = o->m_channel;
 			if (!channel) {
 				continue;
 			}
-			ev_mask = nioEventOpcode(e + i, &o->m_io_event_mask);
 			do {
 				if (ev_mask & NIO_OP_READ) {
 					o->m_readol_has_commit = 0;
@@ -1320,7 +1309,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	if (SOCK_STREAM == socktype) {
 		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
 			int on = 1;
-			setsockopt(o->fd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
+			setsockopt(o->niofd.fd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
 		}
 		streamtransportctxInit(&channel->stream_ctx);
 		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;

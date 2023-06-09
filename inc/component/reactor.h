@@ -38,7 +38,7 @@ typedef struct ReactorCmd_t {
 
 typedef struct ReactorObject_t {
 /* public */
-	FD_t fd;
+	NioFD_t niofd;
 	unsigned short detach_timeout_msec;
 	int inbuf_maxlen;
 	char inbuf_saved;
@@ -57,7 +57,6 @@ typedef struct ReactorObject_t {
 	char m_writeol_has_commit;
 	void* m_readol;
 	void* m_writeol;
-	unsigned int m_io_event_mask;
 	long long m_invalid_msec;
 	unsigned char* m_inbuf;
 	int m_inbufoff;

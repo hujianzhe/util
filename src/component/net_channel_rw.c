@@ -187,7 +187,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 		if (cur) {
 			syn_ack_pkg = &halfconn->syn_ack_pkg;
-			sendto(channel->o->fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
+			sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
 				&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
 		}
 		else if (rw->dgram.m_halfconn_curwaitcnt >= rw->dgram.halfconn_maxwaitcnt) {
@@ -247,7 +247,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				syn_ack_pkg->fragment_eof = 1;
 				rw->proc->on_encode(channel, syn_ack_pkg);
 				*(unsigned short*)(syn_ack_pkg->buf + hdrlen) = htons(local_port);
-				sendto(channel->o->fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
+				sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
 					&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
 			} while (0);
 			if (!halfconn) {
@@ -317,7 +317,7 @@ static void channel_reliable_dgram_continue_send(ChannelRWData_t* rw, long long 
 		packet->wait_ack = 1;
 		packet->resend_msec = timestamp_msec + rw->dgram.rto;
 		channel_set_timestamp(channel, packet->resend_msec);
-		sendto(o->fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, addr, addrlen);
+		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, addr, addrlen);
 	}
 }
 
@@ -382,7 +382,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 		for (i = 0; i < 5; ++i) {
 			rw->proc->on_reply_ack(channel, 0, from_saddr);
-			sendto(channel->o->fd, NULL, 0, 0,
+			sendto(channel->o->niofd.fd, NULL, 0, 0,
 				&channel->to_addr.sa, sockaddrLength(&channel->to_addr.sa));
 		}
 		if (on_syn_ack) {
@@ -517,7 +517,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			channel_invalid(channel, REACTOR_CONNECT_ERR);
 			return;
 		}
-		sendto(o->fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,
+		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,
 			&channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa));
 		packet->resend_times++;
 		packet->resend_msec = timestamp_msec + rw->dgram.rto;
@@ -547,7 +547,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			channel_invalid(channel, err);
 			return;
 		}
-		sendto(o->fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, addr, addrlen);
+		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, addr, addrlen);
 		packet->resend_times++;
 		packet->resend_msec = timestamp_msec + rw->dgram.rto;
 		channel_set_timestamp(channel, packet->resend_msec);

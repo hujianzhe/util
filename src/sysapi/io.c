@@ -177,7 +177,7 @@ BOOL nioCreate(Nio_t* nio) {
 		if (ioctl(nio->__socketpair[1], FIONBIO, &nb)) {
 			break;
 		}
-		e.data.fd = nio->__socketpair[0];
+		e.data.ptr = &nio->__socketpair[0];
 		e.events = EPOLLIN;
 		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, nio->__socketpair[0], &e)) {
 			break;
@@ -213,7 +213,7 @@ BOOL nioCreate(Nio_t* nio) {
 		if (ioctl(nio->__socketpair[1], FIONBIO, &nb)) {
 			break;
 		}
-		EV_SET(&e, (uintptr_t)(nio->__socketpair[0]), EVFILT_READ, EV_ADD, 0, 0, (void*)(size_t)(nio->__socketpair[0]));
+		EV_SET(&e, (uintptr_t)(nio->__socketpair[0]), EVFILT_READ, EV_ADD, 0, 0, &nio->__socketpair[0]);
 		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
 			break;
 		}
@@ -229,13 +229,6 @@ BOOL nioCreate(Nio_t* nio) {
 	}
 	return FALSE;
 #endif
-}
-
-BOOL nioReg(Nio_t* nio, FD_t fd) {
-#if defined(_WIN32) || defined(_WIN64)
-	return CreateIoCompletionPort((HANDLE)fd, (HANDLE)(nio->__hNio), (ULONG_PTR)fd, 0) == (HANDLE)(nio->__hNio);
-#endif
-	return TRUE;
 }
 
 /*
@@ -400,12 +393,20 @@ void nioFreeOverlapped(void* ol) {
 #endif
 }
 
-BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, const struct sockaddr* saddr, socklen_t addrlen) {
+BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* saddr, socklen_t addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
+	FD_t fd;
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
 	if (iocp_ol->commit) {
 		return TRUE;
 	}
+	if (!niofd->__reg) {
+		if (CreateIoCompletionPort((HANDLE)(niofd->fd), (HANDLE)(nio->__hNio), (ULONG_PTR)niofd, 0) != (HANDLE)(nio->__hNio)) {
+			return FALSE;
+		}
+		niofd->__reg = TRUE;
+	}
+	fd = niofd->fd;
 	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (iocp_ol->domain != AF_UNSPEC) {
@@ -541,7 +542,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 	}
 #elif defined(__linux__)
 	struct epoll_event e;
-	unsigned int event_mask = *ptr_event_mask;
+	unsigned int event_mask = niofd->__event_mask;
 	unsigned int sys_event_mask = 0;
 	if (event_mask & NIO_OP_READ) {
 		sys_event_mask |= EPOLLIN;
@@ -574,7 +575,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 		return FALSE;
 	}
 
-	e.data.fd = fd;
+	e.data.ptr = niofd;
 	e.events = EPOLLET | EPOLLONESHOT | sys_event_mask;
 	if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, fd, &e)) {
 		if (ENOENT != errno) {
@@ -584,17 +585,17 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 			return FALSE;
 		}
 	}
-	*ptr_event_mask = event_mask;
+	niofd->__event_mask = event_mask;
 	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (NIO_OP_READ == (size_t)ol || NIO_OP_ACCEPT == (size_t)ol) {
 		struct kevent e;
-		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
+		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else if (NIO_OP_WRITE == (size_t)ol) {
 		struct kevent e;
-		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
+		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else if (NIO_OP_CONNECT == (size_t)ol) {
@@ -606,7 +607,7 @@ BOOL nioCommit(Nio_t* nio, FD_t fd, unsigned int* ptr_event_mask, void* ol, cons
 		 * fd always add kevent when connect immediately finish or not...
 		 * because I need Unified handle event
 		 */
-		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, (void*)(size_t)fd);
+		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else {
@@ -645,7 +646,7 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 void nioWakeup(Nio_t* nio) {
 	if (0 == _cmpxchg16(&nio->__wakeup, 1, 0)) {
 #if defined(_WIN32) || defined(_WIN64)
-		PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, (ULONG_PTR)INVALID_HANDLE_VALUE, NULL);
+		PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, 0, NULL);
 #else
 		char c;
 		write(nio->__socketpair[1], &c, sizeof(c));
@@ -653,89 +654,85 @@ void nioWakeup(Nio_t* nio) {
 	}
 }
 
-FD_t nioEventFD(const NioEv_t* e) {
-#if defined(_WIN32) || defined(_WIN64)
-	return e->lpCompletionKey;
-#elif __linux__
-	return e->data.fd;
-#elif defined(__FreeBSD__) || defined(__APPLE__)
-	return (size_t)(e->udata);
-#endif
-}
-
-void* nioEventOverlappedCheck(Nio_t* nio, const NioEv_t* e) {
+NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
 	if (!iocp_ol) {
 		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
-	else if (iocp_ol->free) {
+	if (iocp_ol->free) {
 		free(iocp_ol);
 		return NULL;
 	}
-	else {
-		iocp_ol->commit = 0;
-		return iocp_ol;
+	iocp_ol->commit = 0;
+
+	if (NIO_OP_ACCEPT == iocp_ol->opcode) {
+		*ev_mask = NIO_OP_READ;
 	}
-#else
-	FD_t fd = nioEventFD(e);
-	if (fd == nio->__socketpair[0]) {
+	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
+		*ev_mask = NIO_OP_WRITE;
+	}
+	else if (NIO_OP_READ == iocp_ol->opcode) {
+		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
+		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
+		*ev_mask = NIO_OP_READ;
+	}
+	else if (NIO_OP_WRITE == iocp_ol->opcode) {
+		IocpWriteOverlapped* iocp_write_ol = (IocpWriteOverlapped*)iocp_ol;
+		iocp_write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
+		*ev_mask = NIO_OP_WRITE;
+	}
+	else {
+		*ev_mask = 0;
+	}
+
+	return (NioFD_t*)e->lpCompletionKey;
+#elif __linux__
+	NioFD_t* niofd;
+	if (e->data.ptr == (void*)&nio->__socketpair[0]) {
 		char c[256];
 		read(fd, c, sizeof(c));
 		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
-	return (void*)(size_t)-1;
-#endif
-}
-
-int nioEventOpcode(const NioEv_t* e, unsigned int* ptr_event_mask) {
-#if defined(_WIN32) || defined(_WIN64)
-	IocpOverlapped* iocp_ol = (IocpOverlapped*)(e->lpOverlapped);
-	if (NIO_OP_ACCEPT == iocp_ol->opcode) {
-		return NIO_OP_READ;
-	}
-	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
-		return NIO_OP_WRITE;
-	}
-	else if (NIO_OP_READ == iocp_ol->opcode) {
-		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
-		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-		return NIO_OP_READ;
-	}
-	else if (NIO_OP_WRITE == iocp_ol->opcode) {
-		IocpWriteOverlapped* iocp_write_ol = (IocpWriteOverlapped*)iocp_ol;
-		iocp_write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-		return NIO_OP_WRITE;
-	}
-	return 0;
-#elif __linux__
-	int result_event_mask = 0;
+	niofd = (NioFD_t*)e->data.ptr;
 	/* epoll must catch this event */
 	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {
-		*ptr_event_mask = 0;
-		return NIO_OP_READ;
+		niofd->__event_mask = 0;
+		*ev_mask = NIO_OP_READ;
 	}
-	if (e->events & EPOLLIN) {
-		(*ptr_event_mask) &= ~NIO_OP_READ;
-		result_event_mask |= NIO_OP_READ;
+	else {
+		*ev_mask = 0;
+		if (e->events & EPOLLIN) {
+			niofd->__event_mask &= ~NIO_OP_READ;
+			*ev_mask |= NIO_OP_READ;
+		}
+		if (e->events & EPOLLOUT) {
+			niofd->__event_mask &= ~NIO_OP_WRITE;
+			*ev_mask |= NIO_OP_WRITE;
+		}
 	}
-	if (e->events & EPOLLOUT) {
-		(*ptr_event_mask) &= ~NIO_OP_WRITE;
-		result_event_mask |= NIO_OP_WRITE;
-	}
-	return result_event_mask;
+	return niofd;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	if (EVFILT_READ == e->filter)
-		return NIO_OP_READ;
-	else if (EVFILT_WRITE == e->filter)
-		return NIO_OP_WRITE;
-	else /* program don't run here... */
-		return 0;
-#else
-	return 0;
+	if (e->udata == (void*)&nio->__socketpair[0]) {
+		char c[256];
+		read(fd, c, sizeof(c));
+		_xchg16(&nio->__wakeup, 0);
+		return NULL;
+	}
+	if (EVFILT_READ == e->filter) {
+		*ev_mask = NIO_OP_READ;
+	}
+	else if (EVFILT_WRITE == e->filter) {
+		*ev_mask = NIO_OP_WRITE;
+	}
+	else { /* program don't run here... */
+		*ev_mask = 0;
+	}
+	return (NioFD_t*)e->udata;
 #endif
+	return NULL;
 }
 
 int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr, socklen_t* p_slen) {
