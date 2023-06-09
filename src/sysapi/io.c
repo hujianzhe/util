@@ -560,7 +560,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		sys_event_mask |= EPOLLOUT;
 	}
 	else if (NIO_OP_CONNECT == (size_t)ol) {
-		if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
+		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
 		event_mask |= NIO_OP_WRITE;
@@ -577,11 +577,11 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 
 	e.data.ptr = niofd;
 	e.events = EPOLLET | EPOLLONESHOT | sys_event_mask;
-	if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, fd, &e)) {
+	if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, niofd->fd, &e)) {
 		if (ENOENT != errno) {
 			return FALSE;
 		}
-		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, fd, &e) && EEXIST != errno) {
+		if (epoll_ctl(nio->__hNio, EPOLL_CTL_ADD, niofd->fd, &e) && EEXIST != errno) {
 			return FALSE;
 		}
 	}
@@ -692,7 +692,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	NioFD_t* niofd;
 	if (e->data.ptr == (void*)&nio->__socketpair[0]) {
 		char c[256];
-		read(fd, c, sizeof(c));
+		read(nio->__socketpair[0], c, sizeof(c));
 		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
@@ -717,7 +717,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (e->udata == (void*)&nio->__socketpair[0]) {
 		char c[256];
-		read(fd, c, sizeof(c));
+		read(nio->__socketpair[0], c, sizeof(c));
 		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
