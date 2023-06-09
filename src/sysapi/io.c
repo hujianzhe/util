@@ -590,24 +590,24 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	if (NIO_OP_READ == (size_t)ol || NIO_OP_ACCEPT == (size_t)ol) {
 		struct kevent e;
-		EV_SET(&e, (uintptr_t)fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
+		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else if (NIO_OP_WRITE == (size_t)ol) {
 		struct kevent e;
-		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
+		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else if (NIO_OP_CONNECT == (size_t)ol) {
 		struct kevent e;
-		if (connect(fd, saddr, addrlen) && EINPROGRESS != errno) {
+		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
 		/* 
 		 * fd always add kevent when connect immediately finish or not...
 		 * because I need Unified handle event
 		 */
-		EV_SET(&e, (uintptr_t)fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
+		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
 	else {
