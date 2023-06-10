@@ -19,14 +19,14 @@ struct cstruct_wrap : public T {
 		if (base == p) {
 			return;
 		}
-		memcpy(base, p, n > sizeof(T) ? sizeof(T) : n);
+		memmove(base, p, n > sizeof(T) ? sizeof(T) : n);
 	}
 	void copy(const T* t) {
 		T* base = this;
 		if (base == t) {
 			return;
 		}
-		memcpy(base, t, sizeof(T));
+		memmove(base, t, sizeof(T));
 	}
 	void copy(const T& t) { copy(&t); }
 };
