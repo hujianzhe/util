@@ -21,8 +21,8 @@ char* websocketframeComputeSecAccept(const char* sec_key, unsigned int sec_keyle
 	if (!pk) {
 		return NULL;
 	}
-	memcpy(pk, sec_key, sec_keylen);
-	memcpy(pk + sec_keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
+	memmove(pk, sec_key, sec_keylen);
+	memmove(pk + sec_keylen, WEB_SOCKET_MAGIC_KEY, sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
 	SHA1Init(&sha1_ctx);
 	SHA1Update(&sha1_ctx, (unsigned char*)pk, sec_keylen + sizeof(WEB_SOCKET_MAGIC_KEY) - 1);
 	SHA1Final(sha1_key, &sha1_ctx);

@@ -204,7 +204,7 @@ NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 				break;
 		}
 		/* mac */
-		memcpy(info->phyaddr, p->PhysicalAddress, p->PhysicalAddressLength);
+		memmove(info->phyaddr, p->PhysicalAddress, p->PhysicalAddressLength);
 		info->phyaddrlen = p->PhysicalAddressLength;
 		/* mtu */
 		info->mtu = p->Mtu;
@@ -231,7 +231,7 @@ NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 			else {
 				addr->mask.ss_family = AF_UNSPEC;
 			}
-			memcpy(&addr->ip, unicast->Address.lpSockaddr, unicast->Address.iSockaddrLength);
+			memmove(&addr->ip, unicast->Address.lpSockaddr, unicast->Address.iSockaddrLength);
 		}
 	}
 	free(pAdapterEntry);
@@ -285,7 +285,7 @@ NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 			/* mtu */
 			info->mtu = ifd->ifi_mtu;
 			/* mac */
-			memcpy(info->phyaddr, LLADDR(sdl), sdl->sdl_alen);
+			memmove(info->phyaddr, LLADDR(sdl), sdl->sdl_alen);
 			info->phyaddrlen = sdl->sdl_alen;
 		}
 #elif __linux__
@@ -320,7 +320,7 @@ NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 				info->phyaddrlen = 0;
 			}
 			else {
-				memcpy(info->phyaddr, sll->sll_addr, sll->sll_halen);
+				memmove(info->phyaddr, sll->sll_addr, sll->sll_halen);
 				info->phyaddrlen = sll->sll_halen;
 			}
 			/* mtu */
@@ -339,9 +339,9 @@ NetworkInterfaceInfo_t* networkInterfaceInfo(void) {
 			info->address = addr;
 			/* ip */
 			slen = (p->ifa_addr->sa_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
-			memcpy(&addr->ip, p->ifa_addr, slen);
+			memmove(&addr->ip, p->ifa_addr, slen);
 			if (p->ifa_netmask) {
-				memcpy(&addr->mask, p->ifa_netmask, slen);
+				memmove(&addr->mask, p->ifa_netmask, slen);
 			}
 			else {
 				addr->mask.ss_family = AF_UNSPEC;

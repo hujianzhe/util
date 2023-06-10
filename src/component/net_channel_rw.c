@@ -73,7 +73,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 		for (cur = list->head; cur; cur = next) {
 			packet = pod_container_of(cur, ReactorPacket_t, _.node);
 			next = cur->next;
-			memcpy(ptr + off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
+			memmove(ptr + off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 			off += packet->_.bodylen;
 			reactorpacketFree(packet);
 		}
@@ -142,7 +142,7 @@ static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int 
 			}
 			packet->_.seq = pkseq;
 			packet->_.fragment_eof = decode_result.fragment_eof;
-			memcpy(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
+			memmove(packet->_.buf, decode_result.bodyptr, decode_result.bodylen);
 			streamtransportctxCacheRecvPacket(ctx, &packet->_);
 			if (!decode_result.fragment_eof) {
 				return decode_result.decodelen;
@@ -202,7 +202,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				socklen_t local_slen;
 				unsigned int buflen, hdrlen, t;
 
-				memcpy(&local_saddr, &channel->listen_addr, sockaddrLength(&channel->listen_addr.sa));
+				memmove(&local_saddr, &channel->listen_addr, sockaddrLength(&channel->listen_addr.sa));
 				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
 					break;
 				}
@@ -230,7 +230,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 					break;
 				}
 				halfconn->sockfd = new_sockfd;
-				memcpy(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
+				memmove(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
 				halfconn->local_port = local_port;
 				t = (rw->dgram.resend_maxtimes + 2) * rw->dgram.rto;
 				halfconn->expire_time_msec = timestamp_msec + t;
@@ -405,7 +405,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 		packet->_.seq = pkseq;
 		packet->_.fragment_eof = decode_result.fragment_eof;
-		memcpy(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
+		memmove(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
 		dgramtransportctxCacheRecvPacket(&channel->dgram_ctx, &packet->_);
 		while (dgramtransportctxMergeRecvPacket(&channel->dgram_ctx, &list)) {
 			if (!channel_merge_packet_handler(rw, &list)) {

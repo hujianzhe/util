@@ -440,7 +440,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			const struct sockaddr* toaddr;
 			if (addrlen > 0 && saddr) {
 				toaddr = (const struct sockaddr*)&write_ol->saddr;
-				memcpy(&write_ol->saddr, saddr, addrlen);
+				memmove(&write_ol->saddr, saddr, addrlen);
 			}
 			else {
 				toaddr = NULL;
@@ -525,7 +525,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
 			return FALSE;
 		}
-		memcpy(&conn_ol->saddr, saddr, addrlen);
+		memmove(&conn_ol->saddr, saddr, addrlen);
 		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
 			conn_ol->base.commit = 1;
 			return TRUE;
@@ -743,7 +743,7 @@ int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* sad
 		iov->buf = iocp_read_ol->wsabuf.buf;
 		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
 		if (saddr) {
-			memcpy(saddr, &iocp_read_ol->saddr, iocp_read_ol->saddrlen);
+			memmove(saddr, &iocp_read_ol->saddr, iocp_read_ol->saddrlen);
 			*p_slen = iocp_read_ol->saddrlen;
 		}
 		return 1;

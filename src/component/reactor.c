@@ -620,7 +620,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 		}
 	}
 	else if (o->m_inbufoff > 0 && o->m_inbuflen - o->m_inbufoff <= 512) { /* temp default 512 bytes */
-		memcpy(o->m_inbuf, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff);
+		memmove(o->m_inbuf, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff);
 		o->m_inbuflen -= o->m_inbufoff;
 		o->m_inbufoff = 0;
 	}
@@ -1319,9 +1319,9 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
-	memcpy(&channel->to_addr, addr, sockaddrlen);
-	memcpy(&channel->connect_addr, addr, sockaddrlen);
-	memcpy(&channel->listen_addr, addr, sockaddrlen);
+	memmove(&channel->to_addr, addr, sockaddrlen);
+	memmove(&channel->connect_addr, addr, sockaddrlen);
+	memmove(&channel->listen_addr, addr, sockaddrlen);
 	channel->valid = 1;
 	channel->proc = proc;
 	return channel;

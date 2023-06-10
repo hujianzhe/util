@@ -71,7 +71,7 @@ static char* cJSON_strdup(const char* str) {
 static char* cJSON_strndup(const char* str, size_t len) {
 	char* copy = (char*)cJSON_malloc(len + 1);
 	if (copy) {
-		memcpy(copy, str, len);
+		memmove(copy, str, len);
 		copy[len] = 0;
 	}
 	return copy;
@@ -829,7 +829,7 @@ static char* cJSON_NoLeafNodeToStringBegin(cJSON* node, char* buf) {
 	size_t off = 0;
 	if (node->name && node->name_length > 0) {
 		buf[off++] = '\"';
-		memcpy(buf + off, node->name, node->name_length);
+		memmove(buf + off, node->name, node->name_length);
 		off += node->name_length;
 		buf[off++] = '\"';
 		buf[off++] = ':';
@@ -857,7 +857,7 @@ static char* cJSON_LeafNodeToString(cJSON* node, char* buf) {
 	size_t off = 0;
 	if (node->name && node->name_length > 0) {
 		buf[off++] = '\"';
-		memcpy(buf + off, node->name, node->name_length);
+		memmove(buf + off, node->name, node->name_length);
 		off += node->name_length;
 		buf[off++] = '\"';
 		buf[off++] = ':';
@@ -880,12 +880,12 @@ static char* cJSON_LeafNodeToString(cJSON* node, char* buf) {
 	}
 	else if (cJSON_ValueType_String == node->value_type) {
 		buf[off++] = '\"';
-		memcpy(buf + off, node->value_string, node->value_strlen);
+		memmove(buf + off, node->value_string, node->value_strlen);
 		off += node->value_strlen;
 		buf[off++] = '\"';
 	}
 	else if (cJSON_ValueType_WeakString == node->value_type) {
-		memcpy(buf + off, node->value_string, node->value_strlen);
+		memmove(buf + off, node->value_string, node->value_strlen);
 		off += node->value_strlen;
 	}
 	return buf + off;

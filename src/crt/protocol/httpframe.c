@@ -233,10 +233,10 @@ static int parse_and_add_header(Hashtable_t* tbl, const char* h) {
 				return 0;
 
 			pkv = (char*)(field + 1);
-			memcpy(pkv, key, keylen);
+			memmove(pkv, key, keylen);
 			pkv[keylen] = 0;
 			field->key = pkv;
-			memcpy(pkv + keylen + 1, value, valuelen);
+			memmove(pkv + keylen + 1, value, valuelen);
 			pkv[keylen + valuelen + 1] = 0;
 			field->value = pkv + keylen + 1;
 
@@ -380,7 +380,7 @@ static HttpMultipartFormData_t* new_http_multipart_form_data(const void* data, u
 
 		form_data->datalen = datalen;
 		if (datalen && data)
-			memcpy(form_data->data, data, datalen);
+			memmove(form_data->data, data, datalen);
 		form_data->data[datalen] = 0;
 	}
 	return form_data;

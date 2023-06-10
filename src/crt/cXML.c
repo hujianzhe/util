@@ -40,7 +40,7 @@ static char* xt_strndup(char* s, size_t len) {
 	if (s && len) {
 		char* p = (char*)cXML_malloc(len + 1);
 		if (p) {
-			memcpy(p, s, len);
+			memmove(p, s, len);
 			p[len] = '\0';
 			return p;
 		}
@@ -595,7 +595,7 @@ static size_t xt_print(cXML_t* node, char* buffer) {
 	if (node->name) {
 		node_namelen = strlen(node->name);
 		buffer[offset++] = '<';
-		memcpy(buffer + offset, node->name, node_namelen);
+		memmove(buffer + offset, node->name, node_namelen);
 		offset += node_namelen;
 	}
 	else
@@ -607,11 +607,11 @@ static size_t xt_print(cXML_t* node, char* buffer) {
 			size_t namelen = strlen(attr->name);
 			size_t valuelen = strlen(attr->value);
 			buffer[offset++] = ' ';
-			memcpy(buffer + offset, attr->name, namelen);
+			memmove(buffer + offset, attr->name, namelen);
 			offset += namelen;
 			buffer[offset++] = '=';
 			buffer[offset++] = '\"';
-			memcpy(buffer + offset, attr->value, valuelen);
+			memmove(buffer + offset, attr->value, valuelen);
 			offset += valuelen;
 			buffer[offset++] = '\"';
 		}
@@ -622,14 +622,14 @@ static size_t xt_print(cXML_t* node, char* buffer) {
 		offset += xt_print(node->child, buffer + offset);
 	else if (node->content) {
 		size_t contentlen = strlen(node->content);
-		memcpy(buffer + offset, node->content, contentlen);
+		memmove(buffer + offset, node->content, contentlen);
 		offset += contentlen;
 	}
 
 	if (node_namelen) {
 		buffer[offset++] = '<';
 		buffer[offset++] = '/';
-		memcpy(buffer + offset, node->name, node_namelen);
+		memmove(buffer + offset, node->name, node_namelen);
 		offset += node_namelen;
 		buffer[offset++] = '>';
 	}

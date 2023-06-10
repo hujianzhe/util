@@ -230,8 +230,8 @@ FD_t fdOpen(const char* path, int obit) {
 		char* new_path = (char*)malloc(pathlen + 7);
 		if (!new_path)
 			return -1;
-		memcpy(new_path, path, pathlen);
-		memcpy(new_path + pathlen, "XXXXXX", 6);
+		memmove(new_path, path, pathlen);
+		memmove(new_path + pathlen, "XXXXXX", 6);
 		new_path[pathlen + 6] = 0;
 		fd = mkostemp(new_path, oflag);
 		if (fd >= 0)
@@ -673,7 +673,7 @@ Dir_t dirOpen(const char* path) {
 	szFullPath = (char*)malloc(len + 3);
 	if (!szFullPath)
 		return INVALID_HANDLE_VALUE;
-	memcpy(szFullPath, path, len);
+	memmove(szFullPath, path, len);
 	for (i = 0; i < len; ++i) {
 		if (szFullPath[i] == '/')
 			szFullPath[i] = '\\';

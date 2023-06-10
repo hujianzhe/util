@@ -50,13 +50,13 @@ unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned in
 		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
 		unsigned int iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
 		if (iovleftsize > leftsize) {
-			memcpy(ptr_buf + off, iovptr, leftsize);
+			memmove(ptr_buf + off, iovptr, leftsize);
 			*iov_off += leftsize;
 			off += leftsize;
 			break;
 		}
 		else {
-			memcpy(ptr_buf + off, iovptr, iovleftsize);
+			memmove(ptr_buf + off, iovptr, iovleftsize);
 			*iov_off = 0;
 			(*iov_i)++;
 			off += iovleftsize;
