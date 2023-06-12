@@ -493,7 +493,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			unsigned int hdrlen = channel->proc->on_hdrsize(channel, 0);
 			packet = (NetPacket_t*)calloc(1, sizeof(NetPacket_t) + hdrlen);
 			if (!packet) {
-				channel_invalid(channel, REACTOR_CONNECT_ERR);
+				channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
 				return;
 			}
 			packet->type = NETPACKET_SYN;
@@ -514,7 +514,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 		if (packet->resend_times >= rw->dgram.resend_maxtimes) {
 			free(rw->dgram.m_synpacket);
 			rw->dgram.m_synpacket = NULL;
-			channel_invalid(channel, REACTOR_CONNECT_ERR);
+			channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
 			return;
 		}
 		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,

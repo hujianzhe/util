@@ -493,7 +493,7 @@ static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec)
 		}
 		channel = o->m_channel;
 		channel->valid = 0;
-		channel->detach_error = REACTOR_CONNECT_ERR;
+		channel->detach_error = REACTOR_IO_CONNECT_ERR;
 		reactorobject_invalid_inner_handler(reactor, channel, now_msec);
 	}
 }
@@ -510,7 +510,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 		if (res < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				channel->valid = 0;
-				channel->detach_error = REACTOR_IO_ERR;
+				channel->detach_error = REACTOR_IO_WRITE_ERR;
 				return;
 			}
 			res = 0;
@@ -525,7 +525,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 			break;
 		}
 		channel->valid = 0;
-		channel->detach_error = REACTOR_IO_ERR;
+		channel->detach_error = REACTOR_IO_WRITE_ERR;
 		return;
 	}
 	if (ctxptr->sendlist.head) {
@@ -558,7 +558,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
-		channel->detach_error = REACTOR_IO_ERR;
+		channel->detach_error = REACTOR_IO_READ_ERR;
 		return;
 	}
 	if (0 == res) {
@@ -583,7 +583,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	if (res < 0) {
 		if (errnoGet() != EWOULDBLOCK) {
 			channel->valid = 0;
-			channel->detach_error = REACTOR_IO_ERR;
+			channel->detach_error = REACTOR_IO_READ_ERR;
 		}
 		return;
 	}
@@ -597,7 +597,6 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
 		if (res < 0 || !after_call_channel_interface(channel)) {
 			channel->valid = 0;
-			channel->detach_error = REACTOR_ONREAD_ERR;
 			return;
 		}
 		if (0 == res) {
@@ -657,7 +656,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 		if (len < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				channel->valid = 0;
-				channel->detach_error = REACTOR_IO_ERR;
+				channel->detach_error = REACTOR_IO_READ_ERR;
 			}
 			return;
 		}
@@ -667,7 +666,6 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 			int res = channel->proc->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
 			if (res < 0) {
 				channel->valid = 0;
-				channel->detach_error = REACTOR_ONREAD_ERR;
 				break;
 			}
 			if (!after_call_channel_interface(channel)) {
@@ -735,7 +733,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 						reactorpacketFree(packet);
 					}
 					channel->valid = 0;
-					channel->detach_error = REACTOR_IO_ERR;
+					channel->detach_error = REACTOR_IO_WRITE_ERR;
 					return;
 				}
 				res = 0;
@@ -756,7 +754,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
 		if (!reactorobject_request_stream_write(reactor, o, channel->to_addr.sa.sa_family)) {
 			channel->valid = 0;
-			channel->detach_error = REACTOR_IO_ERR;
+			channel->detach_error = REACTOR_IO_WRITE_ERR;
 		}
 		return;
 	}
@@ -1185,13 +1183,13 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					if (SOCK_STREAM == channel->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
 						if (!reactorobject_request_stream_accept(reactor, o, channel->listen_addr.sa.sa_family)) {
 							channel->valid = 0;
-							channel->detach_error = REACTOR_IO_ERR;
+							channel->detach_error = REACTOR_IO_ACCEPT_ERR;
 							break;
 						}
 					}
 					else if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family, channel->socktype)) {
 						channel->valid = 0;
-						channel->detach_error = REACTOR_IO_ERR;
+						channel->detach_error = REACTOR_IO_READ_ERR;
 						break;
 					}
 				}
@@ -1205,7 +1203,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					}
 					else if (!reactor_stream_connect(reactor, channel, o, timestamp_msec)) {
 						channel->valid = 0;
-						channel->detach_error = REACTOR_CONNECT_ERR;
+						channel->detach_error = REACTOR_IO_CONNECT_ERR;
 						break;
 					}
 				}
