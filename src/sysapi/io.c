@@ -793,6 +793,9 @@ FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr* peer_saddr, sockle
 			closesocket(acceptfd);
 			break;
 		}
+		if (!peer_saddr || !p_slen) {
+			return acceptfd;
+		}
 		if (getpeername(acceptfd, peer_saddr, p_slen)) {
 			closesocket(acceptfd);
 			break;
