@@ -567,7 +567,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	if (check_cache_overflow(o->m_inbuflen, res, o->inbuf_maxlen)) {
 		channel->valid = 0;
-		channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+		channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
 		return;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
@@ -749,7 +749,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 				reactorpacketFree(packet);
 			}
 			channel->valid = 0;
-			channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+			channel->detach_error = REACTOR_CACHE_WRITE_OVERFLOW_ERR;
 			return;
 		}
 	}

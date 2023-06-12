@@ -133,7 +133,7 @@ static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int 
 			List_t list;
 			ReactorPacket_t* packet;
 			if (check_cache_overflow(ctx->cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
-				channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+				channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
 				return -1;
 			}
 			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
@@ -395,7 +395,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 	else if (dgramtransportctxRecvCheck(&channel->dgram_ctx, pkseq, pktype)) {
 		List_t list;
 		if (check_cache_overflow(channel->dgram_ctx.cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
-			channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+			channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
 			return -1;
 		}
 		rw->proc->on_reply_ack(channel, pkseq, from_saddr);
@@ -445,7 +445,7 @@ static int on_pre_send_reliable_dgram(ChannelRWData_t* rw, NetPacket_t* packet, 
 	}
 	if (check_cache_overflow(ctx->cache_send_bytes, packet->hdrlen + packet->bodylen, channel->sendcache_max_size)) {
 		channel->valid = 0;
-		channel->detach_error = REACTOR_CACHE_OVERFLOW_ERR;
+		channel->detach_error = REACTOR_CACHE_WRITE_OVERFLOW_ERR;
 		return 0;
 	}
 	dgramtransportctxCacheSendPacket(ctx, packet);
