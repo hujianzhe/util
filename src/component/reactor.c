@@ -75,14 +75,14 @@ static void channel_set_timestamp(ChannelBase_t* channel, long long timestamp_ms
 	reactor_set_event_timestamp(channel->reactor, timestamp_msec);
 }
 
-static long long channel_next_heartbeat_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
+static void channel_next_heartbeat_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
 	if (channel->heartbeat_timeout_sec > 0) {
 		long long ts = channel->heartbeat_timeout_sec;
 		ts *= 1000;
 		ts += timestamp_msec;
-		return ts;
+		channel->m_heartbeat_msec = ts;
+		channel_set_timestamp(channel, ts);
 	}
-	return 0;
 }
 
 static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_bytes, unsigned int max_limit_bytes) {
@@ -354,8 +354,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 		reactor_set_event_timestamp(reactor, channel->event_msec);
 	}
 	if (SOCK_STREAM != channel->socktype) {
-		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		return;
 	}
 	if (channel->flag & CHANNEL_FLAG_LISTEN) {
@@ -373,8 +372,7 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 			}
 		}
 	}
-	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-	channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	channel_next_heartbeat_timestamp(channel, timestamp_msec);
 }
 
 static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
@@ -423,8 +421,7 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 			channel->proc->on_heartbeat(channel, channel->m_heartbeat_times);
 		}
 		channel->m_heartbeat_times++;
-		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, now_msec);
-		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		channel_next_heartbeat_timestamp(channel, now_msec);
 	}
 	return 1;
 }
@@ -602,8 +599,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	channel->m_heartbeat_times = 0;
 	if (channel->flag & CHANNEL_FLAG_SERVER) {
-		channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-		channel_set_timestamp(channel, channel->m_heartbeat_msec);
+		channel_next_heartbeat_timestamp(channel, timestamp_msec);
 	}
 	if (o->m_inbufoff >= o->m_inbuflen) {
 		if (o->inbuf_saved) {
@@ -666,8 +662,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 		} while (off < len);
 		channel->m_heartbeat_times = 0;
 		if (channel->flag & CHANNEL_FLAG_SERVER) {
-			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-			channel_set_timestamp(channel, channel->m_heartbeat_msec);
+			channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		}
 	}
 }
@@ -813,8 +808,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 			return 0;
 		}
 	}
-	channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
-	channel_set_timestamp(channel, channel->m_heartbeat_msec);
+	channel_next_heartbeat_timestamp(channel, timestamp_msec);
 	reactor_stream_writeev(reactor, channel, o);
 	return 1;
 }
