@@ -207,19 +207,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 		return 1;
 	}
 	if (!o->m_readol) {
-		if (SOCK_STREAM != socktype) {
-			if (!o->m_inbuf) {
-				o->m_inbuf = (unsigned char*)malloc((size_t)o->inbuf_maxlen + 1);
-				if (!o->m_inbuf) {
-					return 0;
-				}
-				o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
-			}
-			o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, o->m_inbuf, o->m_inbufsize, 0);
-		}
-		else {
-			o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, NULL, 0, 0);
-		}
+		o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, NULL, 0, 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -635,24 +623,23 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 
 static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	Sockaddr_t from_addr;
-	unsigned int readtimes, readmaxtimes = 8;
-	for (readtimes = 0; readtimes < readmaxtimes; ++readtimes) {
+	unsigned int readtimes;
+	for (readtimes = 0; readtimes < 8; ++readtimes) {
 		int len, off;
 		unsigned char* ptr;
-		socklen_t slen = sizeof(from_addr.st);
-		if (readtimes) {
-			ptr = o->m_inbuf;
-			len = socketRecvFrom(o->niofd.fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
-		}
-		else {
-			Iobuf_t iov;
-			if (!nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st, &slen)) {
-				++readmaxtimes;
-				continue;
+		socklen_t slen;
+
+		if (!o->m_inbuf) {
+			o->m_inbuf = (unsigned char*)malloc((size_t)o->inbuf_maxlen + 1);
+			if (!o->m_inbuf) {
+				channel->valid = 0;
+				channel->detach_error = REACTOR_IO_READ_ERR;
+				return;
 			}
-			ptr = (unsigned char*)iobufPtr(&iov);
-			len = iobufLen(&iov);
+			o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
 		}
+		slen = sizeof(from_addr.st);
+		len = socketRecvFrom(o->niofd.fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		if (len < 0) {
 			if (errnoGet() != EWOULDBLOCK) {
 				channel->valid = 0;
@@ -660,6 +647,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 			}
 			return;
 		}
+		ptr = o->m_inbuf;
 		ptr[len] = 0; /* convienent for text data */
 		off = 0;
 		do { /* dgram can recv 0 bytes packet */

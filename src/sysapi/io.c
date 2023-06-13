@@ -411,7 +411,12 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (iocp_ol->domain != AF_UNSPEC) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
-			read_ol->dwFlags = 0;
+			if (read_ol->wsabuf.buf && read_ol->wsabuf.len) {
+				read_ol->dwFlags = 0;
+			}
+			else {
+				read_ol->dwFlags = MSG_PEEK;
+			}
 			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)ol, NULL)) {
 				read_ol->base.commit = 1;
 				return TRUE;
@@ -735,6 +740,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	return NULL;
 }
 
+/*
 int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
@@ -751,6 +757,7 @@ int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* sad
 #endif
 	return 0;
 }
+*/
 
 BOOL nioConnectCheckSuccess(FD_t sockfd) {
 #if defined(_WIN32) || defined(_WIN64)
