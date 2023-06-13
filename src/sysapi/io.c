@@ -749,12 +749,6 @@ int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* sad
 		return 1;
 	}
 #endif
-	iobufPtr(iov) = NULL;
-	iobufLen(iov) = 0;
-	if (saddr) {
-		saddr->ss_family = AF_UNSPEC;
-		*p_slen = 0;
-	}
 	return 0;
 }
 

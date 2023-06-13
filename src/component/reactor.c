@@ -207,11 +207,19 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 		return 1;
 	}
 	if (!o->m_readol) {
-		unsigned int sz = 0;
 		if (SOCK_STREAM != socktype) {
-			sz = o->inbuf_maxlen;
+			if (!o->m_inbuf) {
+				o->m_inbuf = (unsigned char*)malloc((size_t)o->inbuf_maxlen + 1);
+				if (!o->m_inbuf) {
+					return 0;
+				}
+				o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
+			}
+			o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, o->m_inbuf, o->m_inbufsize, 0);
 		}
-		o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, NULL, 0, sz);
+		else {
+			o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, NULL, 0, 0);
+		}
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -633,20 +641,12 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 		unsigned char* ptr;
 		socklen_t slen = sizeof(from_addr.st);
 		if (readtimes) {
-			if (!o->m_inbuf) {
-				o->m_inbuf = (unsigned char*)malloc(o->inbuf_maxlen + 1);
-				if (!o->m_inbuf) {
-					channel->valid = 0;
-					return;
-				}
-				o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
-			}
 			ptr = o->m_inbuf;
 			len = socketRecvFrom(o->niofd.fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		}
 		else {
 			Iobuf_t iov;
-			if (0 == nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st, &slen)) {
+			if (!nioOverlappedReadResult(o->m_readol, &iov, &from_addr.st, &slen)) {
 				++readmaxtimes;
 				continue;
 			}
@@ -669,16 +669,13 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 				break;
 			}
 			if (!after_call_channel_interface(channel)) {
-				break;
+				return;
 			}
 			if (0 == res) {
 				break;
 			}
 			off += res;
 		} while (off < len);
-		if (!channel->valid) {
-			break;
-		}
 		channel->m_heartbeat_times = 0;
 		if (channel->flag & CHANNEL_FLAG_SERVER) {
 			channel->m_heartbeat_msec = channel_next_heartbeat_timestamp(channel, timestamp_msec);
