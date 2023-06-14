@@ -734,6 +734,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	}
 	else { /* program don't run here... */
 		*ev_mask = 0;
+		return NULL;
 	}
 	return (NioFD_t*)e->udata;
 #endif
