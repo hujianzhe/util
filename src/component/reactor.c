@@ -619,21 +619,21 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 
 static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	unsigned int readtimes;
+	if (!o->m_inbuf) {
+		o->m_inbuf = (unsigned char*)malloc((size_t)o->inbuf_maxlen + 1);
+		if (!o->m_inbuf) {
+			channel->valid = 0;
+			channel->detach_error = REACTOR_IO_READ_ERR;
+			return;
+		}
+		o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
+	}
 	for (readtimes = 0; readtimes < 8; ++readtimes) {
 		int len, off;
 		unsigned char* ptr;
 		Sockaddr_t from_addr;
 		socklen_t slen;
 
-		if (!o->m_inbuf) {
-			o->m_inbuf = (unsigned char*)malloc((size_t)o->inbuf_maxlen + 1);
-			if (!o->m_inbuf) {
-				channel->valid = 0;
-				channel->detach_error = REACTOR_IO_READ_ERR;
-				return;
-			}
-			o->m_inbuflen = o->m_inbufsize = o->inbuf_maxlen;
-		}
 		slen = sizeof(from_addr.st);
 		len = socketRecvFrom(o->niofd.fd, (char*)o->m_inbuf, o->m_inbuflen, 0, &from_addr.sa, &slen);
 		if (len < 0) {
