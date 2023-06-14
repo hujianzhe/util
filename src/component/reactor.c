@@ -304,18 +304,6 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	}
 	else if (SOCK_DGRAM == channel->socktype) {
 		BOOL bval;
-		if (!socketHasAddr(o->niofd.fd, &bval)) {
-			return 0;
-		}
-		if (!bval) {
-			Sockaddr_t local_addr;
-			if (!sockaddrEncode(&local_addr.sa, channel->to_addr.sa.sa_family, NULL, 0)) {
-				return 0;
-			}
-			if (bind(o->niofd.fd, &local_addr.sa, sockaddrLength(&local_addr.sa))) {
-				return 0;
-			}
-		}
 		if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family)) {
 			return 0;
 		}

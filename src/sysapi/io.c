@@ -400,13 +400,61 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 	if (iocp_ol->commit) {
 		return TRUE;
 	}
+	fd = niofd->fd;
 	if (!niofd->__reg) {
-		if (CreateIoCompletionPort((HANDLE)(niofd->fd), (HANDLE)(nio->__hNio), (ULONG_PTR)niofd, 0) != (HANDLE)(nio->__hNio)) {
+		do {
+			struct sockaddr_storage local_saddr;
+			socklen_t slen;
+			DWORD socktype;
+			int optlen;
+
+			if (AF_UNSPEC == iocp_ol->domain) {
+				break;
+			}
+			optlen = sizeof(socktype);
+			if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char*)&socktype, &optlen)) {
+				return FALSE;
+			}
+			if (SOCK_DGRAM != socktype) {
+				break;
+			}
+			slen = sizeof(local_saddr);
+			if (!getsockname((SOCKET)fd, (struct sockaddr*)&local_saddr, &slen)) {
+				break;
+			}
+			if (WSAEINVAL != WSAGetLastError()) {
+				return FALSE;
+			}
+			/* note: UDP socket need bind a address before call WSA function, otherwise WSAGetLastError return WSAINVALID */
+			if (AF_INET == iocp_ol->domain) {
+				struct sockaddr_in* addr_in = (struct sockaddr_in*)&local_saddr;
+				slen = sizeof(*addr_in);
+				memset(addr_in, 0, sizeof(*addr_in));
+				addr_in->sin_family = AF_INET;
+				addr_in->sin_port = 0;
+				addr_in->sin_addr.s_addr = htonl(INADDR_ANY);
+			}
+			else if (AF_INET6 == iocp_ol->domain) {
+				struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)&local_saddr;
+				slen = sizeof(*addr_in6);
+				memset(addr_in6, 0, sizeof(*addr_in6));
+				addr_in6->sin6_family = AF_INET6;
+				addr_in6->sin6_port = 0;
+				addr_in6->sin6_addr = in6addr_any;
+			}
+			else {
+				WSASetLastError(WSAEAFNOSUPPORT);
+				return FALSE;
+			}
+			if (bind((SOCKET)fd, (struct sockaddr*)&local_saddr, slen)) {
+				return FALSE;
+			}
+		} while (0);
+		if (CreateIoCompletionPort((HANDLE)fd, (HANDLE)(nio->__hNio), (ULONG_PTR)niofd, 0) != (HANDLE)(nio->__hNio)) {
 			return FALSE;
 		}
 		niofd->__reg = TRUE;
 	}
-	fd = niofd->fd;
 	if (NIO_OP_READ == iocp_ol->opcode) {
 		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
 		if (iocp_ol->domain != AF_UNSPEC) {
