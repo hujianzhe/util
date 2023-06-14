@@ -618,11 +618,11 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 }
 
 static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	Sockaddr_t from_addr;
 	unsigned int readtimes;
 	for (readtimes = 0; readtimes < 8; ++readtimes) {
 		int len, off;
 		unsigned char* ptr;
+		Sockaddr_t from_addr;
 		socklen_t slen;
 
 		if (!o->m_inbuf) {
@@ -640,8 +640,9 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 			if (errnoGet() != EWOULDBLOCK) {
 				channel->valid = 0;
 				channel->detach_error = REACTOR_IO_READ_ERR;
+				return;
 			}
-			return;
+			break;
 		}
 		ptr = o->m_inbuf;
 		ptr[len] = 0; /* convienent for text data */
@@ -650,7 +651,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 			int res = channel->proc->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
 			if (res < 0) {
 				channel->valid = 0;
-				break;
+				return;
 			}
 			if (!after_call_channel_interface(channel)) {
 				return;
@@ -660,10 +661,15 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 			}
 			off += res;
 		} while (off < len);
+	}
+	if (readtimes > 0) {
 		channel->m_heartbeat_times = 0;
 		if (channel->flag & CHANNEL_FLAG_SERVER) {
 			channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		}
+	}
+	if (!o->inbuf_saved) {
+		free_inbuf(o);
 	}
 }
 
