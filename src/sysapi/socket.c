@@ -670,6 +670,16 @@ BOOL socketEnableReuseAddr(FD_t sockfd, int on) {
 	return setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on)) == 0;
 }
 
+BOOL socketBindAndReuse(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen) {
+	if (!socketEnableReuseAddr(sockfd, TRUE)) {
+		return FALSE;
+	}
+	if (!socketEnableReusePort(sockfd, TRUE)) {
+		return FALSE;
+	}
+	return bind(sockfd, saddr, slen) == 0;
+}
+
 /* SOCKET */
 static int sock_Family(FD_t sockfd) {
 	struct sockaddr_storage ss; 
@@ -858,8 +868,14 @@ FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* 
 	return confd;
 }
 
+BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen) {
+	if (!socketBindAndReuse(sockfd, saddr, slen)) {
+		return FALSE;
+	}
+	return listen(sockfd, SOMAXCONN) == 0;
+}
+
 FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
-	int on;
 	struct sockaddr_storage ss;
 	FD_t sockfd = socket(family, SOCK_STREAM, 0);
 	if (INVALID_FD_HANDLE == sockfd) {
@@ -868,20 +884,7 @@ FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
 	if (!sockaddrEncode((struct sockaddr*)&ss, family, ip, port)) {
 		goto err;
 	}
-	on = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char*)(&on), sizeof(on))) {
-		goto err;
-	}
-	#ifdef  SO_REUSEPORT
-	on = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, (char*)(&on), sizeof(on))) {
-		goto err;
-	}
-	#endif
-	if (bind(sockfd, (struct sockaddr*)&ss, sockaddrLength((struct sockaddr*)&ss))) {
-		goto err;
-	}
-	if (listen(sockfd, SOMAXCONN)) {
+	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sockaddrLength((struct sockaddr*)&ss))) {
 		goto err;
 	}
 	return sockfd;
