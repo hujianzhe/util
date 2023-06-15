@@ -17,7 +17,7 @@ typedef struct DgramHalfConn_t {
 	NetPacket_t syn_ack_pkg;
 } DgramHalfConn_t;
 
-extern ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen);
+extern ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen, const struct sockaddr* addr, socklen_t addrlen);
 extern void reactorpacketFree(ReactorPacket_t* pkg);
 
 /*******************************************************************************/
@@ -81,7 +81,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static int channel_merge_packet_handler(ChannelRWData_t* rw, List_t* packetlist) {
+static int channel_merge_packet_handler(ChannelRWData_t* rw, List_t* packetlist, const struct sockaddr* from_addr, socklen_t addrlen) {
 	ChannelBase_t* channel = rw->channel;
 	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
 	if (NETPACKET_FIN == packet->_.type) {
@@ -95,7 +95,7 @@ static int channel_merge_packet_handler(ChannelRWData_t* rw, List_t* packetlist)
 		return 1;
 	}
 	else if (packetlist->head == packetlist->tail) {
-		rw->proc->on_recv(channel, packet->_.buf, packet->_.bodylen, &channel->to_addr.sa);
+		rw->proc->on_recv(channel, packet->_.buf, packet->_.bodylen, from_addr, addrlen);
 		reactorpacketFree(packet);
 	}
 	else {
@@ -104,13 +104,13 @@ static int channel_merge_packet_handler(ChannelRWData_t* rw, List_t* packetlist)
 		if (!bodyptr) {
 			return 0;
 		}
-		rw->proc->on_recv(channel, bodyptr, bodylen, &channel->to_addr.sa);
+		rw->proc->on_recv(channel, bodyptr, bodylen, from_addr, addrlen);
 		free(bodyptr);
 	}
 	return 1;
 }
 
-static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr) {
+static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
 	ChannelBase_t* channel = rw->channel;
 	ChannelInbufDecodeResult_t decode_result = { 0 };
 	unsigned char pktype;
@@ -136,7 +136,7 @@ static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int 
 				channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
 				return -1;
 			}
-			packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+			packet = reactorpacketMake(pktype, 0, decode_result.bodylen, NULL, 0);
 			if (!packet) {
 				return -1;
 			}
@@ -148,18 +148,18 @@ static int on_read_stream(ChannelRWData_t* rw, unsigned char* buf, unsigned int 
 				return decode_result.decodelen;
 			}
 			while (streamtransportctxMergeRecvPacket(ctx, &list)) {
-				if (!channel_merge_packet_handler(rw, &list)) {
+				if (!channel_merge_packet_handler(rw, &list, from_addr, addrlen)) {
 					return -1;
 				}
 			}
 			return decode_result.decodelen;
 		}
 	}
-	rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_addr);
+	rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_addr, addrlen);
 	return decode_result.decodelen;
 }
 
-static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr) {
+static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
 	ChannelBase_t* channel = rw->channel;
 	ChannelInbufDecodeResult_t decode_result = { 0 };
 	unsigned char pktype;
@@ -230,7 +230,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 					break;
 				}
 				halfconn->sockfd = new_sockfd;
-				memmove(&halfconn->from_addr, from_saddr, sockaddrLength(from_saddr));
+				memmove(&halfconn->from_addr, from_saddr, addrlen);
 				halfconn->local_port = local_port;
 				t = (rw->dgram.resend_maxtimes + 2) * rw->dgram.rto;
 				halfconn->expire_time_msec = timestamp_msec + t;
@@ -278,11 +278,11 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 			rw->dgram.m_halfconn_curwaitcnt--;
 			halfconn->sockfd = INVALID_FD_HANDLE;
 			free_halfconn(halfconn);
-			if (connect(connfd, &addr.sa, sockaddrLength(&addr.sa)) != 0) {
+			if (connect(connfd, &addr.sa, slen) != 0) {
 				socketClose(connfd);
 				continue;
 			}
-			channel->on_ack_halfconn(channel, connfd, &addr.sa, timestamp_msec);
+			channel->on_ack_halfconn(channel, connfd, &addr.sa, slen, timestamp_msec);
 		}
 	}
 	return decode_result.decodelen;
@@ -321,7 +321,7 @@ static void channel_reliable_dgram_continue_send(ChannelRWData_t* rw, long long 
 	}
 }
 
-static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr) {
+static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
 	ReactorPacket_t* packet;
 	unsigned char pktype;
 	unsigned int pkseq;
@@ -341,7 +341,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 	}
 	pktype = decode_result.pktype;
 	if (0 == pktype) {
-		rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_saddr);
+		rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_saddr, addrlen);
 		return decode_result.decodelen;
 	}
 	pkseq = decode_result.pkseq;
@@ -381,7 +381,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 			on_syn_ack = 1;
 		}
 		for (i = 0; i < 5; ++i) {
-			rw->proc->on_reply_ack(channel, 0, from_saddr);
+			rw->proc->on_reply_ack(channel, 0, from_saddr, addrlen);
 			sendto(channel->o->niofd.fd, NULL, 0, 0,
 				&channel->to_addr.sa, sockaddrLength(&channel->to_addr.sa));
 		}
@@ -398,8 +398,8 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 			channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
 			return -1;
 		}
-		rw->proc->on_reply_ack(channel, pkseq, from_saddr);
-		packet = reactorpacketMake(pktype, 0, decode_result.bodylen);
+		rw->proc->on_reply_ack(channel, pkseq, from_saddr, addrlen);
+		packet = reactorpacketMake(pktype, 0, decode_result.bodylen, NULL, 0);
 		if (!packet) {
 			return -1;
 		}
@@ -408,7 +408,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		memmove(packet->_.buf, decode_result.bodyptr, packet->_.bodylen);
 		dgramtransportctxCacheRecvPacket(&channel->dgram_ctx, &packet->_);
 		while (dgramtransportctxMergeRecvPacket(&channel->dgram_ctx, &list)) {
-			if (!channel_merge_packet_handler(rw, &list)) {
+			if (!channel_merge_packet_handler(rw, &list, from_saddr, addrlen)) {
 				return -1;
 			}
 		}
@@ -425,10 +425,10 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 	}
 	else if (NETPACKET_NO_ACK_FRAGMENT == pktype) {
-		rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_saddr);
+		rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_saddr, addrlen);
 	}
 	else if (pktype >= NETPACKET_DGRAM_HAS_SEND_SEQ) {
-		rw->proc->on_reply_ack(channel, pkseq, from_saddr);
+		rw->proc->on_reply_ack(channel, pkseq, from_saddr, addrlen);
 	}
 	return decode_result.decodelen;
 }
@@ -569,7 +569,7 @@ static void on_free_reliable_dgram(ChannelRWData_t* rw) {
 	rw->dgram.m_synpacket = NULL;
 }
 
-static int on_read(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr) {
+static int on_read(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
 	ChannelBase_t* channel = rw->channel;
 	ChannelInbufDecodeResult_t decode_result = { 0 };
 
@@ -583,7 +583,7 @@ static int on_read(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, lo
 	if (decode_result.ignore) {
 		return decode_result.decodelen;
 	}
-	rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_addr);
+	rw->proc->on_recv(channel, decode_result.bodyptr, decode_result.bodylen, from_addr, addrlen);
 	return decode_result.decodelen;
 }
 

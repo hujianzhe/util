@@ -70,6 +70,7 @@ typedef struct ChannelBase_t {
 /* public */
 	ReactorObject_t* o;
 	struct Reactor_t* reactor;
+	int domain;
 	int socktype;
 	Sockaddr_t to_addr;
 	unsigned short heartbeat_timeout_sec; /* optional */
@@ -89,7 +90,7 @@ typedef struct ChannelBase_t {
 	struct Session_t* session; /* user use, set your logic session status */
 	union {
 		struct {
-			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, long long ts_msec); /* listener use */
+			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec); /* listener use */
 			Sockaddr_t listen_addr;
 		};
 		struct {
@@ -120,7 +121,7 @@ typedef struct ChannelBase_t {
 typedef struct ChannelBaseProc_t {
 	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
-	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr);
+	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
 	unsigned int(*on_hdrsize)(struct ChannelBase_t* self, unsigned int bodylen); /* optional */
 	int(*on_pre_send)(struct ChannelBase_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
 	void(*on_heartbeat)(struct ChannelBase_t* self, int heartbeat_times); /* client use, optional */
@@ -131,6 +132,8 @@ typedef struct ChannelBaseProc_t {
 typedef struct ReactorPacket_t {
 	ReactorCmd_t cmd;
 	ChannelBase_t* channel;
+	struct sockaddr* addr;
+	socklen_t addrlen;
 	NetPacket_t _;
 } ReactorPacket_t;
 
@@ -158,8 +161,8 @@ __declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* cha
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
 
 __declspec_dll void channelbaseSendFin(ChannelBase_t* channel);
-__declspec_dll void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype);
-__declspec_dll void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype);
+__declspec_dll void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen);
+__declspec_dll void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen);
 
 __declspec_dll Session_t* sessionInit(Session_t* session);
 __declspec_dll void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel);

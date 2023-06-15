@@ -21,9 +21,9 @@ typedef struct ChannelInbufDecodeResult_t {
 
 typedef struct ChannelRWDataProc_t {
 	void(*on_decode)(struct ChannelBase_t* channel, unsigned char* buf, size_t len, ChannelInbufDecodeResult_t* result);
-	void(*on_recv)(struct ChannelBase_t* channel, unsigned char* bodyptr, size_t bodylen, const struct sockaddr* from_addr);
+	void(*on_recv)(struct ChannelBase_t* channel, unsigned char* bodyptr, size_t bodylen, const struct sockaddr* from_addr, socklen_t addrlen);
 	void(*on_encode)(struct ChannelBase_t* channel, NetPacket_t* packet);
-	void(*on_reply_ack)(struct ChannelBase_t* channel, unsigned int seq, const struct sockaddr* to_addr);
+	void(*on_reply_ack)(struct ChannelBase_t* channel, unsigned int seq, const struct sockaddr* to_addr, socklen_t addrlen);
 } ChannelRWDataProc_t;
 
 typedef struct ChannelRWData_t {
@@ -52,7 +52,7 @@ typedef struct ChannelRWData_t {
 } ChannelRWData_t;
 
 typedef struct ChannelRWHookProc_t {
-	int(*on_read)(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr);
+	int(*on_read)(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
 	int(*on_pre_send)(ChannelRWData_t* rw, NetPacket_t* packet, long long timestamp_msec);
 	void(*on_exec)(ChannelRWData_t* rw, long long timestamp_msec);
 	void(*on_free)(ChannelRWData_t* rw);

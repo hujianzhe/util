@@ -28,28 +28,45 @@ typedef struct Reactor_t {
 	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
-ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen) {
+ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen, const struct sockaddr* addr, socklen_t addrlen) {
 	ReactorPacket_t* pkg = (ReactorPacket_t*)malloc(sizeof(ReactorPacket_t) + hdrlen + bodylen);
-	if (pkg) {
-		pkg->cmd.type = REACTOR_SEND_PACKET_CMD;
-		pkg->channel = NULL;
-		pkg->_.type = pktype;
-		pkg->_.wait_ack = 0;
-		pkg->_.cached = 0;
-		pkg->_.fragment_eof = 1;
-		pkg->_.hdrlen = hdrlen;
-		pkg->_.bodylen = bodylen;
-		pkg->_.seq = 0;
-		pkg->_.off = 0;
-		pkg->_.resend_msec = 0;
-		pkg->_.resend_times = 0;
-		pkg->_.buf[hdrlen + bodylen] = 0;
+	if (!pkg) {
+		return NULL;
 	}
+	if (addr && addrlen > 0) {
+		pkg->addr = (struct sockaddr*)malloc(addrlen);
+		if (!pkg->addr) {
+			free(pkg);
+			return NULL;
+		}
+		pkg->addrlen = addrlen;
+		memmove(pkg->addr, addr, addrlen);
+	}
+	else {
+		pkg->addr = NULL;
+		pkg->addrlen = 0;
+	}
+	pkg->cmd.type = REACTOR_SEND_PACKET_CMD;
+	pkg->channel = NULL;
+	pkg->_.type = pktype;
+	pkg->_.wait_ack = 0;
+	pkg->_.cached = 0;
+	pkg->_.fragment_eof = 1;
+	pkg->_.hdrlen = hdrlen;
+	pkg->_.bodylen = bodylen;
+	pkg->_.seq = 0;
+	pkg->_.off = 0;
+	pkg->_.resend_msec = 0;
+	pkg->_.resend_times = 0;
+	pkg->_.buf[hdrlen + bodylen] = 0;
 	return pkg;
 }
 
 void reactorpacketFree(ReactorPacket_t* pkg) {
-	free(pkg);
+	if (pkg) {
+		free(pkg->addr);
+		free(pkg);
+	}
 }
 
 /*****************************************************************************************/
@@ -280,7 +297,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		}
 		else if (ret) {
 			o->m_connected = 1;
-			if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family)) {
+			if (!reactorobject_request_read(reactor, o, channel->domain)) {
 				return 0;
 			}
 		}
@@ -304,7 +321,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	}
 	else if (SOCK_DGRAM == channel->socktype) {
 		BOOL bval;
-		if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family)) {
+		if (!reactorobject_request_read(reactor, o, channel->domain)) {
 			return 0;
 		}
 		o->m_connected = (socketIsConnected(o->niofd.fd, &bval) && bval);
@@ -502,7 +519,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
-		if (reactorobject_request_stream_write(reactor, o, channel->to_addr.sa.sa_family)) {
+		if (reactorobject_request_stream_write(reactor, o, channel->domain)) {
 			break;
 		}
 		channel->valid = 0;
@@ -530,12 +547,13 @@ static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, lo
 		connfd != INVALID_FD_HANDLE;
 		connfd = accept(o->niofd.fd, &saddr.sa, &slen))
 	{
-		channel->on_ack_halfconn(channel, connfd, &saddr.sa, timestamp_msec);
+		channel->on_ack_halfconn(channel, connfd, &saddr.sa, slen, timestamp_msec);
 		slen = sizeof(saddr.st);
 	}
 }
 
 static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
+	socklen_t addrlen;
 	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
@@ -574,8 +592,9 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
+	addrlen = sockaddrLength(&channel->connect_addr.sa);
 	while (o->m_inbufoff < o->m_inbuflen) {
-		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->to_addr.sa);
+		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->connect_addr.sa, addrlen);
 		if (res < 0 || !after_call_channel_interface(channel)) {
 			channel->valid = 0;
 			return;
@@ -636,7 +655,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 		ptr[len] = 0; /* convienent for text data */
 		off = 0;
 		do { /* dgram can recv 0 bytes packet */
-			int res = channel->proc->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa);
+			int res = channel->proc->on_read(channel, ptr + off, len - off, timestamp_msec, &from_addr.sa, slen);
 			if (res < 0) {
 				channel->valid = 0;
 				return;
@@ -726,7 +745,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-		if (!reactorobject_request_stream_write(reactor, o, channel->to_addr.sa.sa_family)) {
+		if (!reactorobject_request_stream_write(reactor, o, channel->domain)) {
 			channel->valid = 0;
 			channel->detach_error = REACTOR_IO_WRITE_ERR;
 		}
@@ -771,8 +790,8 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 		addrlen = 0;
 	}
 	else {
-		paddr = &channel->to_addr.sa;
-		addrlen = sockaddrLength(paddr);
+		paddr = packet->addr;
+		addrlen = packet->addrlen;
 	}
 	sendto(o->niofd.fd, (char*)packet->_.buf, packet->_.hdrlen + packet->_.bodylen, 0, paddr, addrlen);
 	if (!packet->_.cached) {
@@ -792,7 +811,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 	if (!nioConnectCheckSuccess(o->niofd.fd)) {
 		return 0;
 	}
-	if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family)) {
+	if (!reactorobject_request_read(reactor, o, channel->domain)) {
 		return 0;
 	}
 	o->m_connected = 1;
@@ -993,7 +1012,7 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 	return o;
 }
 
-static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist) {
+static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const Iobuf_t iov[], unsigned int iovcnt, List_t* packetlist, const struct sockaddr* addr, socklen_t addrlen) {
 	unsigned int i, nbytes = 0;
 	unsigned int hdrsz;
 	ReactorPacket_t* packet;
@@ -1024,7 +1043,7 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 			if (fn_on_hdrsize) {
 				hdrsz = fn_on_hdrsize(channel, sz);
 			}
-			packet = reactorpacketMake(pktype, hdrsz, sz);
+			packet = reactorpacketMake(pktype, hdrsz, sz, addr, addrlen);
 			if (!packet) {
 				break;
 			}
@@ -1048,10 +1067,14 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 	}
 	else {
 		hdrsz = (fn_on_hdrsize ? fn_on_hdrsize(channel, 0) : 0);
-		if (0 == hdrsz && SOCK_STREAM == channel->socktype) {
-			return packetlist;
+		if (SOCK_STREAM == channel->socktype) {
+			if (0 == hdrsz) {
+				return packetlist;
+			}
+			addr = NULL;
+			addrlen = 0;
 		}
-		packet = reactorpacketMake(pktype, hdrsz, 0);
+		packet = reactorpacketMake(pktype, hdrsz, 0, addr, addrlen);
 		if (!packet) {
 			return NULL;
 		}
@@ -1160,7 +1183,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 							break;
 						}
 					}
-					else if (!reactorobject_request_read(reactor, o, channel->to_addr.sa.sa_family)) {
+					else if (!reactorobject_request_read(reactor, o, channel->domain)) {
 						channel->valid = 0;
 						channel->detach_error = REACTOR_IO_READ_ERR;
 						break;
@@ -1273,6 +1296,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	o->m_channel = channel;
 	channel->o = o;
 	channel->flag = channel_flag;
+	channel->domain = addr->sa_family;
 	channel->socktype = socktype;
 	channel->m_refcnt = 1;
 	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
@@ -1318,6 +1342,7 @@ void channelbaseSendFin(ChannelBase_t* channel) {
 	}
 	if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
 		ReactorPacket_t* packet;
+		socklen_t addrlen;
 		unsigned int hdrsize;
 		if (channel->proc->on_hdrsize) {
 			hdrsize = channel->proc->on_hdrsize(channel, 0);
@@ -1325,7 +1350,8 @@ void channelbaseSendFin(ChannelBase_t* channel) {
 		else {
 			hdrsize = 0;
 		}
-		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0);
+		addrlen = sockaddrLength(&channel->to_addr.sa);
+		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0, &channel->to_addr.sa, addrlen);
 		if (!packet) {
 			return;
 		}
@@ -1334,17 +1360,17 @@ void channelbaseSendFin(ChannelBase_t* channel) {
 	}
 }
 
-void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype) {
+void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen) {
 	if (NETPACKET_FIN == pktype) {
 		channelbaseSendFin(channel);
 	}
 	else {
 		Iobuf_t iov = iobufStaticInit(data, len);
-		channelbaseSendv(channel, &iov, 1, pktype);
+		channelbaseSendv(channel, &iov, 1, pktype, to_addr, to_addrlen);
 	}
 }
 
-void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype) {
+void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen) {
 	List_t pklist;
 	if (NETPACKET_FIN == pktype) {
 		channelbaseSendFin(channel);
@@ -1354,7 +1380,15 @@ void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int 
 		return;
 	}
 	listInit(&pklist);
-	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist)) {
+	if (SOCK_STREAM == channel->socktype) {
+		to_addr = NULL;
+		to_addrlen = 0;
+	}
+	else if (channel->to_addr.sa.sa_family != AF_UNSPEC) {
+		to_addr = &channel->to_addr.sa;
+		to_addrlen = sockaddrLength(to_addr);
+	}
+	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist, to_addr, to_addrlen)) {
 		return;
 	}
 	if (listIsEmpty(&pklist)) {
