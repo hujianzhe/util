@@ -1274,21 +1274,24 @@ void reactorDestroy(Reactor_t* reactor) {
 	free(reactor);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int socktype, const struct sockaddr* addr) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* addr) {
 	ChannelBase_t* channel;
-	int sockaddrlen;
 	ReactorObject_t* o;
-
-	sockaddrlen = sockaddrLength(addr);
-	if (sockaddrlen <= 0) {
-		return NULL;
+	socklen_t addrlen;
+	if (addr) {
+		addrlen = sockaddrLength(addr);
+		if (addrlen <= 0) {
+			return NULL;
+		}
 	}
-
+	else {
+		addrlen = 0;
+	}
 	channel = (ChannelBase_t*)calloc(1, sizeof(ChannelBase_t));
 	if (!channel) {
 		return NULL;
 	}
-	o = reactorobjectOpen(fd, addr->sa_family, socktype, 0);
+	o = reactorobjectOpen(fd, domain, socktype, 0);
 	if (!o) {
 		free(channel);
 		return NULL;
@@ -1296,7 +1299,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	o->m_channel = channel;
 	channel->o = o;
 	channel->flag = channel_flag;
-	channel->domain = addr->sa_family;
+	channel->domain = domain;
 	channel->socktype = socktype;
 	channel->m_refcnt = 1;
 	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
@@ -1314,9 +1317,16 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
-	memmove(&channel->to_addr, addr, sockaddrlen);
-	memmove(&channel->connect_addr, addr, sockaddrlen);
-	memmove(&channel->listen_addr, addr, sockaddrlen);
+	if (addr) {
+		memmove(&channel->to_addr, addr, addrlen);
+		memmove(&channel->connect_addr, addr, addrlen);
+		memmove(&channel->listen_addr, addr, addrlen);
+	}
+	else {
+		channel->to_addr.sa.sa_family = AF_UNSPEC;
+		channel->connect_addr.sa.sa_family = AF_UNSPEC;
+		channel->listen_addr.sa.sa_family = AF_UNSPEC;
+	}
 	channel->valid = 1;
 	channel->proc = proc;
 	return channel;
