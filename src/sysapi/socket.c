@@ -681,10 +681,13 @@ BOOL socketBindAndReuse(FD_t sockfd, const struct sockaddr* saddr, socklen_t sle
 }
 
 /* SOCKET */
-static int sock_Family(FD_t sockfd) {
-	struct sockaddr_storage ss; 
-	socklen_t len = sizeof(ss);
-	return getsockname(sockfd, (struct sockaddr*)&ss, &len) ? -1 : ss.ss_family;
+BOOL socketGetType(FD_t sockfd, int* ptr_socktype) {
+#if defined(_WIN32) || defined(_WIN64)
+	int optlen = sizeof(*ptr_socktype);
+#else
+	socklen_t optlen = sizeof(*ptr_socktype);
+#endif
+	return getsockopt(sockfd, SOL_SOCKET, SO_TYPE, (char*)ptr_socktype, &optlen) == 0;
 }
 
 int socketError(FD_t sockfd) {

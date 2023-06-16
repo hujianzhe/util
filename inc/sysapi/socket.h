@@ -144,6 +144,7 @@ __declspec_dll BOOL socketBindAndReuse(FD_t sockfd, const struct sockaddr* saddr
 #else
 #define	socketClose(sockfd)	(close(sockfd) == 0)
 #endif
+__declspec_dll BOOL socketGetType(FD_t sockfd, int* socktype);
 __declspec_dll int socketError(FD_t sockfd);
 #define socketUdpConnect(sockfd, saddr, addrlen)	(connect(sockfd, saddr, addrlen) == 0)
 __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);

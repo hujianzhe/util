@@ -25,21 +25,7 @@ void aioInitCtx(AioCtx_t* ctx) {
 	ctx->cb.aio_lio_opcode = LIO_NOP;
 	ctx->cb.aio_fildes = INVALID_FD_HANDLE;
 }
-/*
-#if defined(_WIN32) || defined(_WIN64)
-static VOID WINAPI win32_apc_aio_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped) {
-	AioCtx_t* ctx = (AioCtx_t*)lpOverlapped;
-	ctx->callback(dwErrorCode, dwNumberOfBytesTransfered, ctx);
-}
-#else
-static void posix_aio_callback(union sigval v) {
-	AioCtx_t* ctx = (AioCtx_t*)(v.sival_ptr);
-	int error = aio_error(&ctx->cb);
-	ssize_t nbytes = aio_return(&ctx->cb);
-	ctx->callback(error, nbytes, ctx);
-}
-#endif
-*/
+
 BOOL aioCommit(AioCtx_t* ctx) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
@@ -59,16 +45,6 @@ BOOL aioCommit(AioCtx_t* ctx) {
 			GetLastError() == ERROR_IO_PENDING;
 	}
 #else
-	/*
-	if (ctx->callback) {
-		ctx->cb.aio_sigevent.sigev_value.sival_ptr = ctx;
-		ctx->cb.aio_sigevent.sigev_notify = SIGEV_THREAD;
-		ctx->cb.aio_sigevent.sigev_notify_function = posix_aio_callback;
-	}
-	else {
-		ctx->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
-	}
-	*/
 	ctx->cb.aio_sigevent.sigev_notify = SIGEV_NONE;
 	if (LIO_READ == ctx->cb.aio_lio_opcode) {
 		return aio_read(&ctx->cb) == 0;
@@ -405,7 +381,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		do {
 			struct sockaddr_storage local_saddr;
 			socklen_t slen;
-			DWORD socktype;
+			int socktype;
 			int optlen;
 
 			if (AF_UNSPEC == iocp_ol->domain) {
@@ -788,25 +764,6 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 #endif
 	return NULL;
 }
-
-/*
-int nioOverlappedReadResult(void* ol, Iobuf_t* iov, struct sockaddr_storage* saddr, socklen_t* p_slen) {
-#if defined(_WIN32) || defined(_WIN64)
-	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
-	if (NIO_OP_READ == iocp_ol->opcode) {
-		IocpReadOverlapped* iocp_read_ol = (IocpReadOverlapped*)iocp_ol;
-		iov->buf = iocp_read_ol->wsabuf.buf;
-		iov->len = iocp_read_ol->dwNumberOfBytesTransferred;
-		if (saddr) {
-			memmove(saddr, &iocp_read_ol->saddr, iocp_read_ol->saddrlen);
-			*p_slen = iocp_read_ol->saddrlen;
-		}
-		return 1;
-	}
-#endif
-	return 0;
-}
-*/
 
 BOOL nioConnectCheckSuccess(FD_t sockfd) {
 #if defined(_WIN32) || defined(_WIN64)
