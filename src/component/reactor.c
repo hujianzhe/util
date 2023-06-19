@@ -301,7 +301,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			memmove(&channel->to_addr, &peer_addr, addrlen);
 			channel->to_addrlen = addrlen;
 			memmove(&channel->connect_addr, &peer_addr, addrlen);
-			channel->to_addrlen = addrlen;
+			channel->connect_addrlen = addrlen;
 			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
