@@ -1251,7 +1251,7 @@ void reactorDestroy(Reactor_t* reactor) {
 	free(reactor);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* op_addr, socklen_t op_addrlen) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, int protocol) {
 	ChannelBase_t* channel;
 	ReactorObject_t* o;
 
@@ -1259,7 +1259,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	if (!channel) {
 		return NULL;
 	}
-	o = reactorobjectOpen(fd, domain, socktype, 0);
+	o = reactorobjectOpen(fd, domain, socktype, protocol);
 	if (!o) {
 		free(channel);
 		return NULL;
@@ -1272,6 +1272,9 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	channel->m_refcnt = 1;
 	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
 	channel->m_freecmd.type = REACTOR_CHANNEL_FREE_CMD;
+	channel->to_addr.sa.sa_family = AF_UNSPEC;
+	channel->connect_addr.sa.sa_family = AF_UNSPEC;
+	channel->listen_addr.sa.sa_family = AF_UNSPEC;
 	if (SOCK_STREAM == socktype) {
 		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
 			int on = 1;
@@ -1285,33 +1288,25 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
-
-	if (op_addr && op_addrlen > 0) {
-		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			memmove(&channel->listen_addr, op_addr, op_addrlen);
-			channel->listen_addrlen = op_addrlen;
-		}
-		else {
-			if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
-				memmove(&channel->connect_addr, op_addr, op_addrlen);
-				channel->connect_addrlen = op_addrlen;
-			}
-			memmove(&channel->to_addr, op_addr, op_addrlen);
-			channel->to_addrlen = op_addrlen;
-		}
-	}
-	else {
-		channel->to_addr.sa.sa_family = AF_UNSPEC;
-		channel->to_addrlen = 0;
-		channel->connect_addr.sa.sa_family = AF_UNSPEC;
-		channel->connect_addrlen = 0;
-		channel->listen_addr.sa.sa_family = AF_UNSPEC;
-		channel->listen_addrlen = 0;
-	}
-
 	channel->valid = 1;
 	channel->proc = proc;
 	return channel;
+}
+
+void channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen) {
+	unsigned short channel_flag = channel->flag;
+	if (channel_flag & CHANNEL_FLAG_LISTEN) {
+		memmove(&channel->listen_addr, op_addr, op_addrlen);
+		channel->listen_addrlen = op_addrlen;
+	}
+	else {
+		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+			memmove(&channel->connect_addr, op_addr, op_addrlen);
+			channel->connect_addrlen = op_addrlen;
+		}
+		memmove(&channel->to_addr, op_addr, op_addrlen);
+		channel->to_addrlen = op_addrlen;
+	}
 }
 
 ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
