@@ -399,7 +399,7 @@ static void stream_sendfin_handler(Reactor_t* reactor, ChannelBase_t* channel) {
 		channel->m_stream_delay_send_fin = 1;
 		return;
 	}
-	socketShutdown(channel->o->niofd.fd, SHUT_WR);
+	shutdown(channel->o->niofd.fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
 		channel->valid = 0;
@@ -543,7 +543,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 	if (!channel->m_stream_delay_send_fin) {
 		return;
 	}
-	socketShutdown(o->niofd.fd, SHUT_WR);
+	shutdown(o->niofd.fd, SHUT_WR);
 	channel->has_sendfin = 1;
 	if (channel->has_recvfin) {
 		channel->valid = 0;
