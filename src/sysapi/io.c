@@ -383,6 +383,8 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			socklen_t slen;
 			int socktype;
 			int optlen;
+			DWORD dwBytesReturned = 0;
+			BOOL bNewBehavior;
 
 			if (AF_UNSPEC == iocp_ol->domain) {
 				break;
@@ -394,6 +396,13 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			if (SOCK_DGRAM != socktype) {
 				break;
 			}
+			/* winsock2 BUG, udp recvfrom WSAECONNRESET(10054) error and post Overlapped IO error */
+			dwBytesReturned = 0;
+			bNewBehavior = FALSE;
+			if (WSAIoctl((SOCKET)fd, SIO_UDP_CONNRESET, &bNewBehavior, sizeof(bNewBehavior), NULL, 0, &dwBytesReturned, NULL, NULL)) {
+				return FALSE;
+			}
+			/* note: UDP socket need bind a address before call WSA function, otherwise WSAGetLastError return WSAINVALID */
 			slen = sizeof(local_saddr);
 			if (!getsockname((SOCKET)fd, (struct sockaddr*)&local_saddr, &slen)) {
 				break;
@@ -401,7 +410,6 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			if (WSAEINVAL != WSAGetLastError()) {
 				return FALSE;
 			}
-			/* note: UDP socket need bind a address before call WSA function, otherwise WSAGetLastError return WSAINVALID */
 			if (AF_INET == iocp_ol->domain) {
 				struct sockaddr_in* addr_in = (struct sockaddr_in*)&local_saddr;
 				slen = sizeof(*addr_in);

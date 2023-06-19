@@ -1004,15 +1004,6 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 		free(o);
 		return NULL;
 	}
-	if (SOCK_DGRAM == socktype) {
-		if (!socketUdpConnectReset(fd)) {
-			if (fd_create) {
-				socketClose(fd);
-			}
-			free(o);
-			return NULL;
-		}
-	}
 	reactorobject_init_comm(o, fd);
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
