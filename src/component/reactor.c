@@ -285,23 +285,28 @@ static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObjec
 }
 
 static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	struct sockaddr_storage peer_addr;
-	socklen_t addrlen = sizeof(peer_addr);
+	struct sockaddr_storage saddr;
+	socklen_t saddrlen = sizeof(saddr);
 	if (SOCK_STREAM == channel->socktype) {
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+			if (getsockname(o->niofd.fd, (struct sockaddr*)&saddr, &saddrlen)) {
+				return 0;
+			}
+			memmove(&channel->listen_addr, &saddr, saddrlen);
+			channel->listen_addrlen = saddrlen;
 			if (!reactorobject_request_stream_accept(reactor, o)) {
 				return 0;
 			}
 		}
-		else if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&peer_addr, &addrlen)) {
+		else if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&saddr, &saddrlen)) {
 			return 0;
 		}
-		else if (peer_addr.ss_family != AF_UNSPEC) {
+		else if (saddr.ss_family != AF_UNSPEC) {
 			o->m_connected = 1;
-			memmove(&channel->to_addr, &peer_addr, addrlen);
-			channel->to_addrlen = addrlen;
-			memmove(&channel->connect_addr, &peer_addr, addrlen);
-			channel->connect_addrlen = addrlen;
+			memmove(&channel->to_addr, &saddr, saddrlen);
+			channel->to_addrlen = saddrlen;
+			memmove(&channel->connect_addr, &saddr, saddrlen);
+			channel->connect_addrlen = saddrlen;
 			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
@@ -325,13 +330,13 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		}
 	}
 	else if (SOCK_DGRAM == channel->socktype) {
-		if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&peer_addr, &addrlen)) {
+		if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&saddr, &saddrlen)) {
 			return 0;
 		}
-		if (peer_addr.ss_family != AF_UNSPEC) {
+		if (saddr.ss_family != AF_UNSPEC) {
 			o->m_connected = 1;
-			memmove(&channel->to_addr, &peer_addr, addrlen);
-			channel->to_addrlen = addrlen;
+			memmove(&channel->to_addr, &saddr, saddrlen);
+			channel->to_addrlen = saddrlen;
 		}
 		else {
 			o->m_connected = 0;
