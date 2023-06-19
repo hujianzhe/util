@@ -285,18 +285,21 @@ static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObjec
 }
 
 static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
+	struct sockaddr_storage peer_addr;
+	socklen_t addrlen = sizeof(peer_addr);
 	if (SOCK_STREAM == channel->socktype) {
-		BOOL ret;
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			if (!reactorobject_request_stream_accept(reactor, o, channel->listen_addr.sa.sa_family)) {
+			if (!reactorobject_request_stream_accept(reactor, o, channel->domain)) {
 				return 0;
 			}
 		}
-		else if (!socketIsConnected(o->niofd.fd, &ret)) {
+		else if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&peer_addr, &addrlen)) {
 			return 0;
 		}
-		else if (ret) {
+		else if (peer_addr.ss_family != AF_UNSPEC) {
 			o->m_connected = 1;
+			memmove(&channel->to_addr, &peer_addr, addrlen);
+			memmove(&channel->connect_addr, &peer_addr, addrlen);
 			if (!reactorobject_request_read(reactor, o, channel->domain)) {
 				return 0;
 			}
@@ -320,11 +323,19 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		}
 	}
 	else if (SOCK_DGRAM == channel->socktype) {
-		BOOL bval;
+		if (!socketIsConnected(o->niofd.fd, (struct sockaddr*)&peer_addr, &addrlen)) {
+			return 0;
+		}
+		if (peer_addr.ss_family != AF_UNSPEC) {
+			o->m_connected = 1;
+			memmove(&channel->to_addr, &peer_addr, addrlen);
+		}
+		else {
+			o->m_connected = 0;
+		}
 		if (!reactorobject_request_read(reactor, o, channel->domain)) {
 			return 0;
 		}
-		o->m_connected = (socketIsConnected(o->niofd.fd, &bval) && bval);
 	}
 	return 1;
 }

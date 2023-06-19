@@ -813,16 +813,15 @@ FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec) {
 	return socketTcpConnect((struct sockaddr*)&st, slen, msec);
 }
 
-BOOL socketIsConnected(FD_t fd, BOOL* bool_value) {
-	struct sockaddr_storage peer_saddr;
-	socklen_t len = sizeof(peer_saddr);
-	if (getpeername(fd, (struct sockaddr*)&peer_saddr, &len)) {
-		if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTCONN))
-			return FALSE;
-		*bool_value = FALSE;
+BOOL socketIsConnected(FD_t fd, struct sockaddr* ret_peeraddr, socklen_t* ret_addrlen) {
+	if (!getpeername(fd, ret_peeraddr, ret_addrlen)) {
+		return TRUE;
 	}
-	else
-		*bool_value = TRUE;
+	if (__GetErrorCode() != SOCKET_ERROR_VALUE(ENOTCONN)) {
+		return FALSE;
+	}
+	ret_peeraddr->sa_family = AF_UNSPEC;
+	*ret_addrlen = 0;
 	return TRUE;
 }
 

@@ -151,7 +151,7 @@ __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);
 __declspec_dll BOOL socketUdpConnectReset(FD_t sockfd);
 __declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec);
 __declspec_dll FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec);
-__declspec_dll BOOL socketIsConnected(FD_t fd, BOOL* bool_value);
+__declspec_dll BOOL socketIsConnected(FD_t fd, struct sockaddr* ret_peeraddr, socklen_t* ret_addrlen);
 __declspec_dll BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen);
 __declspec_dll FD_t socketTcpListen2(int family, const char* ip, unsigned short port);
 /*__declspec_dll BOOL socketIsListened(FD_t sockfd, BOOL* bool_value);*/
