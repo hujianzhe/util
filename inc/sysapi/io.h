@@ -73,14 +73,16 @@ typedef struct NioFD_t {
 	FD_t fd;
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL __reg;
+	int __domain;
 #elif __linux__
 	unsigned int __event_mask;
 #endif
 } NioFD_t;
 
 __declspec_dll BOOL nioCreate(Nio_t* nio);
-__declspec_dll void* nioAllocOverlapped(int domain, int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
+__declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void nioFreeOverlapped(void* ol);
+__declspec_dll NioFD_t* niofdInit(NioFD_t* niofd, FD_t fd, int domain);
 __declspec_dll BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* saddr, socklen_t addrlen);
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
 __declspec_dll void nioWakeup(Nio_t* nio);

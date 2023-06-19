@@ -219,12 +219,12 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 	}
 }
 
-static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, int domain) {
+static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(domain, NIO_OP_READ, NULL, 0, 0);
+		o->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -236,12 +236,12 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o, in
 	return 1;
 }
 
-static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject_t* o, int domain) {
+static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject_t* o) {
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
 	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(domain, NIO_OP_ACCEPT, NULL, 0, 0);
+		o->m_readol = nioAllocOverlapped(NIO_OP_ACCEPT, NULL, 0, 0);
 		if (!o->m_readol) {
 			return 0;
 		}
@@ -253,12 +253,12 @@ static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject
 	return 1;
 }
 
-static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_t* o, int domain) {
+static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_t* o) {
 	if (o->m_writeol_has_commit) {
 		return 1;
 	}
 	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(domain, NIO_OP_WRITE, NULL, 0, 0);
+		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
 		if (!o->m_writeol) {
 			return 0;
 		}
@@ -272,7 +272,7 @@ static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_
 
 static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
 	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(saddr->sa_family, NIO_OP_CONNECT, NULL, 0, 0);
+		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
 		if (!o->m_writeol) {
 			return 0;
 		}
@@ -289,7 +289,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	socklen_t addrlen = sizeof(peer_addr);
 	if (SOCK_STREAM == channel->socktype) {
 		if (channel->flag & CHANNEL_FLAG_LISTEN) {
-			if (!reactorobject_request_stream_accept(reactor, o, channel->domain)) {
+			if (!reactorobject_request_stream_accept(reactor, o)) {
 				return 0;
 			}
 		}
@@ -300,7 +300,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			o->m_connected = 1;
 			memmove(&channel->to_addr, &peer_addr, addrlen);
 			memmove(&channel->connect_addr, &peer_addr, addrlen);
-			if (!reactorobject_request_read(reactor, o, channel->domain)) {
+			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
 		}
@@ -333,7 +333,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		else {
 			o->m_connected = 0;
 		}
-		if (!reactorobject_request_read(reactor, o, channel->domain)) {
+		if (!reactorobject_request_read(reactor, o)) {
 			return 0;
 		}
 	}
@@ -530,7 +530,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
-		if (reactorobject_request_stream_write(reactor, o, channel->domain)) {
+		if (reactorobject_request_stream_write(reactor, o)) {
 			break;
 		}
 		channel->valid = 0;
@@ -756,7 +756,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-		if (!reactorobject_request_stream_write(reactor, o, channel->domain)) {
+		if (!reactorobject_request_stream_write(reactor, o)) {
 			channel->valid = 0;
 			channel->detach_error = REACTOR_IO_WRITE_ERR;
 		}
@@ -822,7 +822,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 	if (!nioConnectCheckSuccess(o->niofd.fd)) {
 		return 0;
 	}
-	if (!reactorobject_request_read(reactor, o, channel->domain)) {
+	if (!reactorobject_request_read(reactor, o)) {
 		return 0;
 	}
 	o->m_connected = 1;
@@ -957,7 +957,7 @@ static void reactorpacketFreeList(List_t* pkglist) {
 	}
 }
 
-static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd) {
+static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd, int domain) {
 	o->detach_timeout_msec = 0;
 	o->inbuf_maxlen = 0;
 	o->inbuf_saved = 1;
@@ -976,8 +976,7 @@ static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd) {
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
-	memset(&o->niofd, 0, sizeof(o->niofd));
-	o->niofd.fd = fd;
+	niofdInit(&o->niofd, fd, domain);
 }
 
 static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int protocol) {
@@ -1004,7 +1003,7 @@ static ReactorObject_t* reactorobjectOpen(FD_t fd, int domain, int socktype, int
 		free(o);
 		return NULL;
 	}
-	reactorobject_init_comm(o, fd);
+	reactorobject_init_comm(o, fd, domain);
 	if (SOCK_STREAM == socktype) {
 		memset(&o->stream, 0, sizeof(o->stream));
 	}
@@ -1179,13 +1178,13 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 						break;
 					}
 					if (SOCK_STREAM == channel->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
-						if (!reactorobject_request_stream_accept(reactor, o, channel->listen_addr.sa.sa_family)) {
+						if (!reactorobject_request_stream_accept(reactor, o)) {
 							channel->valid = 0;
 							channel->detach_error = REACTOR_IO_ACCEPT_ERR;
 							break;
 						}
 					}
-					else if (!reactorobject_request_read(reactor, o, channel->domain)) {
+					else if (!reactorobject_request_read(reactor, o)) {
 						channel->valid = 0;
 						channel->detach_error = REACTOR_IO_READ_ERR;
 						break;
