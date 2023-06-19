@@ -13,6 +13,7 @@ typedef struct DgramHalfConn_t {
 	long long expire_time_msec;
 	FD_t sockfd;
 	Sockaddr_t from_addr;
+	socklen_t from_addrlen;
 	unsigned short local_port;
 	NetPacket_t syn_ack_pkg;
 } DgramHalfConn_t;
@@ -188,7 +189,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 		if (cur) {
 			syn_ack_pkg = &halfconn->syn_ack_pkg;
 			sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
-				&halfconn->from_addr.sa, sockaddrLength(halfconn->from_addr.sa.sa_family));
+				&halfconn->from_addr.sa, halfconn->from_addrlen);
 		}
 		else if (rw->dgram.m_halfconn_curwaitcnt >= rw->dgram.halfconn_maxwaitcnt) {
 			/* TODO return rst, now let client syn timeout */
@@ -202,7 +203,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				socklen_t local_slen;
 				unsigned int buflen, hdrlen, t;
 
-				memmove(&local_saddr, &channel->listen_addr, sockaddrLength(channel->listen_addr.sa.sa_family));
+				memmove(&local_saddr, &channel->listen_addr, channel->listen_addrlen);
 				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
 					break;
 				}
@@ -210,7 +211,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
 				}
-				local_slen = sockaddrLength(local_saddr.sa.sa_family);
+				local_slen = channel->listen_addrlen;
 				if (bind(new_sockfd, &local_saddr.sa, local_slen)) {
 					break;
 				}
@@ -231,6 +232,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				}
 				halfconn->sockfd = new_sockfd;
 				memmove(&halfconn->from_addr, from_saddr, addrlen);
+				halfconn->from_addrlen = addrlen;
 				halfconn->local_port = local_port;
 				t = (rw->dgram.resend_maxtimes + 2) * rw->dgram.rto;
 				halfconn->expire_time_msec = timestamp_msec + t;
@@ -248,7 +250,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				rw->proc->on_encode(channel, syn_ack_pkg);
 				*(unsigned short*)(syn_ack_pkg->buf + hdrlen) = htons(local_port);
 				sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
-					&halfconn->from_addr.sa, sockaddrLength(halfconn->from_addr.sa.sa_family));
+					&halfconn->from_addr.sa, halfconn->from_addrlen);
 			} while (0);
 			if (!halfconn) {
 				free(halfconn);
@@ -301,7 +303,7 @@ static void channel_reliable_dgram_continue_send(ChannelRWData_t* rw, long long 
 	}
 	else {
 		addr = &channel->to_addr.sa;
-		addrlen = sockaddrLength(addr->sa_family);
+		addrlen = channel->to_addrlen;
 	}
 	for (cur = channel->dgram_ctx.sendlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -382,8 +384,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 		for (i = 0; i < 5; ++i) {
 			rw->proc->on_reply_ack(channel, 0, from_saddr, addrlen);
-			sendto(channel->o->niofd.fd, NULL, 0, 0,
-				&channel->to_addr.sa, sockaddrLength(channel->to_addr.sa.sa_family));
+			sendto(channel->o->niofd.fd, NULL, 0, 0, &channel->to_addr.sa, channel->to_addrlen);
 		}
 		if (on_syn_ack) {
 			channel_reliable_dgram_continue_send(rw, timestamp_msec);
@@ -518,7 +519,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			return;
 		}
 		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,
-			&channel->connect_addr.sa, sockaddrLength(channel->connect_addr.sa.sa_family));
+			&channel->connect_addr.sa, channel->connect_addrlen);
 		packet->resend_times++;
 		packet->resend_msec = timestamp_msec + rw->dgram.rto;
 		channel_set_timestamp(channel, packet->resend_msec);
@@ -531,7 +532,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 	}
 	else {
 		addr = &channel->to_addr.sa;
-		addrlen = sockaddrLength(addr->sa_family);
+		addrlen = channel->to_addrlen;
 	}
 	for (cur = channel->dgram_ctx.sendlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);

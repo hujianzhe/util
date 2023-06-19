@@ -299,15 +299,16 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		else if (peer_addr.ss_family != AF_UNSPEC) {
 			o->m_connected = 1;
 			memmove(&channel->to_addr, &peer_addr, addrlen);
+			channel->to_addrlen = addrlen;
 			memmove(&channel->connect_addr, &peer_addr, addrlen);
+			channel->to_addrlen = addrlen;
 			if (!reactorobject_request_read(reactor, o)) {
 				return 0;
 			}
 		}
 		else {
 			o->m_connected = 0;
-			addrlen = sockaddrLength(channel->connect_addr.sa.sa_family);
-			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, addrlen)) {
+			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, channel->connect_addrlen)) {
 				return 0;
 			}
 			if (o->stream_connect_timeout_sec > 0) {
@@ -330,6 +331,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		if (peer_addr.ss_family != AF_UNSPEC) {
 			o->m_connected = 1;
 			memmove(&channel->to_addr, &peer_addr, addrlen);
+			channel->to_addrlen = addrlen;
 		}
 		else {
 			o->m_connected = 0;
@@ -565,7 +567,6 @@ static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, lo
 }
 
 static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	socklen_t addrlen;
 	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
@@ -604,9 +605,9 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-	addrlen = sockaddrLength(channel->connect_addr.sa.sa_family);
 	while (o->m_inbufoff < o->m_inbuflen) {
-		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->connect_addr.sa, addrlen);
+		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff,
+				timestamp_msec, &channel->connect_addr.sa, channel->connect_addrlen);
 		if (res < 0 || !after_call_channel_interface(channel)) {
 			channel->valid = 0;
 			return;
@@ -902,38 +903,7 @@ static int objht_keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeK
 
 static unsigned int objht_keyhash(const HashtableNodeKey_t* key) { return *(FD_t*)(key->ptr); }
 
-static void reactorCommitCmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
-	if (REACTOR_CHANNEL_REG_CMD == cmdnode->type) {
-		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, m_regcmd);
-		if (_xchg8(&channel->m_reghaspost, 1)) {
-			return;
-		}
-		channel->reactor = reactor;
-	}
-	else if (REACTOR_STREAM_SENDFIN_CMD == cmdnode->type) {
-		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, m_stream_fincmd);
-		if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
-			return;
-		}
-		reactor = channel->reactor;
-		if (!reactor) {
-			return;
-		}
-	}
-	else if (REACTOR_CHANNEL_FREE_CMD == cmdnode->type) {
-		ChannelBase_t* channel = pod_container_of(cmdnode, ChannelBase_t, m_freecmd);
-		if (_xadd32(&channel->m_refcnt, -1) > 1) {
-			return;
-		}
-		reactor = channel->reactor;
-		if (channel->proc->on_free) {
-			channel->proc->on_free(channel);
-		}
-		if (!reactor) {
-			channelobject_free(channel);
-			return;
-		}
-	}
+static void reactor_commit_cmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
 	criticalsectionLeave(&reactor->m_cmdlistlock);
@@ -1276,19 +1246,10 @@ void reactorDestroy(Reactor_t* reactor) {
 	free(reactor);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* addr) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* op_addr, socklen_t op_addrlen) {
 	ChannelBase_t* channel;
 	ReactorObject_t* o;
-	socklen_t addrlen;
-	if (addr) {
-		addrlen = sockaddrLength(addr->sa_family);
-		if (addrlen <= 0) {
-			return NULL;
-		}
-	}
-	else {
-		addrlen = 0;
-	}
+
 	channel = (ChannelBase_t*)calloc(1, sizeof(ChannelBase_t));
 	if (!channel) {
 		return NULL;
@@ -1319,16 +1280,28 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
-	if (addr) {
-		memmove(&channel->to_addr, addr, addrlen);
-		memmove(&channel->connect_addr, addr, addrlen);
-		memmove(&channel->listen_addr, addr, addrlen);
+
+	if (op_addr && op_addrlen > 0) {
+		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+			memmove(&channel->listen_addr, op_addr, op_addrlen);
+			channel->listen_addrlen = op_addrlen;
+		}
+		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+			memmove(&channel->connect_addr, op_addr, op_addrlen);
+			channel->connect_addrlen = op_addrlen;
+		}
+		memmove(&channel->to_addr, op_addr, op_addrlen);
+		channel->to_addrlen = op_addrlen;
 	}
 	else {
 		channel->to_addr.sa.sa_family = AF_UNSPEC;
+		channel->to_addrlen = 0;
 		channel->connect_addr.sa.sa_family = AF_UNSPEC;
+		channel->connect_addrlen = 0;
 		channel->listen_addr.sa.sa_family = AF_UNSPEC;
+		channel->listen_addrlen = 0;
 	}
+
 	channel->valid = 1;
 	channel->proc = proc;
 	return channel;
@@ -1340,21 +1313,42 @@ ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
 }
 
 void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel) {
-	reactorCommitCmd(reactor, &channel->m_regcmd);
+	if (_xchg8(&channel->m_reghaspost, 1)) {
+		return;
+	}
+	channel->reactor = reactor;
+	reactor_commit_cmd(reactor, &channel->m_regcmd);
 }
 
 void channelbaseClose(ChannelBase_t* channel) {
-	reactorCommitCmd(NULL, &channel->m_freecmd);
+	Reactor_t* reactor;
+	if (_xadd32(&channel->m_refcnt, -1) > 1) {
+		return;
+	}
+	reactor = channel->reactor;
+	if (channel->proc->on_free) {
+		channel->proc->on_free(channel);
+	}
+	if (!reactor) {
+		channelobject_free(channel);
+		return;
+	}
+	reactor_commit_cmd(reactor, &channel->m_freecmd);
 }
 
 void channelbaseSendFin(ChannelBase_t* channel) {
 	if (SOCK_STREAM == channel->socktype) {
-		reactorCommitCmd(channel->reactor, &channel->m_stream_fincmd);
+		if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
+			return;
+		}
+		if (!channel->reactor) {
+			return;
+		}
+		reactor_commit_cmd(channel->reactor, &channel->m_stream_fincmd);
 		return;
 	}
 	if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
 		ReactorPacket_t* packet;
-		socklen_t addrlen;
 		unsigned int hdrsize;
 		if (channel->proc->on_hdrsize) {
 			hdrsize = channel->proc->on_hdrsize(channel, 0);
@@ -1362,13 +1356,12 @@ void channelbaseSendFin(ChannelBase_t* channel) {
 		else {
 			hdrsize = 0;
 		}
-		addrlen = sockaddrLength(channel->to_addr.sa.sa_family);
-		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0, &channel->to_addr.sa, addrlen);
+		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0, &channel->to_addr.sa, channel->to_addrlen);
 		if (!packet) {
 			return;
 		}
 		packet->channel = channel;
-		reactorCommitCmd(channel->reactor, &packet->cmd);
+		reactor_commit_cmd(channel->reactor, &packet->cmd);
 	}
 }
 
@@ -1398,7 +1391,7 @@ void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int 
 	}
 	else if (channel->to_addr.sa.sa_family != AF_UNSPEC) {
 		to_addr = &channel->to_addr.sa;
-		to_addrlen = sockaddrLength(to_addr->sa_family);
+		to_addrlen = channel->to_addrlen;
 	}
 	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist, to_addr, to_addrlen)) {
 		return;

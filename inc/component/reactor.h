@@ -73,6 +73,7 @@ typedef struct ChannelBase_t {
 	int domain;
 	int socktype;
 	Sockaddr_t to_addr;
+	socklen_t to_addrlen;
 	unsigned short heartbeat_timeout_sec; /* optional */
 	unsigned short heartbeat_maxtimes; /* client use, optional */
 	char has_recvfin;
@@ -92,10 +93,12 @@ typedef struct ChannelBase_t {
 		struct {
 			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec); /* listener use */
 			Sockaddr_t listen_addr;
+			socklen_t listen_addrlen;
 		};
 		struct {
 			void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
 			Sockaddr_t connect_addr;
+			socklen_t connect_addrlen;
 		};
 	};
 /* private */
@@ -155,7 +158,7 @@ __declspec_dll void reactorWake(struct Reactor_t* reactor);
 __declspec_dll int reactorHandle(struct Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
 __declspec_dll void reactorDestroy(struct Reactor_t* reactor);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* addr);
+__declspec_dll ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, const struct sockaddr* op_addr, socklen_t op_addrlen);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* channel);
 __declspec_dll void channelbaseClose(ChannelBase_t* channel);
