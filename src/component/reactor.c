@@ -1286,12 +1286,14 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 			memmove(&channel->listen_addr, op_addr, op_addrlen);
 			channel->listen_addrlen = op_addrlen;
 		}
-		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
-			memmove(&channel->connect_addr, op_addr, op_addrlen);
-			channel->connect_addrlen = op_addrlen;
+		else {
+			if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+				memmove(&channel->connect_addr, op_addr, op_addrlen);
+				channel->connect_addrlen = op_addrlen;
+			}
+			memmove(&channel->to_addr, op_addr, op_addrlen);
+			channel->to_addrlen = op_addrlen;
 		}
-		memmove(&channel->to_addr, op_addr, op_addrlen);
-		channel->to_addrlen = op_addrlen;
 	}
 	else {
 		channel->to_addr.sa.sa_family = AF_UNSPEC;
@@ -1337,17 +1339,17 @@ void channelbaseClose(ChannelBase_t* channel) {
 }
 
 void channelbaseSendFin(ChannelBase_t* channel) {
+	if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
+		return;
+	}
+	if (!channel->reactor) {
+		return;
+	}
 	if (SOCK_STREAM == channel->socktype) {
-		if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
-			return;
-		}
-		if (!channel->reactor) {
-			return;
-		}
 		reactor_commit_cmd(channel->reactor, &channel->m_stream_fincmd);
 		return;
 	}
-	if (0 == _xchg8(&channel->m_has_commit_fincmd, 1)) {
+	else if (channel->to_addr.sa.sa_family != AF_UNSPEC) {
 		ReactorPacket_t* packet;
 		unsigned int hdrsize;
 		if (channel->proc->on_hdrsize) {
