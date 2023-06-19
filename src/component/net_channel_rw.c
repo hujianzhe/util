@@ -188,7 +188,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 		if (cur) {
 			syn_ack_pkg = &halfconn->syn_ack_pkg;
 			sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
-				&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
+				&halfconn->from_addr.sa, sockaddrLength(halfconn->from_addr.sa.sa_family));
 		}
 		else if (rw->dgram.m_halfconn_curwaitcnt >= rw->dgram.halfconn_maxwaitcnt) {
 			/* TODO return rst, now let client syn timeout */
@@ -202,7 +202,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				socklen_t local_slen;
 				unsigned int buflen, hdrlen, t;
 
-				memmove(&local_saddr, &channel->listen_addr, sockaddrLength(&channel->listen_addr.sa));
+				memmove(&local_saddr, &channel->listen_addr, sockaddrLength(channel->listen_addr.sa.sa_family));
 				if (!sockaddrSetPort(&local_saddr.sa, 0)) {
 					break;
 				}
@@ -210,7 +210,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				if (INVALID_FD_HANDLE == new_sockfd) {
 					break;
 				}
-				local_slen = sockaddrLength(&local_saddr.sa);
+				local_slen = sockaddrLength(local_saddr.sa.sa_family);
 				if (bind(new_sockfd, &local_saddr.sa, local_slen)) {
 					break;
 				}
@@ -248,7 +248,7 @@ static int on_read_dgram_listener(ChannelRWData_t* rw, unsigned char* buf, unsig
 				rw->proc->on_encode(channel, syn_ack_pkg);
 				*(unsigned short*)(syn_ack_pkg->buf + hdrlen) = htons(local_port);
 				sendto(channel->o->niofd.fd, (char*)syn_ack_pkg->buf, syn_ack_pkg->hdrlen + syn_ack_pkg->bodylen, 0,
-					&halfconn->from_addr.sa, sockaddrLength(&halfconn->from_addr.sa));
+					&halfconn->from_addr.sa, sockaddrLength(halfconn->from_addr.sa.sa_family));
 			} while (0);
 			if (!halfconn) {
 				free(halfconn);
@@ -301,7 +301,7 @@ static void channel_reliable_dgram_continue_send(ChannelRWData_t* rw, long long 
 	}
 	else {
 		addr = &channel->to_addr.sa;
-		addrlen = sockaddrLength(addr);
+		addrlen = sockaddrLength(addr->sa_family);
 	}
 	for (cur = channel->dgram_ctx.sendlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -383,7 +383,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		for (i = 0; i < 5; ++i) {
 			rw->proc->on_reply_ack(channel, 0, from_saddr, addrlen);
 			sendto(channel->o->niofd.fd, NULL, 0, 0,
-				&channel->to_addr.sa, sockaddrLength(&channel->to_addr.sa));
+				&channel->to_addr.sa, sockaddrLength(channel->to_addr.sa.sa_family));
 		}
 		if (on_syn_ack) {
 			channel_reliable_dgram_continue_send(rw, timestamp_msec);
@@ -518,7 +518,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			return;
 		}
 		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,
-			&channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa));
+			&channel->connect_addr.sa, sockaddrLength(channel->connect_addr.sa.sa_family));
 		packet->resend_times++;
 		packet->resend_msec = timestamp_msec + rw->dgram.rto;
 		channel_set_timestamp(channel, packet->resend_msec);
@@ -531,7 +531,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 	}
 	else {
 		addr = &channel->to_addr.sa;
-		addrlen = sockaddrLength(addr);
+		addrlen = sockaddrLength(addr->sa_family);
 	}
 	for (cur = channel->dgram_ctx.sendlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);

@@ -306,7 +306,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		}
 		else {
 			o->m_connected = 0;
-			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, sockaddrLength(&channel->connect_addr.sa))) {
+			addrlen = sockaddrLength(channel->connect_addr.sa.sa_family);
+			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, addrlen)) {
 				return 0;
 			}
 			if (o->stream_connect_timeout_sec > 0) {
@@ -603,7 +604,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-	addrlen = sockaddrLength(&channel->connect_addr.sa);
+	addrlen = sockaddrLength(channel->connect_addr.sa.sa_family);
 	while (o->m_inbufoff < o->m_inbuflen) {
 		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff, timestamp_msec, &channel->connect_addr.sa, addrlen);
 		if (res < 0 || !after_call_channel_interface(channel)) {
@@ -1280,7 +1281,7 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 	ReactorObject_t* o;
 	socklen_t addrlen;
 	if (addr) {
-		addrlen = sockaddrLength(addr);
+		addrlen = sockaddrLength(addr->sa_family);
 		if (addrlen <= 0) {
 			return NULL;
 		}
@@ -1361,7 +1362,7 @@ void channelbaseSendFin(ChannelBase_t* channel) {
 		else {
 			hdrsize = 0;
 		}
-		addrlen = sockaddrLength(&channel->to_addr.sa);
+		addrlen = sockaddrLength(channel->to_addr.sa.sa_family);
 		packet = reactorpacketMake(NETPACKET_FIN, hdrsize, 0, &channel->to_addr.sa, addrlen);
 		if (!packet) {
 			return;
@@ -1397,7 +1398,7 @@ void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int 
 	}
 	else if (channel->to_addr.sa.sa_family != AF_UNSPEC) {
 		to_addr = &channel->to_addr.sa;
-		to_addrlen = sockaddrLength(to_addr);
+		to_addrlen = sockaddrLength(to_addr->sa_family);
 	}
 	if (!channelbaseShardDatas(channel, pktype, iov, iovcnt, &pklist, to_addr, to_addrlen)) {
 		return;

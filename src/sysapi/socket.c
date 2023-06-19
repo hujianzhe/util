@@ -487,32 +487,27 @@ int ipstrFamily(const char* ip) {
 	return AF_UNSPEC;
 }
 
-int sockaddrLength(const struct sockaddr* saddr) {
-	int socklen;
-	if (saddr) {
-		if (AF_INET == saddr->sa_family)
-			socklen = sizeof(struct sockaddr_in);
-		else if (AF_INET6 == saddr->sa_family)
-			socklen = sizeof(struct sockaddr_in6);
-		else if (AF_UNSPEC == saddr->sa_family)
-			socklen = 0;
+int sockaddrLength(int family) {
+	switch (family) {
+		case AF_INET:
+			return sizeof(struct sockaddr_in);
+		case AF_INET6:
+			return sizeof(struct sockaddr_in6);
+		case AF_UNSPEC:
+			return 0;
 #if !defined(_WIN32) && !defined(_WIN64)
-		else if (AF_UNIX == saddr->sa_family)
-			socklen = sizeof(struct sockaddr_un);
+		case AF_UNIX:
+			return sizeof(struct sockaddr_un);
 #endif
-		else {
+		default:
 			__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-			socklen = -1;
-		}
-		return socklen;
+			return -1;
 	}
-	else
-		return 0;
 }
 
 int sockaddrIsEqual(const struct sockaddr* one, const struct sockaddr* two) {
 	if (one->sa_family == two->sa_family) {
-		int len = sockaddrLength(one);
+		int len = sockaddrLength(one->sa_family);
 		if (len < 0) {
 			return 0;
 		}
@@ -534,14 +529,17 @@ BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned 
 #endif
 		addr_in->sin_family = AF_INET;
 		addr_in->sin_port = htons(port);
-		if (!strIP || !strIP[0])
+		if (!strIP || !strIP[0]) {
 			addr_in->sin_addr.s_addr = htonl(INADDR_ANY);
+		}
 		else {
 			unsigned int net_addr = inet_addr(strIP);
-			if (net_addr == INADDR_NONE)
+			if (net_addr == INADDR_NONE) {
 				return FALSE;
-			else
+			}
+			else {
 				addr_in->sin_addr.s_addr = net_addr;
+			}
 		}
 		return TRUE;
 	}
@@ -561,8 +559,9 @@ BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned 
 			return inet_pton(AF_INET6, strIP, addr_in6->sin6_addr.s6_addr) == 1;
 #endif
 		}
-		else
+		else {
 			addr_in6->sin6_addr = in6addr_any;
+		}
 		return TRUE;
 	}
 	__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
@@ -886,7 +885,7 @@ FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
 	if (!sockaddrEncode((struct sockaddr*)&ss, family, ip, port)) {
 		goto err;
 	}
-	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sockaddrLength((struct sockaddr*)&ss))) {
+	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sockaddrLength(family))) {
 		goto err;
 	}
 	return sockfd;
