@@ -135,7 +135,7 @@ __declspec_dll BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* s
 __declspec_dll BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, unsigned short* port);
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port);
 /* SOCKET */
-__declspec_dll BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value);
+__declspec_dll BOOL socketHasAddr(FD_t sockfd, struct sockaddr* ret_peeraddr, socklen_t* ret_addrlen);
 __declspec_dll BOOL socketEnableReusePort(FD_t sockfd, int on);
 __declspec_dll BOOL socketEnableReuseAddr(FD_t sockfd, int on);
 __declspec_dll BOOL socketBindAndReuse(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen);
@@ -160,6 +160,7 @@ __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, 
 __declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
 __declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
+__declspec_dll BOOL socketTcpNoDelay(FD_t sockfd, int on);
 __declspec_dll int socketTcpCanRecvOOB(FD_t sockfd);
 __declspec_dll BOOL socketTcpSendOOB(FD_t sockfd, unsigned char oob);
 __declspec_dll BOOL socketTcpReadOOB(FD_t sockfd, unsigned char* oob);

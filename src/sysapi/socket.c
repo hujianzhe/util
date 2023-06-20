@@ -637,18 +637,15 @@ BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port) {
 	return TRUE;
 }
 
-BOOL socketHasAddr(FD_t sockfd, BOOL* bool_value) {
-	struct sockaddr_storage saddr;
-	socklen_t slen = sizeof(saddr);
-	if (getsockname(sockfd, (struct sockaddr*)&saddr, &slen)) {
-		if (SOCKET_ERROR_VALUE(EINVAL) != __GetErrorCode()) {
-			return FALSE;
-		}
-		*bool_value = FALSE;
+BOOL socketHasAddr(FD_t sockfd, struct sockaddr* ret_peeraddr, socklen_t* ret_addrlen) {
+	if (!getsockname(sockfd, ret_peeraddr, ret_addrlen)) {
+		return TRUE;
 	}
-	else {
-		*bool_value = TRUE;
+	if (SOCKET_ERROR_VALUE(EINVAL) != __GetErrorCode()) {
+		return FALSE;
 	}
+	ret_peeraddr->sa_family = AF_UNSPEC;
+	*ret_addrlen = 0;
 	return TRUE;
 }
 
@@ -1062,6 +1059,10 @@ int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes) {
 	}
 	return nbytes;
 #endif
+}
+
+BOOL socketTcpNoDelay(FD_t sockfd, int on) {
+	return setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on)) == 0;
 }
 
 int socketTcpCanRecvOOB(FD_t sockfd){

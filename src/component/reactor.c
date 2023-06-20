@@ -1062,6 +1062,59 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 	return packetlist;
 }
 
+static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
+	channel->o = NULL;
+	channel->reactor = NULL;
+	channel->domain = domain;
+	channel->socktype = socktype;
+	channel->protocol = protocol;
+	channel->to_addr.sa.sa_family = AF_UNSPEC;
+	channel->to_addrlen = 0;
+	channel->heartbeat_timeout_sec = 0;
+	channel->heartbeat_maxtimes = 0;
+	channel->has_recvfin = 0;
+	channel->has_sendfin = 0;
+	channel->valid = 1;
+	channel->write_fragment_with_hdr = 0;
+	channel->flag = channel_flag;
+	channel->detach_error = 0;
+	channel->event_msec = 0;
+	channel->readcache_max_size = 0;
+	channel->sendcache_max_size = 0;
+	channel->userdata = NULL;
+	channel->proc = proc;
+	channel->session = NULL;
+	if (channel_flag & CHANNEL_FLAG_CLIENT) {
+		channel->on_syn_ack = NULL;
+		channel->connect_addr.sa.sa_family = AF_UNSPEC;
+		channel->connect_addrlen = 0;
+	}
+	else if (channel_flag & CHANNEL_FLAG_LISTEN) {
+		channel->on_ack_halfconn = NULL;
+		channel->listen_addr.sa.sa_family = AF_UNSPEC;
+		channel->listen_addrlen = 0;
+	}
+	if (SOCK_STREAM == socktype) {
+		streamtransportctxInit(&channel->stream_ctx);
+		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
+		channel->m_stream_delay_send_fin = 0;
+		channel->write_fragment_size = ~0;
+	}
+	else {
+		dgramtransportctxInit(&channel->dgram_ctx, 0);
+		channel->write_fragment_size = 548;
+	}
+	channel->m_heartbeat_msec = 0;
+	channel->m_heartbeat_times = 0;
+	channel->m_refcnt = 1;
+	channel->m_has_detached = 0;
+	channel->m_catch_fincmd = 0;
+	channel->m_has_commit_fincmd = 0;
+	channel->m_reghaspost = 0;
+	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
+	channel->m_freecmd.type = REACTOR_CHANNEL_FREE_CMD;
+}
+
 /*****************************************************************************************/
 
 #ifdef	__cplusplus
@@ -1251,62 +1304,111 @@ void reactorDestroy(Reactor_t* reactor) {
 	free(reactor);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int socktype, int protocol) {
+ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
 	ChannelBase_t* channel;
 	ReactorObject_t* o;
 
-	channel = (ChannelBase_t*)calloc(1, sizeof(ChannelBase_t));
+	channel = (ChannelBase_t*)malloc(sizeof(ChannelBase_t));
+	if (!channel) {
+		return NULL;
+	}
+	o = reactorobjectOpen(INVALID_FD_HANDLE, domain, socktype, protocol);
+	if (!o) {
+		free(channel);
+		return NULL;
+	}
+	channelbaseInit(channel, channel_flag, proc, domain, socktype, protocol);
+	o->m_channel = channel;
+	channel->o = o;
+	if (SOCK_STREAM == socktype) {
+		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
+			socketTcpNoDelay(o->niofd.fd, 1);
+		}
+	}
+	return channel;
+}
+
+ChannelBase_t* channelbaseOpenWithFD(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int protocol) {
+	ChannelBase_t* channel;
+	ReactorObject_t* o;
+	int socktype;
+
+	if (!socketGetType(fd, &socktype)) {
+		return NULL;
+	}
+	channel = (ChannelBase_t*)malloc(sizeof(ChannelBase_t));
 	if (!channel) {
 		return NULL;
 	}
 	o = reactorobjectOpen(fd, domain, socktype, protocol);
 	if (!o) {
-		free(channel);
-		return NULL;
+		goto err;
 	}
+	channelbaseInit(channel, channel_flag, proc, domain, socktype, protocol);
 	o->m_channel = channel;
 	channel->o = o;
-	channel->flag = channel_flag;
-	channel->domain = domain;
-	channel->socktype = socktype;
-	channel->m_refcnt = 1;
-	channel->m_regcmd.type = REACTOR_CHANNEL_REG_CMD;
-	channel->m_freecmd.type = REACTOR_CHANNEL_FREE_CMD;
-	channel->to_addr.sa.sa_family = AF_UNSPEC;
-	channel->connect_addr.sa.sa_family = AF_UNSPEC;
-	channel->listen_addr.sa.sa_family = AF_UNSPEC;
 	if (SOCK_STREAM == socktype) {
-		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
-			int on = 1;
-			setsockopt(o->niofd.fd, IPPROTO_TCP, TCP_NODELAY, (char*)&on, sizeof(on));
+		if (channel_flag & CHANNEL_FLAG_LISTEN) {
+			channel->listen_addrlen = sizeof(struct sockaddr_storage);
+			if (!socketHasAddr(fd, &channel->listen_addr.sa, &channel->listen_addrlen)) {
+				goto err;
+			}
 		}
-		streamtransportctxInit(&channel->stream_ctx);
-		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
-		channel->write_fragment_size = ~0;
+		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
+			channel->connect_addrlen = sizeof(struct sockaddr_storage);
+			if (!socketIsConnected(fd, &channel->connect_addr.sa, &channel->connect_addrlen)) {
+				goto err;
+			}
+			memmove(&channel->to_addr, &channel->connect_addr, channel->connect_addrlen);
+			channel->to_addrlen = channel->connect_addrlen;
+
+			socketTcpNoDelay(fd, 1);
+		}
 	}
-	else {
-		dgramtransportctxInit(&channel->dgram_ctx, 0);
-		channel->write_fragment_size = 548;
-	}
-	channel->valid = 1;
-	channel->proc = proc;
 	return channel;
+err:
+	free(o);
+	free(channel);
+	return NULL;
 }
 
-void channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen) {
+ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen) {
 	unsigned short channel_flag = channel->flag;
+	FD_t fd = channel->o->niofd.fd;
 	if (channel_flag & CHANNEL_FLAG_LISTEN) {
-		memmove(&channel->listen_addr, op_addr, op_addrlen);
-		channel->listen_addrlen = op_addrlen;
+		if (SOCK_STREAM == channel->socktype) {
+			if (AF_UNSPEC == channel->listen_addr.sa.sa_family) {
+				if (!socketTcpListen(fd, op_addr, op_addrlen)) {
+					return NULL;
+				}
+				memmove(&channel->listen_addr, op_addr, op_addrlen);
+				channel->listen_addrlen = op_addrlen;
+			}
+			else if (listen(fd, SOMAXCONN)) {
+				return NULL;
+			}
+		}
+		else if (AF_UNSPEC == channel->listen_addr.sa.sa_family) {
+			if (!socketBindAndReuse(fd, op_addr, op_addrlen)) {
+				return NULL;
+			}
+			memmove(&channel->listen_addr, op_addr, op_addrlen);
+			channel->listen_addrlen = op_addrlen;
+		}
 	}
 	else {
 		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
-			memmove(&channel->connect_addr, op_addr, op_addrlen);
-			channel->connect_addrlen = op_addrlen;
+			if (AF_UNSPEC == channel->connect_addr.sa.sa_family) {
+				memmove(&channel->connect_addr, op_addr, op_addrlen);
+				channel->connect_addrlen = op_addrlen;
+			}
 		}
-		memmove(&channel->to_addr, op_addr, op_addrlen);
-		channel->to_addrlen = op_addrlen;
+		if (AF_UNSPEC == channel->to_addr.sa.sa_family) {
+			memmove(&channel->to_addr, op_addr, op_addrlen);
+			channel->to_addrlen = op_addrlen;
+		}
 	}
+	return channel;
 }
 
 ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel) {
@@ -1324,6 +1426,9 @@ void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel) {
 
 void channelbaseClose(ChannelBase_t* channel) {
 	Reactor_t* reactor;
+	if (!channel) {
+		return;
+	}
 	if (_xadd32(&channel->m_refcnt, -1) > 1) {
 		return;
 	}
