@@ -240,7 +240,6 @@ static void channel_reliable_dgram_continue_send(ChannelRWData_t* rw, long long 
 }
 
 static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
-	ReactorPacket_t* packet;
 	unsigned char pktype;
 	unsigned int pkseq;
 	ChannelInbufDecodeResult_t decode_result = { 0 };
@@ -265,25 +264,31 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 	if (NETPACKET_SYN_ACK == pktype) {
 		if (channel->flag & CHANNEL_FLAG_CLIENT) {
 			if (1 == rw->dgram.m_synpacket_status) {
-				memmove(&channel->to_addr, from_saddr, addrlen);
-				rw->dgram.m_synpacket->type = NETPACKET_SYN_ACK;
+				NetPacket_t* synpkg = rw->dgram.m_synpacket;
+				synpkg->type = NETPACKET_SYN_ACK;
 				if (rw->proc->on_encode) {
-					rw->proc->on_encode(channel, rw->dgram.m_synpacket);
+					rw->proc->on_encode(channel, synpkg);
 				}
+				sendto(channel->o->niofd.fd, (char*)synpkg->buf, synpkg->hdrlen + synpkg->bodylen, 0, from_saddr, addrlen);
+				memmove(&channel->to_addr, from_saddr, addrlen);
 				rw->dgram.m_synpacket_status = 2;
 				if (channel->on_syn_ack) {
 					channel->on_syn_ack(channel, timestamp_msec);
 				}
+				channel_reliable_dgram_continue_send(rw, timestamp_msec);
 			}
 		}
 		else if (channel->flag & CHANNEL_FLAG_SERVER) {
 			if (1 == rw->dgram.m_synpacket_status) {
+				free(rw->dgram.m_synpacket);
+				rw->dgram.m_synpacket = NULL;
 				rw->dgram.m_synpacket_status = 0;
 				channel_reliable_dgram_continue_send(rw, timestamp_msec);
 			}
 		}
 	}
 	else if (dgramtransportctxRecvCheck(&channel->dgram_ctx, pkseq, pktype)) {
+		ReactorPacket_t* packet;
 		List_t list;
 		if (check_cache_overflow(channel->dgram_ctx.cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
 			channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
@@ -445,7 +450,6 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 			free(rw->dgram.m_synpacket);
 			rw->dgram.m_synpacket = NULL;
 			rw->dgram.m_synpacket_status = 0;
-			channel_reliable_dgram_continue_send(rw, timestamp_msec);
 			return;
 		}
 		sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0,
