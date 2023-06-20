@@ -35,9 +35,8 @@ typedef struct ChannelRWData_t {
 				int halfconn_maxwaitcnt;
 				int m_halfconn_curwaitcnt;
 			};
-			/* client use */
 			struct {
-				int m_synpacket_doing;
+				int m_synpacket_status;
 				NetPacket_t* m_synpacket;
 			};
 		};
