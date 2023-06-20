@@ -1437,6 +1437,7 @@ void channelbaseClose(ChannelBase_t* channel) {
 		channel->proc->on_free(channel);
 	}
 	if (!reactor) {
+		reactorobject_free(channel->o);
 		channelobject_free(channel);
 		return;
 	}
