@@ -61,16 +61,10 @@ __declspec_dll int aioNumberOfBytesTransfered(AioCtx_t* ctx);
 #define	NIO_OP_ACCEPT	4
 #define NIO_OP_CONNECT	8
 
-typedef struct Nio_t {
-	FD_t __hNio;
-#if !defined(_WIN32) && !defined(_WIN64)
-	FD_t __socketpair[2];
-#endif
-	Atom16_t __wakeup;
-} Nio_t;
-
 typedef struct NioFD_t {
 	FD_t fd;
+	struct NioFD_t* __lnext;
+	short __delete_flag;
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL __reg;
 	int __domain;
@@ -79,10 +73,21 @@ typedef struct NioFD_t {
 #endif
 } NioFD_t;
 
-__declspec_dll BOOL nioCreate(Nio_t* nio);
+typedef struct Nio_t {
+	FD_t __hNio;
+#if !defined(_WIN32) && !defined(_WIN64)
+	FD_t __socketpair[2];
+#endif
+	Atom16_t __wakeup;
+	NioFD_t* __free_list_head;
+	void(*__fn_free_niofd)(NioFD_t*);
+} Nio_t;
+
+__declspec_dll BOOL nioCreate(Nio_t* nio, void(*fn_free_niofd)(NioFD_t*));
 __declspec_dll void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
 __declspec_dll void nioFreeOverlapped(void* ol);
-__declspec_dll NioFD_t* niofdInit(NioFD_t* niofd, FD_t fd, int domain);
+__declspec_dll void niofdInit(NioFD_t* niofd, FD_t fd, int domain);
+__declspec_dll void niofdDelete(Nio_t* nio, NioFD_t* niofd);
 __declspec_dll BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* saddr, socklen_t addrlen);
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
 __declspec_dll void nioWakeup(Nio_t* nio);

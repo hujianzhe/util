@@ -22,7 +22,6 @@ typedef struct Reactor_t {
 	Nio_t m_nio;
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
-	List_t m_invalidlist;
 	List_t m_connect_endlist;
 	Hashtable_t m_objht;
 	HashtableNode_t* m_objht_bulks[2048];
@@ -132,10 +131,6 @@ static void free_inbuf(ReactorObject_t* o) {
 
 static void free_io_resource(ReactorObject_t* o) {
 	free_inbuf(o);
-	if (INVALID_FD_HANDLE != o->niofd.fd) {
-		socketClose(o->niofd.fd);
-		o->niofd.fd = INVALID_FD_HANDLE;
-	}
 	if (o->m_readol) {
 		nioFreeOverlapped(o->m_readol);
 		o->m_readol = NULL;
@@ -149,6 +144,10 @@ static void free_io_resource(ReactorObject_t* o) {
 static void reactorobject_free(ReactorObject_t* o) {
 	free_io_resource(o);
 	free(o);
+}
+
+static void nio_free_niofd(NioFD_t* niofd) {
+	reactorobject_free(pod_container_of(niofd, ReactorObject_t, niofd));
 }
 
 static void packetlist_free_packet(List_t* packetlist) {
@@ -170,12 +169,6 @@ static void channelobject_free(ChannelBase_t* channel) {
 		packetlist_free_packet(&channel->dgram_ctx.sendlist);
 	}
 	free(channel);
-}
-
-static int cmp_sorted_reactor_object_invalid(ListNode_t* node, ListNode_t* new_node) {
-	ReactorObject_t* o = pod_container_of(node, ReactorObject_t, m_invalidnode);
-	ReactorObject_t* new_o = pod_container_of(new_node, ReactorObject_t, m_invalidnode);
-	return o->m_invalid_msec > new_o->m_invalid_msec;
 }
 
 static int cmp_sorted_reactor_object_stream_connect_timeout(ListNode_t* node, ListNode_t* new_node) {
@@ -201,22 +194,14 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 			listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 			o->stream.m_connect_end_msec = 0;
 		}
-		free_io_resource(o);
 	}
+	free_io_resource(o);
+	niofdDelete(&reactor->m_nio, &o->niofd);
 
 	channel->m_has_detached = 1;
 	channel->o = NULL;
 	channel->valid = 0;
 	channel->proc->on_detach(channel);
-
-	if (o->detach_timeout_msec <= 0) {
-		reactorobject_free(o);
-	}
-	else {
-		o->m_invalid_msec += o->detach_timeout_msec;
-		listInsertNodeSorted(&reactor->m_invalidlist, &o->m_invalidnode, cmp_sorted_reactor_object_invalid);
-		reactor_set_event_timestamp(reactor, o->m_invalid_msec);
-	}
 }
 
 static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
@@ -481,20 +466,6 @@ static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
 			continue;
 		}
 		reactorobject_invalid_inner_handler(reactor, channel, now_msec);
-	}
-}
-
-static void reactor_exec_invalidlist(Reactor_t* reactor, long long now_msec) {
-	ListNode_t* cur, *next;
-	for (cur = reactor->m_invalidlist.head; cur; cur = next) {
-		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
-		next = cur->next;
-		if (o->m_invalid_msec > now_msec) {
-			reactor_set_event_timestamp(reactor, o->m_invalid_msec);
-			break;
-		}
-		listRemoveNode(&reactor->m_invalidlist, cur);
-		reactorobject_free(o);
 	}
 }
 
@@ -1126,7 +1097,7 @@ Reactor_t* reactorCreate(void) {
 	if (!reactor) {
 		return NULL;
 	}
-	if (!nioCreate(&reactor->m_nio)) {
+	if (!nioCreate(&reactor->m_nio, nio_free_niofd)) {
 		free(reactor);
 		return NULL;
 	}
@@ -1136,7 +1107,6 @@ Reactor_t* reactorCreate(void) {
 		return NULL;
 	}
 	listInit(&reactor->m_cmdlist);
-	listInit(&reactor->m_invalidlist);
 	listInit(&reactor->m_connect_endlist);
 	hashtableInit(&reactor->m_objht,
 		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
@@ -1244,62 +1214,37 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 	if (reactor->m_event_msec > 0 && timestamp_msec >= reactor->m_event_msec) {
 		reactor->m_event_msec = 0;
 		reactor_exec_connect_timeout(reactor, timestamp_msec);
-		reactor_exec_invalidlist(reactor, timestamp_msec);
 		reactor_exec_object(reactor, timestamp_msec);
 	}
 	return n;
 }
 
 void reactorDestroy(Reactor_t* reactor) {
+	ListNode_t* cur, * next;
 	if (!reactor) {
 		return;
 	}
 	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
-	do {
-		ListNode_t* cur, *next;
-		for (cur = reactor->m_cmdlist.head; cur; cur = next) {
-			ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
-			next = cur->next;
-			if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
-				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
-				if (channel->proc->on_free) {
-					channel->proc->on_free(channel);
-				}
-				channelobject_free(channel);
+
+	for (cur = reactor->m_cmdlist.head; cur; cur = next) {
+		ReactorCmd_t* cmd = pod_container_of(cur, ReactorCmd_t, _);
+		next = cur->next;
+		if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
+			if (channel->proc->on_free) {
+				channel->proc->on_free(channel);
 			}
-			else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
-				ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
-				channelobject_free(channel);
-			}
-			else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
-				reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
-			}
+			channelobject_free(channel);
 		}
-	} while (0);
-	do {
-		HashtableNode_t *cur, *next;
-		for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
-			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
-			ChannelBase_t* channel = o->m_channel;
-			next = hashtableNextNode(cur);
-			if (channel) {
-				if (channel->proc->on_free) {
-					channel->proc->on_free(channel);
-				}
-				channelobject_free(channel);
-			}
-			reactorobject_free(o);
+		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
+			channelobject_free(channel);
 		}
-	} while (0);
-	do {
-		ListNode_t* cur, *next;
-		for (cur = reactor->m_invalidlist.head; cur; cur = next) {
-			ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_invalidnode);
-			next = cur->next;
-			reactorobject_free(o);
+		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
+			reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
 		}
-	} while (0);
+	}
 
 	free(reactor);
 }
@@ -1437,6 +1382,7 @@ void channelbaseClose(ChannelBase_t* channel) {
 		channel->proc->on_free(channel);
 	}
 	if (!reactor) {
+		socketClose(channel->o->niofd.fd);
 		reactorobject_free(channel->o);
 		channelobject_free(channel);
 		return;
