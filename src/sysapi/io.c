@@ -623,15 +623,15 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		sys_event_mask |= EPOLLOUT;
 	}
 
-	if (NIO_OP_READ == (size_t)ol || NIO_OP_ACCEPT == (size_t)ol) {
+	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
 		event_mask |= NIO_OP_READ;
 		sys_event_mask |= EPOLLIN;
 	}
-	else if (NIO_OP_WRITE == (size_t)ol) {
+	else if (NIO_OP_WRITE == (size_t)opcode) {
 		event_mask |= NIO_OP_WRITE;
 		sys_event_mask |= EPOLLOUT;
 	}
-	else if (NIO_OP_CONNECT == (size_t)ol) {
+	else if (NIO_OP_CONNECT == (size_t)opcode) {
 		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
@@ -660,17 +660,17 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	niofd->__event_mask = event_mask;
 	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
-	if (NIO_OP_READ == (size_t)ol || NIO_OP_ACCEPT == (size_t)ol) {
+	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
-	else if (NIO_OP_WRITE == (size_t)ol) {
+	else if (NIO_OP_WRITE == opcode) {
 		struct kevent e;
 		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
 		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
 	}
-	else if (NIO_OP_CONNECT == (size_t)ol) {
+	else if (NIO_OP_CONNECT == opcode) {
 		struct kevent e;
 		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
