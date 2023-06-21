@@ -129,20 +129,8 @@ static void free_inbuf(ReactorObject_t* o) {
 	}
 }
 
-static void free_io_resource(ReactorObject_t* o) {
-	free_inbuf(o);
-	if (o->m_readol) {
-		nioFreeOverlapped(o->m_readol);
-		o->m_readol = NULL;
-	}
-	if (o->m_writeol) {
-		nioFreeOverlapped(o->m_writeol);
-		o->m_writeol = NULL;
-	}
-}
-
 static void reactorobject_free(ReactorObject_t* o) {
-	free_io_resource(o);
+	free_inbuf(o);
 	free(o);
 }
 
@@ -195,7 +183,7 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 			o->stream.m_connect_end_msec = 0;
 		}
 	}
-	free_io_resource(o);
+	free_inbuf(o);
 	niofdDelete(&reactor->m_nio, &o->niofd);
 
 	channel->m_has_detached = 1;
@@ -208,13 +196,7 @@ static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
-	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(NIO_OP_READ, NULL, 0, 0);
-		if (!o->m_readol) {
-			return 0;
-		}
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_readol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -225,13 +207,7 @@ static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject
 	if (o->m_readol_has_commit) {
 		return 1;
 	}
-	if (!o->m_readol) {
-		o->m_readol = nioAllocOverlapped(NIO_OP_ACCEPT, NULL, 0, 0);
-		if (!o->m_readol) {
-			return 0;
-		}
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_readol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_ACCEPT, NULL, 0)) {
 		return 0;
 	}
 	o->m_readol_has_commit = 1;
@@ -242,13 +218,7 @@ static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_
 	if (o->m_writeol_has_commit) {
 		return 1;
 	}
-	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(NIO_OP_WRITE, NULL, 0, 0);
-		if (!o->m_writeol) {
-			return 0;
-		}
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_writeol, NULL, 0)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_WRITE, NULL, 0)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -256,13 +226,7 @@ static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_
 }
 
 static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
-	if (!o->m_writeol) {
-		o->m_writeol = nioAllocOverlapped(NIO_OP_CONNECT, NULL, 0, 0);
-		if (!o->m_writeol) {
-			return 0;
-		}
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, o->m_writeol, saddr, saddrlen)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_CONNECT, saddr, saddrlen)) {
 		return 0;
 	}
 	o->m_writeol_has_commit = 1;
@@ -533,9 +497,9 @@ static void reactor_stream_accept(ChannelBase_t* channel, ReactorObject_t* o, lo
 	Sockaddr_t saddr;
 	socklen_t slen = sizeof(saddr.st);
 	FD_t connfd;
-	for (connfd = nioAcceptFirst(o->niofd.fd, o->m_readol, &saddr.sa, &slen);
+	for (connfd = nioAccept(&o->niofd, &saddr.sa, &slen);
 		connfd != INVALID_FD_HANDLE;
-		connfd = accept(o->niofd.fd, &saddr.sa, &slen))
+		connfd = nioAccept(&o->niofd, &saddr.sa, &slen))
 	{
 		channel->on_ack_halfconn(channel, connfd, &saddr.sa, slen, timestamp_msec);
 		slen = sizeof(saddr.st);
@@ -789,10 +753,6 @@ static void reactor_packet_send_proc_dgram(Reactor_t* reactor, ReactorPacket_t* 
 }
 
 static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
-	if (o->m_writeol) {
-		nioFreeOverlapped(o->m_writeol);
-		o->m_writeol = NULL;
-	}
 	if (o->stream.m_connect_end_msec > 0) {
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 		o->stream.m_connect_end_msec = 0;
@@ -916,8 +876,6 @@ static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd, int domain) {
 	o->m_has_inserted = 0;
 	o->m_readol_has_commit = 0;
 	o->m_writeol_has_commit = 0;
-	o->m_readol = NULL;
-	o->m_writeol = NULL;
 	o->m_invalid_msec = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;

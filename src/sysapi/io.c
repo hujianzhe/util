@@ -241,10 +241,8 @@ typedef struct IocpAcceptExOverlapped {
 	SOCKET acceptsocket;
 	unsigned char saddrs[sizeof(struct sockaddr_storage) + 16 + sizeof(struct sockaddr_storage) + 16];
 } IocpAcceptExOverlapped;
-#endif
 
-void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
-#if defined(_WIN32) || defined(_WIN64)
+static OVERLAPPED* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
 	switch (opcode) {
 		case NIO_OP_READ:
 		{
@@ -265,7 +263,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 					ol->append_data[appendsize] = 0;
 				}
 			}
-			return ol;
+			return &ol->base.ol;
 		}
 		case NIO_OP_CONNECT:
 		case NIO_OP_WRITE:
@@ -285,7 +283,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 					ol->append_data[appendsize] = 0;
 				}
 			}
-			return ol;
+			return &ol->base.ol;
 		}
 		case NIO_OP_ACCEPT:
 		{
@@ -294,7 +292,7 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 				ol->base.opcode = NIO_OP_ACCEPT;
 				ol->acceptsocket = INVALID_SOCKET;
 			}
-			return ol;
+			return &ol->base.ol;
 		}
 		default:
 		{
@@ -302,31 +300,25 @@ void* nioAllocOverlapped(int opcode, const void* refbuf, unsigned int refsize, u
 			return NULL;
 		}
 	}
-#else
-	return (void*)(size_t)opcode;
-#endif
 }
 
-void nioFreeOverlapped(void* ol) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (ol) {
-		IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
-		if (NIO_OP_ACCEPT == iocp_ol->opcode) {
-			IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
-			if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
-				closesocket(iocp_acceptex->acceptsocket);
-				iocp_acceptex->acceptsocket = INVALID_SOCKET;
-			}
-		}
-		if (iocp_ol->commit) {
-			iocp_ol->free = 1;
-		}
-		else {
-			free(iocp_ol);
+static void nioFreeOverlapped(OVERLAPPED* ol) {
+	IocpOverlapped* iocp_ol = (IocpOverlapped*)ol;
+	if (NIO_OP_ACCEPT == iocp_ol->opcode) {
+		IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)iocp_ol;
+		if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
+			closesocket(iocp_acceptex->acceptsocket);
+			iocp_acceptex->acceptsocket = INVALID_SOCKET;
 		}
 	}
-#endif
+	if (iocp_ol->commit) {
+		iocp_ol->free = 1;
+	}
+	else {
+		free(iocp_ol);
+	}
 }
+#endif
 
 void niofdInit(NioFD_t* niofd, FD_t fd, int domain) {
 	niofd->fd = fd;
@@ -335,6 +327,8 @@ void niofdInit(NioFD_t* niofd, FD_t fd, int domain) {
 #if defined(_WIN32) || defined(_WIN64)
 	niofd->__reg = FALSE;
 	niofd->__domain = domain;
+	niofd->__read_ol = NULL;
+	niofd->__write_ol = NULL;
 #elif __linux__
 	niofd->__event_mask = 0;
 #endif
@@ -353,6 +347,14 @@ void niofdDelete(Nio_t* nio, NioFD_t* niofd) {
 		CloseHandle((HANDLE)niofd->fd);
 		niofd->fd = (FD_t)INVALID_HANDLE_VALUE;
 	}
+	if (niofd->__read_ol) {
+		nioFreeOverlapped(niofd->__read_ol);
+		niofd->__read_ol = NULL;
+	}
+	if (niofd->__write_ol) {
+		nioFreeOverlapped(niofd->__write_ol);
+		niofd->__write_ol = NULL;
+	}
 #else
 	close(niofd->fd);
 	niofd->fd = -1;
@@ -362,11 +364,10 @@ void niofdDelete(Nio_t* nio, NioFD_t* niofd) {
 	niofd->__delete_flag = 1;
 }
 
-BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* saddr, socklen_t addrlen) {
+BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* saddr, socklen_t addrlen) {
 #if defined(_WIN32) || defined(_WIN64)
 	int fd_domain = niofd->__domain;
 	FD_t fd = niofd->fd;
-	IocpOverlapped* iocp_ol;
 	if (!niofd->__reg) {
 		do {
 			struct sockaddr_storage local_saddr;
@@ -429,12 +430,20 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		}
 		niofd->__reg = TRUE;
 	}
-	iocp_ol = (IocpOverlapped*)ol;
-	if (iocp_ol->commit) {
-		return TRUE;
-	}
-	if (NIO_OP_READ == iocp_ol->opcode) {
-		IocpReadOverlapped* read_ol = (IocpReadOverlapped*)ol;
+
+	if (NIO_OP_READ == opcode) {
+		IocpReadOverlapped* read_ol;
+		if (!niofd->__read_ol) {
+			niofd->__read_ol = nioAllocOverlapped(opcode, NULL, 0, 0);
+			if (!niofd->__read_ol) {
+				return FALSE;
+			}
+		}
+		read_ol = (IocpReadOverlapped*)niofd->__read_ol;
+		if (read_ol->base.commit) {
+			return TRUE;
+		}
+
 		if (fd_domain != AF_UNSPEC) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
 			if (read_ol->wsabuf.buf && read_ol->wsabuf.len) {
@@ -443,7 +452,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			else {
 				read_ol->dwFlags = MSG_PEEK;
 			}
-			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)ol, NULL)) {
+			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
 				read_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -454,7 +463,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			/* note: UDP socket need bind a address before call this function, otherwise WSAGetLastError return WSAINVALID */
 		}
 		else {
-			if (ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)ol)) {
+			if (ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
 				read_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -465,8 +474,19 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_WRITE == iocp_ol->opcode) {
-		IocpWriteOverlapped* write_ol = (IocpWriteOverlapped*)ol;
+	else if (NIO_OP_WRITE == opcode) {
+		IocpWriteOverlapped* write_ol;
+		if (!niofd->__write_ol) {
+			niofd->__write_ol = nioAllocOverlapped(opcode, NULL, 0, 0);
+			if (!niofd->__write_ol) {
+				return FALSE;
+			}
+		}
+		write_ol = (IocpWriteOverlapped*)niofd->__write_ol;
+		if (write_ol->base.commit) {
+			return TRUE;
+		}
+
 		if (fd_domain != AF_UNSPEC) {
 			const struct sockaddr* toaddr;
 			if (addrlen > 0 && saddr) {
@@ -477,7 +497,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 				toaddr = NULL;
 				addrlen = 0;
 			}
-			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)ol, NULL)) {
+			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				write_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -487,7 +507,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			}
 		}
 		else {
-			if (WriteFile((HANDLE)fd, NULL, 0, NULL, (LPOVERLAPPED)ol)) {
+			if (WriteFile((HANDLE)fd, NULL, 0, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
 				write_ol->base.commit = 1;
 				return TRUE;
 			}
@@ -498,9 +518,20 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		}
 		return FALSE;
 	}
-	else if (NIO_OP_ACCEPT == iocp_ol->opcode) {
+	else if (NIO_OP_ACCEPT == opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
-		IocpAcceptExOverlapped* accept_ol = (IocpAcceptExOverlapped*)ol;
+		IocpAcceptExOverlapped* accept_ol;
+		if (!niofd->__read_ol) {
+			niofd->__read_ol = nioAllocOverlapped(opcode, NULL, 0, 0);
+			if (!niofd->__read_ol) {
+				return FALSE;
+			}
+		}
+		accept_ol = (IocpAcceptExOverlapped*)niofd->__read_ol;
+		if (accept_ol->base.commit) {
+			return TRUE;
+		}
+
 		if (!lpfnAcceptEx) {
 			DWORD dwBytes;
 			GUID GuidAcceptEx = WSAID_ACCEPTEX;
@@ -520,7 +551,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 		}
 		if (lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
-			NULL, (LPOVERLAPPED)ol))
+			NULL, (LPOVERLAPPED)&accept_ol->base.ol))
 		{
 			accept_ol->base.commit = 1;
 			return TRUE;
@@ -535,10 +566,20 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			return FALSE;
 		}
 	}
-	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
-		struct sockaddr_storage st;
+	else if (NIO_OP_CONNECT == opcode) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
-		IocpWriteOverlapped* conn_ol = (IocpWriteOverlapped*)ol;
+		struct sockaddr_storage st;
+		IocpWriteOverlapped* conn_ol;
+		if (!niofd->__write_ol) {
+			niofd->__write_ol = nioAllocOverlapped(opcode, NULL, 0, 0);
+			if (!niofd->__write_ol) {
+				return FALSE;
+			}
+		}
+		conn_ol = (IocpWriteOverlapped*)niofd->__write_ol;
+		if (conn_ol->base.commit) {
+			return TRUE;
+		}
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
 		if (!lpfnConnectEx){
 			DWORD dwBytes;
@@ -557,7 +598,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 			return FALSE;
 		}
 		memmove(&conn_ol->saddr, saddr, addrlen);
-		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)ol)) {
+		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
 			conn_ol->base.commit = 1;
 			return TRUE;
 		}
@@ -720,6 +761,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 		*ev_mask = NIO_OP_READ;
 	}
 	else if (NIO_OP_CONNECT == iocp_ol->opcode) {
+		iocp_ol->opcode = NIO_OP_WRITE;
 		*ev_mask = NIO_OP_WRITE;
 	}
 	else if (NIO_OP_READ == iocp_ol->opcode) {
@@ -821,28 +863,29 @@ BOOL nioConnectCheckSuccess(FD_t sockfd) {
 #endif
 }
 
-FD_t nioAcceptFirst(FD_t listenfd, void* ol, struct sockaddr* peer_saddr, socklen_t* p_slen) {
+FD_t nioAccept(NioFD_t* niofd, struct sockaddr* peer_saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
-	IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)ol;
-	SOCKET acceptfd = iocp_ol->acceptsocket;
+	SOCKET acceptfd;
+	IocpAcceptExOverlapped* iocp_ol = (IocpAcceptExOverlapped*)niofd->__read_ol;
+	if (!iocp_ol || INVALID_SOCKET == iocp_ol->acceptsocket) {
+		return accept(niofd->fd, peer_saddr, p_slen);
+	}
+	acceptfd = iocp_ol->acceptsocket;
 	iocp_ol->acceptsocket = INVALID_SOCKET;
-	do {
-		if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&listenfd, sizeof(listenfd))) {
-			closesocket(acceptfd);
-			break;
-		}
-		if (!peer_saddr || !p_slen) {
-			return acceptfd;
-		}
-		if (getpeername(acceptfd, peer_saddr, p_slen)) {
-			closesocket(acceptfd);
-			break;
-		}
+	if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&niofd->fd, sizeof(niofd->fd))) {
+		closesocket(acceptfd);
+		return INVALID_FD_HANDLE;
+	}
+	if (!peer_saddr || !p_slen) {
 		return acceptfd;
-	} while (0);
-	return INVALID_FD_HANDLE;
+	}
+	if (getpeername(acceptfd, peer_saddr, p_slen)) {
+		closesocket(acceptfd);
+		return INVALID_FD_HANDLE;
+	}
+	return acceptfd;
 #else
-	return accept(listenfd, peer_saddr, p_slen);
+	return accept(niofd->fd, peer_saddr, p_slen);
 #endif
 }
 

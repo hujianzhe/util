@@ -57,8 +57,6 @@ typedef struct ReactorObject_t {
 	char m_connected;
 	char m_readol_has_commit;
 	char m_writeol_has_commit;
-	void* m_readol;
-	void* m_writeol;
 	long long m_invalid_msec;
 	unsigned char* m_inbuf;
 	int m_inbufoff;
