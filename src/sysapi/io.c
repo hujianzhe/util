@@ -621,7 +621,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, void* ol, const struct sockaddr* sadd
 	}
 
 	e.data.ptr = niofd;
-	e.events = EPOLLET | EPOLLONESHOT | sys_event_mask;
+	e.events = EPOLLET | sys_event_mask;
 	if (epoll_ctl(nio->__hNio, EPOLL_CTL_MOD, niofd->fd, &e)) {
 		if (ENOENT != errno) {
 			return FALSE;
