@@ -750,12 +750,16 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	else {
 		*ev_mask = 0;
 		if (e->events & EPOLLIN) {
-			niofd->__event_mask &= ~NIO_OP_READ;
-			*ev_mask |= NIO_OP_READ;
+			if (niofd->__event_mask & NIO_OP_READ) {
+				niofd->__event_mask &= ~NIO_OP_READ;
+				*ev_mask |= NIO_OP_READ;
+			}
 		}
 		if (e->events & EPOLLOUT) {
-			niofd->__event_mask &= ~NIO_OP_WRITE;
-			*ev_mask |= NIO_OP_WRITE;
+			if (niofd->__event_mask & NIO_OP_WRITE) {
+				niofd->__event_mask &= ~NIO_OP_WRITE;
+				*ev_mask |= NIO_OP_WRITE;
+			}
 		}
 	}
 	return niofd;
