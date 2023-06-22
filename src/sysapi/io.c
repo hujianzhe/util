@@ -329,7 +329,7 @@ void niofdInit(NioFD_t* niofd, FD_t fd, int domain) {
 	niofd->__domain = domain;
 	niofd->__read_ol = NULL;
 	niofd->__write_ol = NULL;
-#elif __linux__
+#else
 	niofd->__event_mask = 0;
 #endif
 }
@@ -624,14 +624,23 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	}
 
 	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
+		if (event_mask & NIO_OP_READ) {
+			return TRUE;
+		}
 		event_mask |= NIO_OP_READ;
 		sys_event_mask |= EPOLLIN;
 	}
-	else if (NIO_OP_WRITE == (size_t)opcode) {
+	else if (NIO_OP_WRITE == opcode) {
+		if (event_mask & NIO_OP_WRITE) {
+			return TRUE;
+		}
 		event_mask |= NIO_OP_WRITE;
 		sys_event_mask |= EPOLLOUT;
 	}
-	else if (NIO_OP_CONNECT == (size_t)opcode) {
+	else if (NIO_OP_CONNECT == opcode) {
+		if (event_mask & NIO_OP_WRITE) {
+			return TRUE;
+		}
 		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
@@ -660,18 +669,33 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	niofd->__event_mask = event_mask;
 	return TRUE;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
+	struct kevent e;
 	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
-		struct kevent e;
+		if (niofd->__event_mask & NIO_OP_READ) {
+			return TRUE;
+		}
 		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
-		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
+		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
+			return FALSE;
+		}
+		niofd->__event_mask |= NIO_OP_READ;
+		return TRUE;
 	}
-	else if (NIO_OP_WRITE == opcode) {
-		struct kevent e;
+	if (NIO_OP_WRITE == opcode) {
+		if (niofd->__event_mask & NIO_OP_WRITE) {
+			return TRUE;
+		}
 		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
-		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
+		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
+			return FALSE;
+		}
+		niofd->__event_mask |= NIO_OP_WRITE;
+		return TRUE;
 	}
-	else if (NIO_OP_CONNECT == opcode) {
-		struct kevent e;
+	if (NIO_OP_CONNECT == opcode) {
+		if (niofd->__event_mask & NIO_OP_WRITE) {
+			return TRUE;
+		}
 		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
@@ -680,12 +704,14 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		 * because I need Unified handle event
 		 */
 		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_WRITE, EV_ADD | EV_ONESHOT, 0, 0, niofd);
-		return kevent(nio->__hNio, &e, 1, NULL, 0, NULL) == 0;
+		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
+			return FALSE;
+		}
+		niofd->__event_mask |= NIO_OP_WRITE;
+		return TRUE;
 	}
-	else {
-		errno = EINVAL;
-		return FALSE;
-	}
+	errno = EINVAL;
+	return FALSE;
 #endif
 	return FALSE;
 }
@@ -824,13 +850,14 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 		return NULL;
 	}
 	if (EVFILT_READ == e->filter) {
+		niofd->__event_mask &= ~NIO_OP_READ;
 		*ev_mask = NIO_OP_READ;
 	}
 	else if (EVFILT_WRITE == e->filter) {
+		niofd->__event_mask &= ~NIO_OP_WRITE;
 		*ev_mask = NIO_OP_WRITE;
 	}
 	else { /* program don't run here... */
-		*ev_mask = 0;
 		return NULL;
 	}
 	return niofd;

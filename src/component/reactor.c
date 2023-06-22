@@ -192,47 +192,6 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 	channel->proc->on_detach(channel);
 }
 
-static int reactorobject_request_read(Reactor_t* reactor, ReactorObject_t* o) {
-	if (o->m_readol_has_commit) {
-		return 1;
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
-		return 0;
-	}
-	o->m_readol_has_commit = 1;
-	return 1;
-}
-
-static int reactorobject_request_stream_accept(Reactor_t* reactor, ReactorObject_t* o) {
-	if (o->m_readol_has_commit) {
-		return 1;
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_ACCEPT, NULL, 0)) {
-		return 0;
-	}
-	o->m_readol_has_commit = 1;
-	return 1;
-}
-
-static int reactorobject_request_stream_write(Reactor_t* reactor, ReactorObject_t* o) {
-	if (o->m_writeol_has_commit) {
-		return 1;
-	}
-	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_WRITE, NULL, 0)) {
-		return 0;
-	}
-	o->m_writeol_has_commit = 1;
-	return 1;
-}
-
-static int reactorobject_request_stream_connect(Reactor_t* reactor, ReactorObject_t* o, struct sockaddr* saddr, int saddrlen) {
-	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_CONNECT, saddr, saddrlen)) {
-		return 0;
-	}
-	o->m_writeol_has_commit = 1;
-	return 1;
-}
-
 static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o, long long timestamp_msec) {
 	struct sockaddr_storage saddr;
 	socklen_t saddrlen = sizeof(saddr);
@@ -243,7 +202,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			}
 			memmove(&channel->listen_addr, &saddr, saddrlen);
 			channel->listen_addrlen = saddrlen;
-			if (!reactorobject_request_stream_accept(reactor, o)) {
+			if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_ACCEPT, NULL, 0)) {
 				return 0;
 			}
 		}
@@ -256,13 +215,13 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			channel->to_addrlen = saddrlen;
 			memmove(&channel->connect_addr, &saddr, saddrlen);
 			channel->connect_addrlen = saddrlen;
-			if (!reactorobject_request_read(reactor, o)) {
+			if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
 				return 0;
 			}
 		}
 		else {
 			o->m_connected = 0;
-			if (!reactorobject_request_stream_connect(reactor, o, &channel->connect_addr.sa, channel->connect_addrlen)) {
+			if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_CONNECT, &channel->connect_addr.sa, channel->connect_addrlen)) {
 				return 0;
 			}
 			if (o->stream_connect_timeout_sec > 0) {
@@ -290,7 +249,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 		else {
 			o->m_connected = 0;
 		}
-		if (!reactorobject_request_read(reactor, o)) {
+		if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
 			return 0;
 		}
 	}
@@ -473,7 +432,7 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
-		if (reactorobject_request_stream_write(reactor, o)) {
+		if (nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_WRITE, NULL, 0)) {
 			break;
 		}
 		channel->valid = 0;
@@ -698,7 +657,7 @@ static void reactor_packet_send_proc_stream(Reactor_t* reactor, ReactorPacket_t*
 		}
 	}
 	if (streamtransportctxCacheSendPacket(ctx, &packet->_)) {
-		if (!reactorobject_request_stream_write(reactor, o)) {
+		if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_WRITE, NULL, 0)) {
 			channel->valid = 0;
 			channel->detach_error = REACTOR_IO_WRITE_ERR;
 		}
@@ -760,7 +719,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 	if (!nioConnectCheckSuccess(o->niofd.fd)) {
 		return 0;
 	}
-	if (!reactorobject_request_read(reactor, o)) {
+	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
 		return 0;
 	}
 	o->m_connected = 1;
@@ -874,8 +833,6 @@ static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd, int domain) {
 	o->m_channel = NULL;
 	o->m_hashnode.key.ptr = &o->niofd.fd;
 	o->m_has_inserted = 0;
-	o->m_readol_has_commit = 0;
-	o->m_writeol_has_commit = 0;
 	o->m_invalid_msec = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
@@ -1116,7 +1073,6 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 			}
 			do {
 				if (ev_mask & NIO_OP_READ) {
-					o->m_readol_has_commit = 0;
 					if (SOCK_STREAM == channel->socktype) {
 						if (channel->flag & CHANNEL_FLAG_LISTEN) {
 							reactor_stream_accept(channel, o, timestamp_msec);
@@ -1135,20 +1091,19 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 						break;
 					}
 					if (SOCK_STREAM == channel->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
-						if (!reactorobject_request_stream_accept(reactor, o)) {
+						if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_ACCEPT, NULL, 0)) {
 							channel->valid = 0;
 							channel->detach_error = REACTOR_IO_ACCEPT_ERR;
 							break;
 						}
 					}
-					else if (!reactorobject_request_read(reactor, o)) {
+					else if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {
 						channel->valid = 0;
 						channel->detach_error = REACTOR_IO_READ_ERR;
 						break;
 					}
 				}
 				if (ev_mask & NIO_OP_WRITE) {
-					o->m_writeol_has_commit = 0;
 					if (SOCK_STREAM != channel->socktype) {
 						break;
 					}

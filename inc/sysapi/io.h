@@ -70,7 +70,7 @@ typedef struct NioFD_t {
 	int __domain;
 	OVERLAPPED* __read_ol;
 	OVERLAPPED* __write_ol;
-#elif __linux__
+#else
 	unsigned int __event_mask;
 #endif
 } NioFD_t;
