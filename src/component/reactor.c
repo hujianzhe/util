@@ -223,8 +223,8 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 			if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_CONNECT, &channel->connect_addr.sa, channel->connect_addrlen)) {
 				return 0;
 			}
-			if (channel->stream_connect_timeout_sec > 0) {
-				o->stream.m_connect_end_msec = channel->stream_connect_timeout_sec;
+			if (channel->connect_timeout_sec > 0) {
+				o->stream.m_connect_end_msec = channel->connect_timeout_sec;
 				o->stream.m_connect_end_msec *= 1000;
 				o->stream.m_connect_end_msec += timestamp_msec;
 				listInsertNodeSorted(&reactor->m_connect_endlist, &o->stream.m_connect_endnode,
@@ -980,13 +980,13 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag,
 		streamtransportctxInit(&channel->stream_ctx);
 		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		channel->m_stream_delay_send_fin = 0;
-		channel->stream_connect_timeout_sec = 0;
 		channel->write_fragment_size = ~0;
 	}
 	else {
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
+	channel->connect_timeout_sec = 0;
 	channel->m_heartbeat_msec = 0;
 	channel->m_heartbeat_times = 0;
 	channel->m_refcnt = 1;

@@ -92,6 +92,7 @@ typedef struct ChannelBase_t {
 			void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
 			Sockaddr_t connect_addr;
 			socklen_t connect_addrlen;
+			unsigned short connect_timeout_sec;
 		};
 	};
 /* private */
@@ -100,7 +101,6 @@ typedef struct ChannelBase_t {
 			StreamTransportCtx_t stream_ctx;
 			ReactorCmd_t m_stream_fincmd;
 			char m_stream_delay_send_fin;
-			unsigned short stream_connect_timeout_sec;
 		};
 		DgramTransportCtx_t dgram_ctx;
 	};
