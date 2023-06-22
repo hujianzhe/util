@@ -301,6 +301,7 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 	if (NETPACKET_SYN_ACK == pktype) {
 		if (channel->flag & CHANNEL_FLAG_CLIENT) {
 			if (1 == rw->dgram.m_synpacket_status) {
+				ReactorObject_t* o;
 				NetPacket_t* synpkg;
 				unsigned short port;
 				if (!sockaddrIsEqual(&channel->connect_addr.sa, from_saddr)) {
@@ -314,13 +315,19 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 				memmove(&channel->to_addr, from_saddr, addrlen);
 				channel->to_addrlen = addrlen;
 				sockaddrSetPort(&channel->to_addr.sa, port);
+				o = channel->o;
+				if (connect(o->niofd.fd, &channel->to_addr.sa, channel->to_addrlen)) {
+					channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
+					return decode_result.decodelen;
+				}
+				o->m_connected = 1;
 
 				synpkg = rw->dgram.m_synpacket;
 				synpkg->type = NETPACKET_SYN_ACK;
 				if (rw->proc->on_encode) {
 					rw->proc->on_encode(channel, synpkg);
 				}
-				sendto(channel->o->niofd.fd, (char*)synpkg->buf, synpkg->hdrlen + synpkg->bodylen, 0, &channel->to_addr.sa, channel->to_addrlen);
+				sendto(o->niofd.fd, (char*)synpkg->buf, synpkg->hdrlen + synpkg->bodylen, 0, NULL, 0);
 				rw->dgram.m_synpacket_status = 2;
 				if (channel->on_syn_ack) {
 					channel->on_syn_ack(channel, timestamp_msec);
@@ -330,8 +337,12 @@ static int on_read_reliable_dgram(ChannelRWData_t* rw, unsigned char* buf, unsig
 		}
 		else if (channel->flag & CHANNEL_FLAG_SERVER) {
 			if (1 == rw->dgram.m_synpacket_status) {
+				ReactorObject_t* o = channel->o;
 				memmove(&channel->to_addr, from_saddr, addrlen);
 				channel->to_addrlen = addrlen;
+				if (!connect(o->niofd.fd, from_saddr, addrlen)) {
+					o->m_connected = 1;
+				}
 				rw->dgram.m_synpacket_status = 0;
 				channel_reliable_dgram_continue_send(rw, timestamp_msec);
 			}
@@ -494,9 +505,7 @@ static void on_exec_reliable_dgram(ChannelRWData_t* rw, long long timestamp_msec
 				rw->dgram.m_synpacket_status = 0;
 				return;
 			}
-			addr = &channel->to_addr.sa;
-			addrlen = channel->to_addrlen;
-			sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, addr, addrlen);
+			sendto(o->niofd.fd, (char*)packet->buf, packet->hdrlen + packet->bodylen, 0, NULL, 0);
 			packet->resend_times++;
 			packet->resend_msec = timestamp_msec + rw->dgram.rto;
 			channel_set_timestamp(channel, packet->resend_msec);
