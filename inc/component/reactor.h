@@ -41,21 +41,17 @@ typedef struct ReactorCmd_t {
 typedef struct ReactorObject_t {
 /* public */
 	NioFD_t niofd;
-	unsigned short detach_timeout_msec;
 	int inbuf_maxlen;
 	char inbuf_saved;
-	unsigned short stream_connect_timeout_sec;
 /* private */
 	struct ChannelBase_t* m_channel;
 	HashtableNode_t m_hashnode;
-	ListNode_t m_invalidnode;
 	struct {
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
 	char m_has_inserted;
 	char m_connected;
-	long long m_invalid_msec;
 	unsigned char* m_inbuf;
 	int m_inbufoff;
 	int m_inbuflen;
@@ -104,6 +100,7 @@ typedef struct ChannelBase_t {
 			StreamTransportCtx_t stream_ctx;
 			ReactorCmd_t m_stream_fincmd;
 			char m_stream_delay_send_fin;
+			unsigned short stream_connect_timeout_sec;
 		};
 		DgramTransportCtx_t dgram_ctx;
 	};
