@@ -46,15 +46,14 @@ typedef struct ChannelRWData_t {
 		};
 	} dgram;
 
-	ChannelBase_t* channel;
 	const ChannelRWDataProc_t* proc;
 } ChannelRWData_t;
 
 typedef struct ChannelRWHookProc_t {
-	int(*on_read)(ChannelRWData_t* rw, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
-	int(*on_pre_send)(ChannelRWData_t* rw, NetPacket_t* packet, long long timestamp_msec);
-	void(*on_exec)(ChannelRWData_t* rw, long long timestamp_msec);
-	void(*on_free)(ChannelRWData_t* rw);
+	int(*on_read)(ChannelBase_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
+	int(*on_pre_send)(ChannelBase_t* channel, NetPacket_t* packet, long long timestamp_msec);
+	void(*on_exec)(ChannelBase_t* channel, long long timestamp_msec);
+	void(*on_free)(ChannelBase_t* channel);
 } ChannelRWHookProc_t;
 
 #ifdef	__cplusplus

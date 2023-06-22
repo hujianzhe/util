@@ -970,6 +970,7 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag,
 		channel->on_syn_ack = NULL;
 		channel->connect_addr.sa.sa_family = AF_UNSPEC;
 		channel->connect_addrlen = 0;
+		channel->connect_timeout_sec = 0;
 	}
 	else if (channel_flag & CHANNEL_FLAG_LISTEN) {
 		channel->on_ack_halfconn = NULL;
@@ -986,7 +987,7 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag,
 		dgramtransportctxInit(&channel->dgram_ctx, 0);
 		channel->write_fragment_size = 548;
 	}
-	channel->connect_timeout_sec = 0;
+	channel->m_ext_impl = NULL;
 	channel->m_heartbeat_msec = 0;
 	channel->m_heartbeat_times = 0;
 	channel->m_refcnt = 1;

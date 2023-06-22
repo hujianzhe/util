@@ -83,19 +83,20 @@ typedef struct ChannelBase_t {
 	const struct ChannelBaseProc_t* proc; /* user use, set your IO callback */
 	struct Session_t* session; /* user use, set your logic session status */
 	union {
-		struct {
-			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec); /* listener use */
+		struct { /* listener use */
+			void(*on_ack_halfconn)(struct ChannelBase_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec);
 			Sockaddr_t listen_addr;
 			socklen_t listen_addrlen;
 		};
-		struct {
-			void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* client use, optional */
+		struct { /* client use */
+			void(*on_syn_ack)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 			Sockaddr_t connect_addr;
 			socklen_t connect_addrlen;
-			unsigned short connect_timeout_sec;
+			unsigned short connect_timeout_sec; /* optional */
 		};
 	};
 /* private */
+	void* m_ext_impl; /* internal or other ext */
 	union {
 		struct {
 			StreamTransportCtx_t stream_ctx;
