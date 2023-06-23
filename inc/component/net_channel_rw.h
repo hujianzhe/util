@@ -30,12 +30,11 @@ typedef struct ChannelRWData_t {
 /* public */
 	struct {
 		union {
-			/* listener use */
-			struct {
+			struct { /* listener use */
 				int halfconn_maxwaitcnt;
 				int m_halfconn_curwaitcnt;
 			};
-			struct {
+			struct { /* client or server use */
 				int m_synpacket_status;
 				NetPacket_t* m_synpacket;
 			};
@@ -60,9 +59,8 @@ typedef struct ChannelRWHookProc_t {
 extern "C" {
 #endif
 
-__declspec_dll void channelrwInitData(ChannelRWData_t* rw, int channel_flag, int socktype, const ChannelRWDataProc_t* proc);
 __declspec_dll const ChannelRWHookProc_t* channelrwGetHookProc(int channel_flag, int socktype);
-__declspec_dll void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw);
+__declspec_dll void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw, const ChannelRWDataProc_t* rw_proc);
 
 #ifdef	__cplusplus
 }

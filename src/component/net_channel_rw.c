@@ -235,7 +235,7 @@ static int on_read_dgram_listener(ChannelBase_t* channel, unsigned char* buf, un
 
 	memmove(&halfconn->from_addr, from_saddr, addrlen);
 	halfconn->from_addrlen = addrlen;
-	halfconn->expire_time_msec = timestamp_msec + (rw->dgram.resend_maxtimes + 2) * (unsigned int)rw->dgram.rto;
+	halfconn->expire_time_msec = timestamp_msec + (unsigned int)rw->dgram.rto * 5;
 	listPushNodeBack(&channel->dgram_ctx.recvlist, &halfconn->node);
 	rw->dgram.m_halfconn_curwaitcnt++;
 	channel_set_timestamp(channel, halfconn->expire_time_msec);
@@ -613,42 +613,40 @@ static ChannelRWHookProc_t hook_proc_normal = {
 	NULL
 };
 
-void channelrwInitData(ChannelRWData_t* rw, int channel_flag, int socktype, const ChannelRWDataProc_t* proc) {
-	memset(rw, 0, sizeof(*rw));
-	if (SOCK_DGRAM == socktype) {
-		if (channel_flag & CHANNEL_FLAG_LISTEN) {
-			rw->dgram.halfconn_maxwaitcnt = 200;
-			rw->dgram.rto = 200;
-			rw->dgram.resend_maxtimes = 5;
-		}
-		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
-			rw->dgram.m_synpacket_status = 1;
-			rw->dgram.rto = 200;
-			rw->dgram.resend_maxtimes = 5;
-		}
-	}
-	rw->proc = proc;
-}
-
 const ChannelRWHookProc_t* channelrwGetHookProc(int channel_flag, int socktype) {
+	if (SOCK_STREAM == socktype) {
+		return &hook_proc_stream;
+	}
 	if (SOCK_DGRAM == socktype) {
 		if (channel_flag & CHANNEL_FLAG_LISTEN) {
 			return &hook_proc_dgram_listener;
 		}
-		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
 			return &hook_proc_reliable_dgram;
 		}
-	}
-	else if (SOCK_STREAM == socktype) {
-		return &hook_proc_stream;
 	}
 	return &hook_proc_normal;
 }
 
-void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw) {
+void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw, const ChannelRWDataProc_t* rw_proc) {
+	memset(rw, 0, sizeof(*rw));
+	rw->proc = rw_proc;
 	if (SOCK_DGRAM == channel->socktype) {
-		if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+			rw->dgram.m_halfconn_curwaitcnt = 0;
+			rw->dgram.halfconn_maxwaitcnt = 200;
+			rw->dgram.rto = 200;
+		}
+		else if (channel->flag & CHANNEL_FLAG_SERVER) {
+			rw->dgram.m_synpacket_status = 1;
+			rw->dgram.resend_maxtimes = 5;
+			rw->dgram.rto = 200;
+		}
+		else if (channel->flag & CHANNEL_FLAG_CLIENT) {
 			channel->event_msec = 1;
+			rw->dgram.m_synpacket_status = 1;
+			rw->dgram.resend_maxtimes = 5;
+			rw->dgram.rto = 200;
 		}
 	}
 	channel->write_fragment_with_hdr = 1;
