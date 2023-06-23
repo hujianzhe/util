@@ -299,7 +299,7 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 		return decode_result.decodelen;
 	}
 	if (NETPACKET_SYN_ACK == pktype) {
-		if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		if (CHANNEL_SIDE_CLIENT == channel->side) {
 			if (1 == rw->dgram.m_synpacket_status) {
 				ReactorObject_t* o;
 				NetPacket_t* synpkg;
@@ -335,7 +335,7 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 				channel_reliable_dgram_continue_send(channel, timestamp_msec);
 			}
 		}
-		else if (channel->flag & CHANNEL_FLAG_SERVER) {
+		else if (CHANNEL_SIDE_SERVER == channel->side) {
 			if (1 == rw->dgram.m_synpacket_status) {
 				ReactorObject_t* o = channel->o;
 				memmove(&channel->to_addr, from_saddr, addrlen);
@@ -461,7 +461,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* channel, long long timestamp_m
 	int addrlen;
 	ListNode_t* cur;
 
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+	if (CHANNEL_SIDE_CLIENT == channel->side) {
 		if (1 == rw->dgram.m_synpacket_status) {
 			NetPacket_t* packet = rw->dgram.m_synpacket;
 			if (!packet) {
@@ -613,15 +613,15 @@ static ChannelRWHookProc_t hook_proc_normal = {
 	NULL
 };
 
-const ChannelRWHookProc_t* channelrwGetHookProc(int channel_flag, int socktype) {
+const ChannelRWHookProc_t* channelrwGetHookProc(int channel_side, int socktype) {
 	if (SOCK_STREAM == socktype) {
 		return &hook_proc_stream;
 	}
 	if (SOCK_DGRAM == socktype) {
-		if (channel_flag & CHANNEL_FLAG_LISTEN) {
+		if (CHANNEL_SIDE_LISTEN == channel_side) {
 			return &hook_proc_dgram_listener;
 		}
-		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+		if (CHANNEL_SIDE_CLIENT == channel_side || CHANNEL_SIDE_SERVER == channel_side) {
 			return &hook_proc_reliable_dgram;
 		}
 	}
@@ -632,17 +632,17 @@ void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw, const Cha
 	memset(rw, 0, sizeof(*rw));
 	rw->proc = rw_proc;
 	if (SOCK_DGRAM == channel->socktype) {
-		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+		if (CHANNEL_SIDE_LISTEN == channel->side) {
 			rw->dgram.m_halfconn_curwaitcnt = 0;
 			rw->dgram.halfconn_maxwaitcnt = 200;
 			rw->dgram.rto = 200;
 		}
-		else if (channel->flag & CHANNEL_FLAG_SERVER) {
+		else if (CHANNEL_SIDE_SERVER == channel->side) {
 			rw->dgram.m_synpacket_status = 1;
 			rw->dgram.resend_maxtimes = 5;
 			rw->dgram.rto = 200;
 		}
-		else if (channel->flag & CHANNEL_FLAG_CLIENT) {
+		else if (CHANNEL_SIDE_CLIENT == channel->side) {
 			channel->event_msec = 1;
 			rw->dgram.m_synpacket_status = 1;
 			rw->dgram.resend_maxtimes = 5;

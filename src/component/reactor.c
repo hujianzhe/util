@@ -195,7 +195,7 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 	struct sockaddr_storage saddr;
 	socklen_t saddrlen = sizeof(saddr);
 	if (SOCK_STREAM == channel->socktype) {
-		if (channel->flag & CHANNEL_FLAG_LISTEN) {
+		if (CHANNEL_SIDE_LISTEN == channel->side) {
 			if (getsockname(o->niofd.fd, (struct sockaddr*)&saddr, &saddrlen)) {
 				return 0;
 			}
@@ -288,14 +288,14 @@ static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* 
 		channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		return;
 	}
-	if (channel->flag & CHANNEL_FLAG_LISTEN) {
+	if (CHANNEL_SIDE_LISTEN == channel->side) {
 		return;
 	}
 	o = channel->o;
 	if (!o->m_connected) {
 		return;
 	}
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+	if (CHANNEL_SIDE_CLIENT == channel->side) {
 		if (channel->on_syn_ack) {
 			channel->on_syn_ack(channel, timestamp_msec);
 			if (!after_call_channel_interface(channel)) {
@@ -341,10 +341,10 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return 1;
 	}
-	if (channel->flag & CHANNEL_FLAG_SERVER) {
+	if (CHANNEL_SIDE_SERVER == channel->side) {
 		return 0;
 	}
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+	if (CHANNEL_SIDE_CLIENT == channel->side) {
 		if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 			return 0;
 		}
@@ -516,7 +516,7 @@ static void reactor_stream_readev(Reactor_t* reactor, ChannelBase_t* channel, Re
 		o->m_inbufoff += res;
 	}
 	channel->m_heartbeat_times = 0;
-	if (channel->flag & CHANNEL_FLAG_SERVER) {
+	if (CHANNEL_SIDE_SERVER == channel->side) {
 		channel_next_heartbeat_timestamp(channel, timestamp_msec);
 	}
 	if (o->m_inbufoff >= o->m_inbuflen) {
@@ -582,7 +582,7 @@ static void reactor_dgram_readev(Reactor_t* reactor, ChannelBase_t* channel, Rea
 	}
 	if (readtimes > 0) {
 		channel->m_heartbeat_times = 0;
-		if (channel->flag & CHANNEL_FLAG_SERVER) {
+		if (CHANNEL_SIDE_SERVER == channel->side) {
 			channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		}
 	}
@@ -944,7 +944,7 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 	return packetlist;
 }
 
-static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
+static void channelbaseInit(ChannelBase_t* channel, unsigned short side, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
 	channel->o = NULL;
 	channel->reactor = NULL;
 	channel->domain = domain;
@@ -958,7 +958,7 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag,
 	channel->has_sendfin = 0;
 	channel->valid = 1;
 	channel->write_fragment_with_hdr = 0;
-	channel->flag = channel_flag;
+	channel->side = side;
 	channel->detach_error = 0;
 	channel->event_msec = 0;
 	channel->readcache_max_size = 0;
@@ -966,13 +966,13 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short channel_flag,
 	channel->userdata = NULL;
 	channel->proc = proc;
 	channel->session = NULL;
-	if (channel_flag & CHANNEL_FLAG_CLIENT) {
+	if (CHANNEL_SIDE_CLIENT == side) {
 		channel->on_syn_ack = NULL;
 		channel->connect_addr.sa.sa_family = AF_UNSPEC;
 		channel->connect_addrlen = 0;
 		channel->connect_timeout_sec = 0;
 	}
-	else if (channel_flag & CHANNEL_FLAG_LISTEN) {
+	else if (CHANNEL_SIDE_LISTEN == side) {
 		channel->on_ack_halfconn = NULL;
 		channel->listen_addr.sa.sa_family = AF_UNSPEC;
 		channel->listen_addrlen = 0;
@@ -1072,7 +1072,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 			do {
 				if (ev_mask & NIO_OP_READ) {
 					if (SOCK_STREAM == channel->socktype) {
-						if (channel->flag & CHANNEL_FLAG_LISTEN) {
+						if (CHANNEL_SIDE_LISTEN == channel->side) {
 							reactor_stream_accept(channel, o, timestamp_msec);
 						}
 						else if (o->m_connected) {
@@ -1088,7 +1088,7 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 					if (!channel->valid) {
 						break;
 					}
-					if (SOCK_STREAM == channel->socktype && (channel->flag & CHANNEL_FLAG_LISTEN)) {
+					if (SOCK_STREAM == channel->socktype && CHANNEL_SIDE_LISTEN == channel->side) {
 						if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_ACCEPT, NULL, 0)) {
 							channel->valid = 0;
 							channel->detach_error = REACTOR_IO_ACCEPT_ERR;
@@ -1160,7 +1160,7 @@ void reactorDestroy(Reactor_t* reactor) {
 	free(reactor);
 }
 
-ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
+ChannelBase_t* channelbaseOpen(unsigned short side, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol) {
 	ChannelBase_t* channel;
 	ReactorObject_t* o;
 
@@ -1173,18 +1173,18 @@ ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBasePro
 		free(channel);
 		return NULL;
 	}
-	channelbaseInit(channel, channel_flag, proc, domain, socktype, protocol);
+	channelbaseInit(channel, side, proc, domain, socktype, protocol);
 	o->m_channel = channel;
 	channel->o = o;
 	if (SOCK_STREAM == socktype) {
-		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
+		if (CHANNEL_SIDE_CLIENT == side || CHANNEL_SIDE_SERVER == side) { /* default disable Nagle */
 			socketTcpNoDelay(o->niofd.fd, 1);
 		}
 	}
 	return channel;
 }
 
-ChannelBase_t* channelbaseOpenWithFD(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int protocol) {
+ChannelBase_t* channelbaseOpenWithFD(unsigned short side, const ChannelBaseProc_t* proc, FD_t fd, int domain, int protocol) {
 	ChannelBase_t* channel;
 	ReactorObject_t* o;
 	int socktype;
@@ -1200,17 +1200,17 @@ ChannelBase_t* channelbaseOpenWithFD(unsigned short channel_flag, const ChannelB
 	if (!o) {
 		goto err;
 	}
-	channelbaseInit(channel, channel_flag, proc, domain, socktype, protocol);
+	channelbaseInit(channel, side, proc, domain, socktype, protocol);
 	o->m_channel = channel;
 	channel->o = o;
 	if (SOCK_STREAM == socktype) {
-		if (channel_flag & CHANNEL_FLAG_LISTEN) {
+		if (CHANNEL_SIDE_LISTEN == side) {
 			channel->listen_addrlen = sizeof(struct sockaddr_storage);
 			if (!socketHasAddr(fd, &channel->listen_addr.sa, &channel->listen_addrlen)) {
 				goto err;
 			}
 		}
-		else if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) { /* default disable Nagle */
+		else if (CHANNEL_SIDE_CLIENT == side || CHANNEL_SIDE_SERVER == side) { /* default disable Nagle */
 			channel->connect_addrlen = sizeof(struct sockaddr_storage);
 			if (!socketIsConnected(fd, &channel->connect_addr.sa, &channel->connect_addrlen)) {
 				goto err;
@@ -1229,9 +1229,9 @@ err:
 }
 
 ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen) {
-	unsigned short channel_flag = channel->flag;
+	unsigned short side = channel->side;
 	FD_t fd = channel->o->niofd.fd;
-	if (channel_flag & CHANNEL_FLAG_LISTEN) {
+	if (CHANNEL_SIDE_LISTEN == side) {
 		if (SOCK_STREAM == channel->socktype) {
 			if (AF_UNSPEC == channel->listen_addr.sa.sa_family) {
 				if (!socketTcpListen(fd, op_addr, op_addrlen)) {
@@ -1253,7 +1253,7 @@ ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const stru
 		}
 	}
 	else {
-		if ((channel_flag & CHANNEL_FLAG_CLIENT) || (channel_flag & CHANNEL_FLAG_SERVER)) {
+		if (CHANNEL_SIDE_CLIENT == side || CHANNEL_SIDE_SERVER == side) {
 			if (AF_UNSPEC == channel->connect_addr.sa.sa_family) {
 				memmove(&channel->connect_addr, op_addr, op_addrlen);
 				channel->connect_addrlen = op_addrlen;
@@ -1379,14 +1379,14 @@ Session_t* sessionInit(Session_t* session) {
 
 void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel) {
 	ChannelBase_t* old_channel;
-	if (channel->flag & CHANNEL_FLAG_CLIENT) {
+	if (CHANNEL_SIDE_CLIENT == channel->side) {
 		old_channel = session->channel_client;
 		if (old_channel == channel) {
 			return;
 		}
 		session->channel_client = channel;
 	}
-	else if (channel->flag & CHANNEL_FLAG_SERVER) {
+	else if (CHANNEL_SIDE_SERVER == channel->side) {
 		old_channel = session->channel_server;
 		if (old_channel == channel) {
 			return;

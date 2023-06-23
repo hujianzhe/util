@@ -23,9 +23,9 @@ enum {
 	REACTOR_CACHE_WRITE_OVERFLOW_ERR = 8
 };
 enum {
-	CHANNEL_FLAG_CLIENT = 1 << 0,
-	CHANNEL_FLAG_SERVER = 1 << 1,
-	CHANNEL_FLAG_LISTEN = 1 << 2
+	CHANNEL_SIDE_CLIENT = 1,
+	CHANNEL_SIDE_SERVER = 2,
+	CHANNEL_SIDE_LISTEN = 3
 };
 
 struct Reactor_t;
@@ -73,7 +73,7 @@ typedef struct ChannelBase_t {
 	char has_sendfin;
 	char valid;
 	unsigned char write_fragment_with_hdr;
-	unsigned short flag;
+	unsigned short side; /* read-only, TCP must set this field */
 	short detach_error;
 	long long event_msec;
 	unsigned int write_fragment_size;
@@ -153,8 +153,8 @@ __declspec_dll void reactorWake(struct Reactor_t* reactor);
 __declspec_dll int reactorHandle(struct Reactor_t* reactor, NioEv_t e[], int n, int wait_msec);
 __declspec_dll void reactorDestroy(struct Reactor_t* reactor);
 
-__declspec_dll ChannelBase_t* channelbaseOpen(unsigned short channel_flag, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol);
-__declspec_dll ChannelBase_t* channelbaseOpenWithFD(unsigned short channel_flag, const ChannelBaseProc_t* proc, FD_t fd, int domain, int protocol);
+__declspec_dll ChannelBase_t* channelbaseOpen(unsigned short side, const ChannelBaseProc_t* proc, int domain, int socktype, int protocol);
+__declspec_dll ChannelBase_t* channelbaseOpenWithFD(unsigned short side, const ChannelBaseProc_t* proc, FD_t fd, int domain, int protocol);
 __declspec_dll ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* channel);
