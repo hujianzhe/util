@@ -117,7 +117,6 @@ typedef struct ChannelBase_t {
 } ChannelBase_t;
 
 typedef struct ChannelBaseProc_t {
-	void(*on_reg)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	void(*on_exec)(struct ChannelBase_t* self, long long timestamp_msec); /* optional */
 	int(*on_read)(struct ChannelBase_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
 	unsigned int(*on_hdrsize)(struct ChannelBase_t* self, unsigned int bodylen); /* optional */

@@ -273,17 +273,8 @@ static int reactor_reg_object(Reactor_t* reactor, ChannelBase_t* channel, long l
 
 static void reactor_exec_object_reg_callback(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
 	ReactorObject_t* o;
-
 	channel->reactor = reactor;
-	if (channel->proc->on_reg) {
-		channel->proc->on_reg(channel, timestamp_msec);
-		if (!after_call_channel_interface(channel)) {
-			return;
-		}
-	}
-	else {
-		reactor_set_event_timestamp(reactor, channel->event_msec);
-	}
+	reactor_set_event_timestamp(reactor, channel->event_msec);
 	if (SOCK_STREAM != channel->socktype) {
 		channel_next_heartbeat_timestamp(channel, timestamp_msec);
 		return;
