@@ -28,7 +28,7 @@ extern "C" {
 __declspec_dll SerialExecQueue_t* SerialExecQueue_init(SerialExecQueue_t* dq);
 __declspec_dll int SerialExecQueue_check_exec(SerialExecQueue_t* dq, SerialExecObj_t* obj);
 __declspec_dll void SerialExecQueue_clear(SerialExecQueue_t* dq, void(*fn_free)(SerialExecObj_t*));
-__declspec_dll SerialExecObj_t* SerialExecQueue_next(SerialExecQueue_t* dq);
+__declspec_dll SerialExecObj_t* SerialExecQueue_pop_next(SerialExecQueue_t* dq);
 
 #ifdef	__cplusplus
 }

@@ -27,7 +27,6 @@ int SerialExecQueue_check_exec(SerialExecQueue_t* dq, SerialExecObj_t* obj) {
 	}
 	dq->exec_obj = obj;
 	obj->dq = dq;
-	obj->hang_up = 0;
 	return 1;
 }
 
@@ -49,14 +48,17 @@ void SerialExecQueue_clear(SerialExecQueue_t* dq, void(*fn_free)(SerialExecObj_t
 	dq->cur_count = 0;
 }
 
-SerialExecObj_t* SerialExecQueue_next(SerialExecQueue_t* dq) {
+SerialExecObj_t* SerialExecQueue_pop_next(SerialExecQueue_t* dq) {
+	SerialExecObj_t* obj;
 	ListNode_t* node = listPopNodeFront(&dq->list);
 	dq->exec_obj = (SerialExecObj_t*)0;
 	if (!node) {
 		return (SerialExecObj_t*)0;
 	}
 	dq->cur_count -= 1;
-	return pod_container_of(node, SerialExecObj_t, listnode);
+	obj = pod_container_of(node, SerialExecObj_t, listnode);
+	obj->dq = (SerialExecQueue_t*)0;
+	return obj;
 }
 
 #ifdef	__cplusplus
