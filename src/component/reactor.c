@@ -990,6 +990,46 @@ static void channelbaseInit(ChannelBase_t* channel, unsigned short side, const C
 	channel->m_freecmd.type = REACTOR_CHANNEL_FREE_CMD;
 }
 
+static void reactor_free_cmdlist(Reactor_t* reactor) {
+	ListNode_t* lcur, *lnext;
+	for (lcur = reactor->m_cmdlist.head; lcur; lcur = lnext) {
+		ReactorCmd_t* cmd = pod_container_of(lcur, ReactorCmd_t, _);
+		lnext = lcur->next;
+		if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
+			if (channel->proc->on_free) {
+				channel->proc->on_free(channel);
+			}
+			reactorobject_free(channel->o);
+			channelobject_free(channel);
+		}
+		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
+			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
+			channelobject_free(channel);
+		}
+		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
+			reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
+		}
+	}
+}
+
+static void reactor_free_alive_objects(Reactor_t* reactor) {
+	HashtableNode_t* hcur, *hnext;
+	for (hcur = hashtableFirstNode(&reactor->m_objht); hcur; hcur = hnext) {
+		ReactorObject_t* o = pod_container_of(hcur, ReactorObject_t, m_hashnode);
+		ChannelBase_t* channel = o->m_channel;
+		hnext = hashtableNextNode(hcur);
+		if (!channel) {
+			continue;
+		}
+		if (channel->proc->on_free) {
+			channel->proc->on_free(channel);
+		}
+		reactorobject_free(o);
+		channelobject_free(channel);
+	}
+}
+
 /*****************************************************************************************/
 
 #ifdef	__cplusplus
@@ -1122,48 +1162,13 @@ int reactorHandle(Reactor_t* reactor, NioEv_t e[], int n, int wait_msec) {
 }
 
 void reactorDestroy(Reactor_t* reactor) {
-	ListNode_t* lcur, *lnext;
-	HashtableNode_t* hcur, *hnext;
 	if (!reactor) {
 		return;
 	}
 	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
-
-	for (lcur = reactor->m_cmdlist.head; lcur; lcur = lnext) {
-		ReactorCmd_t* cmd = pod_container_of(lcur, ReactorCmd_t, _);
-		lnext = lcur->next;
-		if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
-			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_regcmd);
-			if (channel->proc->on_free) {
-				channel->proc->on_free(channel);
-			}
-			reactorobject_free(channel->o);
-			channelobject_free(channel);
-		}
-		else if (REACTOR_CHANNEL_FREE_CMD == cmd->type) {
-			ChannelBase_t* channel = pod_container_of(cmd, ChannelBase_t, m_freecmd);
-			channelobject_free(channel);
-		}
-		else if (REACTOR_SEND_PACKET_CMD == cmd->type) {
-			reactorpacketFree(pod_container_of(cmd, ReactorPacket_t, cmd));
-		}
-	}
-
-	for (hcur = hashtableFirstNode(&reactor->m_objht); hcur; hcur = hnext) {
-		ReactorObject_t* o = pod_container_of(hcur, ReactorObject_t, m_hashnode);
-		ChannelBase_t* channel = o->m_channel;
-		hnext = hashtableNextNode(hcur);
-		if (!channel) {
-			continue;
-		}
-		if (channel->proc->on_free) {
-			channel->proc->on_free(channel);
-		}
-		reactorobject_free(o);
-		channelobject_free(channel);
-	}
-
+	reactor_free_cmdlist(reactor);
+	reactor_free_alive_objects(reactor);
 	free(reactor);
 }
 
