@@ -35,8 +35,8 @@ int fcmp(double a, double b, double epsilon) {
 	return 0;
 }
 
-float facosf(float x) {
-	/* MacLaurin series */
+/*
+float acosFloat(float x) {
 	if (x < -1.0f) x = -1.0f;
 	if (x > 1.0f) x = 1.0f;
 	float x2 = x*x;
@@ -49,7 +49,7 @@ float facosf(float x) {
 	return angle;
 }
 
-float finvsqrtf(float x) {
+float invsqrtFloat(float x) {
 	float xhalf = 0.5f * x;
 	int i = *(int*)&x;
 	i = 0x5f3759df - (i >> 1);
@@ -60,7 +60,7 @@ float finvsqrtf(float x) {
 	return x;
 }
 
-double finvsqrt(double x) {
+double invsqrtDouble(double x) {
 	double xhalf = 0.5 * x;
 	long long i = *(long long*)&x;
 	i = 0x5fe6ec85e7de30da - (i >> 1);
@@ -71,9 +71,10 @@ double finvsqrt(double x) {
 	return x;
 }
 
-float fsqrtf(float x) { return 1.0f / finvsqrtf(x); }
+float sqrtFloat(float x) { return 1.0f / invsqrtFloat(x); }
 
-double fsqrt(double x) { return 1.0 / finvsqrt(x); }
+double sqrtDouble(double x) { return 1.0 / invsqrtDouble(x); }
+*/
 
 int mathQuadraticEquation(float a, float b, float c, float r[2]) {
 	int cmp;

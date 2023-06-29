@@ -68,7 +68,7 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 		if (parent == gparent->rb_left)
 		{
 			{
-				register struct RBTreeNode_t *uncle = gparent->rb_right;
+				struct RBTreeNode_t *uncle = gparent->rb_right;
 				if (uncle && uncle->rb_color == RB_RED)
 				{
 					uncle->rb_color = RB_BLACK;
@@ -81,7 +81,7 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 
 			if (parent->rb_right == node)
 			{
-				register struct RBTreeNode_t *tmp;
+				struct RBTreeNode_t *tmp;
 				__rb_rotate_left(parent, root);
 				tmp = parent;
 				parent = node;
@@ -93,7 +93,7 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 			__rb_rotate_right(gparent, root);
 		} else {
 			{
-				register struct RBTreeNode_t *uncle = gparent->rb_left;
+				struct RBTreeNode_t *uncle = gparent->rb_left;
 				if (uncle && uncle->rb_color == RB_RED)
 				{
 					uncle->rb_color = RB_BLACK;
@@ -106,7 +106,7 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 
 			if (parent->rb_left == node)
 			{
-				register struct RBTreeNode_t *tmp;
+				struct RBTreeNode_t *tmp;
 				__rb_rotate_right(parent, root);
 				tmp = parent;
 				parent = node;
