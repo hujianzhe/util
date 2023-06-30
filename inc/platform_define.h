@@ -23,7 +23,9 @@
 	#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
 		#define	_WINSOCK_DEPRECATED_NO_WARNINGS
 	#endif
-	#define	_CRT_RAND_S
+	#ifndef	_CRT_RAND_S
+		#define	_CRT_RAND_S
+	#endif
 	#include <winsock2.h>
 	#include <windows.h>
 	STATIC_ASSERT(sizeof(HANDLE) == sizeof(SOCKET), "");
@@ -33,7 +35,6 @@
 	#define	iobufLen(iobuf)			((iobuf)->len)
 	typedef SOCKET					FD_t;
 	#define INVALID_FD_HANDLE       ((SOCKET)INVALID_HANDLE_VALUE)
-	#define	INFTIM					-1
 	typedef	SSIZE_T					ssize_t;
 #else
 	#ifndef _REENTRANT
@@ -62,11 +63,6 @@
 	#define iobufLen(iobuf)			((iobuf)->iov_len)
 	typedef	int						FD_t;
 	#define INVALID_FD_HANDLE       -1
-	#ifndef INFTIM
-		#define	INFTIM				-1
-	#endif
 #endif
-
-#define	undefined					-1
 
 #endif

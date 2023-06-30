@@ -644,6 +644,7 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 	if (msec >= 0) {
 		tval.tv_sec = msec / 1000;
 		tval.tv_nsec = msec % 1000;
+		tval.tv_nsec *= 1000000;
 		t = &tval;
 	}
 	nio_handle_free_list(nio);

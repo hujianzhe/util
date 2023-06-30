@@ -163,7 +163,7 @@ BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs
 #else
 	int res;
 	do {
-		if (msec == INFTIM) {
+		if (msec < 0) {
 			res = pthread_cond_wait(condition, cs);
 		}
 		else {
@@ -176,7 +176,10 @@ BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs
 			}
 			time_val.tv_sec = utc.tv_sec + msec / 1000;
 			msec %= 1000;
-			time_val.tv_nsec = utc.tv_usec * 1000 + msec * 1000000;
+			time_val.tv_nsec = utc.tv_usec;
+			time_val.tv_nsec *= 1000;
+			time_val.tv_nsec += msec * 1000000LL;
+			/*time_val.tv_nsec = utc.tv_usec * 1000 + msec * 1000000;*/
 			time_val.tv_sec += time_val.tv_nsec / 1000000000;
 			time_val.tv_nsec %= 1000000000;
 
