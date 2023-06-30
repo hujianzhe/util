@@ -989,7 +989,7 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #if defined(_WIN32) || defined(_WIN64)
 	int res;
 	DWORD dwBytes, dwFlags = flags;
-	if (from) {
+	if (from && p_slen) {
 		res = WSARecvFrom(sockfd, iov, iovcnt, &dwBytes, &dwFlags, (struct sockaddr*)from, p_slen, NULL, NULL);
 	}
 	else {
@@ -1005,13 +1005,17 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #else
 	ssize_t ret;
 	struct msghdr msghdr = { 0 };
-	if (from) {
-		msghdr.msg_name = from;
-		msghdr.msg_namelen = *p_slen;
-	}
 	msghdr.msg_iov = iov;
 	msghdr.msg_iovlen = iovcnt;
+	if (!from || !p_slen) {
+		return recvmsg(sockfd, &msghdr, flags);
+	}
+	msghdr.msg_name = from;
+	msghdr.msg_namelen = *p_slen;
 	ret = recvmsg(sockfd, &msghdr, flags);
+	if (ret < 0) {
+		return ret;
+	}
 	*p_slen = msghdr.msg_namelen;
 	return ret;
 #endif

@@ -118,14 +118,15 @@ typedef struct IocpReadOverlapped {
 	IocpOverlapped base;
 	struct sockaddr_storage saddr;
 	int saddrlen;
-	DWORD dwFlags;
 	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
+	DWORD dwFlags;
 	unsigned char append_data[1]; /* convienent for text data */
 } IocpReadOverlapped;
 typedef struct IocpWriteOverlapped {
 	IocpOverlapped base;
 	struct sockaddr_storage saddr;
+	int saddrlen;
 	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
 	unsigned char append_data[1]; /* convienent for text data */
@@ -141,21 +142,22 @@ static OVERLAPPED* Iocp_AllocOverlapped(int opcode, const void* refbuf, unsigned
 		case NIO_OP_READ:
 		{
 			IocpReadOverlapped* ol = (IocpReadOverlapped*)malloc(sizeof(IocpReadOverlapped) + appendsize);
-			if (ol) {
-				memset(ol, 0, sizeof(IocpReadOverlapped));
-				ol->base.opcode = NIO_OP_READ;
-				ol->saddr.ss_family = AF_UNSPEC;
-				ol->saddrlen = sizeof(ol->saddr);
-				ol->dwFlags = 0;
-				if (refbuf && refsize) {
-					ol->wsabuf.buf = (char*)refbuf;
-					ol->wsabuf.len = refsize;
-				}
-				else if (appendsize) {
-					ol->wsabuf.buf = (char*)(ol->append_data);
-					ol->wsabuf.len = appendsize;
-					ol->append_data[appendsize] = 0;
-				}
+			if (!ol) {
+				return NULL;
+			}
+			memset(ol, 0, sizeof(IocpReadOverlapped));
+			ol->base.opcode = NIO_OP_READ;
+			ol->saddr.ss_family = AF_UNSPEC;
+			ol->saddrlen = sizeof(ol->saddr);
+			ol->dwFlags = 0;
+			if (refbuf && refsize) {
+				ol->wsabuf.buf = (char*)refbuf;
+				ol->wsabuf.len = refsize;
+			}
+			else if (appendsize) {
+				ol->wsabuf.buf = (char*)(ol->append_data);
+				ol->wsabuf.len = appendsize;
+				ol->append_data[appendsize] = 0;
 			}
 			return &ol->base.ol;
 		}
@@ -163,29 +165,32 @@ static OVERLAPPED* Iocp_AllocOverlapped(int opcode, const void* refbuf, unsigned
 		case NIO_OP_WRITE:
 		{
 			IocpWriteOverlapped* ol = (IocpWriteOverlapped*)malloc(sizeof(IocpWriteOverlapped) + appendsize);
-			if (ol) {
-				memset(ol, 0, sizeof(IocpWriteOverlapped));
-				ol->base.opcode = opcode;
-				ol->saddr.ss_family = AF_UNSPEC;
-				if (refbuf && refsize) {
-					ol->wsabuf.buf = (char*)refbuf;
-					ol->wsabuf.len = refsize;
-				}
-				else if (appendsize) {
-					ol->wsabuf.buf = (char*)(ol->append_data);
-					ol->wsabuf.len = appendsize;
-					ol->append_data[appendsize] = 0;
-				}
+			if (!ol) {
+				return NULL;
+			}
+			memset(ol, 0, sizeof(IocpWriteOverlapped));
+			ol->base.opcode = opcode;
+			ol->saddr.ss_family = AF_UNSPEC;
+			ol->saddrlen = 0;
+			if (refbuf && refsize) {
+				ol->wsabuf.buf = (char*)refbuf;
+				ol->wsabuf.len = refsize;
+			}
+			else if (appendsize) {
+				ol->wsabuf.buf = (char*)(ol->append_data);
+				ol->wsabuf.len = appendsize;
+				ol->append_data[appendsize] = 0;
 			}
 			return &ol->base.ol;
 		}
 		case NIO_OP_ACCEPT:
 		{
 			IocpAcceptExOverlapped* ol = (IocpAcceptExOverlapped*)calloc(1, sizeof(IocpAcceptExOverlapped));
-			if (ol) {
-				ol->base.opcode = NIO_OP_ACCEPT;
-				ol->acceptsocket = INVALID_SOCKET;
+			if (!ol) {
+				return NULL;
 			}
+			ol->base.opcode = NIO_OP_ACCEPT;
+			ol->acceptsocket = INVALID_SOCKET;
 			return &ol->base.ol;
 		}
 		default:
@@ -385,10 +390,13 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 			if (addrlen > 0 && saddr) {
 				toaddr = (const struct sockaddr*)&write_ol->saddr;
 				memmove(&write_ol->saddr, saddr, addrlen);
+				write_ol->saddrlen = addrlen;
 			}
 			else {
 				toaddr = NULL;
 				addrlen = 0;
+				write_ol->saddr.ss_family = AF_UNSPEC;
+				write_ol->saddrlen = 0;
 			}
 			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				write_ol->base.commit = 1;
