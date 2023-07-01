@@ -11,7 +11,7 @@
 typedef struct IocpOverlapped_t {
 	OVERLAPPED ol;
 	unsigned char commit;
-	unsigned char free;
+	unsigned char free_flag;
 	unsigned short opcode;
 } IoOverlapped_t;
 #else
