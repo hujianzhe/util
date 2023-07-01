@@ -27,11 +27,13 @@ struct sockaddr_storage;
 extern "C" {
 #endif
 
-/* niocb */
-#define	NIO_OP_READ		1
-#define	NIO_OP_WRITE	2
-#define	NIO_OP_ACCEPT	4
-#define NIO_OP_CONNECT	8
+/* nio */
+enum {
+	NIO_OP_READ = 1,
+	NIO_OP_WRITE = 2,
+	NIO_OP_ACCEPT = 4,
+	NIO_OP_CONNECT = 8
+};
 
 typedef struct NioFD_t {
 	FD_t fd;
