@@ -148,7 +148,7 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	}
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		IocpAcceptExOverlapped* iocp_acceptex = (IocpAcceptExOverlapped*)ol;
+		IocpAcceptExOverlapped_t* iocp_acceptex = (IocpAcceptExOverlapped_t*)ol;
 		if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
 			closesocket(iocp_acceptex->acceptsocket);
 			iocp_acceptex->acceptsocket = INVALID_SOCKET;
