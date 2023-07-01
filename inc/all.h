@@ -50,6 +50,7 @@
 #include "sysapi/error.h"
 #include "sysapi/file.h"
 #include "sysapi/io.h"
+#include "sysapi/io_overlapped.h"
 #include "sysapi/ipc.h"
 #include "sysapi/misc.h"
 #include "sysapi/mmap.h"
