@@ -54,7 +54,7 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 BOOL aioClose(Aio_t* aio) {
 	aio_handle_free_list(aio);
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(nio->__handle);
+	return CloseHandle(aio->__handle);
 #elif	__linux__
 	io_uring_queue_exit(&aio->__r);
 	free(aio->__wait_cqes);
@@ -115,7 +115,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (CreateIoCompletionPort((HANDLE)fd, aio->__handle, (ULONG_PTR)aiofd, 0) != aio->__handle) {
 			return FALSE;
 		}
-		niofd->__reg = TRUE;
+		aiofd->__reg = TRUE;
 	}
 	// TODO
 	return FALSE;
@@ -195,9 +195,15 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 
 int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
-	ULONG n;
+	ULONG cnt;
 	aio_handle_free_list(aio);
-	return GetQueuedCompletionStatusEx(nio->__hNio, e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
+	if (GetQueuedCompletionStatusEx(aio->__handle, e, n, &cnt, msec, FALSE)) {
+		return cnt;
+	}
+	if (GetLastError() == WAIT_TIMEOUT) {
+		return 0;
+	}
+	return -1;
 #elif	__linux__
 	int ret;
 	unsigned head;
@@ -291,7 +297,11 @@ void aioWakeup(Aio_t* aio) {
 }
 
 IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
+#if defined(_WIN32) || defined(_WIN64)
+	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
+#else
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
+#endif
 	if (!ol) {
 		_xchg16(&aio->__wakeup, 0);
 		return NULL;

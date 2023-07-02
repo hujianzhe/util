@@ -14,6 +14,7 @@
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
+#include <ws2tcpip.h>
 typedef OVERLAPPED_ENTRY	AioEv_t;
 #else
 typedef struct AioEv_t {
