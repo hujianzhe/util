@@ -17,7 +17,7 @@
 #include <string.h>
 
 #if defined(_WIN32) || defined(_WIN64)
-static BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain) {
+BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain) {
 	struct sockaddr_storage local_saddr;
 	socklen_t slen;
 	DWORD dwBytesReturned = 0;

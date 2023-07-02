@@ -45,6 +45,7 @@
 #include "crt/protocol/hiredis_cli_protocol.h"
 #include "crt/protocol/httpframe.h"
 #include "crt/protocol/websocketframe.h"
+#include "sysapi/aio.h"
 #include "sysapi/assert.h"
 #include "sysapi/atomic.h"
 #include "sysapi/error.h"
