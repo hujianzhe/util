@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_COMPONENT_REACTOR_H
 #define	UTIL_C_COMPONENT_REACTOR_H
 
-#include "../sysapi/io.h"
+#include "../sysapi/nio.h"
 #include "../sysapi/ipc.h"
 #include "../sysapi/socket.h"
 #include "../datastruct/list.h"

@@ -59,10 +59,11 @@
 				atomic				提供统一的原子操作接口  
 				error				提供统一的系统错误码接口  
 				file				提供统一的文件与目录操作接口  
-				io					提供统一的文件AIO接口,网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
+				io_overlapped		提供OVERLAPPED结构与接口,用于NIO/AIO  
 				ipc					提供统一的OS锁接口  
 				misc				杂项接口  
 				mmap				提供统一的文件内存映射与共享内存接口  
+				nio					提供统一网络NIO接口(基于iocp/epoll/kevent,reactor模式)  
 				process				提供统一的进程/线程/协程接口  
 				socket				提供统一的socket接口  
 				statistics			一些杂项统计接口  
