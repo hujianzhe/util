@@ -200,11 +200,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 				return FALSE;
 			}
 		}
+		accept_ol->acceptsocket = socket(fd_domain, SOCK_STREAM, 0);
 		if (INVALID_SOCKET == accept_ol->acceptsocket) {
-			accept_ol->acceptsocket = socket(fd_domain, SOCK_STREAM, 0);
-			if (INVALID_SOCKET == accept_ol->acceptsocket) {
-				return FALSE;
-			}
+			return FALSE;
 		}
 		if (lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
@@ -451,6 +449,43 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 		return NULL;
 	}
 	ol->commit = 0;
+#if defined(_WIN32) || defined(_WIN64)
+	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+		AioFD_t* aiofd = (AioFD_t*)e->lpCompletionKey;
+		IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
+		if (setsockopt(accept_ol->acceptsocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&aiofd->fd, sizeof(aiofd->fd))) {
+			closesocket(accept_ol->acceptsocket);
+			accept_ol->acceptsocket = INVALID_SOCKET;
+		}
+	}
+	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
+		AioFD_t* aiofd = (AioFD_t*)e->lpCompletionKey;
+		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
+		do {
+			int sec;
+			int len = sizeof(sec);
+			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
+				break;
+			}
+			if (~0 == sec) {
+				//SetLastError(ERROR_TIMEOUT);
+				break;
+			}
+			if (setsockopt(aiofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
+				break;
+			}
+		} while (0);
+		conn_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
+	}
+	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
+		read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
+	}
+	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
+		write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
+	}
+#endif
 	return ol;
 }
 

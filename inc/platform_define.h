@@ -26,8 +26,13 @@
 	#ifndef	_CRT_RAND_S
 		#define	_CRT_RAND_S
 	#endif
+	#ifndef UMDF_USING_NTSTATUS
+		#define UMDF_USING_NTSTATUS
+	#endif
 	#include <winsock2.h>
 	#include <windows.h>
+	#include <ntstatus.h>
+	#include <winternl.h>
 	STATIC_ASSERT(sizeof(HANDLE) == sizeof(SOCKET), "");
 	typedef	WSABUF					Iobuf_t;
 	#define	iobufStaticInit(p, n)	{ (ULONG)(n), (char*)(p) }
