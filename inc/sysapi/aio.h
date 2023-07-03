@@ -16,6 +16,8 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <ws2tcpip.h>
 typedef OVERLAPPED_ENTRY	AioEv_t;
+#pragma comment(lib, "wsock32.lib")
+#pragma comment(lib, "ws2_32.lib")
 #else
 typedef struct AioEv_t {
 	IoOverlapped_t* ol;

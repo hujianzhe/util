@@ -8,19 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <signal.h>
-#endif
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-/* Network */
 #if defined(_WIN32) || defined(_WIN64)
 #define	__GetErrorCode()	GetLastError()
 #define	__SetErrorCode(e)	SetLastError((e))
 #define	SOCKET_ERROR_VALUE(CODE)	(WSA##CODE)
+
 static PIP_ADAPTER_ADDRESSES __win32GetAdapterAddress(void) {
 	ULONG Flags = GAA_FLAG_SKIP_FRIENDLY_NAME | GAA_FLAG_INCLUDE_GATEWAYS;
 	ULONG bufsize = 0;
@@ -37,7 +29,48 @@ static PIP_ADAPTER_ADDRESSES __win32GetAdapterAddress(void) {
 	}
 	return adapterList;
 }
+#else
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <signal.h>
+#define	__GetErrorCode()	(errno)
+#define	__SetErrorCode(e)	((errno) = (e))
+#define	SOCKET_ERROR_VALUE(CODE)	(CODE)
+#define	SOCKET_ERROR	(-1)
+#define	INVALID_SOCKET	(-1)
 
+static void sig_free_zombie(int sig) {
+	int status;
+	while (waitpid(-1, &status, WNOHANG) > 0);
+}
+
+static unsigned char* __byteorder_swap(unsigned char* p, unsigned int n) {
+#ifdef __linux__
+	if (__BYTE_ORDER == __LITTLE_ENDIAN) {
+#else
+	union {
+		unsigned short v;
+		unsigned char little_endian;
+	} byte_order = { 0x0001 };
+	if (byte_order.little_endian) {
+#endif
+		unsigned int i;
+		for (i = 0; i < (n >> 1); ++i) {
+			unsigned char temp = p[i];
+			p[i] = p[n - i - 1];
+			p[n - i - 1] = temp;
+		}
+	}
+	return p;
+	}
+#endif
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+/* Network */
+#if defined(_WIN32) || defined(_WIN64)
 if_nameindex_t* if_nameindex(void) {
 	if_nameindex_t* nameindex = NULL;
 	PIP_ADAPTER_ADDRESSES adapterList = NULL;
@@ -75,38 +108,6 @@ if_nameindex_t* if_nameindex(void) {
 
 void if_freenameindex(if_nameindex_t* ptr) { free(ptr); }
 #else
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#define	__GetErrorCode()	(errno)
-#define	__SetErrorCode(e)	((errno) = (e))
-#define	SOCKET_ERROR_VALUE(CODE)	(CODE)
-#define	SOCKET_ERROR	(-1)
-#define	INVALID_SOCKET	(-1)
-static void sig_free_zombie(int sig) {
-	int status;
-	while (waitpid(-1, &status, WNOHANG) > 0);
-}
-
-static unsigned char* __byteorder_swap(unsigned char* p, unsigned int n) {
-#ifdef __linux__
-	if (__BYTE_ORDER == __LITTLE_ENDIAN) {
-#else
-	union {
-		unsigned short v;
-		unsigned char little_endian;
-	} byte_order = { 0x0001 };
-	if (byte_order.little_endian) {
-#endif
-		unsigned int i;
-		for (i = 0; i < (n >> 1); ++i) {
-			unsigned char temp = p[i];
-			p[i] = p[n - i - 1];
-			p[n - i - 1] = temp;
-		}
-	}
-	return p;
-}
-
 #ifdef __linux__
 unsigned long long htonll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val)); }
 unsigned long long ntohll(unsigned long long val) { return *(unsigned long long*)__byteorder_swap((unsigned char*)&val, sizeof(val)); }

@@ -5,6 +5,9 @@
 #if	defined(_WIN32) || defined(USE_UNIX_AIO_API)
 
 #include "../../inc/sysapi/aio.h"
+#ifdef _WIN32
+#include <mswsock.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -99,6 +102,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 #if defined(_WIN32) || defined(_WIN64)
 	int fd_domain = aiofd->__domain;
 	FD_t fd = aiofd->fd;
+	if (ol->commit) {
+		return TRUE;
+	}
 	if (!aiofd->__reg) {
 		if (AF_UNSPEC != fd_domain) {
 			int socktype;
@@ -117,8 +123,142 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		}
 		aiofd->__reg = TRUE;
 	}
-	// TODO
-	return FALSE;
+	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
+		if (fd_domain != AF_UNSPEC) {
+			read_ol->saddrlen = sizeof(read_ol->saddr);
+			read_ol->dwFlags = 0;
+			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
+				read_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (WSAGetLastError() == WSA_IO_PENDING) {
+				read_ol->base.commit = 1;
+				return TRUE;
+			}
+			/* note: UDP socket need bind a address before call this function, otherwise WSAGetLastError return WSAINVALID */
+		}
+		else {
+			if (ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
+				read_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (GetLastError() == ERROR_IO_PENDING) {
+				read_ol->base.commit = 1;
+				return TRUE;
+			}
+		}
+		return FALSE;
+	}
+	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
+		if (fd_domain != AF_UNSPEC) {
+			const struct sockaddr* toaddr;
+			if (addrlen > 0 && saddr) {
+				toaddr = (const struct sockaddr*)&write_ol->saddr;
+				memmove(&write_ol->saddr, saddr, addrlen);
+				write_ol->saddrlen = addrlen;
+			}
+			else {
+				toaddr = NULL;
+				addrlen = 0;
+				write_ol->saddr.ss_family = AF_UNSPEC;
+				write_ol->saddrlen = 0;
+			}
+			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+				write_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (WSAGetLastError() == WSA_IO_PENDING) {
+				write_ol->base.commit = 1;
+				return TRUE;
+			}
+		}
+		else {
+			if (WriteFile((HANDLE)fd, write_ol->wsabuf.buf, write_ol->wsabuf.len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
+				write_ol->base.commit = 1;
+				return TRUE;
+			}
+			else if (GetLastError() == ERROR_IO_PENDING) {
+				write_ol->base.commit = 1;
+				return TRUE;
+			}
+		}
+		return FALSE;
+	}
+	else if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
+		IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
+		if (!lpfnAcceptEx) {
+			DWORD dwBytes;
+			GUID GuidAcceptEx = WSAID_ACCEPTEX;
+			if (WSAIoctl((SOCKET)fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
+				&GuidAcceptEx, sizeof(GuidAcceptEx),
+				&lpfnAcceptEx, sizeof(lpfnAcceptEx),
+				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnAcceptEx)
+			{
+				return FALSE;
+			}
+		}
+		if (INVALID_SOCKET == accept_ol->acceptsocket) {
+			accept_ol->acceptsocket = socket(fd_domain, SOCK_STREAM, 0);
+			if (INVALID_SOCKET == accept_ol->acceptsocket) {
+				return FALSE;
+			}
+		}
+		if (lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
+			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
+			NULL, (LPOVERLAPPED)&accept_ol->base.ol))
+		{
+			accept_ol->base.commit = 1;
+			return TRUE;
+		}
+		else if (WSAGetLastError() == ERROR_IO_PENDING) {
+			accept_ol->base.commit = 1;
+			return TRUE;
+		}
+		else {
+			closesocket(accept_ol->acceptsocket);
+			accept_ol->acceptsocket = INVALID_SOCKET;
+			return FALSE;
+		}
+	}
+	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
+		static LPFN_CONNECTEX lpfnConnectEx = NULL;
+		struct sockaddr_storage st;
+		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
+		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
+		if (!lpfnConnectEx) {
+			DWORD dwBytes;
+			GUID GuidConnectEx = WSAID_CONNECTEX;
+			if (WSAIoctl((SOCKET)fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
+				&GuidConnectEx, sizeof(GuidConnectEx),
+				&lpfnConnectEx, sizeof(lpfnConnectEx),
+				&dwBytes, NULL, NULL) == SOCKET_ERROR || !lpfnConnectEx)
+			{
+				return FALSE;
+			}
+		}
+		memset(&st, 0, sizeof(st));
+		st.ss_family = fd_domain;
+		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
+			return FALSE;
+		}
+		memmove(&conn_ol->saddr, saddr, addrlen);
+		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
+			conn_ol->base.commit = 1;
+			return TRUE;
+		}
+		else if (WSAGetLastError() == ERROR_IO_PENDING) {
+			conn_ol->base.commit = 1;
+			return TRUE;
+		}
+		return FALSE;
+	}
+	else {
+		SetLastError(ERROR_INVALID_PARAMETER);
+		return FALSE;
+	}
 #elif	__linux__
 	struct io_uring_sqe* sqe;
 	if (ol->commit) {
