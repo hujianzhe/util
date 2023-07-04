@@ -12,10 +12,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-extern BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain);
-#endif
-
 static void aio_handle_free_list(Aio_t* aio) {
 	AioFD_t* cur_free, * next_free;
 	for (cur_free = aio->__free_list_head; cur_free; cur_free = next_free) {
@@ -27,6 +23,10 @@ static void aio_handle_free_list(Aio_t* aio) {
 
 #ifdef	__cplusplus
 extern "C" {
+#endif
+
+#if _WIN32
+extern BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain);
 #endif
 
 Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
