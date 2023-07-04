@@ -13,6 +13,7 @@ typedef struct IocpOverlapped_t {
 	unsigned char commit;
 	unsigned char free_flag;
 	unsigned short opcode;
+	void* completion_key;
 } IoOverlapped_t;
 #else
 typedef struct UnixOverlapped_t {

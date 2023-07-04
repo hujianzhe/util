@@ -241,27 +241,21 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 			else {
 				read_ol->dwFlags = MSG_PEEK;
 			}
-			if (!WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
-				read_ol->base.commit = 1;
-				return TRUE;
+			if (WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
+				if (WSAGetLastError() != WSA_IO_PENDING) {
+					return FALSE;
+				}
 			}
-			else if (WSAGetLastError() == WSA_IO_PENDING) {
-				read_ol->base.commit = 1;
-				return TRUE;
-			}
-			/* note: UDP socket need bind a address before call this function, otherwise WSAGetLastError return WSAINVALID */
 		}
 		else {
-			if (ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
-				read_ol->base.commit = 1;
-				return TRUE;
-			}
-			else if (GetLastError() == ERROR_IO_PENDING) {
-				read_ol->base.commit = 1;
-				return TRUE;
+			if (!ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
+				if (GetLastError() != ERROR_IO_PENDING) {
+					return FALSE;
+				}
 			}
 		}
-		return FALSE;
+		read_ol->base.commit = 1;
+		return TRUE;
 	}
 	else if (NIO_OP_WRITE == opcode) {
 		IocpWriteOverlapped_t* write_ol;
@@ -289,26 +283,21 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				write_ol->saddr.ss_family = AF_UNSPEC;
 				write_ol->saddrlen = 0;
 			}
-			if (!WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
-				write_ol->base.commit = 1;
-				return TRUE;
-			}
-			else if (WSAGetLastError() == WSA_IO_PENDING) {
-				write_ol->base.commit = 1;
-				return TRUE;
+			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+				if (WSAGetLastError() != WSA_IO_PENDING) {
+					return FALSE;
+				}
 			}
 		}
 		else {
-			if (WriteFile((HANDLE)fd, write_ol->wsabuf.buf, write_ol->wsabuf.len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
-				write_ol->base.commit = 1;
-				return TRUE;
-			}
-			else if (GetLastError() == ERROR_IO_PENDING) {
-				write_ol->base.commit = 1;
-				return TRUE;
+			if (!WriteFile((HANDLE)fd, write_ol->wsabuf.buf, write_ol->wsabuf.len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
+				if (GetLastError() != ERROR_IO_PENDING) {
+					return FALSE;
+				}
 			}
 		}
-		return FALSE;
+		write_ol->base.commit = 1;
+		return TRUE;
 	}
 	else if (NIO_OP_ACCEPT == opcode) {
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
@@ -341,22 +330,18 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				return FALSE;
 			}
 		}
-		if (lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
+		if (!lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
 			NULL, (LPOVERLAPPED)&accept_ol->base.ol))
 		{
-			accept_ol->base.commit = 1;
-			return TRUE;
+			if (WSAGetLastError() != ERROR_IO_PENDING) {
+				closesocket(accept_ol->acceptsocket);
+				accept_ol->acceptsocket = INVALID_SOCKET;
+				return FALSE;
+			}
 		}
-		else if (WSAGetLastError() == ERROR_IO_PENDING) {
-			accept_ol->base.commit = 1;
-			return TRUE;
-		}
-		else {
-			closesocket(accept_ol->acceptsocket);
-			accept_ol->acceptsocket = INVALID_SOCKET;
-			return FALSE;
-		}
+		accept_ol->base.commit = 1;
+		return TRUE;
 	}
 	else if (NIO_OP_CONNECT == opcode) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
@@ -390,15 +375,13 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 			return FALSE;
 		}
 		memmove(&conn_ol->saddr, saddr, addrlen);
-		if (lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
-			conn_ol->base.commit = 1;
-			return TRUE;
+		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
+			if (WSAGetLastError() != ERROR_IO_PENDING) {
+				return FALSE;
+			}
 		}
-		else if (WSAGetLastError() == ERROR_IO_PENDING) {
-			conn_ol->base.commit = 1;
-			return TRUE;
-		}
-		return FALSE;
+		conn_ol->base.commit = 1;
+		return TRUE;
 	}
 	else {
 		SetLastError(ERROR_INVALID_PARAMETER);
