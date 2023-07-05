@@ -255,11 +255,15 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
+		if (aiofd->__domain != AF_UNSPEC) {
+			read_ol->msghdr.msg_name = &read_ol->saddr;
+			read_ol->msghdr.msg_namelen = sizeof(read_ol->saddr);
 
-		read_ol->msghdr.msg_name = &read_ol->saddr;
-		read_ol->msghdr.msg_namelen = sizeof(read_ol->saddr);
-
-		io_uring_prep_recvmsg(sqe, aiofd->fd, &read_ol->msghdr, 0);
+			io_uring_prep_recvmsg(sqe, aiofd->fd, &read_ol->msghdr, 0);
+		}
+		else {
+			io_uring_prep_readv(sqe, aiofd->fd, read_ol->msghdr.msg_iov, read_ol->msghdr.msg_iovlen, read_ol->offset);
+		}
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
@@ -267,18 +271,22 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
+		if (aiofd->__domain != AF_UNSPEC) {
+			if (addrlen > 0 && saddr) {
+				memmove(&write_ol->saddr, saddr, addrlen);
+				write_ol->msghdr.msg_name = &write_ol->saddr;
+				write_ol->msghdr.msg_namelen = addrlen;
+			}
+			else {
+				write_ol->msghdr.msg_name = NULL;
+				write_ol->msghdr.msg_namelen = 0;
+			}
 
-		if (addrlen > 0 && saddr) {
-			memmove(&write_ol->saddr, saddr, addrlen);
-			write_ol->msghdr.msg_name = &write_ol->saddr;
-			write_ol->msghdr.msg_namelen = addrlen;
+			io_uring_prep_sendmsg(sqe, aiofd->fd, &write_ol->msghdr, 0);
 		}
 		else {
-			write_ol->msghdr.msg_name = NULL;
-			write_ol->msghdr.msg_namelen = 0;
+			io_uring_prep_writev(sqe, aiofd->fd, write_ol->msghdr.msg_iov, write_ol->msghdr.msg_iovlen, write_ol->offset);
 		}
-
-		io_uring_prep_sendmsg(sqe, aiofd->fd, &write_ol->msghdr, 0);
 	}
 	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
 		UnixConnectOverlapped_t* conn_ol = (UnixConnectOverlapped_t*)ol;
