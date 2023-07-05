@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain) {
+BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain) {
 	struct sockaddr_storage local_saddr;
 	socklen_t slen;
 	DWORD dwBytesReturned = 0;

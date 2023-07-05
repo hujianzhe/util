@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #if _WIN32
-extern BOOL Iocp_PrepareRegUdp(SOCKET fd, int domain);
+extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
 #endif
 
 /* NIO */
@@ -168,7 +168,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				return FALSE;
 			}
 			if (SOCK_DGRAM == socktype) {
-				if (!Iocp_PrepareRegUdp(fd, fd_domain)) {
+				if (!win32_Iocp_PrepareRegUdp(fd, fd_domain)) {
 					return FALSE;
 				}
 			}

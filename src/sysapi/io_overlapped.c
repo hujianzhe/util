@@ -142,6 +142,44 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 #endif
 }
 
+long long IoOverlapped_get_file_offset(IoOverlapped_t* ol) {
+#if defined(_WIN32) || defined(_WIN64)
+	long long offset = ol->ol.OffsetHigh;
+	offset <<= 32;
+	offset |= ol->ol.Offset;
+	return offset;
+#else
+	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
+		return read_ol->off;
+	}
+	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
+		return write_ol->off;
+	}
+	return 0;
+#endif
+}
+
+IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offset) {
+#if defined(_WIN32) || defined(_WIN64)
+	if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		ol->ol.Offset = offset;
+		ol->ol.OffsetHigh = offset >> 32;
+	}
+#else
+	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
+		read_ol->off = offset;
+	}
+	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
+		write_ol->off = offset;
+	}
+#endif
+	return ol;
+}
+
 void IoOverlapped_free(IoOverlapped_t* ol) {
 	if (!ol) {
 		return;

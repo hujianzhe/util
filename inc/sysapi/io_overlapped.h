@@ -82,6 +82,8 @@ extern "C" {
 #endif
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize);
+__declspec_dll long long IoOverlapped_get_file_offset(IoOverlapped_t* ol);
+__declspec_dll IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offset);
 __declspec_dll void IoOverlapped_free(IoOverlapped_t* ol);
 
 #ifdef	__cplusplus
