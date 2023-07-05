@@ -151,11 +151,11 @@ long long IoOverlapped_get_file_offset(IoOverlapped_t* ol) {
 #else
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
-		return read_ol->off;
+		return read_ol->offset;
 	}
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
-		return write_ol->off;
+		return write_ol->offset;
 	}
 	return 0;
 #endif
@@ -170,11 +170,11 @@ IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offse
 #else
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
-		read_ol->off = offset;
+		read_ol->offset = offset;
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
-		write_ol->off = offset;
+		write_ol->offset = offset;
 	}
 #endif
 	return ol;
