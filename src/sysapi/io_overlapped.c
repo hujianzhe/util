@@ -36,7 +36,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			}
 			return &ol->base;
 		}
-		case IO_OVERLAPEED_OP_CONNECT:
+		case IO_OVERLAPPED_OP_CONNECT:
 		case IO_OVERLAPPED_OP_WRITE:
 		{
 			IocpWriteOverlapped_t* ol = (IocpWriteOverlapped_t*)malloc(sizeof(IocpWriteOverlapped_t) + appendsize);
@@ -123,7 +123,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			return &ol->base;
 		}
 		case IO_OVERLAPPED_OP_ACCEPT:
-		case IO_OVERLAPEED_OP_CONNECT:
+		case IO_OVERLAPPED_OP_CONNECT:
 		{
 			UnixConnectOverlapped_t* ol = (UnixConnectOverlapped_t*)calloc(1, sizeof(UnixConnectOverlapped_t));
 			if (!ol) {

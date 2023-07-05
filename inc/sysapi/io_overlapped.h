@@ -29,7 +29,7 @@ enum {
 	IO_OVERLAPPED_OP_READ = 1,
 	IO_OVERLAPPED_OP_WRITE = 2,
 	IO_OVERLAPPED_OP_ACCEPT = 3,
-	IO_OVERLAPEED_OP_CONNECT = 4,
+	IO_OVERLAPPED_OP_CONNECT = 4,
 };
 
 /* note: internal define, not direct use */

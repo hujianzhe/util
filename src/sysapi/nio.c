@@ -307,7 +307,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		struct sockaddr_storage st;
 		IocpConnectExOverlapped_t* conn_ol;
 		if (!niofd->__write_ol) {
-			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPEED_OP_CONNECT, NULL, 0, 0);
+			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_CONNECT, NULL, 0, 0);
 			if (!niofd->__write_ol) {
 				return FALSE;
 			}
@@ -521,7 +521,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (IO_OVERLAPPED_OP_ACCEPT == iocp_ol->opcode) {
 		*ev_mask = NIO_OP_READ;
 	}
-	else if (IO_OVERLAPEED_OP_CONNECT == iocp_ol->opcode) {
+	else if (IO_OVERLAPPED_OP_CONNECT == iocp_ol->opcode) {
 		IocpConnectExOverlapped_t* iocp_conn_ol = (IocpConnectExOverlapped_t*)iocp_ol;
 		iocp_conn_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		iocp_ol->opcode = IO_OVERLAPPED_OP_WRITE;

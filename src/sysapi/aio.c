@@ -209,7 +209,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		accept_ol->base.completion_key = aiofd;
 		return TRUE;
 	}
-	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		struct sockaddr_storage st;
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
@@ -288,7 +288,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 			io_uring_prep_writev(sqe, aiofd->fd, write_ol->msghdr.msg_iov, write_ol->msghdr.msg_iovlen, write_ol->offset);
 		}
 	}
-	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		UnixConnectOverlapped_t* conn_ol = (UnixConnectOverlapped_t*)ol;
 		sqe = io_uring_get_sqe(&aio->__r);
 		if (!sqe) {
@@ -453,7 +453,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 			accept_ol->acceptsocket = INVALID_SOCKET;
 		}
 	}
-	else if (IO_OVERLAPEED_OP_CONNECT == ol->opcode) {
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		AioFD_t* aiofd = (AioFD_t*)e->lpCompletionKey;
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
 		do {
