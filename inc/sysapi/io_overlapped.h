@@ -35,7 +35,7 @@ enum {
 /* note: internal define, not direct use */
 
 #if defined(_WIN32) || defined(_WIN64)
-typedef struct IocpReadOverlapped_t {
+typedef struct {
 	IoOverlapped_t base;
 	struct sockaddr_storage saddr;
 	int saddrlen;
@@ -43,16 +43,7 @@ typedef struct IocpReadOverlapped_t {
 	WSABUF wsabuf;
 	DWORD dwFlags;
 	unsigned char append_data[1]; /* convienent for text data */
-} IocpReadOverlapped_t;
-
-typedef struct IocpWriteOverlapped_t {
-	IoOverlapped_t base;
-	struct sockaddr_storage saddr;
-	int saddrlen;
-	DWORD dwNumberOfBytesTransferred;
-	WSABUF wsabuf;
-	unsigned char append_data[1]; /* convienent for text data */
-} IocpWriteOverlapped_t, IocpConnectExOverlapped_t;
+} IocpReadOverlapped_t, IocpWriteOverlapped_t, IocpConnectExOverlapped_t;
 
 typedef struct IocpAcceptExOverlapped_t {
 	IoOverlapped_t base;

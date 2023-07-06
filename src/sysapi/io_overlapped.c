@@ -24,7 +24,6 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
 			ol->saddrlen = sizeof(ol->saddr);
-			ol->dwFlags = 0;
 			if (refbuf && refsize) {
 				ol->wsabuf.buf = (char*)refbuf;
 				ol->wsabuf.len = refsize;
@@ -46,7 +45,6 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			memset(ol, 0, sizeof(IocpWriteOverlapped_t));
 			ol->base.opcode = opcode;
 			ol->saddr.ss_family = AF_UNSPEC;
-			ol->saddrlen = 0;
 			if (refbuf && refsize) {
 				ol->wsabuf.buf = (char*)refbuf;
 				ol->wsabuf.len = refsize;

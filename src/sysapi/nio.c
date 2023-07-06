@@ -242,7 +242,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				write_ol->saddr.ss_family = AF_UNSPEC;
 				write_ol->saddrlen = 0;
 			}
-			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
@@ -522,19 +522,13 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 		*ev_mask = NIO_OP_READ;
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == iocp_ol->opcode) {
-		IocpConnectExOverlapped_t* iocp_conn_ol = (IocpConnectExOverlapped_t*)iocp_ol;
-		iocp_conn_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		iocp_ol->opcode = IO_OVERLAPPED_OP_WRITE;
 		*ev_mask = NIO_OP_WRITE;
 	}
 	else if (IO_OVERLAPPED_OP_READ == iocp_ol->opcode) {
-		IocpReadOverlapped_t* iocp_read_ol = (IocpReadOverlapped_t*)iocp_ol;
-		iocp_read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		*ev_mask = NIO_OP_READ;
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == iocp_ol->opcode) {
-		IocpWriteOverlapped_t* iocp_write_ol = (IocpWriteOverlapped_t*)iocp_ol;
-		iocp_write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 		*ev_mask = NIO_OP_WRITE;
 	}
 	else {

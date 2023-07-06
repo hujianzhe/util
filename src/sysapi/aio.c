@@ -160,7 +160,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 				write_ol->saddr.ss_family = AF_UNSPEC;
 				write_ol->saddrlen = 0;
 			}
-			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, 0, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
