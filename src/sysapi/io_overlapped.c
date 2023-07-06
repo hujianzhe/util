@@ -180,6 +180,24 @@ IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offse
 	return ol;
 }
 
+FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol) {
+#if defined(_WIN32) || defined(_WIN64)
+	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+		IocpAcceptExOverlapped_t* iocp_acceptex = (IocpAcceptExOverlapped_t*)ol;
+		SOCKET acceptfd = iocp_acceptex->acceptsocket;
+		iocp_acceptex->acceptsocket = INVALID_SOCKET;
+		return acceptfd;
+	}
+#elif	__linux__
+	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+		int acceptfd = ol->result;
+		ol->result = -1;
+		return acceptfd;
+	}
+#endif
+	return INVALID_FD_HANDLE;
+}
+
 void IoOverlapped_free(IoOverlapped_t* ol) {
 	if (!ol) {
 		return;
@@ -190,6 +208,13 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 		if (INVALID_SOCKET != iocp_acceptex->acceptsocket) {
 			closesocket(iocp_acceptex->acceptsocket);
 			iocp_acceptex->acceptsocket = INVALID_SOCKET;
+		}
+	}
+#elif	__linux__
+	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+		if (ol->result >= 0) {
+			close(ol->result);
+			ol->result = -1;
 		}
 	}
 #endif
