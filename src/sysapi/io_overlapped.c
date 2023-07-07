@@ -176,18 +176,24 @@ IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offse
 	return ol;
 }
 
-FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol) {
+FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr, socklen_t* plen) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		IocpAcceptExOverlapped_t* iocp_acceptex = (IocpAcceptExOverlapped_t*)ol;
 		SOCKET acceptfd = iocp_acceptex->acceptsocket;
 		iocp_acceptex->acceptsocket = INVALID_SOCKET;
+		if (p_peer_saddr && plen) {
+			getpeername(acceptfd, p_peer_saddr, plen);
+		}
 		return acceptfd;
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		int acceptfd = ol->acceptfd;
 		ol->acceptfd = -1;
+		if (p_peer_saddr && plen) {
+			getpeername(acceptfd, p_peer_saddr, plen);
+		}
 		return acceptfd;
 	}
 #endif
@@ -215,18 +221,6 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 			*plen = ((IocpConnectExOverlapped_t*)ol)->saddrlen;
 			break;
 		}
-		case IO_OVERLAPPED_OP_ACCEPT:
-		{
-			IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
-			if (getpeername(accept_ol->acceptsocket, (struct sockaddr*)&accept_ol->peer_saddr, &accept_ol->peer_saddrlen)) {
-				*pp_saddr = NULL;
-				*plen = 0;
-				break;
-			}
-			*pp_saddr = (struct sockaddr*)&accept_ol->peer_saddr;
-			*plen = accept_ol->peer_saddrlen;
-			break;
-		}
 		default:
 		{
 			*pp_saddr = NULL;
@@ -246,10 +240,6 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 		case IO_OVERLAPPED_OP_CONNECT:
 			*pp_saddr = (struct sockaddr*)&((UnixConnectOverlapped_t*)ol)->saddr;
 			*plen = ((UnixConnectOverlapped_t*)ol)->saddrlen;
-			break;
-		case IO_OVERLAPPED_OP_ACCEPT:
-			*pp_saddr = (struct sockaddr*)&((UnixAcceptOverlapped_t*)ol)->saddr;
-			*plen = ((UnixAcceptOverlapped_t*)ol)->saddrlen;
 			break;
 		default:
 			*pp_saddr = NULL;

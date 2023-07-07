@@ -495,7 +495,7 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 }
 
 void nioWakeup(Nio_t* nio) {
-	if (0 == _cmpxchg16(&nio->__wakeup, 1, 0)) {
+	if (0 == _xchg16(&nio->__wakeup, 1)) {
 #if defined(_WIN32) || defined(_WIN64)
 		PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, 0, NULL);
 #else
