@@ -180,6 +180,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	}
 
 	if (NIO_OP_READ == opcode) {
+		WSABUF* ptr_wsabuf;
 		IocpReadOverlapped_t* read_ol;
 		if (!niofd->__read_ol) {
 			niofd->__read_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_READ, NULL, 0, 0);
@@ -191,23 +192,24 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		if (read_ol->base.commit) {
 			return TRUE;
 		}
+		ptr_wsabuf = &read_ol->base.iobuf;
 
 		if (fd_domain != AF_UNSPEC) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
-			if (read_ol->wsabuf.buf && read_ol->wsabuf.len) {
+			if (ptr_wsabuf->buf && ptr_wsabuf->len) {
 				read_ol->dwFlags = 0;
 			}
 			else {
 				read_ol->dwFlags = MSG_PEEK;
 			}
-			if (WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
+			if (WSARecvFrom((SOCKET)fd, ptr_wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
 			}
 		}
 		else {
-			if (!ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
+			if (!ReadFile((HANDLE)fd, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
 				if (GetLastError() != ERROR_IO_PENDING) {
 					return FALSE;
 				}
@@ -217,6 +219,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		return TRUE;
 	}
 	else if (NIO_OP_WRITE == opcode) {
+		WSABUF* ptr_wsabuf;
 		IocpWriteOverlapped_t* write_ol;
 		if (!niofd->__write_ol) {
 			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_WRITE, NULL, 0, 0);
@@ -228,6 +231,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		if (write_ol->base.commit) {
 			return TRUE;
 		}
+		ptr_wsabuf = &write_ol->base.iobuf;
 
 		if (fd_domain != AF_UNSPEC) {
 			const struct sockaddr* toaddr;
@@ -242,14 +246,14 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				write_ol->saddr.ss_family = AF_UNSPEC;
 				write_ol->saddrlen = 0;
 			}
-			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+			if (WSASendTo((SOCKET)fd, ptr_wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
 			}
 		}
 		else {
-			if (!WriteFile((HANDLE)fd, write_ol->wsabuf.buf, write_ol->wsabuf.len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
+			if (!WriteFile((HANDLE)fd, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
 				if (GetLastError() != ERROR_IO_PENDING) {
 					return FALSE;
 				}
@@ -305,6 +309,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	else if (NIO_OP_CONNECT == opcode) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		struct sockaddr_storage st;
+		WSABUF* ptr_wsabuf;
 		IocpConnectExOverlapped_t* conn_ol;
 		if (!niofd->__write_ol) {
 			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_CONNECT, NULL, 0, 0);
@@ -334,7 +339,8 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 			return FALSE;
 		}
 		memmove(&conn_ol->saddr, saddr, addrlen);
-		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
+		ptr_wsabuf = &conn_ol->base.iobuf;
+		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
 			if (WSAGetLastError() != ERROR_IO_PENDING) {
 				return FALSE;
 			}

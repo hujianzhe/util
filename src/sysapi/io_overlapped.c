@@ -25,12 +25,12 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->saddr.ss_family = AF_UNSPEC;
 			ol->saddrlen = sizeof(ol->saddr);
 			if (refbuf && refsize) {
-				ol->wsabuf.buf = (char*)refbuf;
-				ol->wsabuf.len = refsize;
+				ol->base.iobuf.buf = (char*)refbuf;
+				ol->base.iobuf.len = refsize;
 			}
 			else if (appendsize) {
-				ol->wsabuf.buf = (char*)(ol->append_data);
-				ol->wsabuf.len = appendsize;
+				ol->base.iobuf.buf = (char*)(ol->append_data);
+				ol->base.iobuf.len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
 			return &ol->base;
@@ -46,12 +46,12 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->base.opcode = opcode;
 			ol->saddr.ss_family = AF_UNSPEC;
 			if (refbuf && refsize) {
-				ol->wsabuf.buf = (char*)refbuf;
-				ol->wsabuf.len = refsize;
+				ol->base.iobuf.buf = (char*)refbuf;
+				ol->base.iobuf.len = refsize;
 			}
 			else if (appendsize) {
-				ol->wsabuf.buf = (char*)(ol->append_data);
-				ol->wsabuf.len = appendsize;
+				ol->base.iobuf.buf = (char*)(ol->append_data);
+				ol->base.iobuf.len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
 			return &ol->base;
@@ -84,16 +84,15 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
 			if (refbuf && refsize) {
-				ol->iov.iov_base = (char*)refbuf;
-				ol->iov.iov_len = refsize;
+				ol->base.iobuf.iov_base = (char*)refbuf;
+				ol->base.iobuf.iov_len = refsize;
 			}
 			else if (appendsize) {
-				ol->iov.iov_base = (char*)(ol->append_data);
-				ol->iov.iov_len = appendsize;
+				ol->base.iobuf.iov_base = (char*)(ol->append_data);
+				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
-			ol->msghdr.msg_name = &ol->saddr;
-			ol->msghdr.msg_iov = &ol->iov;
+			ol->msghdr.msg_iov = &ol->base.iobuf;
 			ol->msghdr.msg_iovlen = 1;
 			return &ol->base;
 		}
@@ -107,16 +106,15 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->base.opcode = IO_OVERLAPPED_OP_WRITE;
 			ol->saddr.ss_family = AF_UNSPEC;
 			if (refbuf && refsize) {
-				ol->iov.iov_base = (char*)refbuf;
-				ol->iov.iov_len = refsize;
+				ol->base.iobuf.iov_base = (char*)refbuf;
+				ol->base.iobuf.iov_len = refsize;
 			}
 			else if (appendsize) {
-				ol->iov.iov_base = (char*)(ol->append_data);
-				ol->iov.iov_len = appendsize;
+				ol->base.iobuf.iov_base = (char*)(ol->append_data);
+				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
-			ol->msghdr.msg_name = &ol->saddr;
-			ol->msghdr.msg_iov = &ol->iov;
+			ol->msghdr.msg_iov = &ol->base.iobuf;
 			ol->msghdr.msg_iovlen = 1;
 			return &ol->base;
 		}
@@ -188,12 +186,57 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol) {
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		int acceptfd = ol->result;
-		ol->result = -1;
+		int acceptfd = ol->acceptfd;
+		ol->acceptfd = -1;
 		return acceptfd;
 	}
 #endif
 	return INVALID_FD_HANDLE;
+}
+
+void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen) {
+#if defined(_WIN32) || defined(_WIN64)
+	switch (ol->opcode) {
+		case IO_OVERLAPPED_OP_READ:
+			*pp_saddr = (struct sockaddr*)&((IocpReadOverlapped_t*)ol)->saddr;
+			*plen = ((IocpReadOverlapped_t*)ol)->saddrlen;
+			break;
+		case IO_OVERLAPPED_OP_WRITE:
+			*pp_saddr = (struct sockaddr*)&((IocpWriteOverlapped_t*)ol)->saddr;
+			*plen = ((IocpWriteOverlapped_t*)ol)->saddrlen;
+			break;
+		case IO_OVERLAPPED_OP_CONNECT:
+			*pp_saddr = (struct sockaddr*)&((IocpConnectExOverlapped_t*)ol)->saddr;
+			*plen = ((IocpConnectExOverlapped_t*)ol)->saddrlen;
+			break;
+		case IO_OVERLAPPED_OP_ACCEPT:
+		default:
+			pp_saddr = NULL;
+			*plen = 0;
+	}
+#else
+	switch (ol->opcode) {
+		case IO_OVERLAPPED_OP_READ:
+			*pp_saddr = (struct sockaddr*)((UnixReadOverlapped_t*)ol)->msghdr.msg_name;
+			*plen = ((UnixReadOverlapped_t*)ol)->msghdr.msg_namelen;
+			break;
+		case IO_OVERLAPPED_OP_WRITE:
+			*pp_saddr = (struct sockaddr*)((UnixWriteOverlapped_t*)ol)->msghdr.msg_name;
+			*plen = ((UnixWriteOverlapped_t*)ol)->msghdr.msg_namelen;
+			break;
+		case IO_OVERLAPPED_OP_CONNECT:
+			*pp_saddr = (struct sockaddr*)((UnixConnectOverlapped_t*)ol)->saddr;
+			*plen = ((UnixConnectOverlapped_t*)ol)->saddrlen;
+			break;
+		case IO_OVERLAPPED_OP_ACCEPT:
+			*pp_saddr = (struct sockaddr*)((UnixAcceptOverlapped_t*)ol)->saddr;
+			*plen = ((UnixAcceptOverlapped_t*)ol)->saddrlen;
+			break;
+		default:
+			pp_saddr = NULL;
+			*plen = 0;
+	}
+#endif
 }
 
 void IoOverlapped_free(IoOverlapped_t* ol) {
@@ -210,9 +253,9 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		if (ol->result >= 0) {
-			close(ol->result);
-			ol->result = -1;
+		if (ol->acceptfd >= 0) {
+			close(ol->acceptfd);
+			ol->acceptfd = -1;
 		}
 	}
 #endif
