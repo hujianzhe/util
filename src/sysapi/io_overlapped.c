@@ -225,11 +225,11 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 			*plen = ((UnixWriteOverlapped_t*)ol)->msghdr.msg_namelen;
 			break;
 		case IO_OVERLAPPED_OP_CONNECT:
-			*pp_saddr = (struct sockaddr*)((UnixConnectOverlapped_t*)ol)->saddr;
+			*pp_saddr = (struct sockaddr*)&((UnixConnectOverlapped_t*)ol)->saddr;
 			*plen = ((UnixConnectOverlapped_t*)ol)->saddrlen;
 			break;
 		case IO_OVERLAPPED_OP_ACCEPT:
-			*pp_saddr = (struct sockaddr*)((UnixAcceptOverlapped_t*)ol)->saddr;
+			*pp_saddr = (struct sockaddr*)&((UnixAcceptOverlapped_t*)ol)->saddr;
 			*plen = ((UnixAcceptOverlapped_t*)ol)->saddrlen;
 			break;
 		default:

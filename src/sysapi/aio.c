@@ -423,7 +423,8 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				ol->transfer_bytes = cqe->res;
 			}
 		}
-		e[n++] = ol;
+		e[n].ol = ol;
+		n++;
 	}
 	io_uring_cq_advance(&aio->__r, n);
 	return n + 1;
