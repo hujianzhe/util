@@ -198,21 +198,40 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 #if defined(_WIN32) || defined(_WIN64)
 	switch (ol->opcode) {
 		case IO_OVERLAPPED_OP_READ:
+		{
 			*pp_saddr = (struct sockaddr*)&((IocpReadOverlapped_t*)ol)->saddr;
 			*plen = ((IocpReadOverlapped_t*)ol)->saddrlen;
 			break;
+		}
 		case IO_OVERLAPPED_OP_WRITE:
+		{
 			*pp_saddr = (struct sockaddr*)&((IocpWriteOverlapped_t*)ol)->saddr;
 			*plen = ((IocpWriteOverlapped_t*)ol)->saddrlen;
 			break;
+		}
 		case IO_OVERLAPPED_OP_CONNECT:
+		{
 			*pp_saddr = (struct sockaddr*)&((IocpConnectExOverlapped_t*)ol)->saddr;
 			*plen = ((IocpConnectExOverlapped_t*)ol)->saddrlen;
 			break;
+		}
 		case IO_OVERLAPPED_OP_ACCEPT:
+		{
+			IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
+			if (getpeername(accept_ol->acceptsocket, (struct sockaddr*)&accept_ol->peer_saddr, &accept_ol->peer_saddrlen)) {
+				*pp_saddr = NULL;
+				*plen = 0;
+				break;
+			}
+			*pp_saddr = (struct sockaddr*)&accept_ol->peer_saddr;
+			*plen = accept_ol->peer_saddrlen;
+			break;
+		}
 		default:
-			pp_saddr = NULL;
+		{
+			*pp_saddr = NULL;
 			*plen = 0;
+		}
 	}
 #else
 	switch (ol->opcode) {
@@ -233,7 +252,7 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 			*plen = ((UnixAcceptOverlapped_t*)ol)->saddrlen;
 			break;
 		default:
-			pp_saddr = NULL;
+			*pp_saddr = NULL;
 			*plen = 0;
 	}
 #endif

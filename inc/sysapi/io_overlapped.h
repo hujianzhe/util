@@ -55,7 +55,13 @@ typedef struct {
 typedef struct IocpAcceptExOverlapped_t {
 	IoOverlapped_t base;
 	SOCKET acceptsocket;
-	unsigned char saddr_bytes[sizeof(struct sockaddr_storage) + 16 + sizeof(struct sockaddr_storage) + 16];
+	union {
+		struct {
+			struct sockaddr_storage peer_saddr;
+			int peer_saddrlen;
+		};
+		unsigned char saddr_bytes[sizeof(struct sockaddr_storage) + 16 + sizeof(struct sockaddr_storage) + 16];
+	};
 } IocpAcceptExOverlapped_t;
 #else
 typedef struct {
