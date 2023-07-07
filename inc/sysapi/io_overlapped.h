@@ -13,6 +13,7 @@ typedef struct IocpOverlapped_t {
 	unsigned char commit;
 	unsigned char free_flag;
 	unsigned short opcode;
+	DWORD dwNumberOfBytesTransferred;
 	void* completion_key;
 } IoOverlapped_t;
 #else
@@ -39,7 +40,6 @@ typedef struct {
 	IoOverlapped_t base;
 	struct sockaddr_storage saddr;
 	int saddrlen;
-	DWORD dwNumberOfBytesTransferred;
 	WSABUF wsabuf;
 	DWORD dwFlags;
 	unsigned char append_data[1]; /* convienent for text data */

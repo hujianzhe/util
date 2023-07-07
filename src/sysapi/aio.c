@@ -445,6 +445,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 	ol->commit = 0;
 #if defined(_WIN32) || defined(_WIN64)
+	ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		AioFD_t* aiofd = (AioFD_t*)e->lpCompletionKey;
 		IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
@@ -470,15 +471,6 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 				break;
 			}
 		} while (0);
-		conn_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-	}
-	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
-		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
-		read_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
-	}
-	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
-		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
-		write_ol->dwNumberOfBytesTransferred = e->dwNumberOfBytesTransferred;
 	}
 #endif
 	return ol;
