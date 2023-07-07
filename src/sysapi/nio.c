@@ -289,7 +289,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				return FALSE;
 			}
 		}
-		if (!lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
+		if (!lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddr_bytes, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
 			NULL, (LPOVERLAPPED)&accept_ol->base.ol))
 		{

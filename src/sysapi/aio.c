@@ -195,7 +195,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (INVALID_SOCKET == accept_ol->acceptsocket) {
 			return FALSE;
 		}
-		if (!lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddrs, 0,
+		if (!lpfnAcceptEx((SOCKET)fd, accept_ol->acceptsocket, accept_ol->saddr_bytes, 0,
 			sizeof(struct sockaddr_storage) + 16, sizeof(struct sockaddr_storage) + 16,
 			NULL, (LPOVERLAPPED)&accept_ol->base.ol))
 		{
