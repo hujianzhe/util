@@ -411,6 +411,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		return -1;
 	}
 	n = 0;
+	e += 1;
 	io_uring_for_each_cqe(&aio->__r, head, cqe) {
 		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 		if (ol) {
