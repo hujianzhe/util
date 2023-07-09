@@ -378,6 +378,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		}
 	}
 	e[0].ol = ol;
+	e[0].ecode = cqe->res;
 	io_uring_cqe_seen(&aio->__r, cqe);
 	if (n <= 1) {
 		return 1;
@@ -411,7 +412,6 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		return -1;
 	}
 	n = 0;
-	e += 1;
 	io_uring_for_each_cqe(&aio->__r, head, cqe) {
 		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 		if (ol) {
@@ -424,8 +424,9 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				ol->transfer_bytes = cqe->res;
 			}
 		}
-		e[n].ol = ol;
 		n++;
+		e[n].ol = ol;
+		e[n].ecode = cqe->res;
 	}
 	io_uring_cq_advance(&aio->__r, n);
 	return n + 1;
