@@ -7,6 +7,8 @@
 #include "../../inc/sysapi/aio.h"
 #ifdef _WIN32
 #include <mswsock.h>
+#else
+#include <sys/time.h>
 #endif
 #include <string.h>
 #include <stdlib.h>
@@ -27,6 +29,8 @@ extern "C" {
 
 #if _WIN32
 extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
+#elif	__linux__
+static IoOverlapped_t s_wakeup_ol;
 #endif
 
 Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
@@ -343,46 +347,80 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	return -1;
 #elif	__linux__
 	int ret;
-	unsigned head;
+	unsigned head, advance_n;
 	IoOverlapped_t* ol;
 	struct io_uring_cqe* cqe, **cqes;
-	struct __kernel_timespec tval, *t;
-	if (msec >= 0) {
-		tval.tv_sec = msec / 1000;
-		tval.tv_nsec = msec % 1000;
-		tval.tv_nsec *= 1000000LL;
-		t = &tval;
-	}
-	else {
-		t = NULL;
-	}
+	struct __kernel_timespec kt;
+
 	aio_handle_free_list(aio);
 
-	ret = io_uring_wait_cqe_timeout(&aio->__r, &cqe, t);
-	if (ret != 0) {
-		if (ETIME == -ret) {
-			return 0;
+	if (msec >= 0) {
+		long long start_tm;
+		struct timeval tval;
+		if (gettimeofday(&tval, NULL)) {
+			return -1;
 		}
-		errno = -ret;
-		return -1;
+		start_tm = tval.tv_sec;
+		start_tm *= 1000;
+		start_tm += tval.tv_usec / 1000;
+		while (1) {
+			long long tm, delta_tlen;
+			kt.tv_sec = msec / 1000;
+			kt.tv_nsec = msec % 1000;
+			kt.tv_nsec *= 1000000LL;
+			ret = io_uring_wait_cqe_timeout(&aio->__r, &cqe, &kt);
+			if (ret != 0) {
+				if (ETIME == -ret) {
+					return 0;
+				}
+				errno = -ret;
+				return -1;
+			}
+			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+			io_uring_cqe_seen(&aio->__r, cqe);
+			if (ol) {
+				break;
+			}
+			if (gettimeofday(&tval, NULL)) {
+				return -1;
+			}
+			tm = tval.tv_sec;
+			tm *= 1000;
+			tm += tval.tv_usec / 1000;
+			delta_tlen = tm - start_tm;
+			if (delta_tlen >= msec || delta_tlen < 0) {
+				return 0;
+			}
+			msec -= delta_tlen;
+		}
 	}
-	ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-	if (ol) {
-		if (cqe->res < 0) {
-			ol->res = cqe->res;
-			ol->transfer_bytes = -1;
-		}
-		else {
-			ol->res = 0;
-			ol->transfer_bytes = cqe->res;
-		}
+	else {
+		do {
+			ret = io_uring_wait_cqe_timeout(&aio->__r, &cqe, NULL);
+			if (ret != 0) {
+				if (ETIME == -ret) {
+					return 0;
+				}
+				errno = -ret;
+				return -1;
+			}
+			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+			io_uring_cqe_seen(&aio->__r, cqe);
+		} while (!ol);
+	}
+	if (cqe->res < 0) {
+		ol->res = cqe->res;
+		ol->transfer_bytes = -1;
+	}
+	else {
+		ol->res = 0;
+		ol->transfer_bytes = cqe->res;
 	}
 	e[0].ol = ol;
-	e[0].ecode = cqe->res;
-	io_uring_cqe_seen(&aio->__r, cqe);
 	if (n <= 1) {
 		return 1;
 	}
+
 	n -= 1;
 	if (n > aio->__wait_cqes_cnt) {
 		cqes = (struct io_uring_cqe**)realloc(aio->__wait_cqes, sizeof(aio->__wait_cqes[0]) * n);
@@ -401,9 +439,9 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	else {
 		cqes = aio->__wait_cqes;
 	}
-	tval.tv_sec = 0;
-	tval.tv_nsec = 0;
-	ret = io_uring_wait_cqes(&aio->__r, cqes, n, &tval, NULL);
+	kt.tv_sec = 0;
+	kt.tv_nsec = 0;
+	ret = io_uring_wait_cqes(&aio->__r, cqes, n, &kt, NULL);
 	if (ret != 0) {
 		if (ETIME == -ret) {
 			return 1;
@@ -411,25 +449,27 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		errno = -ret;
 		return -1;
 	}
-	n = 0;
+	n = 1;
+	advance_n = 0;
 	io_uring_for_each_cqe(&aio->__r, head, cqe) {
+		advance_n++;
 		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-		if (ol) {
-			if (cqe->res < 0) {
-				ol->res = cqe->res;
-				ol->transfer_bytes = -1;
-			}
-			else {
-				ol->res = 0;
-				ol->transfer_bytes = cqe->res;
-			}
+		if (!ol) {
+			continue;
 		}
-		n++;
+		if (cqe->res < 0) {
+			ol->res = cqe->res;
+			ol->transfer_bytes = -1;
+		}
+		else {
+			ol->res = 0;
+			ol->transfer_bytes = cqe->res;
+		}
 		e[n].ol = ol;
-		e[n].ecode = cqe->res;
+		n++;
 	}
-	io_uring_cq_advance(&aio->__r, n);
-	return n + 1;
+	io_uring_cq_advance(&aio->__r, advance_n);
+	return n;
 #else
 	errno = ENOSYS;
 	return -1;
@@ -447,6 +487,7 @@ void aioWakeup(Aio_t* aio) {
 			return;
 		}
 		io_uring_prep_nop(sqe);
+		io_uring_sqe_set_data(sqe, &s_wakeup_ol);
 		io_uring_submit(&aio->__r);
 #endif
 	}
@@ -455,13 +496,19 @@ void aioWakeup(Aio_t* aio) {
 IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
-#else
-	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
-#endif
 	if (!ol) {
 		_xchg16(&aio->__wakeup, 0);
 		return NULL;
 	}
+#else
+	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
+	#ifdef	__linux__
+	if (&s_wakeup_ol == ol) {
+		_xchg16(&aio->__wakeup, 0);
+		return NULL;
+	}
+	#endif
+#endif
 	if (ol->free_flag) {
 		free(ol);
 		return NULL;

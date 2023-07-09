@@ -21,7 +21,6 @@ typedef OVERLAPPED_ENTRY	AioEv_t;
 #else
 typedef struct AioEv_t {
 	IoOverlapped_t* ol;
-	int ecode;
 } AioEv_t;
 #endif
 
