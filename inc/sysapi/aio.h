@@ -32,6 +32,7 @@ typedef struct AioFD_t {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL __reg;
 #endif
+	IoOverlapped_t* ol_list_tail;
 } AioFD_t;
 
 typedef struct Aio_t {
@@ -46,7 +47,6 @@ typedef struct Aio_t {
 	AioFD_t* __free_list_head;
 	void(*__fn_free_aiofd)(AioFD_t*);
 } Aio_t;
-
 
 #ifdef	__cplusplus
 extern "C" {
