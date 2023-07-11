@@ -57,7 +57,6 @@ __declspec_dll BOOL aioClose(Aio_t* aio);
 __declspec_dll void aiofdInit(AioFD_t* aiofd, FD_t fd, int domain);
 __declspec_dll void aiofdDelete(Aio_t* aio, AioFD_t* aiofd);
 __declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t addrlen);
-__declspec_dll BOOL aioCancelIo(Aio_t* aio, FD_t fd);
 __declspec_dll int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec);
 __declspec_dll void aioWakeup(Aio_t* aio);
 __declspec_dll IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e);

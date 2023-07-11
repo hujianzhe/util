@@ -126,7 +126,6 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		aiofd->fd = (FD_t)INVALID_HANDLE_VALUE;
 	}
 #else
-	aioCancelIo(aio, aiofd->fd);
 	close(aiofd->fd);
 	aiofd->fd = -1;
 #endif
@@ -358,22 +357,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	return 1;
 #else
 	errno = ENOSYS;
-	return 0;
-#endif
-}
-
-BOOL aioCancelIo(Aio_t* aio, FD_t fd) {
-#if defined(_WIN32) || defined(_WIN64)
-	return CancelIo(fd);
-#elif	__linux__
-	struct io_uring_sqe* sqe = io_uring_get_sqe(&aio->__r);
-	if (!sqe) {
-		return 0;
-	}
-	io_uring_prep_cancel_fd(sqe, fd, 0);
-	io_uring_submit(&aio->__r);
-	return 1;
-#else
 	return 0;
 #endif
 }
