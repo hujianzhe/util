@@ -119,13 +119,23 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			return &ol->base;
 		}
 		case IO_OVERLAPPED_OP_ACCEPT:
+		{
+			UnixAcceptOverlapped_t* ol = (UnixAcceptOverlapped_t*)calloc(1, sizeof(UnixAcceptOverlapped_t));
+			if (!ol) {
+				return NULL;
+			}
+			ol->base.acceptfd = -1;
+			ol->base.opcode = IO_OVERLAPPED_OP_ACCEPT;
+			ol->saddr.ss_family = AF_UNSPEC;
+			return &ol->base;
+		}
 		case IO_OVERLAPPED_OP_CONNECT:
 		{
 			UnixConnectOverlapped_t* ol = (UnixConnectOverlapped_t*)calloc(1, sizeof(UnixConnectOverlapped_t));
 			if (!ol) {
 				return NULL;
 			}
-			ol->base.opcode = opcode;
+			ol->base.opcode = IO_OVERLAPPED_OP_CONNECT;
 			ol->saddr.ss_family = AF_UNSPEC;
 			return &ol->base;
 		}
