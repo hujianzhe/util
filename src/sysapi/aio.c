@@ -101,15 +101,23 @@ BOOL aioClose(Aio_t* aio) {
 	return 1;
 }
 
-void aiofdInit(AioFD_t* aiofd, FD_t fd, int domain) {
+void aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	aiofd->fd = fd;
 	aiofd->__lnext = NULL;
 	aiofd->__delete_flag = 0;
-	aiofd->__domain = domain;
+	aiofd->__domain = 0;
+	aiofd->__socktype = 0;
+	aiofd->__protocol = 0;
 #if defined(_WIN32) || defined(_WIN64)
 	aiofd->__reg = FALSE;
 #endif
 	aiofd->ol_list_tail = NULL;
+}
+
+void aiofdSetSocketInfo(AioFD_t* aiofd, int domain, int socktype, int protocol) {
+	aiofd->__domain = domain;
+	aiofd->__socktype = socktype;
+	aiofd->__protocol = protocol;
 }
 
 void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
@@ -125,6 +133,12 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		CloseHandle((HANDLE)aiofd->fd);
 		aiofd->fd = (FD_t)INVALID_HANDLE_VALUE;
 	}
+#elif	__linux__
+	if (aiofd->__domain != AF_UNSPEC && SOCK_STREAM == aiofd->__socktype) {
+		shutdown(aiofd->fd, SHUT_RDWR);
+	}
+	close(aiofd->fd);
+	aiofd->fd = -1;
 #else
 	close(aiofd->fd);
 	aiofd->fd = -1;

@@ -29,6 +29,8 @@ typedef struct AioFD_t {
 	struct AioFD_t* __lnext;
 	short __delete_flag;
 	int __domain;
+	int __socktype;
+	int __protocol;
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL __reg;
 #endif
@@ -54,8 +56,11 @@ extern "C" {
 
 __declspec_dll Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*));
 __declspec_dll BOOL aioClose(Aio_t* aio);
-__declspec_dll void aiofdInit(AioFD_t* aiofd, FD_t fd, int domain);
+
+__declspec_dll void aiofdInit(AioFD_t* aiofd, FD_t fd);
+__declspec_dll void aiofdSetSocketInfo(AioFD_t* aiofd, int domain, int socktype, int protocol);
 __declspec_dll void aiofdDelete(Aio_t* aio, AioFD_t* aiofd);
+
 __declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t addrlen);
 __declspec_dll int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec);
 __declspec_dll void aioWakeup(Aio_t* aio);
