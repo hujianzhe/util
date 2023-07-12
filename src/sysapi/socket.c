@@ -520,7 +520,7 @@ int sockaddrIsEqual(const struct sockaddr* one, const struct sockaddr* two) {
 	return 0;
 }
 
-BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port) {
+socklen_t sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port) {
 	/* win32 must zero this structure, otherwise report 10049 error. */
 	if (af == AF_INET) {/* IPv4 */
 		struct sockaddr_in* addr_in = (struct sockaddr_in*)saddr;
@@ -536,13 +536,13 @@ BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned 
 		else {
 			unsigned int net_addr = inet_addr(strIP);
 			if (net_addr == INADDR_NONE) {
-				return FALSE;
+				return 0;
 			}
 			else {
 				addr_in->sin_addr.s_addr = net_addr;
 			}
 		}
-		return TRUE;
+		return sizeof(*addr_in);
 	}
 	else if (af == AF_INET6) {
 		struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)saddr;
@@ -552,21 +552,25 @@ BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned 
 #endif
 		addr_in6->sin6_family = AF_INET6;
 		addr_in6->sin6_port = htons(port);
-		if (strIP && strIP[0]) {
-#if defined(_WIN32) || defined(_WIN64)
-			int len = sizeof(struct sockaddr_in6);
-			return WSAStringToAddressA((char*)strIP, AF_INET6, NULL, (struct sockaddr*)addr_in6, &len) == 0;
-#else
-			return inet_pton(AF_INET6, strIP, addr_in6->sin6_addr.s6_addr) == 1;
-#endif
-		}
-		else {
+		if (!strIP || !strIP[0]) {
 			addr_in6->sin6_addr = in6addr_any;
 		}
-		return TRUE;
+		else {
+#if defined(_WIN32) || defined(_WIN64)
+			int len = sizeof(struct sockaddr_in6);
+			if (WSAStringToAddressA((char*)strIP, AF_INET6, NULL, (struct sockaddr*)addr_in6, &len)) {
+				return 0;
+			}
+#else
+			if (inet_pton(AF_INET6, strIP, addr_in6->sin6_addr.s6_addr) != 1) {
+				return 0;
+			}
+#endif
+		}
+		return sizeof(*addr_in6);
 	}
 	__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-	return FALSE;
+	return 0;
 }
 
 BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, unsigned short* port) {
@@ -791,20 +795,9 @@ end:
 
 FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec) {
 	struct sockaddr_storage st;
-	int slen;
 	int family = ipstrFamily(ip);
-	switch (family) {
-		case AF_INET:
-			slen = sizeof(struct sockaddr_in);
-			break;
-		case AF_INET6:
-			slen = sizeof(struct sockaddr_in6);
-			break;
-		default:
-			__SetErrorCode(SOCKET_ERROR_VALUE(EAFNOSUPPORT));
-			return INVALID_SOCKET;
-	}
-	if (!sockaddrEncode((struct sockaddr*)&st, family, ip, port)) {
+	socklen_t slen = sockaddrEncode((struct sockaddr*)&st, family, ip, port);
+	if (slen <= 0) {
 		return INVALID_SOCKET;
 	}
 	return socketTcpConnect((struct sockaddr*)&st, slen, msec);
@@ -876,14 +869,16 @@ BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen) 
 
 FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
 	struct sockaddr_storage ss;
+	socklen_t sslen;
 	FD_t sockfd = socket(family, SOCK_STREAM, 0);
 	if (INVALID_FD_HANDLE == sockfd) {
-		return sockfd;
+		return INVALID_FD_HANDLE;
 	}
-	if (!sockaddrEncode((struct sockaddr*)&ss, family, ip, port)) {
+	sslen = sockaddrEncode((struct sockaddr*)&ss, family, ip, port);
+	if (sslen <= 0) {
 		goto err;
 	}
-	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sockaddrLength(family))) {
+	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sslen)) {
 		goto err;
 	}
 	return sockfd;

@@ -131,7 +131,7 @@ __declspec_dll BOOL ipstrIsInner(const char* ip);
 __declspec_dll int ipstrFamily(const char* ip);
 __declspec_dll int sockaddrLength(int family);
 __declspec_dll int sockaddrIsEqual(const struct sockaddr* one, const struct sockaddr* two);
-__declspec_dll BOOL sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port);
+__declspec_dll socklen_t sockaddrEncode(struct sockaddr* saddr, int af, const char* strIP, unsigned short port);
 __declspec_dll BOOL sockaddrDecode(const struct sockaddr* saddr, char* strIP, unsigned short* port);
 __declspec_dll BOOL sockaddrSetPort(struct sockaddr* saddr, unsigned short port);
 /* SOCKET */
