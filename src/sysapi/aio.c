@@ -404,10 +404,10 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				return -1;
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-			io_uring_cqe_seen(&aio->__r, cqe);
 			if (ol) {
 				break;
 			}
+			io_uring_cqe_seen(&aio->__r, cqe);
 			if (gettimeofday(&tval, NULL)) {
 				return -1;
 			}
@@ -422,7 +422,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		}
 	}
 	else {
-		do {
+		while (1) {
 			ret = io_uring_wait_cqe_timeout(&aio->__r, &cqe, NULL);
 			if (ret != 0) {
 				if (ETIME == -ret) {
@@ -432,8 +432,11 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				return -1;
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+			if (ol) {
+				break;
+			}
 			io_uring_cqe_seen(&aio->__r, cqe);
-		} while (!ol);
+		}
 	}
 	if (cqe->res < 0) {
 		ol->res = cqe->res;
@@ -443,6 +446,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		ol->res = 0;
 		ol->transfer_bytes = cqe->res;
 	}
+	io_uring_cqe_seen(&aio->__r, cqe);
 	e[0].ol = ol;
 	if (n <= 1) {
 		return 1;
