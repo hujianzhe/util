@@ -46,12 +46,12 @@ static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	}
 	if (ol->prev) {
 		ol->prev->next = ol->next;
-		ol->prev = NULL;
 	}
 	if (ol->next) {
 		ol->next->prev = ol->prev;
-		ol->next = NULL;
 	}
+	ol->prev = NULL;
+	ol->next = NULL;
 }
 
 #ifdef	__cplusplus
