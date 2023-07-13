@@ -175,6 +175,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 #if defined(_WIN32) || defined(_WIN64)
 	int fd_domain = aiofd->__domain;
 	FD_t fd = aiofd->fd;
+	if (aiofd->__delete_flag) {
+		return FALSE;
+	}
 	if (ol->commit) {
 		return TRUE;
 	}
@@ -315,6 +318,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	return TRUE;
 #elif	__linux__
 	struct io_uring_sqe* sqe;
+	if (aiofd->__delete_flag) {
+		return 0;
+	}
 	if (ol->commit) {
 		return 1;
 	}
