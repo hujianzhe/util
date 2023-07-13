@@ -28,11 +28,19 @@ int gmtimeTimezoneOffsetSecond(void) {
 			return -1;
 		tm_gmtoff = tz.Bias * 60;
 #else
+		time_t v = time(NULL);
+		struct tm tm;
+		if (!localtime_r(&v, &tm)) {
+			return -1;
+		}
+		tm_gmtoff = -tm.tm_gmtoff;
+		/*
 		struct timeval tv;
 		struct timezone tz;
 		if (gettimeofday(&tv, &tz))
 			return -1;
 		tm_gmtoff = tz.tz_minuteswest * 60;
+		*/
 #endif
 	}
 	return tm_gmtoff;
