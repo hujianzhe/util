@@ -14,7 +14,7 @@ typedef struct IocpOverlapped_t {
 	DWORD transfer_bytes;
 	unsigned char commit;
 	unsigned char free_flag;
-	unsigned short opcode;
+	short opcode;
 	void* completion_key;
 	struct IocpOverlapped_t* prev;
 	struct IocpOverlapped_t* next;
@@ -25,12 +25,13 @@ typedef struct IocpOverlapped_t {
 typedef struct UnixOverlapped_t {
 	int res;
 	union {
+		int closefd;
 		int acceptfd;
 		int transfer_bytes;
 	};
 	unsigned char commit;
 	unsigned char free_flag;
-	unsigned short opcode;
+	short opcode;
 	void* completion_key;
 	struct UnixOverlapped_t* prev;
 	struct UnixOverlapped_t* next;
@@ -39,6 +40,8 @@ typedef struct UnixOverlapped_t {
 #endif
 
 enum {
+	IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE = -1,
+
 	IO_OVERLAPPED_OP_READ = 1,
 	IO_OVERLAPPED_OP_WRITE = 2,
 	IO_OVERLAPPED_OP_ACCEPT = 3,

@@ -136,8 +136,29 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 #elif	__linux__
 	if (aiofd->__domain != AF_UNSPEC && SOCK_STREAM == aiofd->__socktype) {
 		shutdown(aiofd->fd, SHUT_RDWR);
+		close(aiofd->fd);
 	}
-	close(aiofd->fd);
+	else {
+		IoOverlapped_t* ol = (IoOverlapped_t*)malloc(sizeof(IoOverlapped_t));
+		if (!ol) {
+			close(aiofd->fd);
+		}
+		else {
+			struct io_uring_sqe* sqe = io_uring_get_sqe(&aio->__r);
+			if (sqe) {
+				ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
+				ol->closefd = aiofd->fd;
+
+				io_uring_prep_cancel_fd(sqe, aiofd->fd, 0);
+				io_uring_sqe_set_data(sqe, ol);
+				io_uring_submit(&aio->__r);
+			}
+			else {
+				free(ol);
+				close(aiofd->fd);
+			}
+		}
+	}
 	aiofd->fd = -1;
 #else
 	close(aiofd->fd);
@@ -419,7 +440,13 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			if (ol) {
-				break;
+				if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode) {
+					close(ol->closefd);
+					free(ol);
+				}
+				else {
+					break;
+				}
 			}
 			io_uring_cqe_seen(&aio->__r, cqe);
 			if (gettimeofday(&tval, NULL)) {
@@ -447,7 +474,13 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			if (ol) {
-				break;
+				if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode) {
+					close(ol->closefd);
+					free(ol);
+				}
+				else {
+					break;
+				}
 			}
 			io_uring_cqe_seen(&aio->__r, cqe);
 		}
