@@ -108,7 +108,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			if (!ol) {
 				return NULL;
 			}
-			ol->base.acceptfd = -1;
+			ol->base.fd = -1;
 			ol->base.opcode = IO_OVERLAPPED_OP_ACCEPT;
 			ol->saddr.ss_family = AF_UNSPEC;
 			return &ol->base;
@@ -183,8 +183,8 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		int acceptfd = ol->acceptfd;
-		ol->acceptfd = -1;
+		int acceptfd = ol->fd;
+		ol->fd = -1;
 		if (p_peer_saddr && plen) {
 			getpeername(acceptfd, p_peer_saddr, plen);
 		}
@@ -198,28 +198,20 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 #if defined(_WIN32) || defined(_WIN64)
 	switch (ol->opcode) {
 		case IO_OVERLAPPED_OP_READ:
-		{
 			*pp_saddr = (struct sockaddr*)&((IocpReadOverlapped_t*)ol)->saddr;
 			*plen = ((IocpReadOverlapped_t*)ol)->saddrlen;
 			break;
-		}
 		case IO_OVERLAPPED_OP_WRITE:
-		{
 			*pp_saddr = (struct sockaddr*)&((IocpWriteOverlapped_t*)ol)->saddr;
 			*plen = ((IocpWriteOverlapped_t*)ol)->saddrlen;
 			break;
-		}
 		case IO_OVERLAPPED_OP_CONNECT:
-		{
 			*pp_saddr = (struct sockaddr*)&((IocpConnectExOverlapped_t*)ol)->saddr;
 			*plen = ((IocpConnectExOverlapped_t*)ol)->saddrlen;
 			break;
-		}
 		default:
-		{
 			*pp_saddr = NULL;
 			*plen = 0;
-		}
 	}
 #else
 	switch (ol->opcode) {
@@ -256,9 +248,9 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		if (ol->acceptfd >= 0) {
-			close(ol->acceptfd);
-			ol->acceptfd = -1;
+		if (ol->fd >= 0) {
+			close(ol->fd);
+			ol->fd = -1;
 		}
 	}
 #endif
