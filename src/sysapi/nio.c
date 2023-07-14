@@ -183,7 +183,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		WSABUF* ptr_wsabuf;
 		IocpReadOverlapped_t* read_ol;
 		if (!niofd->__read_ol) {
-			niofd->__read_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_READ, NULL, 0, 0);
+			niofd->__read_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_READ, 0);
 			if (!niofd->__read_ol) {
 				return FALSE;
 			}
@@ -222,7 +222,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		WSABUF* ptr_wsabuf;
 		IocpWriteOverlapped_t* write_ol;
 		if (!niofd->__write_ol) {
-			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_WRITE, NULL, 0, 0);
+			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_WRITE, 0);
 			if (!niofd->__write_ol) {
 				return FALSE;
 			}
@@ -266,7 +266,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		static LPFN_ACCEPTEX lpfnAcceptEx = NULL;
 		IocpAcceptExOverlapped_t* accept_ol;
 		if (!niofd->__read_ol) {
-			niofd->__read_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_ACCEPT, NULL, 0, 0);
+			niofd->__read_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_ACCEPT, 0);
 			if (!niofd->__read_ol) {
 				return FALSE;
 			}
@@ -312,7 +312,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		WSABUF* ptr_wsabuf;
 		IocpConnectExOverlapped_t* conn_ol;
 		if (!niofd->__write_ol) {
-			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_CONNECT, NULL, 0, 0);
+			niofd->__write_ol = (OVERLAPPED*)IoOverlapped_alloc(IO_OVERLAPPED_OP_CONNECT, 0);
 			if (!niofd->__write_ol) {
 				return FALSE;
 			}

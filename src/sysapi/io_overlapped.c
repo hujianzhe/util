@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int refsize, unsigned int appendsize) {
+IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (opcode) {
 		case IO_OVERLAPPED_OP_READ:
@@ -24,11 +24,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
 			ol->saddrlen = sizeof(ol->saddr);
-			if (refbuf && refsize) {
-				ol->base.iobuf.buf = (char*)refbuf;
-				ol->base.iobuf.len = refsize;
-			}
-			else if (appendsize) {
+			if (appendsize) {
 				ol->base.iobuf.buf = (char*)(ol->append_data);
 				ol->base.iobuf.len = appendsize;
 				ol->append_data[appendsize] = 0;
@@ -45,11 +41,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			memset(ol, 0, sizeof(IocpWriteOverlapped_t));
 			ol->base.opcode = opcode;
 			ol->saddr.ss_family = AF_UNSPEC;
-			if (refbuf && refsize) {
-				ol->base.iobuf.buf = (char*)refbuf;
-				ol->base.iobuf.len = refsize;
-			}
-			else if (appendsize) {
+			if (appendsize) {
 				ol->base.iobuf.buf = (char*)(ol->append_data);
 				ol->base.iobuf.len = appendsize;
 				ol->append_data[appendsize] = 0;
@@ -83,11 +75,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			memset(ol, 0, sizeof(UnixReadOverlapped_t));
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
-			if (refbuf && refsize) {
-				ol->base.iobuf.iov_base = (char*)refbuf;
-				ol->base.iobuf.iov_len = refsize;
-			}
-			else if (appendsize) {
+			if (appendsize) {
 				ol->base.iobuf.iov_base = (char*)(ol->append_data);
 				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
@@ -105,11 +93,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, const void* refbuf, unsigned int 
 			memset(ol, 0, sizeof(UnixWriteOverlapped_t));
 			ol->base.opcode = IO_OVERLAPPED_OP_WRITE;
 			ol->saddr.ss_family = AF_UNSPEC;
-			if (refbuf && refsize) {
-				ol->base.iobuf.iov_base = (char*)refbuf;
-				ol->base.iobuf.iov_len = refsize;
-			}
-			else if (appendsize) {
+			if (appendsize) {
 				ol->base.iobuf.iov_base = (char*)(ol->append_data);
 				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
