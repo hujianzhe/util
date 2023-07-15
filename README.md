@@ -55,7 +55,7 @@
 				tree				类型无关的普通树  
 				url					URL解析与编解码接口  
 			sysapi/  
-				aio					提供统一网络AIO接口(基于iocp/io_uring)  
+				aio					提供统一AIO接口(基于iocp/io_uring)  
 				assert				提供一个相对于assert的高级断言  
 				atomic				提供统一的原子操作接口  
 				error				提供统一的系统错误码接口  
