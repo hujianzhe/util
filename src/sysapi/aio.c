@@ -512,12 +512,12 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		}
 	}
 	if (cqe->res < 0) {
-		ol->res = cqe->res;
-		ol->transfer_bytes = -1;
+		ol->error = -cqe->res;
+		ol->retval = -1;
 	}
 	else {
-		ol->res = 0;
-		ol->transfer_bytes = cqe->res;
+		ol->error = 0;
+		ol->retval = cqe->res;
 	}
 	io_uring_cqe_seen(&aio->__r, cqe);
 	e[0].ol = ol;
@@ -562,12 +562,12 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 			continue;
 		}
 		if (cqe->res < 0) {
-			ol->res = cqe->res;
-			ol->transfer_bytes = -1;
+			ol->error = -cqe->res;
+			ol->retval = 0;
 		}
 		else {
-			ol->res = 0;
-			ol->transfer_bytes = cqe->res;
+			ol->error = 0;
+			ol->retval = cqe->res;
 		}
 		e[n].ol = ol;
 		n++;
@@ -615,11 +615,13 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	aiofd_unlink_ol(aiofd, ol);
 
 	ol->transfer_bytes = e->dwNumberOfBytesTransferred;
+	ol->error = e->Internal;
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
 		if (setsockopt(accept_ol->acceptsocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&aiofd->fd, sizeof(aiofd->fd))) {
 			closesocket(accept_ol->acceptsocket);
 			accept_ol->acceptsocket = INVALID_SOCKET;
+			ol->error = WSAGetLastError();
 		}
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
@@ -628,13 +630,15 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 			int sec;
 			int len = sizeof(sec);
 			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
+				ol->error = WSAGetLastError();
 				break;
 			}
 			if (~0 == sec) {
-				//SetLastError(ERROR_TIMEOUT);
+				ol->error = ERROR_TIMEOUT;
 				break;
 			}
 			if (setsockopt(aiofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
+				ol->error = WSAGetLastError();
 				break;
 			}
 		} while (0);

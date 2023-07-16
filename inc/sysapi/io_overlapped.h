@@ -11,6 +11,7 @@
 #include <ws2tcpip.h>
 typedef struct IocpOverlapped_t {
 	OVERLAPPED ol;
+	int error;
 	DWORD transfer_bytes;
 	unsigned char commit;
 	unsigned char free_flag;
@@ -23,10 +24,11 @@ typedef struct IocpOverlapped_t {
 #else
 #include <sys/socket.h>
 typedef struct UnixOverlapped_t {
-	int res;
+	int error;
 	union {
 		int fd;
-		int transfer_bytes;
+		int retval;
+		unsigned int transfer_bytes;
 	};
 	unsigned char commit;
 	unsigned char free_flag;
