@@ -692,13 +692,10 @@ BOOL socketGetType(FD_t sockfd, int* ptr_socktype) {
 }
 
 int socketError(FD_t sockfd) {
-	int error;
+	int error = 0;
 	socklen_t len = sizeof(int);
-	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len) == 0) {
-		__SetErrorCode(error);
-	}
-	else {
-		error = __GetErrorCode();
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&error, &len)) {
+		return __GetErrorCode();
 	}
 	return error;
 }

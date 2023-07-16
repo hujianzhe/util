@@ -303,6 +303,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 				return FALSE;
 			}
 		}
+		accept_ol->listensocket = (SOCKET)fd;
 		accept_ol->base.commit = 1;
 		return TRUE;
 	}
@@ -629,25 +630,11 @@ BOOL nioConnectCheckSuccess(FD_t sockfd) {
 
 FD_t nioAccept(NioFD_t* niofd, struct sockaddr* peer_saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
-	SOCKET acceptfd;
 	IocpAcceptExOverlapped_t* iocp_ol = (IocpAcceptExOverlapped_t*)niofd->__read_ol;
 	if (!iocp_ol || INVALID_SOCKET == iocp_ol->acceptsocket) {
 		return accept(niofd->fd, peer_saddr, p_slen);
 	}
-	acceptfd = iocp_ol->acceptsocket;
-	iocp_ol->acceptsocket = INVALID_SOCKET;
-	if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&niofd->fd, sizeof(niofd->fd))) {
-		closesocket(acceptfd);
-		return INVALID_FD_HANDLE;
-	}
-	if (!peer_saddr || !p_slen) {
-		return acceptfd;
-	}
-	if (getpeername(acceptfd, peer_saddr, p_slen)) {
-		closesocket(acceptfd);
-		return INVALID_FD_HANDLE;
-	}
-	return acceptfd;
+	return IoOverlapped_pop_acceptfd(&iocp_ol->base, peer_saddr, p_slen);
 #else
 	return accept(niofd->fd, peer_saddr, p_slen);
 #endif

@@ -3,6 +3,9 @@
 //
 
 #include "../../inc/sysapi/io_overlapped.h"
+#ifdef _WIN32
+#include <mswsock.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -56,6 +59,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			}
 			ol->base.opcode = IO_OVERLAPPED_OP_ACCEPT;
 			ol->acceptsocket = INVALID_SOCKET;
+			ol->listensocket = INVALID_SOCKET;
 			return &ol->base;
 		}
 		default:
@@ -176,8 +180,15 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 		IocpAcceptExOverlapped_t* iocp_acceptex = (IocpAcceptExOverlapped_t*)ol;
 		SOCKET acceptfd = iocp_acceptex->acceptsocket;
 		iocp_acceptex->acceptsocket = INVALID_SOCKET;
+		if (setsockopt(acceptfd, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&iocp_acceptex->listensocket, sizeof(iocp_acceptex->listensocket))) {
+			closesocket(acceptfd);
+			return INVALID_FD_HANDLE;
+		}
 		if (p_peer_saddr && plen) {
-			getpeername(acceptfd, p_peer_saddr, plen);
+			if (getpeername(acceptfd, p_peer_saddr, plen)) {
+				closesocket(acceptfd);
+				return INVALID_FD_HANDLE;
+			}
 		}
 		return acceptfd;
 	}

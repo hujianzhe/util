@@ -64,6 +64,7 @@ typedef struct {
 typedef struct IocpAcceptExOverlapped_t {
 	IoOverlapped_t base;
 	SOCKET acceptsocket;
+	SOCKET listensocket;
 	union {
 		struct {
 			struct sockaddr_storage peer_saddr;

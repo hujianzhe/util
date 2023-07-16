@@ -309,6 +309,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 				return FALSE;
 			}
 		}
+		accept_ol->listensocket = (SOCKET)fd;
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
@@ -615,16 +616,8 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	aiofd_unlink_ol(aiofd, ol);
 
 	ol->transfer_bytes = e->dwNumberOfBytesTransferred;
-	ol->error = e->Internal;
-	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		IocpAcceptExOverlapped_t* accept_ol = (IocpAcceptExOverlapped_t*)ol;
-		if (setsockopt(accept_ol->acceptsocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&aiofd->fd, sizeof(aiofd->fd))) {
-			closesocket(accept_ol->acceptsocket);
-			accept_ol->acceptsocket = INVALID_SOCKET;
-			ol->error = WSAGetLastError();
-		}
-	}
-	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+	ol->error = e->Internal; /* NTSTATUS */
+	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
 		do {
 			int sec;
