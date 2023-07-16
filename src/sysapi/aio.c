@@ -616,7 +616,12 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	aiofd_unlink_ol(aiofd, ol);
 
 	ol->transfer_bytes = e->dwNumberOfBytesTransferred;
-	ol->error = e->Internal; /* NTSTATUS */
+	if (NT_ERROR(e->Internal)) {
+		ol->error = e->Internal;
+	}
+	else {
+		ol->error = 0;
+	}
 	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
 		do {
