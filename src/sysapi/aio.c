@@ -514,7 +514,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	}
 	if (cqe->res < 0) {
 		ol->error = -cqe->res;
-		ol->retval = -1;
+		ol->retval = 0;
 	}
 	else {
 		ol->error = 0;
