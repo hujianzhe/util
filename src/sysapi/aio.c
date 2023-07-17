@@ -622,25 +622,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	else {
 		ol->error = 0;
 	}
-	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
-		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
-		do {
-			int sec;
-			int len = sizeof(sec);
-			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
-				ol->error = WSAGetLastError();
-				break;
-			}
-			if (~0 == sec) {
-				ol->error = ERROR_TIMEOUT;
-				break;
-			}
-			if (setsockopt(aiofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
-				ol->error = WSAGetLastError();
-				break;
-			}
-		} while (0);
-	}
+
 	return ol;
 #elif	__linux__
 	AioFD_t* aiofd;

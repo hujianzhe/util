@@ -3,6 +3,7 @@
 //
 
 #include "../../inc/component/reactor.h"
+#include "../../inc/sysapi/io_overlapped.h"
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/time.h"
 #include "../../inc/sysapi/misc.h"
@@ -706,7 +707,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 		o->stream.m_connect_end_msec = 0;
 	}
-	if (!nioConnectCheckSuccess(o->niofd.fd)) {
+	if (IoOverlapped_connect_update(o->niofd.fd)) {
 		return 0;
 	}
 	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {

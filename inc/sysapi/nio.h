@@ -66,7 +66,6 @@ __declspec_dll BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const stru
 __declspec_dll int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec);
 __declspec_dll void nioWakeup(Nio_t* nio);
 __declspec_dll NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask);
-__declspec_dll BOOL nioConnectCheckSuccess(FD_t sockfd);
 __declspec_dll FD_t nioAccept(NioFD_t* niofd, struct sockaddr* peer_saddr, socklen_t* p_slen);
 __declspec_dll BOOL nioClose(Nio_t* nio);
 
