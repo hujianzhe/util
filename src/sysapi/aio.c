@@ -69,7 +69,10 @@ static int uring_filter_internal_ol__(IoOverlapped_t* ol, __u32 flags) {
 		return 1;
 	}
 	if (flags & IORING_CQE_F_NOTIF) {
-		IoOverlapped_free(ol);
+		ol->__wait_cqe_notify = 0;
+		if (ol->free_flag) {
+			IoOverlapped_free(ol);
+		}
 		return 1;
 	}
 	return 0;

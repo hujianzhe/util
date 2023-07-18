@@ -288,6 +288,10 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 			ol->fd = -1;
 		}
 	}
+	if (ol->__wait_cqe_notify) {
+		ol->free_flag = 1;
+		return;
+	}
 #endif
 	if (ol->commit) {
 		ol->free_flag = 1;
