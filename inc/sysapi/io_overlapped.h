@@ -24,6 +24,9 @@ typedef struct IocpOverlapped_t {
 #else
 #include <sys/socket.h>
 typedef struct UnixOverlapped_t {
+#ifdef	__linux__
+	int __wait_cqe_notify;
+#endif
 	int error;
 	union {
 		int fd;

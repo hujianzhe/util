@@ -57,7 +57,7 @@ static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 #ifdef	__linux__
 static IoOverlapped_t s_wakeup_ol;
 
-static int uring_filter_internal_ol__(IoOverlapped_t* ol) {
+static int uring_filter_internal_ol__(IoOverlapped_t* ol, __u32 flags) {
 	if (!ol) {
 		return 1;
 	}
@@ -68,7 +68,25 @@ static int uring_filter_internal_ol__(IoOverlapped_t* ol) {
 		free(ol);
 		return 1;
 	}
+	if (flags & IORING_CQE_F_NOTIF) {
+		IoOverlapped_free(ol);
+		return 1;
+	}
 	return 0;
+}
+
+static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
+	if (cqe->res < 0) {
+		ol->error = -cqe->res;
+		ol->retval = 0;
+	}
+	else {
+		ol->error = 0;
+		ol->retval = cqe->res;
+	}
+	if (cqe->flags & IORING_CQE_F_MORE) {
+		ol->__wait_cqe_notify = 1;
+	}
 }
 #endif
 
@@ -478,7 +496,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				return -1;
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-			if (!uring_filter_internal_ol__(ol)) {
+			if (!uring_filter_internal_ol__(ol, cqe->flags)) {
 				break;
 			}
 			io_uring_cqe_seen(&aio->__r, cqe);
@@ -506,20 +524,13 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				return -1;
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-			if (!uring_filter_internal_ol__(ol)) {
+			if (!uring_filter_internal_ol__(ol, cqe->flags)) {
 				break;
 			}
 			io_uring_cqe_seen(&aio->__r, cqe);
 		}
 	}
-	if (cqe->res < 0) {
-		ol->error = -cqe->res;
-		ol->retval = 0;
-	}
-	else {
-		ol->error = 0;
-		ol->retval = cqe->res;
-	}
+	uring_cqe_save__(ol, cqe);
 	io_uring_cqe_seen(&aio->__r, cqe);
 	e[0].ol = ol;
 	if (n <= 1) {
@@ -559,17 +570,10 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	io_uring_for_each_cqe(&aio->__r, head, cqe) {
 		advance_n++;
 		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-		if (uring_filter_internal_ol__(ol)) {
+		if (uring_filter_internal_ol__(ol, cqe->flags)) {
 			continue;
 		}
-		if (cqe->res < 0) {
-			ol->error = -cqe->res;
-			ol->retval = 0;
-		}
-		else {
-			ol->error = 0;
-			ol->retval = cqe->res;
-		}
+		uring_cqe_save__(ol, cqe);
 		e[n].ol = ol;
 		n++;
 	}
