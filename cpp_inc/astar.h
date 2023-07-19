@@ -48,8 +48,8 @@ public:
 
 	virtual ~AStarBase() {}
 
-	int maxSearchPoint() { return m_maxSearchPoint; }
-	void maxSearchPoint(unsigned int v) {
+	size_t maxSearchPoint() { return m_maxSearchPoint; }
+	void maxSearchPoint(size_t v) {
 		m_maxSearchPoint = v;
 		m_openheap.reserve(v);
 	}
@@ -74,7 +74,7 @@ protected:
 
 protected:
 	int m_curVersion;
-	unsigned int m_maxSearchPoint;
+	size_t m_maxSearchPoint;
 	std::vector<Pos*> m_openheap;
 };
 

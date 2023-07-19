@@ -125,9 +125,9 @@ public:
                 if (it->sleep_co_node) {
                     next_set.insert(it->sleep_co_node);
                 }
-                evlist.erase(it++);
+                it = evlist.erase(it);
             }
-            m_timeout_events.erase(it++);
+            it = m_timeout_events.erase(it);
         }
         for (auto it = m_block_points.begin(); it != m_block_points.end(); ) {
             CoroutineNode* co_node = it->second;
@@ -135,7 +135,7 @@ public:
             if (parent) {
                 next_set.insert(parent);
             }
-            m_block_points.erase(it++);
+            it = m_block_points.erase(it);
         }
         while (!next_set.empty()) {
             std::unordered_set<CoroutineNode*> tmp_set;
@@ -145,7 +145,7 @@ public:
                 if (parent) {
                     tmp_set.insert(parent);
                 }
-                next_set.erase(it++);
+                it = next_set.erase(it);
             }
             next_set.swap(tmp_set);
         }

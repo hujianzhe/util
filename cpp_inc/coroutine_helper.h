@@ -247,7 +247,7 @@ private:
     void onScheDestroy() {
         for (auto it = m_run_nodes.begin(); it != m_run_nodes.end(); ) {
             (*it)->m_awaiter_anyone = nullptr;
-            m_run_nodes.erase(it++);
+            it = m_run_nodes.erase(it);
         }
     }
 

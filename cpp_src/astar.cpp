@@ -88,7 +88,7 @@ bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarBase
 	m_openheap.resize(0);
 	Pos* startpos = curpos;
 	Pos* nextpos = NULL;
-	unsigned int cur_search_point = 0;
+	size_t cur_search_point = 0;
 	while (true) {
 		Pos* vec_openpos[8];
 		unsigned int vec_openpos_cnt = 0;
@@ -236,7 +236,7 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 	m_openheap.resize(0);
 	Pos* startpos = curpos;
 	Pos* nextpos = NULL;
-	unsigned int cur_search_point = 0;
+	size_t cur_search_point = 0;
 	while (true) {
 		std::vector<Pos*> vec_openpos;
 		if (cur_search_point >= m_maxSearchPoint) {
