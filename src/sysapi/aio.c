@@ -645,6 +645,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 	if (ol->free_flag) {
 		if (ol->__wait_cqe_notify) {
+			ol->commit = 0;
 			return NULL;
 		}
 		free(ol);
