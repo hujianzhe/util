@@ -300,6 +300,18 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	free(ol);
 }
 
+int IoOverlapped_check_reuse_able(IoOverlapped_t* ol) {
+#ifdef	__linux__
+	if (ol->__wait_cqe_notify) {
+		return 0;
+	}
+#endif
+	if (ol->commit || ol->free_flag) {
+		return 0;
+	}
+	return 1;
+}
+
 #ifdef	__cplusplus
 }
 #endif

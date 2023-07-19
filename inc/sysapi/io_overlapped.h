@@ -103,6 +103,7 @@ __declspec_dll int IoOverlapped_connect_update(FD_t sockfd);
 __declspec_dll FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr, socklen_t* plen);
 __declspec_dll void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen);
 __declspec_dll void IoOverlapped_free(IoOverlapped_t* ol);
+__declspec_dll int IoOverlapped_check_reuse_able(IoOverlapped_t* ol);
 
 #ifdef	__cplusplus
 }
