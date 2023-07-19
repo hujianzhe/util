@@ -144,6 +144,7 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	if (!aiofd->__delete_ol) {
 		return NULL;
 	}
+	aiofd->enable_zero_copy = 0;
 #endif
 	aiofd->fd = fd;
 	aiofd->__lnext = NULL;
@@ -410,8 +411,12 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 				write_ol->msghdr.msg_name = NULL;
 				write_ol->msghdr.msg_namelen = 0;
 			}
-
-			io_uring_prep_sendmsg(sqe, aiofd->fd, &write_ol->msghdr, 0);
+			if (aiofd->enable_zero_copy) {
+				io_uring_prep_sendmsg_zc(sqe, aiofd->fd, &write_ol->msghdr, 0);
+			}
+			else {
+				io_uring_prep_sendmsg(sqe, aiofd->fd, &write_ol->msghdr, 0);
+			}
 		}
 		else {
 			io_uring_prep_writev(sqe, aiofd->fd, write_ol->msghdr.msg_iov, write_ol->msghdr.msg_iovlen, write_ol->offset);

@@ -35,6 +35,7 @@ typedef struct AioFD_t {
 	BOOL __reg;
 #elif	__linux__
 	IoOverlapped_t* __delete_ol;
+	int enable_zero_copy;
 #endif
 	IoOverlapped_t* ol_list_tail;
 } AioFD_t;
