@@ -1247,7 +1247,7 @@ ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const stru
 	if (CHANNEL_SIDE_LISTEN == side) {
 		if (SOCK_STREAM == channel->socktype) {
 			if (AF_UNSPEC == channel->listen_addr.sa.sa_family) {
-				if (!socketTcpListen(fd, op_addr, op_addrlen)) {
+				if (!socketTcpListen(fd, op_addr, op_addrlen, SOMAXCONN)) {
 					return NULL;
 				}
 				memmove(&channel->listen_addr, op_addr, op_addrlen);

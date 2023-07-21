@@ -857,14 +857,17 @@ FD_t socketTcpAccept(FD_t listenfd, int msec, struct sockaddr* from, socklen_t* 
 	return confd;
 }
 
-BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen) {
+BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen, int backlog) {
 	if (!socketBindAndReuse(sockfd, saddr, slen)) {
 		return FALSE;
 	}
-	return listen(sockfd, SOMAXCONN) == 0;
+	if (backlog <= 0) {
+		backlog = SOMAXCONN;
+	}
+	return listen(sockfd, backlog) == 0;
 }
 
-FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
+FD_t socketTcpListen2(int family, const char* ip, unsigned short port, int backlog) {
 	struct sockaddr_storage ss;
 	socklen_t sslen;
 	FD_t sockfd = socket(family, SOCK_STREAM, 0);
@@ -875,7 +878,7 @@ FD_t socketTcpListen2(int family, const char* ip, unsigned short port) {
 	if (sslen <= 0) {
 		goto err;
 	}
-	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sslen)) {
+	if (!socketTcpListen(sockfd, (struct sockaddr*)&ss, sslen, backlog)) {
 		goto err;
 	}
 	return sockfd;
