@@ -500,14 +500,19 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				if (ETIME == -ret) {
 					return 0;
 				}
-				errno = -ret;
-				return -1;
+				if (EINTR != -ret) {
+					errno = -ret;
+					return -1;
+				}
+				cqe = NULL;
 			}
-			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-			if (!uring_filter_internal_ol__(ol, cqe->flags)) {
-				break;
+			if (cqe) {
+				ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+				if (!uring_filter_internal_ol__(ol, cqe->flags)) {
+					break;
+				}
+				io_uring_cqe_seen(&aio->__r, cqe);
 			}
-			io_uring_cqe_seen(&aio->__r, cqe);
 			if (gettimeofday(&tval, NULL)) {
 				return -1;
 			}
@@ -519,6 +524,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				return 0;
 			}
 			msec -= delta_tlen;
+			start_tm = tm;
 		}
 	}
 	else {
@@ -528,8 +534,14 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 				if (ETIME == -ret) {
 					return 0;
 				}
+				if (EINTR == -ret) {
+					continue;
+				}
 				errno = -ret;
 				return -1;
+			}
+			if (!cqe) {
+				continue;
 			}
 			ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			if (!uring_filter_internal_ol__(ol, cqe->flags)) {
