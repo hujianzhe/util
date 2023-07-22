@@ -216,7 +216,7 @@ BOOL aioClose(Aio_t* aio) {
 
 AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 #ifdef	__linux__
-	aiofd->__delete_ol = (IoOverlapped_t*)malloc(sizeof(IoOverlapped_t));
+	aiofd->__delete_ol = (IoOverlapped_t*)calloc(1, sizeof(IoOverlapped_t));
 	if (!aiofd->__delete_ol) {
 		return NULL;
 	}
