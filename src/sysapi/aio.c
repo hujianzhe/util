@@ -14,7 +14,16 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static void aio_handle_free_list(Aio_t* aio) {
+static void aio_handle_free_alive(Aio_t* aio) {
+	AioFD_t* cur, *next;
+	for (cur = aio->__alive_list_head; cur; cur = next) {
+		next = cur->__lnext;
+		aiofdDelete(aio, cur);
+	}
+	aio->__alive_list_head = NULL;
+}
+
+static void aio_handle_free_dead(Aio_t* aio) {
 	AioFD_t* cur_free, * next_free;
 	for (cur_free = aio->__free_list_head; cur_free; cur_free = next_free) {
 		next_free = cur_free->__lnext;
@@ -23,12 +32,13 @@ static void aio_handle_free_list(Aio_t* aio) {
 	aio->__free_list_head = NULL;
 }
 
-static void free_all_ol_when_delete(IoOverlapped_t* tail) {
+static void free_all_ol_when_delete(AioFD_t* aiofd) {
 	IoOverlapped_t* ol, *prev_ol;
-	for (ol = tail; ol; ol = prev_ol) {
+	for (ol = aiofd->ol_list_tail; ol; ol = prev_ol) {
 		prev_ol = ol->prev;
 		IoOverlapped_free(ol);
 	}
+	aiofd->ol_list_tail = NULL;
 }
 
 static void aiofd_link_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
@@ -52,6 +62,40 @@ static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	}
 	ol->prev = NULL;
 	ol->next = NULL;
+}
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
+#if _WIN32
+extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
+#endif
+#ifdef	__cplusplus
+}
+#endif
+
+static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
+	if (aiofd->__reg) {
+		return 1;
+	}
+#if defined(_WIN32) || defined(_WIN64)
+	if (AF_UNSPEC != aiofd->__domain && SOCK_DGRAM == aiofd->__socktype) {
+		if (!win32_Iocp_PrepareRegUdp(aiofd->fd, aiofd->__domain)) {
+			return 0;
+		}
+	}
+	if (CreateIoCompletionPort((HANDLE)aiofd->fd, aio->__handle, (ULONG_PTR)aiofd, 0) != aio->__handle) {
+		return 0;
+	}
+#endif
+	aiofd->__reg = 1;
+	/* insert into alive list */
+	if (aio->__alive_list_head) {
+		aio->__alive_list_head->__lprev = aiofd;
+		aiofd->__lnext = aio->__alive_list_head;
+	}
+	aio->__alive_list_head = aiofd;
+	return 1;
 }
 
 #ifdef	__linux__
@@ -91,14 +135,43 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 		ol->__wait_cqe_notify = 1;
 	}
 }
+
+static void uring_clean_ol__(struct io_uring* r) {
+	while (1) {
+		unsigned head, advance_n;
+		struct io_uring_cqe *cqes[128], *cqe;
+		struct __kernel_timespec kt = { 0 };
+		int ret = io_uring_wait_cqes(r, cqes, sizeof(cqes) / sizeof(cqes[0]), &kt, NULL);
+		if (ret != 0) {
+			break;
+		}
+		advance_n = 0;
+		io_uring_for_each_cqe(r, head, cqe) {
+			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+			advance_n++;
+			if (&s_wakeup_ol == ol) {
+				continue;
+			}
+			if (uring_filter_internal_ol__(ol, cqe->flags)) {
+				continue;
+			}
+			ol->commit = 0;
+			if (cqe->flags & IORING_CQE_F_MORE) {
+				ol->free_flag = 1;
+				continue;
+			}
+			IoOverlapped_free(ol);
+		}
+		if (!advance_n) {
+			break;
+		}
+		io_uring_cq_advance(r, advance_n);
+	}
+}
 #endif
 
 #ifdef	__cplusplus
 extern "C" {
-#endif
-
-#if _WIN32
-extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
 #endif
 
 Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
@@ -121,16 +194,19 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 	return NULL;
 #endif
 	aio->__wakeup = 0;
+	aio->__alive_list_head = NULL;
 	aio->__free_list_head = NULL;
 	aio->__fn_free_aiofd = fn_free_aiofd;
 	return aio;
 }
 
 BOOL aioClose(Aio_t* aio) {
-	aio_handle_free_list(aio);
+	aio_handle_free_alive(aio);
+	aio_handle_free_dead(aio);
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(aio->__handle);
 #elif	__linux__
+	uring_clean_ol__(&aio->__r);
 	io_uring_queue_exit(&aio->__r);
 	free(aio->__wait_cqes);
 	aio->__wait_cqes_cnt = 0;
@@ -144,18 +220,18 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	if (!aiofd->__delete_ol) {
 		return NULL;
 	}
-	aiofd->enable_zero_copy = 0;
 #endif
-	aiofd->fd = fd;
+	aiofd->__lprev = NULL;
 	aiofd->__lnext = NULL;
 	aiofd->__delete_flag = 0;
+	aiofd->__reg = 0;
 	aiofd->__domain = 0;
 	aiofd->__socktype = 0;
 	aiofd->__protocol = 0;
-#if defined(_WIN32) || defined(_WIN64)
-	aiofd->__reg = FALSE;
-#endif
+
+	aiofd->fd = fd;
 	aiofd->ol_list_tail = NULL;
+	aiofd->enable_zero_copy = 0;
 	return aiofd;
 }
 
@@ -169,6 +245,22 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	if (aiofd->__delete_flag) {
 		return;
 	}
+	aiofd->__delete_flag = 1;
+	/* remove from alive list */
+	if (aiofd->__lprev) {
+		aiofd->__lprev->__lnext = aiofd->__lnext;
+	}
+	if (aiofd->__lnext) {
+		aiofd->__lnext->__lprev = aiofd->__lprev;
+	}
+	if (aiofd == aio->__alive_list_head) {
+		aio->__alive_list_head = aiofd->__lnext;
+	}
+	/* insert into free list */
+	aiofd->__lnext = aio->__free_list_head;
+	aio->__free_list_head = aiofd;
+	/* free association ol */
+	free_all_ol_when_delete(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
 	if (aiofd->__domain != AF_UNSPEC) {
 		closesocket(aiofd->fd);
@@ -218,11 +310,6 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	close(aiofd->fd);
 	aiofd->fd = -1;
 #endif
-	aiofd->__delete_flag = 1;
-	aiofd->__lnext = aio->__free_list_head;
-	aio->__free_list_head = aiofd;
-	free_all_ol_when_delete(aiofd->ol_list_tail);
-	aiofd->ol_list_tail = NULL;
 }
 
 BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t addrlen) {
@@ -235,23 +322,8 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	if (ol->commit) {
 		return TRUE;
 	}
-	if (!aiofd->__reg) {
-		if (AF_UNSPEC != fd_domain) {
-			int socktype;
-			int optlen = sizeof(socktype);
-			if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char*)&socktype, &optlen)) {
-				return FALSE;
-			}
-			if (SOCK_DGRAM == socktype) {
-				if (!win32_Iocp_PrepareRegUdp(fd, fd_domain)) {
-					return FALSE;
-				}
-			}
-		}
-		if (CreateIoCompletionPort((HANDLE)fd, aio->__handle, (ULONG_PTR)aiofd, 0) != aio->__handle) {
-			return FALSE;
-		}
-		aiofd->__reg = TRUE;
+	if (!aio_regfd(aio, aiofd)) {
+		return FALSE;
 	}
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
@@ -379,6 +451,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	if (ol->commit) {
 		return 1;
 	}
+	if (!aio_regfd(aio, aiofd)) {
+		return 0;
+	}
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
 		sqe = io_uring_get_sqe(&aio->__r);
@@ -464,7 +539,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG cnt;
-	aio_handle_free_list(aio);
+	aio_handle_free_dead(aio);
 	if (GetQueuedCompletionStatusEx(aio->__handle, e, n, &cnt, msec, FALSE)) {
 		return cnt;
 	}
@@ -479,7 +554,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	struct io_uring_cqe* cqe, **cqes;
 	struct __kernel_timespec kt;
 
-	aio_handle_free_list(aio);
+	aio_handle_free_dead(aio);
 
 	if (msec >= 0) {
 		long long start_tm;

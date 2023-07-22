@@ -26,18 +26,18 @@ typedef struct AioEv_t {
 
 typedef struct AioFD_t {
 	FD_t fd;
+	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
 	short __delete_flag;
+	short __reg;
 	int __domain;
 	int __socktype;
 	int __protocol;
-#if defined(_WIN32) || defined(_WIN64)
-	BOOL __reg;
-#elif	__linux__
+#if	__linux__
 	IoOverlapped_t* __delete_ol;
-	int enable_zero_copy;
 #endif
 	IoOverlapped_t* ol_list_tail;
+	int enable_zero_copy;
 } AioFD_t;
 
 typedef struct Aio_t {
@@ -49,6 +49,7 @@ typedef struct Aio_t {
 	unsigned int __wait_cqes_cnt;
 #endif
 	Atom16_t __wakeup;
+	AioFD_t* __alive_list_head;
 	AioFD_t* __free_list_head;
 	void(*__fn_free_aiofd)(AioFD_t*);
 } Aio_t;
