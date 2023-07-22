@@ -34,25 +34,25 @@ static void aio_handle_free_dead(Aio_t* aio) {
 
 static void free_all_ol_when_delete(AioFD_t* aiofd) {
 	IoOverlapped_t* ol, *prev_ol;
-	for (ol = aiofd->ol_list_tail; ol; ol = prev_ol) {
+	for (ol = aiofd->__ol_list_tail; ol; ol = prev_ol) {
 		prev_ol = ol->prev;
 		IoOverlapped_free(ol);
 	}
-	aiofd->ol_list_tail = NULL;
+	aiofd->__ol_list_tail = NULL;
 }
 
 static void aiofd_link_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
-	if (aiofd->ol_list_tail) {
-		aiofd->ol_list_tail->next = ol;
+	if (aiofd->__ol_list_tail) {
+		aiofd->__ol_list_tail->next = ol;
 	}
-	ol->prev = aiofd->ol_list_tail;
+	ol->prev = aiofd->__ol_list_tail;
 	ol->next = NULL;
-	aiofd->ol_list_tail = ol;
+	aiofd->__ol_list_tail = ol;
 }
 
 static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
-	if (aiofd->ol_list_tail == ol) {
-		aiofd->ol_list_tail = ol->prev;
+	if (aiofd->__ol_list_tail == ol) {
+		aiofd->__ol_list_tail = ol->prev;
 	}
 	if (ol->prev) {
 		ol->prev->next = ol->next;
@@ -223,6 +223,7 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 #endif
 	aiofd->__lprev = NULL;
 	aiofd->__lnext = NULL;
+	aiofd->__ol_list_tail = NULL;
 	aiofd->__delete_flag = 0;
 	aiofd->__reg = 0;
 	aiofd->__domain = 0;
@@ -230,7 +231,6 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	aiofd->__protocol = 0;
 
 	aiofd->fd = fd;
-	aiofd->ol_list_tail = NULL;
 	aiofd->enable_zero_copy = 0;
 	return aiofd;
 }
