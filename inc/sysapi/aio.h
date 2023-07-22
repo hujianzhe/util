@@ -26,6 +26,8 @@ typedef struct AioEv_t {
 
 typedef struct AioFD_t {
 	FD_t fd;
+	int enable_zero_copy;
+
 	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
 	IoOverlapped_t* __ol_list_tail;
@@ -37,7 +39,6 @@ typedef struct AioFD_t {
 #if	__linux__
 	IoOverlapped_t* __delete_ol;
 #endif
-	int enable_zero_copy;
 } AioFD_t;
 
 typedef struct Aio_t {
