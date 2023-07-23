@@ -98,6 +98,22 @@ static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
 	return 1;
 }
 
+static void aio_delete_aiofd_soft(Aio_t* aio, AioFD_t* aiofd) {
+	/* remove from alive list */
+	if (aiofd->__lprev) {
+		aiofd->__lprev->__lnext = aiofd->__lnext;
+	}
+	if (aiofd->__lnext) {
+		aiofd->__lnext->__lprev = aiofd->__lprev;
+	}
+	if (aiofd == aio->__alive_list_head) {
+		aio->__alive_list_head = aiofd->__lnext;
+	}
+	/* insert into free list */
+	aiofd->__lnext = aio->__free_list_head;
+	aio->__free_list_head = aiofd;
+}
+
 #ifdef	__linux__
 static IoOverlapped_t s_wakeup_ol;
 
@@ -275,20 +291,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		return;
 	}
 	aiofd->__delete_flag = 1;
-	/* remove from alive list */
-	if (aiofd->__lprev) {
-		aiofd->__lprev->__lnext = aiofd->__lnext;
-	}
-	if (aiofd->__lnext) {
-		aiofd->__lnext->__lprev = aiofd->__lprev;
-	}
-	if (aiofd == aio->__alive_list_head) {
-		aio->__alive_list_head = aiofd->__lnext;
-	}
-	/* insert into free list */
-	aiofd->__lnext = aio->__free_list_head;
-	aio->__free_list_head = aiofd;
-	/* free association ol */
+	aio_delete_aiofd_soft(aio, aiofd);
 	aiofd_free_all_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
 	if (aiofd->__domain != AF_UNSPEC) {
