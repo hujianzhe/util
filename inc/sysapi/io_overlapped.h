@@ -17,8 +17,8 @@ typedef struct IocpOverlapped_t {
 	unsigned char free_flag;
 	short opcode;
 	void* completion_key;
-	struct IocpOverlapped_t* prev;
-	struct IocpOverlapped_t* next;
+	struct IocpOverlapped_t* __prev;
+	struct IocpOverlapped_t* __next;
 	WSABUF iobuf;
 } IoOverlapped_t;
 #else
@@ -37,8 +37,8 @@ typedef struct UnixOverlapped_t {
 	unsigned char free_flag;
 	short opcode;
 	void* completion_key;
-	struct UnixOverlapped_t* prev;
-	struct UnixOverlapped_t* next;
+	struct UnixOverlapped_t* __prev;
+	struct UnixOverlapped_t* __next;
 	struct iovec iobuf;
 } IoOverlapped_t;
 #endif

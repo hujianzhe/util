@@ -35,7 +35,7 @@ static void aio_handle_free_dead(Aio_t* aio) {
 static void aiofd_free_all_ol(AioFD_t* aiofd) {
 	IoOverlapped_t* ol, *prev_ol;
 	for (ol = aiofd->__ol_list_tail; ol; ol = prev_ol) {
-		prev_ol = ol->prev;
+		prev_ol = ol->__prev;
 		IoOverlapped_free(ol);
 	}
 	aiofd->__ol_list_tail = NULL;
@@ -43,25 +43,25 @@ static void aiofd_free_all_ol(AioFD_t* aiofd) {
 
 static void aiofd_link_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	if (aiofd->__ol_list_tail) {
-		aiofd->__ol_list_tail->next = ol;
+		aiofd->__ol_list_tail->__next = ol;
 	}
-	ol->prev = aiofd->__ol_list_tail;
-	ol->next = NULL;
+	ol->__prev = aiofd->__ol_list_tail;
+	ol->__next = NULL;
 	aiofd->__ol_list_tail = ol;
 }
 
 static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	if (aiofd->__ol_list_tail == ol) {
-		aiofd->__ol_list_tail = ol->prev;
+		aiofd->__ol_list_tail = ol->__prev;
 	}
-	if (ol->prev) {
-		ol->prev->next = ol->next;
+	if (ol->__prev) {
+		ol->__prev->__next = ol->__next;
 	}
-	if (ol->next) {
-		ol->next->prev = ol->prev;
+	if (ol->__next) {
+		ol->__next->__prev = ol->__prev;
 	}
-	ol->prev = NULL;
-	ol->next = NULL;
+	ol->__prev = NULL;
+	ol->__next = NULL;
 }
 
 #ifdef	__cplusplus
@@ -152,40 +152,38 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	}
 }
 
-static void uring_clean_ol__(struct io_uring* r) {
-	while (1) {
-		unsigned head, advance_n;
-		struct io_uring_cqe *cqes[128], *cqe;
-		struct __kernel_timespec kt = { 0 };
-		int ret = io_uring_wait_cqes(r, cqes, sizeof(cqes) / sizeof(cqes[0]), &kt, NULL);
-		if (ret != 0) {
-			if (ETIME == -ret) {
-				continue;
-			}
-			break;
+static int uring_clean_ol__(struct io_uring* r) {
+	unsigned head, advance_n;
+	struct io_uring_cqe *cqes[128], *cqe;
+	struct __kernel_timespec kt = { 0 };
+	int ret = io_uring_wait_cqes(r, cqes, sizeof(cqes) / sizeof(cqes[0]), &kt, NULL);
+	if (ret != 0) {
+		if (ETIME == -ret) {
+			return 0;
 		}
-		advance_n = 0;
-		io_uring_for_each_cqe(r, head, cqe) {
-			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-			advance_n++;
-			if (&s_wakeup_ol == ol) {
-				continue;
-			}
-			if (uring_filter_internal_ol__(ol, cqe->flags)) {
-				continue;
-			}
-			ol->commit = 0;
-			if (cqe->flags & IORING_CQE_F_MORE) {
-				ol->free_flag = 1;
-				continue;
-			}
-			IoOverlapped_free(ol);
-		}
-		if (!advance_n) {
-			break;
-		}
-		io_uring_cq_advance(r, advance_n);
+		return ret;
 	}
+	advance_n = 0;
+	io_uring_for_each_cqe(r, head, cqe) {
+		IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+		advance_n++;
+		if (!ol) {
+			continue;
+		}
+		if (&s_wakeup_ol == ol) {
+			continue;
+		}
+		ol->commit = 0;
+		if (cqe->flags & IORING_CQE_F_MORE) {
+			ol->__wait_cqe_notify = 1;
+			continue;
+		}
+		if (cqe->flags & IORING_CQE_F_NOTIF) {
+			ol->__wait_cqe_notify = 0;
+		}
+	}
+	io_uring_cq_advance(r, advance_n);
+	return 0;
 }
 
 static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
@@ -245,12 +243,11 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 }
 
 BOOL aioClose(Aio_t* aio) {
-	aio_handle_free_alive(aio);
 	aio_handle_free_dead(aio);
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(aio->__handle);
 #elif	__linux__
-	uring_clean_ol__(&aio->__r);
+	//uring_clean_ol__(&aio->__r);
 	io_uring_queue_exit(&aio->__r);
 	free(aio->__wait_cqes);
 	aio->__wait_cqes_cnt = 0;
