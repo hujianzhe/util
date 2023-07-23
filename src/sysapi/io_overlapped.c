@@ -269,9 +269,9 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 #endif
 }
 
-void IoOverlapped_free(IoOverlapped_t* ol) {
+int IoOverlapped_free(IoOverlapped_t* ol) {
 	if (!ol) {
-		return;
+		return 1;
 	}
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
@@ -290,14 +290,15 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	}
 	if (ol->__wait_cqe_notify) {
 		ol->free_flag = 1;
-		return;
+		return 0 ;
 	}
 #endif
 	if (ol->commit) {
 		ol->free_flag = 1;
-		return;
+		return 0;
 	}
 	free(ol);
+	return 1;
 }
 
 int IoOverlapped_check_reuse_able(IoOverlapped_t* ol) {
