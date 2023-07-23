@@ -18,6 +18,10 @@ static void aio_handle_free_alive(Aio_t* aio) {
 	AioFD_t* cur, *next;
 	for (cur = aio->__alive_list_head; cur; cur = next) {
 		next = cur->__lnext;
+#ifdef	__linux__
+		free(cur->__delete_ol);
+		cur->__delete_ol = NULL;
+#endif
 		aiofdDelete(aio, cur);
 	}
 	aio->__alive_list_head = NULL;
@@ -152,40 +156,6 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	}
 }
 
-static int uring_clean_ol__(struct io_uring* r) {
-	unsigned head, advance_n;
-	struct io_uring_cqe *cqes[128], *cqe;
-	struct __kernel_timespec kt = { 0 };
-	int ret = io_uring_wait_cqes(r, cqes, sizeof(cqes) / sizeof(cqes[0]), &kt, NULL);
-	if (ret != 0) {
-		if (ETIME == -ret) {
-			return 0;
-		}
-		return ret;
-	}
-	advance_n = 0;
-	io_uring_for_each_cqe(r, head, cqe) {
-		IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-		advance_n++;
-		if (!ol) {
-			continue;
-		}
-		if (&s_wakeup_ol == ol) {
-			continue;
-		}
-		ol->commit = 0;
-		if (cqe->flags & IORING_CQE_F_MORE) {
-			ol->__wait_cqe_notify = 1;
-			continue;
-		}
-		if (cqe->flags & IORING_CQE_F_NOTIF) {
-			ol->__wait_cqe_notify = 0;
-		}
-	}
-	io_uring_cq_advance(r, advance_n);
-	return 0;
-}
-
 static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 	struct io_uring_sqe* sqe;
 	if (aiofd->__domain != AF_UNSPEC && SOCK_STREAM == aiofd->__socktype) {
@@ -243,11 +213,11 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 }
 
 BOOL aioClose(Aio_t* aio) {
+	aio_handle_free_alive(aio);
 	aio_handle_free_dead(aio);
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(aio->__handle);
 #elif	__linux__
-	//uring_clean_ol__(&aio->__r);
 	io_uring_queue_exit(&aio->__r);
 	free(aio->__wait_cqes);
 	aio->__wait_cqes_cnt = 0;
