@@ -14,19 +14,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static void aio_handle_free_alive(Aio_t* aio) {
-	AioFD_t* cur, *next;
-	for (cur = aio->__alive_list_head; cur; cur = next) {
-		next = cur->__lnext;
-#ifdef	__linux__
-		free(cur->__delete_ol);
-		cur->__delete_ol = NULL;
-#endif
-		aiofdDelete(aio, cur);
-	}
-	aio->__alive_list_head = NULL;
-}
-
 static void aio_handle_free_dead(Aio_t* aio) {
 	AioFD_t* cur, * next;
 	for (cur = aio->__free_list_head; cur; cur = next) {
@@ -70,7 +57,7 @@ static void aiofd_free_all_ol(AioFD_t* aiofd) {
 	}
 }
 
-static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol) {
+static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_free_list) {
 	AioFD_t* aiofd = (AioFD_t*)ol->completion_key;
 	aiofd_unlink_ol(aiofd, ol);
 	if (aiofd->__delete_flag && !aiofd->__ol_list_tail) {
@@ -87,7 +74,14 @@ static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol) {
 		close(aiofd->fd);
 		aiofd->fd = -1;
 	#endif
-		aio->__fn_free_aiofd(aiofd);
+		if (enter_free_list) {
+			aiofd->__lprev = NULL;
+			aiofd->__lnext = aio->__free_list_head;
+			aio->__free_list_head = aiofd;
+		}
+		else {
+			aio->__fn_free_aiofd(aiofd);
+		}
 	}
 }
 
@@ -136,9 +130,6 @@ static void aio_delete_aiofd_soft(Aio_t* aio, AioFD_t* aiofd) {
 	if (aiofd == aio->__alive_list_head) {
 		aio->__alive_list_head = aiofd->__lnext;
 	}
-	/* insert into free list */
-	//aiofd->__lnext = aio->__free_list_head;
-	//aio->__free_list_head = aiofd;
 }
 
 #ifdef	__linux__
@@ -151,14 +142,14 @@ static int uring_filter_internal_ol__(Aio_t* aio, IoOverlapped_t* ol, __u32 flag
 	if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode ||
 		IO_OVERLAPPED_OP_INTERNAL_SHUTDOWN == ol->opcode)
 	{
-		aio_ol_acked(aio, ol);
+		aio_ol_acked(aio, ol, 0);
 		free(ol);
 		return 1;
 	}
 	if (flags & IORING_CQE_F_NOTIF) {
 		ol->__wait_cqe_notify = 0;
 		if (!ol->commit) {
-			aio_ol_acked(aio, ol);
+			aio_ol_acked(aio, ol, 0);
 			IoOverlapped_free(ol);
 		}
 		return 1;
@@ -239,8 +230,6 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 }
 
 BOOL aioClose(Aio_t* aio) {
-	//aio_handle_free_alive(aio);
-	//aio_handle_free_dead(aio);
 #if defined(_WIN32) || defined(_WIN64)
 	return CloseHandle(aio->__handle);
 #elif	__linux__
@@ -528,7 +517,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG cnt;
-	//aio_handle_free_dead(aio);
+	aio_handle_free_dead(aio);
 	if (GetQueuedCompletionStatusEx(aio->__handle, e, n, &cnt, msec, FALSE)) {
 		return cnt;
 	}
@@ -543,7 +532,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	struct io_uring_cqe* cqe, **cqes;
 	struct __kernel_timespec kt;
 
-	//aio_handle_free_dead(aio);
+	aio_handle_free_dead(aio);
 
 	if (msec >= 0) {
 		long long start_tm;
@@ -696,7 +685,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 
 	ol->completion_key = e->lpCompletionKey;
-	aio_ol_acked(aio, ol);
+	aio_ol_acked(aio, ol, 1);
 
 	if (ol->free_flag) {
 		free(ol);
@@ -721,7 +710,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 
 	if (!ol->__wait_cqe_notify) {
-		aio_ol_acked(aio, ol);
+		aio_ol_acked(aio, ol, 1);
 	}
 	if (ol->free_flag) {
 		if (ol->__wait_cqe_notify) {
