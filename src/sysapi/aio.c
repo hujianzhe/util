@@ -677,14 +677,13 @@ void aioWakeup(Aio_t* aio) {
 
 IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 #if defined(_WIN32) || defined(_WIN64)
-	AioFD_t* aiofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
 	if (!ol) {
 		_xchg16(&aio->__wakeup, 0);
 		return NULL;
 	}
 
-	ol->completion_key = e->lpCompletionKey;
+	ol->completion_key = (void*)e->lpCompletionKey;
 	aio_ol_acked(aio, ol, 1);
 
 	if (ol->free_flag) {
