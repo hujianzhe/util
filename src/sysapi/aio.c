@@ -276,8 +276,31 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	aio_delete_aiofd_soft(aio, aiofd);
 	aiofd_free_all_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
+	if (!aiofd->__ol_list_tail) {
+		if (aiofd->__domain != AF_UNSPEC) {
+			closesocket(aiofd->fd);
+			aiofd->fd = INVALID_SOCKET;
+		}
+		else {
+			CloseHandle((HANDLE)aiofd->fd);
+			aiofd->fd = (FD_t)INVALID_HANDLE_VALUE;
+		}
+		aio->__fn_free_aiofd(aiofd);
+		return;
+	}
 	CancelIo((HANDLE)aiofd->fd);
 #elif	__linux__
+	if (!aiofd->__ol_list_tail) {
+		if (SOCK_STREAM == aiofd->__socktype) {
+			shutdown(aiofd->fd, SHUT_RDWR);
+		}
+		free(aiofd->__delete_ol);
+		aiofd->__delete_ol = NULL;
+		close(aiofd->fd);
+		aiofd->fd = -1;
+		aio->__fn_free_aiofd(aiofd);
+		return;
+	}
 	if (aiofd->__delete_ol) {
 		if (aiofd_post_delete_ol(&aio->__r, aiofd)) {
 			aiofd_link_ol(aiofd, aiofd->__delete_ol);
