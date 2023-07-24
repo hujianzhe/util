@@ -209,7 +209,7 @@ static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 	return 1;
 }
 
-static void aio_exit_clean(Aio_t* aio) {
+static void uring_aio_exit_clean__(Aio_t* aio) {
 	AioFD_t* aiofd, *aiofd_next;
 	for (aiofd = aio->__alive_list_head; aiofd; aiofd = aiofd_next) {
 		aiofd_next = aiofd->__lnext;
@@ -251,6 +251,35 @@ static void aio_exit_clean(Aio_t* aio) {
 }
 #endif
 
+#if	_WIN32
+static void iocp_aio_exit_clean__(Aio_t* aio) {
+	AioFD_t* aiofd, *aiofd_next;
+	for (aiofd = aio->__alive_list_head; aiofd; aiofd = aiofd_next) {
+		aiofd_next = aiofd->__lnext;
+		aiofdDelete(aio, aiofd);
+	}
+	aio_handle_free_dead(aio);
+	while (aio->__delete_list_head) {
+		ULONG i, cnt;
+		OVERLAPPED_ENTRY e[128];
+		if (!GetQueuedCompletionStatusEx(aio->__handle, e, sizeof(e) / sizeof(e[0]), &cnt, 0, FALSE)) {
+			if (GetLastError() == WAIT_TIMEOUT) {
+				continue;
+			}
+			break;
+		}
+		for (i = 0; i < cnt; ++i) {
+			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpCompletionKey;
+			if (!ol) {
+				continue;
+			}
+			aio_ol_acked(aio, ol, 0);
+			IoOverlapped_free(ol);
+		}
+	}
+}
+#endif
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -284,11 +313,12 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 
 BOOL aioClose(Aio_t* aio) {
 #if defined(_WIN32) || defined(_WIN64)
+	iocp_aio_exit_clean__(aio);
 	return CloseHandle(aio->__handle);
 #elif	__linux__
 	free(aio->__wait_cqes);
 	aio->__wait_cqes_cnt = 0;
-	aio_exit_clean(aio);
+	uring_aio_exit_clean__(aio);
 	io_uring_queue_exit(&aio->__r);
 #endif
 	return 1;
