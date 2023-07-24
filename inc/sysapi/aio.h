@@ -51,6 +51,7 @@ typedef struct Aio_t {
 #endif
 	Atom16_t __wakeup;
 	AioFD_t* __alive_list_head;
+	AioFD_t* __delete_list_head;
 	AioFD_t* __dead_list_head;
 	void(*__fn_free_aiofd)(AioFD_t*);
 } Aio_t;
