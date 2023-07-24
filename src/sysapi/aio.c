@@ -16,11 +16,11 @@
 
 static void aio_handle_free_dead(Aio_t* aio) {
 	AioFD_t* cur, * next;
-	for (cur = aio->__free_list_head; cur; cur = next) {
+	for (cur = aio->__dead_list_head; cur; cur = next) {
 		next = cur->__lnext;
 		aio->__fn_free_aiofd(cur);
 	}
-	aio->__free_list_head = NULL;
+	aio->__dead_list_head = NULL;
 }
 
 static void aiofd_link_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
@@ -57,7 +57,7 @@ static void aiofd_free_all_ol(AioFD_t* aiofd) {
 	}
 }
 
-static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_free_list) {
+static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_list) {
 	AioFD_t* aiofd = (AioFD_t*)ol->completion_key;
 	aiofd_unlink_ol(aiofd, ol);
 	if (aiofd->__delete_flag && !aiofd->__ol_list_tail) {
@@ -74,10 +74,10 @@ static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_free_list) {
 		close(aiofd->fd);
 		aiofd->fd = -1;
 	#endif
-		if (enter_free_list) {
+		if (enter_list) {
 			aiofd->__lprev = NULL;
-			aiofd->__lnext = aio->__free_list_head;
-			aio->__free_list_head = aiofd;
+			aiofd->__lnext = aio->__dead_list_head;
+			aio->__dead_list_head = aiofd;
 		}
 		else {
 			aio->__fn_free_aiofd(aiofd);
@@ -224,7 +224,7 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
 #endif
 	aio->__wakeup = 0;
 	aio->__alive_list_head = NULL;
-	aio->__free_list_head = NULL;
+	aio->__dead_list_head = NULL;
 	aio->__fn_free_aiofd = fn_free_aiofd;
 	return aio;
 }
