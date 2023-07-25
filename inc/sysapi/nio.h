@@ -38,6 +38,7 @@ enum {
 
 typedef struct NioFD_t {
 	FD_t fd;
+	struct NioFD_t* __lprev;
 	struct NioFD_t* __lnext;
 	short __delete_flag;
 #if defined(_WIN32) || defined(_WIN64)
@@ -52,7 +53,10 @@ typedef struct NioFD_t {
 
 typedef struct Nio_t {
 	FD_t __hNio;
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
+	IoOverlapped_t* __ol_list_head;
+	NioFD_t* __alive_list_head;
+#else
 	FD_t __socketpair[2];
 #endif
 	Atom16_t __wakeup;

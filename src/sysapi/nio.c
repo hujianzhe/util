@@ -22,6 +22,54 @@ extern "C" {
 
 #if _WIN32
 extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
+
+static void iocp_nio_link_ol(Nio_t* nio, IoOverlapped_t* ol) {
+	ol->__prev = NULL;
+	ol->__next = nio->__ol_list_head;
+	if (nio->__ol_list_head) {
+		nio->__ol_list_head->__prev = ol;
+	}
+	nio->__ol_list_head = ol;
+}
+
+static void iocp_nio_unlink_ol(Nio_t* nio, IoOverlapped_t* ol) {
+	if (nio->__ol_list_head == ol) {
+		nio->__ol_list_head = ol->__next;
+	}
+	if (ol->__prev) {
+		ol->__prev->__next = ol->__next;
+	}
+	if (ol->__next) {
+		ol->__next->__prev = ol->__prev;
+	}
+}
+
+static void iocp_nio_exit_clean(Nio_t* nio) {
+	NioFD_t* niofd, *niofd_next;
+	for (niofd = nio->__alive_list_head; niofd; niofd = niofd_next) {
+		niofd_next = niofd->__lnext;
+		niofdDelete(nio, niofd);
+	}
+	while (nio->__ol_list_head) {
+		ULONG i, n;
+		OVERLAPPED_ENTRY e[128];
+		if (!GetQueuedCompletionStatusEx((HANDLE)nio->__hNio, e, sizeof(e) / sizeof(e[0]), &n, 0, FALSE)) {
+			if (GetLastError() == WAIT_TIMEOUT) {
+				continue;
+			}
+			break;
+		}
+		for (i = 0; i < n; ++i) {
+			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpCompletionKey;
+			if (!ol) {
+				continue;
+			}
+			iocp_nio_unlink_ol(nio, ol);
+			IoOverlapped_free(ol);
+		}
+	}
+}
+
 #endif
 
 /* NIO */
@@ -30,6 +78,8 @@ BOOL nioCreate(Nio_t* nio, void(*fn_free_niofd)(NioFD_t*)) {
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
 	nio->__wakeup = 0;
+	nio->__ol_list_head = NULL;
+	nio->__alive_list_head = NULL;
 	nio->__free_list_head = NULL;
 	nio->__fn_free_niofd = fn_free_niofd;
 	nio->__hNio = (FD_t)CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
@@ -114,6 +164,7 @@ BOOL nioCreate(Nio_t* nio, void(*fn_free_niofd)(NioFD_t*)) {
 
 void niofdInit(NioFD_t* niofd, FD_t fd, int domain) {
 	niofd->fd = fd;
+	niofd->__lprev = NULL;
 	niofd->__lnext = NULL;
 	niofd->__delete_flag = 0;
 #if defined(_WIN32) || defined(_WIN64)
@@ -148,6 +199,18 @@ void niofdDelete(Nio_t* nio, NioFD_t* niofd) {
 		IoOverlapped_free((IoOverlapped_t*)niofd->__write_ol);
 		niofd->__write_ol = NULL;
 	}
+	if (niofd->__reg) {
+		/* remove from alive list */
+		if (niofd->__lprev) {
+			niofd->__lprev->__lnext = niofd->__lnext;
+		}
+		if (niofd->__lnext) {
+			niofd->__lnext->__lprev = niofd->__lprev;
+		}
+		if (niofd == nio->__alive_list_head) {
+			nio->__alive_list_head = niofd->__lnext;
+		}
+	}
 #else
 	close(niofd->fd);
 	niofd->fd = -1;
@@ -178,6 +241,13 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 			return FALSE;
 		}
 		niofd->__reg = 1;
+		/* insert into alive list */
+		niofd->__lprev = NULL;
+		niofd->__lnext = nio->__alive_list_head;
+		if (nio->__alive_list_head) {
+			nio->__alive_list_head->__lprev = niofd;
+		}
+		nio->__alive_list_head = niofd;
 	}
 
 	if (NIO_OP_READ == opcode) {
@@ -355,6 +425,8 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		return FALSE;
 	}
 	ol->commit = 1;
+	ol->completion_key = niofd;
+	iocp_nio_link_ol(nio, ol);
 	return TRUE;
 #elif defined(__linux__)
 	struct epoll_event e;
@@ -474,7 +546,13 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
 	ULONG n;
 	nio_handle_free_list(nio);
-	return GetQueuedCompletionStatusEx((HANDLE)(nio->__hNio), e, count, &n, msec, FALSE) ? n : (GetLastError() == WAIT_TIMEOUT ? 0 : -1);
+	if (GetQueuedCompletionStatusEx((HANDLE)(nio->__hNio), e, count, &n, msec, FALSE)) {
+		return n;
+	}
+	if (GetLastError() == WAIT_TIMEOUT) {
+		return 0;
+	}
+	return -1;
 #elif __linux__
 	int res;
 	nio_handle_free_list(nio);
@@ -513,33 +591,34 @@ void nioWakeup(Nio_t* nio) {
 NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 #if defined(_WIN32) || defined(_WIN64)
 	NioFD_t* niofd;
-	IoOverlapped_t* iocp_ol = (IoOverlapped_t*)(e->lpOverlapped);
-	if (!iocp_ol) {
+	IoOverlapped_t* ol = (IoOverlapped_t*)(e->lpOverlapped);
+	if (!ol) {
 		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
-	if (iocp_ol->free_flag) {
-		free(iocp_ol);
+	iocp_nio_unlink_ol(nio, ol);
+	if (ol->free_flag) {
+		free(ol);
 		return NULL;
 	}
-	iocp_ol->commit = 0;
+	ol->commit = 0;
 
 	niofd = (NioFD_t*)e->lpCompletionKey;
 	if (niofd->__delete_flag) {
 		return NULL;
 	}
 
-	if (IO_OVERLAPPED_OP_ACCEPT == iocp_ol->opcode) {
+	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		*ev_mask = NIO_OP_READ;
 	}
-	else if (IO_OVERLAPPED_OP_CONNECT == iocp_ol->opcode) {
-		iocp_ol->opcode = IO_OVERLAPPED_OP_WRITE;
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+		ol->opcode = IO_OVERLAPPED_OP_WRITE;
 		*ev_mask = NIO_OP_WRITE;
 	}
-	else if (IO_OVERLAPPED_OP_READ == iocp_ol->opcode) {
+	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		*ev_mask = NIO_OP_READ;
 	}
-	else if (IO_OVERLAPPED_OP_WRITE == iocp_ol->opcode) {
+	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		*ev_mask = NIO_OP_WRITE;
 	}
 	else {
@@ -622,6 +701,7 @@ FD_t nioAccept(NioFD_t* niofd, struct sockaddr* peer_saddr, socklen_t* p_slen) {
 BOOL nioClose(Nio_t* nio) {
 	nio_handle_free_list(nio);
 #if defined(_WIN32) || defined(_WIN64)
+	iocp_nio_exit_clean(nio);
 	return CloseHandle((HANDLE)(nio->__hNio));
 #else
 	close(nio->__socketpair[0]);

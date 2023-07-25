@@ -345,7 +345,9 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		return;
 	}
 	aiofd->__delete_flag = 1;
-	aio_delete_aiofd_soft(aio, aiofd);
+	if (aiofd->__reg) {
+		aio_delete_aiofd_soft(aio, aiofd);
+	}
 	aiofd_free_all_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
 	if (!aiofd->__ol_list_tail) {
