@@ -8,6 +8,7 @@
 #include "atomic.h"
 
 #if defined(_WIN32) || defined(_WIN64)
+	#include "io_overlapped.h"
 	#include <ws2tcpip.h>
 	typedef OVERLAPPED_ENTRY	NioEv_t;
 	#pragma comment(lib, "wsock32.lib")
@@ -40,10 +41,10 @@ typedef struct NioFD_t {
 	struct NioFD_t* __lnext;
 	short __delete_flag;
 #if defined(_WIN32) || defined(_WIN64)
-	BOOL __reg;
+	short __reg;
 	int __domain;
-	OVERLAPPED* __read_ol;
-	OVERLAPPED* __write_ol;
+	IoOverlapped_t* __read_ol;
+	IoOverlapped_t* __write_ol;
 #else
 	unsigned int __event_mask;
 #endif
