@@ -60,7 +60,7 @@ static void iocp_nio_exit_clean(Nio_t* nio) {
 			break;
 		}
 		for (i = 0; i < n; ++i) {
-			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpCompletionKey;
+			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
 			if (!ol) {
 				continue;
 			}
