@@ -42,8 +42,6 @@ static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	if (ol->__next) {
 		ol->__next->__prev = ol->__prev;
 	}
-	ol->__prev = NULL;
-	ol->__next = NULL;
 }
 
 static void aiofd_free_all_ol(AioFD_t* aiofd) {
@@ -122,9 +120,10 @@ static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
 #endif
 	aiofd->__reg = 1;
 	/* insert into alive list */
+	aiofd->__lprev = NULL;
+	aiofd->__lnext = aio->__alive_list_head;
 	if (aio->__alive_list_head) {
 		aio->__alive_list_head->__lprev = aiofd;
-		aiofd->__lnext = aio->__alive_list_head;
 	}
 	aio->__alive_list_head = aiofd;
 	return 1;
