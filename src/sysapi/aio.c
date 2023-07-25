@@ -262,6 +262,7 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 				continue;
 			}
 			aio_ol_acked(aio, ol, 0);
+			ol->commit = 0;
 			IoOverlapped_free(ol);
 		}
 	}
