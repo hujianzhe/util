@@ -44,7 +44,6 @@ typedef struct UnixOverlapped_t {
 #endif
 
 enum {
-	IO_OVERLAPPED_OP_INTERNAL_SHUTDOWN = -2,
 	IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE = -1,
 
 	IO_OVERLAPPED_OP_READ = 1,

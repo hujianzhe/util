@@ -149,9 +149,7 @@ static int uring_filter_internal_ol__(Aio_t* aio, IoOverlapped_t* ol, __u32 flag
 	if (!ol) {
 		return 1;
 	}
-	if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode ||
-		IO_OVERLAPPED_OP_INTERNAL_SHUTDOWN == ol->opcode)
-	{
+	if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode) {
 		aio_ol_acked(aio, ol, 0);
 		free(ol);
 		return 1;
@@ -182,24 +180,15 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 }
 
 static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
-	struct io_uring_sqe* sqe;
-	if (aiofd->__domain != AF_UNSPEC && SOCK_STREAM == aiofd->__socktype) {
-		sqe = io_uring_get_sqe(r);
-		if (!sqe) {
+	struct io_uring_sqe* sqe = io_uring_get_sqe(r);
+	if (!sqe) {
+		if (SOCK_STREAM == aiofd->__socktype) {
 			shutdown(aiofd->fd, SHUT_RDWR);
-			return 0;
 		}
-		io_uring_prep_shutdown(sqe, aiofd->fd, 0);
-		aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_SHUTDOWN;
+		return 0;
 	}
-	else {
-		sqe = io_uring_get_sqe(r);
-		if (!sqe) {
-			return 0;
-		}
-		io_uring_prep_cancel_fd(sqe, aiofd->fd, 0);
-		aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
-	}
+	io_uring_prep_cancel_fd(sqe, aiofd->fd, 0);
+	aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
 	aiofd->__delete_ol->fd = aiofd->fd;
 	aiofd->__delete_ol->completion_key = aiofd;
 	aiofd->__delete_ol->commit = 1;
@@ -385,12 +374,15 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		return;
 	}
 	if (aiofd->__delete_ol) {
-		if (aiofd_post_delete_ol(&aio->__r, aiofd)) {
-			aiofd_link_ol(aiofd, aiofd->__delete_ol);
-		}
-		else {
+		if (!aiofd_post_delete_ol(&aio->__r, aiofd)) {
 			free(aiofd->__delete_ol);
+			aiofd->__delete_ol = NULL;
+			close(aiofd->fd);
+			aiofd->fd = -1;
+			aio->__fn_free_aiofd(aiofd);
+			return;
 		}
+		aiofd_link_ol(aiofd, aiofd->__delete_ol);
 		aiofd->__delete_ol = NULL;
 	}
 #endif
