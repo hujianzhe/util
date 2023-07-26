@@ -156,6 +156,12 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	if (cqe->res < 0) {
 		ol->error = -cqe->res;
 		ol->retval = 0;
+		if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
+			ol->fd = -1;
+		}
+		else {
+			ol->retval = 0;
+		}
 	}
 	else {
 		ol->error = 0;
