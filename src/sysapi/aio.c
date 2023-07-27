@@ -602,7 +602,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
-
+		accept_ol->fd = -1;
 		accept_ol->saddrlen = sizeof(accept_ol->saddr);
 
 		io_uring_prep_accept(sqe, aiofd->fd, (struct sockaddr*)&accept_ol->saddr, &accept_ol->saddrlen, 0);
