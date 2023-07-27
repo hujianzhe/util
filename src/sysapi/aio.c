@@ -737,15 +737,20 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	else {
 		cqes = aio->__wait_cqes;
 	}
-	kt.tv_sec = 0;
-	kt.tv_nsec = 0;
-	ret = io_uring_wait_cqes(&aio->__r, cqes, n, &kt, NULL);
-	if (ret != 0) {
+	while (1) {
+		kt.tv_sec = 0;
+		kt.tv_nsec = 0;
+		ret = io_uring_wait_cqes(&aio->__r, cqes, n, &kt, NULL);
+		if (!ret) {
+			break;
+		}
 		if (ETIME == -ret) {
 			return 1;
 		}
-		errno = -ret;
-		return -1;
+		if (EINTR == -ret) {
+			continue;
+		}
+		return 1;
 	}
 	n = 1;
 	advance_n = 0;
