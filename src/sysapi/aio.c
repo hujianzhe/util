@@ -265,16 +265,19 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 extern "C" {
 #endif
 
-Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*)) {
+Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entries) {
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEM_INFO si;
 	GetSystemInfo(&si);
-	aio->__handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, si.dwNumberOfProcessors << 1);
+	if (entries > si.dwNumberOfProcessors * 2) {
+		entries = si.dwNumberOfProcessors * 2;
+	}
+	aio->__handle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, entries);
 	if (!aio->__handle) {
 		return NULL;
 	}
 #elif	__linux__
-	int ret = io_uring_queue_init(16, &aio->__r, 0);
+	int ret = io_uring_queue_init(entries, &aio->__r, 0);
 	if (ret < 0) {
 		errno = -ret;
 		return NULL;

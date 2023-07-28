@@ -60,7 +60,7 @@ typedef struct Aio_t {
 extern "C" {
 #endif
 
-__declspec_dll Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*));
+__declspec_dll Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entries);
 __declspec_dll BOOL aioClose(Aio_t* aio);
 
 __declspec_dll AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd);
