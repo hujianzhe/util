@@ -277,7 +277,8 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entrie
 		return NULL;
 	}
 #elif	__linux__
-	int ret = io_uring_queue_init(entries, &aio->__r, 0);
+	__u32 flags = IORING_SETUP_CLAMP;
+	int ret = io_uring_queue_init(entries, &aio->__r, flags);
 	if (ret < 0) {
 		errno = -ret;
 		return NULL;
