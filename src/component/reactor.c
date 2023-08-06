@@ -1026,7 +1026,9 @@ static void reactor_free_alive_objects(Reactor_t* reactor) {
 		if (channel->proc->on_free) {
 			channel->proc->on_free(channel);
 		}
-		reactorobject_free(o);
+		if (!o->niofd.__reg) {
+			reactorobject_free(o);
+		}
 		channelobject_free(channel);
 	}
 }
@@ -1166,10 +1168,10 @@ void reactorDestroy(Reactor_t* reactor) {
 	if (!reactor) {
 		return;
 	}
-	nioClose(&reactor->m_nio);
 	criticalsectionClose(&reactor->m_cmdlistlock);
 	reactor_free_cmdlist(reactor);
 	reactor_free_alive_objects(reactor);
+	nioClose(&reactor->m_nio);
 	free(reactor);
 }
 

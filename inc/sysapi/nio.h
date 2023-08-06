@@ -41,8 +41,8 @@ typedef struct NioFD_t {
 	struct NioFD_t* __lprev;
 	struct NioFD_t* __lnext;
 	short __delete_flag;
-#if defined(_WIN32) || defined(_WIN64)
 	short __reg;
+#if defined(_WIN32) || defined(_WIN64)
 	int __domain;
 	IoOverlapped_t* __read_ol;
 	IoOverlapped_t* __write_ol;
@@ -55,11 +55,11 @@ typedef struct Nio_t {
 	FD_t __hNio;
 #if defined(_WIN32) || defined(_WIN64)
 	IoOverlapped_t* __ol_list_head;
-	NioFD_t* __alive_list_head;
 #else
 	FD_t __socketpair[2];
 #endif
 	Atom16_t __wakeup;
+	NioFD_t* __alive_list_head;
 	NioFD_t* __free_list_head;
 	void(*__fn_free_niofd)(NioFD_t*);
 } Nio_t;
