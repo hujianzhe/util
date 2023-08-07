@@ -83,11 +83,12 @@ static void iocp_nio_exit_clean(Nio_t* nio) {
 			break;
 		}
 		for (i = 0; i < n; ++i) {
-			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
+			IoOverlapped_t* ol = (IoOverlapped_t*)e[i].lpOverlapped;
 			if (!ol) {
 				continue;
 			}
 			iocp_nio_unlink_ol(nio, ol);
+			ol->commit = 0;
 			IoOverlapped_free(ol);
 		}
 	}
@@ -217,11 +218,11 @@ void niofdDelete(Nio_t* nio, NioFD_t* niofd) {
 		niofd->fd = (FD_t)INVALID_HANDLE_VALUE;
 	}
 	if (niofd->__read_ol) {
-		IoOverlapped_free((IoOverlapped_t*)niofd->__read_ol);
+		IoOverlapped_free(niofd->__read_ol);
 		niofd->__read_ol = NULL;
 	}
 	if (niofd->__write_ol) {
-		IoOverlapped_free((IoOverlapped_t*)niofd->__write_ol);
+		IoOverlapped_free(niofd->__write_ol);
 		niofd->__write_ol = NULL;
 	}
 #else

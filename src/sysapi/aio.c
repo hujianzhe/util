@@ -254,7 +254,7 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 			break;
 		}
 		for (i = 0; i < cnt; ++i) {
-			IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
+			IoOverlapped_t* ol = (IoOverlapped_t*)e[i].lpOverlapped;
 			if (!ol) {
 				continue;
 			}
