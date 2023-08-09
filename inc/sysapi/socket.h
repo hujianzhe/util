@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_SOCKET_H
 #define	UTIL_C_SYSLIB_SOCKET_H
 
-#include "../platform_define.h"
+#include "io_overlapped.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	#include <ws2tcpip.h>

@@ -8,9 +8,17 @@
 #include "../platform_define.h"
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <ws2tcpip.h>
+	#include <ws2tcpip.h>
+	typedef	WSABUF					Iobuf_t;
+	#define	iobufStaticInit(p, n)	{ (ULONG)(n), (char*)(p) }
+	#define	iobufPtr(iobuf)			((iobuf)->buf)
+	#define	iobufLen(iobuf)			((iobuf)->len)
 #else
-#include <sys/socket.h>
+	#include <sys/socket.h>
+	typedef	struct iovec			Iobuf_t;
+	#define	iobufStaticInit(p, n)	{ (void*)(p), n }
+	#define	iobufPtr(iobuf)			((iobuf)->iov_base)
+	#define iobufLen(iobuf)			((iobuf)->iov_len)
 #endif
 
 enum {
@@ -90,6 +98,9 @@ typedef struct {
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
+__declspec_dll Iobuf_t* iobufPop(Iobuf_t* iov, size_t n);
+__declspec_dll unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n);
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize);
 __declspec_dll long long IoOverlapped_get_file_offset(IoOverlapped_t* ol);

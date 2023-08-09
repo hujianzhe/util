@@ -34,10 +34,6 @@
 	#include <ntstatus.h>
 	#include <winternl.h>
 	STATIC_ASSERT(sizeof(HANDLE) == sizeof(SOCKET), "");
-	typedef	WSABUF					Iobuf_t;
-	#define	iobufStaticInit(p, n)	{ (ULONG)(n), (char*)(p) }
-	#define	iobufPtr(iobuf)			((iobuf)->buf)
-	#define	iobufLen(iobuf)			((iobuf)->len)
 	typedef SOCKET					FD_t;
 	#define INVALID_FD_HANDLE       ((SOCKET)INVALID_HANDLE_VALUE)
 	typedef	SSIZE_T					ssize_t;
@@ -62,10 +58,6 @@
 	typedef int						BOOL;
 	#define	TRUE					1
 	#define	FALSE					0
-	typedef	struct iovec			Iobuf_t;
-	#define	iobufStaticInit(p, n)	{ (void*)(p), n }
-	#define	iobufPtr(iobuf)			((iobuf)->iov_base)
-	#define iobufLen(iobuf)			((iobuf)->iov_len)
 	typedef	int						FD_t;
 	#define INVALID_FD_HANDLE       -1
 #endif

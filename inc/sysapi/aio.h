@@ -10,18 +10,18 @@
 #include "atomic.h"
 #include "io_overlapped.h"
 #ifdef	__linux__
-#include <liburing.h>
+	#include <liburing.h>
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
-#include <ws2tcpip.h>
-typedef OVERLAPPED_ENTRY	AioEv_t;
-#pragma comment(lib, "wsock32.lib")
-#pragma comment(lib, "ws2_32.lib")
+	#include <ws2tcpip.h>
+	typedef OVERLAPPED_ENTRY	AioEv_t;
+	#pragma comment(lib, "wsock32.lib")
+	#pragma comment(lib, "ws2_32.lib")
 #else
-typedef struct AioEv_t {
-	IoOverlapped_t* ol;
-} AioEv_t;
+	typedef struct AioEv_t {
+		IoOverlapped_t* ol;
+	} AioEv_t;
 #endif
 
 typedef struct AioFD_t {

@@ -42,52 +42,6 @@ void alignFree(const void* ptr) {
 #endif
 }
 
-Iobuf_t* iobufPop(Iobuf_t* iov, size_t n) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (n >= iov->len) {
-		iov->buf = NULL;
-		iov->len = 0;
-	}
-	else {
-		iov->buf += n;
-		iov->len -= n;
-	}
-#else
-	if (n >= iov->iov_len) {
-		iov->iov_base = NULL;
-		iov->iov_len = 0;
-	}
-	else {
-		iov->iov_base = ((unsigned char*)iov->iov_base) + n;
-		iov->iov_len -= n;
-	}
-#endif
-	return iov;
-}
-
-unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n) {
-	unsigned int off = 0;
-	unsigned char* ptr_buf = (unsigned char*)buf;
-	while (*iov_i < iovcnt) {
-		unsigned int leftsize = n - off;
-		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
-		unsigned int iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
-		if (iovleftsize > leftsize) {
-			memmove(ptr_buf + off, iovptr, leftsize);
-			*iov_off += leftsize;
-			off += leftsize;
-			break;
-		}
-		else {
-			memmove(ptr_buf + off, iovptr, iovleftsize);
-			*iov_off = 0;
-			(*iov_i)++;
-			off += iovleftsize;
-		}
-	}
-	return off;
-}
-
 #ifdef	__cplusplus
 }
 #endif

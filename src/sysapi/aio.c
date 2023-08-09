@@ -178,10 +178,10 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 
 static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 	struct io_uring_sqe* sqe = io_uring_get_sqe(r);
+	if (SOCK_STREAM == aiofd->__socktype) {
+		shutdown(aiofd->fd, SHUT_RDWR);
+	}
 	if (!sqe) {
-		if (SOCK_STREAM == aiofd->__socktype) {
-			shutdown(aiofd->fd, SHUT_RDWR);
-		}
 		return 0;
 	}
 	io_uring_prep_cancel_fd(sqe, aiofd->fd, 0);
