@@ -9,40 +9,8 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <ws2tcpip.h>
-typedef struct IocpOverlapped_t {
-	OVERLAPPED ol;
-	int error;
-	DWORD transfer_bytes;
-	unsigned char commit;
-	unsigned char free_flag;
-	short opcode;
-	void* completion_key;
-	struct IocpOverlapped_t* __prev;
-	struct IocpOverlapped_t* __next;
-	size_t bytes_off;
-	WSABUF iobuf;
-} IoOverlapped_t;
 #else
 #include <sys/socket.h>
-typedef struct UnixOverlapped_t {
-#ifdef	__linux__
-	int __wait_cqe_notify;
-#endif
-	int error;
-	union {
-		int fd;
-		int retval;
-		unsigned int transfer_bytes;
-	};
-	unsigned char commit;
-	unsigned char free_flag;
-	short opcode;
-	void* completion_key;
-	struct UnixOverlapped_t* __prev;
-	struct UnixOverlapped_t* __next;
-	size_t bytes_off;
-	struct iovec iobuf;
-} IoOverlapped_t;
 #endif
 
 enum {
@@ -53,6 +21,30 @@ enum {
 	IO_OVERLAPPED_OP_ACCEPT = 3,
 	IO_OVERLAPPED_OP_CONNECT = 4,
 };
+
+typedef struct IoOverlapped_t {
+#if defined(_WIN32) || defined(_WIN64)
+	OVERLAPPED ol;
+	DWORD transfer_bytes;
+	WSABUF iobuf;
+#elif	__linux__
+	int __wait_cqe_notify;
+	union {
+		int fd;
+		int retval;
+		unsigned int transfer_bytes;
+	};
+	struct iovec iobuf;
+#endif
+	int error;
+	unsigned char commit;
+	unsigned char free_flag;
+	short opcode;
+	void* completion_key;
+	struct IoOverlapped_t* __prev;
+	struct IoOverlapped_t* __next;
+	size_t bytes_off;
+} IoOverlapped_t;
 
 /* note: internal define, not direct use */
 
