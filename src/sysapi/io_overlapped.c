@@ -84,7 +84,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
-			ol->msghdr.msg_iov = &ol->base.iobuf;
+			ol->msghdr.msg_iov = &ol->iov;
 			ol->msghdr.msg_iovlen = 1;
 			return &ol->base;
 		}
@@ -102,7 +102,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 				ol->base.iobuf.iov_len = appendsize;
 				ol->append_data[appendsize] = 0;
 			}
-			ol->msghdr.msg_iov = &ol->base.iobuf;
+			ol->msghdr.msg_iov = &ol->iov;
 			ol->msghdr.msg_iovlen = 1;
 			return &ol->base;
 		}

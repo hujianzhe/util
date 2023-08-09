@@ -558,6 +558,8 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
+		read_ol->iov.iov_base = ((char*)read_ol->base.iobuf.iov_base) + read_ol->base.bytes_off;
+		read_ol->iov.iov_len = read_ol->base.iobuf.iov_len - read_ol->base.bytes_off;
 		if (aiofd->__domain != AF_UNSPEC) {
 			read_ol->msghdr.msg_name = &read_ol->saddr;
 			read_ol->msghdr.msg_namelen = sizeof(read_ol->saddr);
@@ -574,6 +576,8 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
+		write_ol->iov.iov_base = ((char*)write_ol->base.iobuf.iov_base) + write_ol->base.bytes_off;
+		write_ol->iov.iov_len = write_ol->base.iobuf.iov_len - write_ol->base.bytes_off;
 		if (aiofd->__domain != AF_UNSPEC) {
 			if (addrlen > 0 && saddr) {
 				memmove(&write_ol->saddr, saddr, addrlen);
