@@ -62,6 +62,7 @@ typedef struct {
 	struct sockaddr_storage saddr;
 	int saddrlen;
 	DWORD dwFlags;
+	WSABUF wsabuf;
 	unsigned char append_data[1]; /* convienent for text data */
 } IocpReadOverlapped_t, IocpWriteOverlapped_t, IocpConnectExOverlapped_t;
 

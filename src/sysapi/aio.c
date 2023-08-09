@@ -423,18 +423,19 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	}
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
-		WSABUF* ptr_wsabuf = &read_ol->base.iobuf;
+		read_ol->wsabuf.buf = read_ol->base.iobuf.buf + read_ol->base.bytes_off;
+		read_ol->wsabuf.len = read_ol->base.iobuf.len - read_ol->base.bytes_off;
 		if (fd_domain != AF_UNSPEC) {
 			read_ol->saddrlen = sizeof(read_ol->saddr);
 			read_ol->dwFlags = 0;
-			if (WSARecvFrom((SOCKET)fd, ptr_wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
+			if (WSARecvFrom((SOCKET)fd, &read_ol->wsabuf, 1, NULL, &read_ol->dwFlags, (struct sockaddr*)&read_ol->saddr, &read_ol->saddrlen, (LPWSAOVERLAPPED)&read_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
 			}
 		}
 		else {
-			if (!ReadFile((HANDLE)fd, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
+			if (!ReadFile((HANDLE)fd, read_ol->wsabuf.buf, read_ol->wsabuf.len, NULL, (LPOVERLAPPED)&read_ol->base.ol)) {
 				if (GetLastError() != ERROR_IO_PENDING) {
 					return FALSE;
 				}
@@ -443,7 +444,8 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
-		WSABUF* ptr_wsabuf = &write_ol->base.iobuf;
+		write_ol->wsabuf.buf = write_ol->base.iobuf.buf + write_ol->base.bytes_off;
+		write_ol->wsabuf.len = write_ol->base.iobuf.len - write_ol->base.bytes_off;
 		if (fd_domain != AF_UNSPEC) {
 			const struct sockaddr* toaddr;
 			if (addrlen > 0 && saddr) {
@@ -457,14 +459,14 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 				write_ol->saddr.ss_family = AF_UNSPEC;
 				write_ol->saddrlen = 0;
 			}
-			if (WSASendTo((SOCKET)fd, ptr_wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
 			}
 		}
 		else {
-			if (!WriteFile((HANDLE)fd, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
+			if (!WriteFile((HANDLE)fd, write_ol->wsabuf.buf, write_ol->wsabuf.len, NULL, (LPOVERLAPPED)&write_ol->base.ol)) {
 				if (GetLastError() != ERROR_IO_PENDING) {
 					return FALSE;
 				}
@@ -505,7 +507,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		struct sockaddr_storage st;
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
-		WSABUF* ptr_wsabuf;
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
 		if (!lpfnConnectEx) {
 			DWORD dwBytes;
@@ -524,8 +525,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 			return FALSE;
 		}
 		memmove(&conn_ol->saddr, saddr, addrlen);
-		ptr_wsabuf = &conn_ol->base.iobuf;
-		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, ptr_wsabuf->buf, ptr_wsabuf->len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
+		conn_ol->wsabuf.buf = conn_ol->base.iobuf.buf + conn_ol->base.bytes_off;
+		conn_ol->wsabuf.len = conn_ol->base.iobuf.len - conn_ol->base.bytes_off;
+		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
 			if (WSAGetLastError() != ERROR_IO_PENDING) {
 				return FALSE;
 			}
