@@ -19,6 +19,7 @@ typedef struct IocpOverlapped_t {
 	void* completion_key;
 	struct IocpOverlapped_t* __prev;
 	struct IocpOverlapped_t* __next;
+	size_t bytes_off;
 	WSABUF iobuf;
 } IoOverlapped_t;
 #else
@@ -39,6 +40,7 @@ typedef struct UnixOverlapped_t {
 	void* completion_key;
 	struct UnixOverlapped_t* __prev;
 	struct UnixOverlapped_t* __next;
+	size_t bytes_off;
 	struct iovec iobuf;
 } IoOverlapped_t;
 #endif

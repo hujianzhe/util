@@ -162,7 +162,7 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	else {
 		ol->error = 0;
 		if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
-			ol->transfer_bytes += cqe->res;
+			ol->transfer_bytes = cqe->res;
 		}
 		else if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 			ol->fd = cqe->res;
@@ -815,7 +815,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 	ol->commit = 0;
 
-	ol->transfer_bytes += e->dwNumberOfBytesTransferred;
+	ol->transfer_bytes = e->dwNumberOfBytesTransferred;
 	if (NT_ERROR(e->Internal)) {
 		ol->error = e->Internal;
 	}
