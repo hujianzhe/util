@@ -204,6 +204,17 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 	while (aio->__delete_list_head) {
 		unsigned head, advance_n = 0;
 		struct io_uring_cqe* cqe;
+		int ret = io_uring_peek_cqe(&aio->__r, &cqe);
+		if (ret != 0) {
+			if (EAGAIN == -ret) {
+				continue;
+			}
+			if (EINTR != -ret) {
+				errno = -ret;
+				return;
+			}
+			continue;
+		}
 		io_uring_for_each_cqe(&aio->__r, head, cqe) {
 			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			advance_n++;
