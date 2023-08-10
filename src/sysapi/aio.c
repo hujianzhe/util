@@ -202,18 +202,8 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 	}
 	aio_handle_free_dead(aio);
 	while (aio->__delete_list_head) {
-		IoOverlapped_t* ol;
-		unsigned head, advance_n;
-		struct io_uring_cqe* cqe, *cqes[128];
-		struct __kernel_timespec kt = { 0 };
-		int ret = io_uring_wait_cqes(&aio->__r, cqes, sizeof(cqes) / sizeof(cqes[0]), &kt, NULL);
-		if (ret != 0) {
-			if (ETIME == -ret) {
-				continue;
-			}
-			break;
-		}
-		advance_n = 0;
+		unsigned head, advance_n = 0;
+		struct io_uring_cqe* cqe;
 		io_uring_for_each_cqe(&aio->__r, head, cqe) {
 			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			advance_n++;
@@ -230,6 +220,9 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 			}
 			aio_ol_acked(aio, ol, 0);
 			IoOverlapped_free(ol);
+			if (advance_n >= 128) {
+				break;
+			}
 		}
 		io_uring_cq_advance(&aio->__r, advance_n);
 	}
@@ -651,6 +644,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	return -1;
 #elif	__linux__
 	int ret;
+	unsigned int arg_n = n;
 	unsigned head, advance_n;
 	IoOverlapped_t* ol;
 	struct io_uring_cqe* cqe, **cqes;
@@ -752,21 +746,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	else {
 		cqes = aio->__wait_cqes;
 	}
-	while (1) {
-		kt.tv_sec = 0;
-		kt.tv_nsec = 0;
-		ret = io_uring_wait_cqes(&aio->__r, cqes, n, &kt, NULL);
-		if (!ret) {
-			break;
-		}
-		if (ETIME == -ret) {
-			return 1;
-		}
-		if (EINTR == -ret) {
-			continue;
-		}
-		return 1;
-	}
+
 	n = 1;
 	advance_n = 0;
 	io_uring_for_each_cqe(&aio->__r, head, cqe) {
@@ -778,6 +758,9 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		uring_cqe_save__(ol, cqe);
 		e[n].ol = ol;
 		n++;
+		if (n >= arg_n) {
+			break;
+		}
 	}
 	io_uring_cq_advance(&aio->__r, advance_n);
 	return n;
