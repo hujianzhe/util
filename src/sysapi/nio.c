@@ -91,6 +91,7 @@ static void iocp_nio_exit_clean(Nio_t* nio) {
 			ol->commit = 0;
 			IoOverlapped_free(ol);
 		}
+		Sleep(5); /* avoid cpu busy */
 	}
 }
 

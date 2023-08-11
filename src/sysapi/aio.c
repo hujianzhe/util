@@ -236,6 +236,7 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 			}
 		}
 		io_uring_cq_advance(&aio->__r, advance_n);
+		usleep(5000); /* avoid cpu busy */
 	}
 }
 #endif
@@ -266,6 +267,7 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 			ol->commit = 0;
 			IoOverlapped_free(ol);
 		}
+		Sleep(5); /* avoid cpu busy */
 	}
 }
 #endif
