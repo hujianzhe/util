@@ -661,7 +661,6 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	unsigned head, advance_n;
 	IoOverlapped_t* ol;
 	struct io_uring_cqe* cqe, **cqes;
-	struct __kernel_timespec kt;
 
 	aio_handle_free_dead(aio);
 
@@ -676,6 +675,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		start_tm += tval.tv_usec / 1000;
 		while (1) {
 			long long tm, delta_tlen;
+			struct __kernel_timespec kt;
 			kt.tv_sec = msec / 1000;
 			kt.tv_nsec = msec % 1000;
 			kt.tv_nsec *= 1000000LL;
@@ -713,7 +713,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	}
 	else {
 		while (1) {
-			ret = io_uring_wait_cqe_timeout(&aio->__r, &cqe, NULL);
+			ret = io_uring_wait_cqe(&aio->__r, &cqe);
 			if (ret != 0) {
 				if (ETIME == -ret) {
 					return 0;
