@@ -294,8 +294,6 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entrie
 		errno = -ret;
 		return NULL;
 	}
-	aio->__wait_cqes = NULL;
-	aio->__wait_cqes_cnt = 0;
 #else
 	return NULL;
 #endif
@@ -312,8 +310,6 @@ BOOL aioClose(Aio_t* aio) {
 	iocp_aio_exit_clean__(aio);
 	return CloseHandle(aio->__handle);
 #elif	__linux__
-	free(aio->__wait_cqes);
-	aio->__wait_cqes_cnt = 0;
 	uring_aio_exit_clean__(aio);
 	io_uring_queue_exit(&aio->__r);
 #endif
@@ -739,25 +735,6 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	e[0].ol = ol;
 	if (n <= 1) {
 		return 1;
-	}
-
-	n -= 1;
-	if (n > aio->__wait_cqes_cnt) {
-		cqes = (struct io_uring_cqe**)realloc(aio->__wait_cqes, sizeof(aio->__wait_cqes[0]) * n);
-		if (cqes) {
-			aio->__wait_cqes = cqes;
-			aio->__wait_cqes_cnt = n;
-		}
-		else if (!aio->__wait_cqes) {
-			return 1;
-		}
-		else {
-			cqes = aio->__wait_cqes;
-			n = aio->__wait_cqes_cnt;
-		}
-	}
-	else {
-		cqes = aio->__wait_cqes;
 	}
 
 	n = 1;

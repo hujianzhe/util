@@ -46,8 +46,6 @@ typedef struct Aio_t {
 	HANDLE __handle;
 #elif	__linux__
 	struct io_uring __r;
-	struct io_uring_cqe** __wait_cqes;
-	unsigned int __wait_cqes_cnt;
 #endif
 	Atom16_t __wakeup;
 	AioFD_t* __alive_list_head;
