@@ -100,7 +100,7 @@ extern "C" {
 #endif
 
 __declspec_dll Iobuf_t* iobufPop(Iobuf_t* iov, size_t n);
-__declspec_dll unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n);
+__declspec_dll size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n);
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize);
 __declspec_dll long long IoOverlapped_get_file_offset(IoOverlapped_t* ol);

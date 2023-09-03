@@ -37,13 +37,13 @@ Iobuf_t* iobufPop(Iobuf_t* iov, size_t n) {
 	return iov;
 }
 
-unsigned int iobufShardCopy(const Iobuf_t* iov, unsigned int iovcnt, unsigned int* iov_i, unsigned int* iov_off, void* buf, unsigned int n) {
-	unsigned int off = 0;
+size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n) {
+	size_t off = 0;
 	unsigned char* ptr_buf = (unsigned char*)buf;
 	while (*iov_i < iovcnt) {
-		unsigned int leftsize = n - off;
+		size_t leftsize = n - off;
 		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
-		unsigned int iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
+		size_t iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
 		if (iovleftsize > leftsize) {
 			memmove(ptr_buf + off, iovptr, leftsize);
 			*iov_off += leftsize;

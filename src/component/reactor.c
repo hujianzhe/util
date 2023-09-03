@@ -876,7 +876,8 @@ static List_t* channelbaseShardDatas(ChannelBase_t* channel, int pktype, const I
 	}
 	fn_on_hdrsize = channel->proc->on_hdrsize;
 	if (nbytes) {
-		unsigned int off = 0, iov_i = 0, iov_off = 0;
+		unsigned int off = 0;
+		size_t iov_i = 0, iov_off = 0;
 		unsigned int write_fragment_size = channel->write_fragment_size;
 		unsigned int shardsz = write_fragment_size;
 
