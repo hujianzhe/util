@@ -23,18 +23,18 @@ static void aio_handle_free_dead(Aio_t* aio) {
 	aio->__dead_list_head = NULL;
 }
 
-static void aiofd_link_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
-	if (aiofd->__ol_list_tail) {
-		aiofd->__ol_list_tail->__next = ol;
+static void aiofd_link_pending_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
+	if (aiofd->__ol_pending_list_tail) {
+		aiofd->__ol_pending_list_tail->__next = ol;
 	}
-	ol->__prev = aiofd->__ol_list_tail;
+	ol->__prev = aiofd->__ol_pending_list_tail;
 	ol->__next = NULL;
-	aiofd->__ol_list_tail = ol;
+	aiofd->__ol_pending_list_tail = ol;
 }
 
-static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
-	if (aiofd->__ol_list_tail == ol) {
-		aiofd->__ol_list_tail = ol->__prev;
+static void aiofd_unlink_pending_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
+	if (aiofd->__ol_pending_list_tail == ol) {
+		aiofd->__ol_pending_list_tail = ol->__prev;
 	}
 	if (ol->__prev) {
 		ol->__prev->__next = ol->__next;
@@ -44,21 +44,18 @@ static void aiofd_unlink_ol(AioFD_t* aiofd, IoOverlapped_t* ol) {
 	}
 }
 
-static void aiofd_free_all_ol(AioFD_t* aiofd) {
+static void aiofd_free_all_pending_ol(AioFD_t* aiofd) {
 	IoOverlapped_t* ol, *prev_ol;
-	for (ol = aiofd->__ol_list_tail; ol; ol = prev_ol) {
+	for (ol = aiofd->__ol_pending_list_tail; ol; ol = prev_ol) {
 		prev_ol = ol->__prev;
-		if (IoOverlapped_check_free_able(ol)) {
-			aiofd_unlink_ol(aiofd, ol);
-		}
 		IoOverlapped_free(ol);
 	}
 }
 
 static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_dead_list) {
 	AioFD_t* aiofd = (AioFD_t*)ol->completion_key;
-	aiofd_unlink_ol(aiofd, ol);
-	if (aiofd->__delete_flag && !aiofd->__ol_list_tail) {
+	aiofd_unlink_pending_ol(aiofd, ol);
+	if (aiofd->__delete_flag && !aiofd->__ol_pending_list_tail) {
 	#if defined(_WIN32) || defined(_WIN64)
 		if (aiofd->__domain != AF_UNSPEC) {
 			closesocket(aiofd->fd);
@@ -184,11 +181,13 @@ static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 		}
 		return 0;
 	}
-	io_uring_prep_cancel_fd(sqe, aiofd->fd, IORING_ASYNC_CANCEL_ALL);
 	aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
 	aiofd->__delete_ol->fd = aiofd->fd;
 	aiofd->__delete_ol->completion_key = aiofd;
 	aiofd->__delete_ol->commit = 1;
+	aiofd_link_pending_ol(aiofd, aiofd->__delete_ol);
+
+	io_uring_prep_cancel_fd(sqe, aiofd->fd, IORING_ASYNC_CANCEL_ALL);
 	io_uring_sqe_set_data(sqe, aiofd->__delete_ol);
 	io_uring_submit(r);
 	return 1;
@@ -326,7 +325,7 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 #endif
 	aiofd->__lprev = NULL;
 	aiofd->__lnext = NULL;
-	aiofd->__ol_list_tail = NULL;
+	aiofd->__ol_pending_list_tail = NULL;
 	aiofd->__delete_flag = 0;
 	aiofd->__reg = 0;
 	aiofd->__domain = 0;
@@ -361,9 +360,9 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 			aio->__alive_list_head = aiofd->__lnext;
 		}
 	}
-	aiofd_free_all_ol(aiofd);
+	aiofd_free_all_pending_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
-	if (!aiofd->__ol_list_tail) {
+	if (!aiofd->__ol_pending_list_tail) {
 		if (aiofd->__domain != AF_UNSPEC) {
 			closesocket(aiofd->fd);
 			aiofd->fd = INVALID_SOCKET;
@@ -377,7 +376,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	}
 	CancelIo((HANDLE)aiofd->fd);
 #elif	__linux__
-	if (!aiofd->__ol_list_tail) {
+	if (!aiofd->__ol_pending_list_tail) {
 		if (SOCK_STREAM == aiofd->__socktype) {
 			shutdown(aiofd->fd, SHUT_RDWR);
 		}
@@ -397,7 +396,6 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 			aio->__fn_free_aiofd(aiofd);
 			return;
 		}
-		aiofd_link_ol(aiofd, aiofd->__delete_ol);
 		aiofd->__delete_ol = NULL;
 	}
 #endif
@@ -541,7 +539,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	}
 	ol->commit = 1;
 	ol->completion_key = aiofd;
-	aiofd_link_ol(aiofd, ol);
+	aiofd_link_pending_ol(aiofd, ol);
 	return TRUE;
 #elif	__linux__
 	struct io_uring_sqe* sqe;
@@ -630,7 +628,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 	}
 	ol->commit = 1;
 	ol->completion_key = aiofd;
-	aiofd_link_ol(aiofd, ol);
+	aiofd_link_pending_ol(aiofd, ol);
 	io_uring_sqe_set_data(sqe, ol);
 	io_uring_submit(&aio->__r);
 	return 1;

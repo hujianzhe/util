@@ -30,7 +30,7 @@ typedef struct AioFD_t {
 
 	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
-	IoOverlapped_t* __ol_list_tail;
+	IoOverlapped_t* __ol_pending_list_tail;
 	short __delete_flag;
 	short __reg;
 	int __domain;
