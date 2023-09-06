@@ -775,11 +775,12 @@ void aioWakeup(Aio_t* aio) {
 	}
 }
 
-IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
+IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) {
 #if defined(_WIN32) || defined(_WIN64)
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
 	if (!ol) {
 		_xchg16(&aio->__wakeup, 0);
+		*ol_aiofd = NULL;
 		return NULL;
 	}
 
@@ -788,6 +789,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 
 	if (ol->free_flag) {
 		free(ol);
+		*ol_aiofd = NULL;
 		return NULL;
 	}
 	ol->commit = 0;
@@ -800,11 +802,13 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 		ol->error = 0;
 	}
 
+	*ol_aiofd = (AioFD_t*)e->lpCompletionKey;
 	return ol;
 #elif	__linux__
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
 	if (&s_wakeup_ol == ol) {
 		_xchg16(&aio->__wakeup, 0);
+		*ol_aiofd = NULL;
 		return NULL;
 	}
 
@@ -812,6 +816,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 		aio_ol_acked(aio, ol, 1);
 	}
 	if (ol->free_flag) {
+		*ol_aiofd = NULL;
 		if (ol->__wait_cqe_notify) {
 			ol->commit = 0;
 			return NULL;
@@ -821,6 +826,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e) {
 	}
 	ol->commit = 0;
 
+	*ol_aiofd = (AioFD_t*)ol->completion_key;
 	return ol;
 #else
 	return NULL;
