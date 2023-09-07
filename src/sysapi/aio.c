@@ -784,7 +784,6 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
-	ol->completion_key = (void*)e->lpCompletionKey;
 	aio_ol_acked(aio, ol, 1);
 
 	if (ol->free_flag) {
