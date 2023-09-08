@@ -52,8 +52,7 @@ static void aiofd_free_all_pending_ol(AioFD_t* aiofd) {
 	}
 }
 
-static void aio_ol_acked(Aio_t* aio, IoOverlapped_t* ol, int enter_dead_list) {
-	AioFD_t* aiofd = (AioFD_t*)ol->completion_key;
+static void aio_ol_acked(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int enter_dead_list) {
 	aiofd_unlink_pending_ol(aiofd, ol);
 	if (aiofd->__delete_flag && !aiofd->__ol_pending_list_tail) {
 	#if defined(_WIN32) || defined(_WIN64)
@@ -134,14 +133,14 @@ static int uring_filter_internal_ol__(Aio_t* aio, IoOverlapped_t* ol, __u32 flag
 		return 1;
 	}
 	if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode) {
-		aio_ol_acked(aio, ol, 0);
+		aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
 		free(ol);
 		return 1;
 	}
 	if (flags & IORING_CQE_F_NOTIF) {
 		ol->__wait_cqe_notify = 0;
 		if (!ol->commit) {
-			aio_ol_acked(aio, ol, 0);
+			aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
 			IoOverlapped_free(ol);
 		}
 		return 1;
@@ -153,7 +152,7 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	if (cqe->res < 0) {
 		ol->error = -cqe->res;
 		if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-			ol->fd = -1;
+			ol->__fd = -1;
 		}
 	}
 	else {
@@ -162,7 +161,7 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 			ol->transfer_bytes = cqe->res;
 		}
 		else if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-			ol->fd = cqe->res;
+			ol->__fd = cqe->res;
 		}
 		else {
 			ol->retval = cqe->res;
@@ -182,8 +181,8 @@ static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 		return 0;
 	}
 	aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
-	aiofd->__delete_ol->fd = aiofd->fd;
-	aiofd->__delete_ol->completion_key = aiofd;
+	aiofd->__delete_ol->__fd = aiofd->fd;
+	aiofd->__delete_ol->__completion_key = aiofd;
 	aiofd->__delete_ol->commit = 1;
 	aiofd_link_pending_ol(aiofd, aiofd->__delete_ol);
 
@@ -228,7 +227,7 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 				ol->__wait_cqe_notify = 1;
 				continue;
 			}
-			aio_ol_acked(aio, ol, 0);
+			aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
 			IoOverlapped_free(ol);
 			if (advance_n >= 128) {
 				break;
@@ -262,7 +261,7 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 			if (!ol) {
 				continue;
 			}
-			aio_ol_acked(aio, ol, 0);
+			aio_ol_acked(aio, (AioFD_t*)e[i].lpCompletionKey, ol, 0);
 			ol->commit = 0;
 			IoOverlapped_free(ol);
 		}
@@ -321,7 +320,7 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	if (!aiofd->__delete_ol) {
 		return NULL;
 	}
-	aiofd->__delete_ol->fd = -1;
+	aiofd->__delete_ol->__fd = -1;
 #endif
 	aiofd->__lprev = NULL;
 	aiofd->__lnext = NULL;
@@ -538,7 +537,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		return FALSE;
 	}
 	ol->commit = 1;
-	ol->completion_key = aiofd;
 	aiofd_link_pending_ol(aiofd, ol);
 	return TRUE;
 #elif	__linux__
@@ -617,7 +615,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
-		accept_ol->base.fd = -1;
+		accept_ol->base.__fd = -1;
 		accept_ol->saddrlen = sizeof(accept_ol->saddr);
 
 		io_uring_prep_accept(sqe, aiofd->fd, (struct sockaddr*)&accept_ol->saddr, &accept_ol->saddrlen, 0);
@@ -627,7 +625,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		return 0;
 	}
 	ol->commit = 1;
-	ol->completion_key = aiofd;
+	ol->__completion_key = aiofd;
 	aiofd_link_pending_ol(aiofd, ol);
 	io_uring_sqe_set_data(sqe, ol);
 	io_uring_submit(&aio->__r);
@@ -784,7 +782,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
-	aio_ol_acked(aio, ol, 1);
+	aio_ol_acked(aio, (AioFD_t*)e->lpCompletionKey, ol, 1);
 
 	if (ol->free_flag) {
 		free(ol);
@@ -812,7 +810,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	}
 
 	if (!ol->__wait_cqe_notify) {
-		aio_ol_acked(aio, ol, 1);
+		aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 1);
 	}
 	if (ol->free_flag) {
 		*ol_aiofd = NULL;
@@ -825,7 +823,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	}
 	ol->commit = 0;
 
-	*ol_aiofd = (AioFD_t*)ol->completion_key;
+	*ol_aiofd = (AioFD_t*)ol->__completion_key;
 	return ol;
 #else
 	return NULL;

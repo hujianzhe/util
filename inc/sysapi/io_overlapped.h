@@ -32,26 +32,26 @@ enum {
 
 typedef struct IoOverlapped_t {
 #if defined(_WIN32) || defined(_WIN64)
-	OVERLAPPED ol;
+	OVERLAPPED ol; /* private */
 	DWORD transfer_bytes;
 	WSABUF iobuf;
 #elif	__linux__
-	int __wait_cqe_notify;
+	int __wait_cqe_notify; /* private */
 	union {
-		int fd;
+		int __fd; /* private */
 		int retval;
 		unsigned int transfer_bytes;
 	};
+	void* __completion_key; /* private */
 	struct iovec iobuf;
 #endif
 	int error;
 	unsigned char commit;
 	unsigned char free_flag;
 	short opcode;
-	void* completion_key;
-	struct IoOverlapped_t* __prev;
-	struct IoOverlapped_t* __next;
 	size_t bytes_off;
+	struct IoOverlapped_t* __prev; /* private */
+	struct IoOverlapped_t* __next; /* private */
 } IoOverlapped_t;
 
 /* note: internal define, not direct use */

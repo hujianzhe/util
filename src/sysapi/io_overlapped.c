@@ -158,7 +158,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			if (!ol) {
 				return NULL;
 			}
-			ol->base.fd = -1;
+			ol->base.__fd = -1;
 			ol->base.opcode = IO_OVERLAPPED_OP_ACCEPT;
 			ol->saddr.ss_family = AF_UNSPEC;
 			return &ol->base;
@@ -264,8 +264,8 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		int acceptfd = ol->fd;
-		ol->fd = -1;
+		int acceptfd = ol->__fd;
+		ol->__fd = -1;
 		if (p_peer_saddr && plen) {
 			getpeername(acceptfd, p_peer_saddr, plen);
 		}
@@ -329,9 +329,9 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 	}
 #elif	__linux__
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		if (ol->fd >= 0) {
-			close(ol->fd);
-			ol->fd = -1;
+		if (ol->__fd >= 0) {
+			close(ol->__fd);
+			ol->__fd = -1;
 		}
 	}
 	if (ol->__wait_cqe_notify) {

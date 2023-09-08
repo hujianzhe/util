@@ -453,7 +453,6 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		return FALSE;
 	}
 	ol->commit = 1;
-	ol->completion_key = niofd;
 	iocp_nio_link_ol(nio, ol);
 	return TRUE;
 #elif defined(__linux__)
