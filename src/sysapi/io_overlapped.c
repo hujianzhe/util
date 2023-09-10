@@ -262,7 +262,7 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 		}
 		return acceptfd;
 	}
-#elif	__linux__
+#else
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		int acceptfd = ol->__fd;
 		ol->__fd = -1;
@@ -327,17 +327,19 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 			iocp_acceptex->acceptsocket = INVALID_SOCKET;
 		}
 	}
-#elif	__linux__
+#else
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
 		if (ol->__fd >= 0) {
 			close(ol->__fd);
 			ol->__fd = -1;
 		}
 	}
+	#ifdef	__linux__
 	if (ol->__wait_cqe_notify) {
 		ol->free_flag = 1;
 		return;
 	}
+	#endif
 #endif
 	if (ol->commit) {
 		ol->free_flag = 1;

@@ -35,8 +35,10 @@ typedef struct IoOverlapped_t {
 	OVERLAPPED ol; /* private */
 	DWORD transfer_bytes;
 	WSABUF iobuf;
-#elif	__linux__
+#else
+	#ifdef	__linux__
 	int __wait_cqe_notify; /* private */
+	#endif
 	union {
 		int __fd; /* private */
 		int retval;
