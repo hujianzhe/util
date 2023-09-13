@@ -275,7 +275,7 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 	return INVALID_FD_HANDLE;
 }
 
-void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen) {
+void IoOverlapped_get_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (ol->opcode) {
 		case IO_OVERLAPPED_OP_READ:
@@ -311,6 +311,57 @@ void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, 
 		default:
 			*pp_saddr = NULL;
 			*plen = 0;
+	}
+#endif
+}
+
+void IoOverlapped_set_peer_sockaddr(IoOverlapped_t* ol, const struct sockaddr* saddr, socklen_t saddrlen) {
+#if defined(_WIN32) || defined(_WIN64)
+	switch (ol->opcode) {
+		case IO_OVERLAPPED_OP_WRITE:
+		{
+			IocpWriteOverlapped_t* w_ol = (IocpWriteOverlapped_t*)ol;
+			if (saddr && saddrlen > 0) {
+				memmove(&w_ol->saddr, saddr, saddrlen);
+				w_ol->saddrlen = saddrlen;
+			}
+			else {
+				w_ol->saddr.ss_family = AF_UNSPEC;
+				w_ol->saddrlen = 0;
+			}
+			break;
+		}
+		case IO_OVERLAPPED_OP_CONNECT:
+		{
+			IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
+			memmove(&conn_ol->saddr, saddr, saddrlen);
+			conn_ol->saddrlen = saddrlen;
+			break;
+		}
+	}
+#else
+	switch (ol->opcode) {
+		case IO_OVERLAPPED_OP_WRITE:
+		{
+			UnixWriteOverlapped_t* w_ol = (UnixWriteOverlapped_t*)ol;
+			if (saddr && saddrlen > 0) {
+				w_ol->msghdr.msg_name = &w_ol->saddr;
+				w_ol->msghdr.msg_namelen = saddrlen;
+				memmove(w_ol->msghdr.msg_name, saddr, saddrlen);
+			}
+			else {
+				w_ol->msghdr.msg_name = NULL;
+				w_ol->msghdr.msg_namelen = 0;
+			}
+			break;
+		}
+		case IO_OVERLAPPED_OP_CONNECT:
+		{
+			UnixConnectOverlapped_t* conn_ol = (UnixConnectOverlapped_t*)ol;
+			memmove(&conn_ol->saddr, saddr, saddrlen);
+			conn_ol->saddrlen = saddrlen;
+			break;
+		}
 	}
 #endif
 }

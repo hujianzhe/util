@@ -105,11 +105,12 @@ __declspec_dll Iobuf_t* iobufPop(Iobuf_t* iov, size_t n);
 __declspec_dll size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n);
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize);
+__declspec_dll void IoOverlapped_get_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen);
+__declspec_dll void IoOverlapped_set_peer_sockaddr(IoOverlapped_t* ol, const struct sockaddr* saddr, socklen_t saddrlen);
 __declspec_dll long long IoOverlapped_get_file_offset(IoOverlapped_t* ol);
 __declspec_dll IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offset);
 __declspec_dll int IoOverlapped_connect_update(FD_t sockfd);
 __declspec_dll FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr, socklen_t* plen);
-__declspec_dll void IoOverlapped_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr** pp_saddr, socklen_t* plen);
 __declspec_dll void IoOverlapped_free(IoOverlapped_t* ol);
 __declspec_dll int IoOverlapped_check_reuse_able(IoOverlapped_t* ol);
 
