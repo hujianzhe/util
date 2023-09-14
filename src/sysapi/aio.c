@@ -407,7 +407,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	aio->__delete_list_head = aiofd;
 }
 
-BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t addrlen) {
+BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	int fd_domain = aiofd->__domain;
 	FD_t fd = aiofd->fd;
@@ -447,18 +447,15 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		write_ol->wsabuf.len = write_ol->base.iobuf.len - write_ol->base.bytes_off;
 		if (fd_domain != AF_UNSPEC) {
 			const struct sockaddr* toaddr;
-			if (addrlen > 0 && saddr) {
+			int toaddrlen = write_ol->saddrlen;
+			if (toaddrlen > 0 && aiofd->__socktype != SOCK_STREAM) {
 				toaddr = (const struct sockaddr*)&write_ol->saddr;
-				memmove(&write_ol->saddr, saddr, addrlen);
-				write_ol->saddrlen = addrlen;
 			}
 			else {
 				toaddr = NULL;
-				addrlen = 0;
-				write_ol->saddr.ss_family = AF_UNSPEC;
-				write_ol->saddrlen = 0;
+				toaddrlen = 0;
 			}
-			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, addrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
+			if (WSASendTo((SOCKET)fd, &write_ol->wsabuf, 1, NULL, write_ol->dwFlags, toaddr, toaddrlen, (LPWSAOVERLAPPED)&write_ol->base.ol, NULL)) {
 				if (WSAGetLastError() != WSA_IO_PENDING) {
 					return FALSE;
 				}
@@ -520,13 +517,12 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		}
 		memset(&st, 0, sizeof(st));
 		st.ss_family = fd_domain;
-		if (bind((SOCKET)fd, (struct sockaddr*)&st, addrlen)) {
+		if (bind((SOCKET)fd, (struct sockaddr*)&st, conn_ol->saddrlen)) {
 			return FALSE;
 		}
-		memmove(&conn_ol->saddr, saddr, addrlen);
 		conn_ol->wsabuf.buf = conn_ol->base.iobuf.buf + conn_ol->base.bytes_off;
 		conn_ol->wsabuf.len = conn_ol->base.iobuf.len - conn_ol->base.bytes_off;
-		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, addrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
+		if (!lpfnConnectEx((SOCKET)fd, (const struct sockaddr*)&conn_ol->saddr, conn_ol->saddrlen, conn_ol->wsabuf.buf, conn_ol->wsabuf.len, NULL, (LPWSAOVERLAPPED)&conn_ol->base.ol)) {
 			if (WSAGetLastError() != ERROR_IO_PENDING) {
 				return FALSE;
 			}
@@ -577,15 +573,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		write_ol->iov.iov_base = ((char*)write_ol->base.iobuf.iov_base) + write_ol->base.bytes_off;
 		write_ol->iov.iov_len = write_ol->base.iobuf.iov_len - write_ol->base.bytes_off;
 		if (aiofd->__domain != AF_UNSPEC) {
-			if (addrlen > 0 && saddr) {
-				memmove(&write_ol->saddr, saddr, addrlen);
-				write_ol->msghdr.msg_name = &write_ol->saddr;
-				write_ol->msghdr.msg_namelen = addrlen;
-			}
-			else {
-				write_ol->msghdr.msg_name = NULL;
-				write_ol->msghdr.msg_namelen = 0;
-			}
 			if (aiofd->enable_zero_copy) {
 				io_uring_prep_sendmsg_zc(sqe, aiofd->fd, &write_ol->msghdr, 0);
 			}
@@ -603,10 +590,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, struct sockaddr* 
 		if (!sqe) {
 			return 0;
 		}
-
-		memmove(&conn_ol->saddr, saddr, addrlen);
-		conn_ol->saddrlen = addrlen;
-
 		io_uring_prep_connect(sqe, aiofd->fd, (const struct sockaddr*)&conn_ol->saddr, conn_ol->saddrlen);
 	}
 	else if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {

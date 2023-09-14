@@ -345,9 +345,9 @@ void IoOverlapped_set_peer_sockaddr(IoOverlapped_t* ol, const struct sockaddr* s
 		{
 			UnixWriteOverlapped_t* w_ol = (UnixWriteOverlapped_t*)ol;
 			if (saddr && saddrlen > 0) {
+				memmove(&w_ol->saddr, saddr, saddrlen);
 				w_ol->msghdr.msg_name = &w_ol->saddr;
 				w_ol->msghdr.msg_namelen = saddrlen;
-				memmove(w_ol->msghdr.msg_name, saddr, saddrlen);
 			}
 			else {
 				w_ol->msghdr.msg_name = NULL;
