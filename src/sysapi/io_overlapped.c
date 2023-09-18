@@ -61,6 +61,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
 			ol->saddrlen = sizeof(ol->saddr);
+			ol->appendsize = appendsize;
 			if (appendsize) {
 				ol->base.iobuf.buf = (char*)(ol->append_data);
 				ol->base.iobuf.len = appendsize;
@@ -78,6 +79,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			memset(ol, 0, sizeof(IocpWriteOverlapped_t));
 			ol->base.opcode = opcode;
 			ol->saddr.ss_family = AF_UNSPEC;
+			ol->appendsize = appendsize;
 			if (appendsize) {
 				ol->base.iobuf.buf = (char*)(ol->append_data);
 				ol->base.iobuf.len = appendsize;
@@ -113,6 +115,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			memset(ol, 0, sizeof(UnixReadOverlapped_t));
 			ol->base.opcode = IO_OVERLAPPED_OP_READ;
 			ol->saddr.ss_family = AF_UNSPEC;
+			ol->appendsize = appendsize;
 			if (appendsize) {
 				ol->base.iobuf.iov_base = (char*)(ol->append_data);
 				ol->base.iobuf.iov_len = appendsize;
@@ -131,6 +134,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 			memset(ol, 0, sizeof(UnixWriteOverlapped_t));
 			ol->base.opcode = IO_OVERLAPPED_OP_WRITE;
 			ol->saddr.ss_family = AF_UNSPEC;
+			ol->appendsize = appendsize;
 			if (appendsize) {
 				ol->base.iobuf.iov_base = (char*)(ol->append_data);
 				ol->base.iobuf.iov_len = appendsize;
@@ -168,6 +172,37 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 		}
 	}
 #endif
+}
+
+IoOverlapped_t* IoOverlapped_alloc_v2(int opcode, const void* addr, unsigned int len) {
+	IoOverlapped_t* ol = IoOverlapped_alloc(opcode, 0);
+	if (ol) {
+		iobufPtr(&ol->iobuf) = (char*)addr;
+		iobufLen(&ol->iobuf) = len;
+	}
+	return ol;
+}
+
+unsigned int IoOverlapped_get_append_size(IoOverlapped_t* ol) {
+#if defined(_WIN32) || defined(_WIN64)
+	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		return ((IocpWriteOverlapped_t*)ol)->appendsize;
+	}
+	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		return ((IocpReadOverlapped_t*)ol)->appendsize;
+	}
+	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+		return ((IocpConnectExOverlapped_t*)ol)->appendsize;
+	}
+#else
+	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		return ((UnixWriteOverlapped_t*)ol)->appendsize;
+	}
+	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		return ((UnixReadOverlapped_t*)ol)->appendsize;
+	}
+#endif
+	return 0;
 }
 
 long long IoOverlapped_get_file_offset(IoOverlapped_t* ol) {
