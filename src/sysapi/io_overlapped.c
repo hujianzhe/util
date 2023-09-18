@@ -16,7 +16,6 @@ extern "C" {
 
 void iobufSkip(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, size_t n) {
 	while (*iov_i < iovcnt && n) {
-		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
 		size_t iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
 		if (iovleftsize > n) {
 			*iov_off += n;
