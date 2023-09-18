@@ -561,7 +561,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol) {
 			io_uring_prep_recvmsg(sqe, aiofd->fd, &read_ol->msghdr, 0);
 		}
 		else {
-			io_uring_prep_readv(sqe, aiofd->fd, read_ol->msghdr.msg_iov, read_ol->msghdr.msg_iovlen, read_ol->offset);
+			io_uring_prep_readv(sqe, aiofd->fd, read_ol->msghdr.msg_iov, read_ol->msghdr.msg_iovlen, read_ol->fd_offset);
 		}
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
@@ -581,7 +581,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol) {
 			}
 		}
 		else {
-			io_uring_prep_writev(sqe, aiofd->fd, write_ol->msghdr.msg_iov, write_ol->msghdr.msg_iovlen, write_ol->offset);
+			io_uring_prep_writev(sqe, aiofd->fd, write_ol->msghdr.msg_iov, write_ol->msghdr.msg_iovlen, write_ol->fd_offset);
 		}
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {

@@ -84,7 +84,7 @@ typedef struct {
 	IoOverlapped_t base;
 	struct msghdr msghdr;
 	struct sockaddr_storage saddr;
-	off_t offset;
+	off_t fd_offset;
 	struct iovec iov;
 	unsigned char append_data[1]; /* convienent for text data */
 } UnixReadOverlapped_t, UnixWriteOverlapped_t;
