@@ -14,29 +14,6 @@
 extern "C" {
 #endif
 
-Iobuf_t* iobufPop(Iobuf_t* iov, size_t n) {
-#if defined(_WIN32) || defined(_WIN64)
-	if (n >= iov->len) {
-		iov->buf = NULL;
-		iov->len = 0;
-	}
-	else {
-		iov->buf += n;
-		iov->len -= n;
-	}
-#else
-	if (n >= iov->iov_len) {
-		iov->iov_base = NULL;
-		iov->iov_len = 0;
-	}
-	else {
-		iov->iov_base = ((unsigned char*)iov->iov_base) + n;
-		iov->iov_len -= n;
-	}
-#endif
-	return iov;
-}
-
 size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n) {
 	size_t off = 0;
 	unsigned char* ptr_buf = (unsigned char*)buf;
