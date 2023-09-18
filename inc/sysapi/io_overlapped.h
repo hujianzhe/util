@@ -34,7 +34,6 @@ typedef struct IoOverlapped_t {
 #if defined(_WIN32) || defined(_WIN64)
 	OVERLAPPED ol; /* private */
 	DWORD transfer_bytes;
-	WSABUF iobuf;
 #else
 	#ifdef	__linux__
 	int __wait_cqe_notify; /* private */
@@ -45,8 +44,8 @@ typedef struct IoOverlapped_t {
 		unsigned int transfer_bytes;
 	};
 	void* __completion_key; /* private */
-	struct iovec iobuf;
 #endif
+	Iobuf_t iobuf;
 	int error;
 	unsigned char commit;
 	unsigned char free_flag;
