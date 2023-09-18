@@ -14,6 +14,20 @@
 extern "C" {
 #endif
 
+void iobufSkip(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, size_t n) {
+	while (*iov_i < iovcnt && n) {
+		char* iovptr = ((char*)iobufPtr(iov + *iov_i)) + *iov_off;
+		size_t iovleftsize = iobufLen(iov + *iov_i) - *iov_off;
+		if (iovleftsize > n) {
+			*iov_off += n;
+			break;
+		}
+		*iov_off = 0;
+		(*iov_i)++;
+		n -= iovleftsize;
+	}
+}
+
 size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n) {
 	size_t off = 0;
 	unsigned char* ptr_buf = (unsigned char*)buf;
@@ -27,12 +41,10 @@ size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* 
 			off += leftsize;
 			break;
 		}
-		else {
-			memmove(ptr_buf + off, iovptr, iovleftsize);
-			*iov_off = 0;
-			(*iov_i)++;
-			off += iovleftsize;
-		}
+		memmove(ptr_buf + off, iovptr, iovleftsize);
+		*iov_off = 0;
+		(*iov_i)++;
+		off += iovleftsize;
 	}
 	return off;
 }

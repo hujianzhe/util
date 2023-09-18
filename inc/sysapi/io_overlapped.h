@@ -100,6 +100,7 @@ typedef struct {
 extern "C" {
 #endif
 
+__declspec_dll void iobufSkip(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, size_t n);
 __declspec_dll size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n);
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize);
