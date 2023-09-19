@@ -333,7 +333,7 @@ struct sockaddr* IoOverlapped_get_peer_sockaddr(IoOverlapped_t* ol, struct socka
 		case IO_OVERLAPPED_OP_CONNECT:
 		{
 			UnixConnectOverlapped_t* conn_ol = (UnixConnectOverlapped_t*)ol;
-			memmove(saddr, conn_ol->saddr, conn_ol->saddrlen);
+			memmove(saddr, &conn_ol->saddr, conn_ol->saddrlen);
 			*plen = conn_ol->saddrlen;
 			return saddr;
 		}
