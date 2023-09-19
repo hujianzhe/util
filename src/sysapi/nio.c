@@ -633,11 +633,11 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 		return NULL;
 	}
 	iocp_nio_unlink_ol(nio, ol);
+	ol->commit = 0;
 	if (ol->free_flag) {
-		free(ol);
+		IoOverlapped_free(ol);
 		return NULL;
 	}
-	ol->commit = 0;
 
 	niofd = (NioFD_t*)e->lpCompletionKey;
 	if (niofd->__delete_flag) {

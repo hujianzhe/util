@@ -134,7 +134,8 @@ static int uring_filter_internal_ol__(Aio_t* aio, IoOverlapped_t* ol, __u32 flag
 	}
 	if (IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE == ol->opcode) {
 		aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
-		free(ol);
+		ol->commit = 0;
+		IoOverlapped_free(ol);
 		return 1;
 	}
 	if (flags & IORING_CQE_F_NOTIF) {
@@ -767,12 +768,12 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 
 	aio_ol_acked(aio, (AioFD_t*)e->lpCompletionKey, ol, 1);
 
+	ol->commit = 0;
 	if (ol->free_flag) {
-		free(ol);
 		*ol_aiofd = NULL;
+		IoOverlapped_free(ol);
 		return NULL;
 	}
-	ol->commit = 0;
 
 	ol->transfer_bytes = e->dwNumberOfBytesTransferred;
 	if (NT_ERROR(e->Internal)) {
@@ -795,16 +796,15 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	if (!ol->__wait_cqe_notify) {
 		aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 1);
 	}
+	ol->commit = 0;
 	if (ol->free_flag) {
 		*ol_aiofd = NULL;
 		if (ol->__wait_cqe_notify) {
-			ol->commit = 0;
 			return NULL;
 		}
-		free(ol);
+		IoOverlapped_free(ol);
 		return NULL;
 	}
-	ol->commit = 0;
 
 	*ol_aiofd = (AioFD_t*)ol->__completion_key;
 	return ol;
