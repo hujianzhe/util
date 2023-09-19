@@ -174,15 +174,6 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 #endif
 }
 
-IoOverlapped_t* IoOverlapped_alloc_v2(int opcode, const void* addr, unsigned int len) {
-	IoOverlapped_t* ol = IoOverlapped_alloc(opcode, 0);
-	if (ol) {
-		iobufPtr(&ol->iobuf) = (char*)addr;
-		iobufLen(&ol->iobuf) = len;
-	}
-	return ol;
-}
-
 unsigned int IoOverlapped_get_append_size(IoOverlapped_t* ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
