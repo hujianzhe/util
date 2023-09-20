@@ -443,6 +443,9 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 		ol->free_flag = 1;
 		return;
 	}
+	if (ol->on_destroy) {
+		ol->on_destroy(ol);
+	}
 	free(ol);
 }
 

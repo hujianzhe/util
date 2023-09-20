@@ -45,12 +45,14 @@ typedef struct IoOverlapped_t {
 	};
 	void* __completion_key; /* private */
 #endif
+	void(*on_destroy)(struct IoOverlapped_t*);
+	void* udata;
 	Iobuf_t iobuf;
 	int error;
 	unsigned char commit;
 	unsigned char free_flag;
 	short opcode;
-	size_t bytes_off;
+	unsigned int bytes_off;
 	struct IoOverlapped_t* __prev; /* private */
 	struct IoOverlapped_t* __next; /* private */
 } IoOverlapped_t;
