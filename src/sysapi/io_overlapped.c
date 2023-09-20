@@ -174,7 +174,7 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 #endif
 }
 
-Iobuf_t* IoOverlapped_get_append_iobuf(IoOverlapped_t* ol, Iobuf_t* iobuf) {
+Iobuf_t* IoOverlapped_get_append_iobuf(const IoOverlapped_t* ol, Iobuf_t* iobuf) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
@@ -214,7 +214,7 @@ Iobuf_t* IoOverlapped_get_append_iobuf(IoOverlapped_t* ol, Iobuf_t* iobuf) {
 	return iobuf;
 }
 
-long long IoOverlapped_get_file_offset(IoOverlapped_t* ol) {
+long long IoOverlapped_get_file_offset(const IoOverlapped_t* ol) {
 #if defined(_WIN32) || defined(_WIN64)
 	long long offset = ol->ol.OffsetHigh;
 	offset <<= 32;
@@ -307,7 +307,7 @@ FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr
 	return INVALID_FD_HANDLE;
 }
 
-struct sockaddr* IoOverlapped_get_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t* plen) {
+struct sockaddr* IoOverlapped_get_peer_sockaddr(const IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t* plen) {
 #if defined(_WIN32) || defined(_WIN64)
 	switch (ol->opcode) {
 		case IO_OVERLAPPED_OP_READ:
@@ -447,7 +447,7 @@ void IoOverlapped_free(IoOverlapped_t* ol) {
 }
 
 /*
-int IoOverlapped_check_free_able(IoOverlapped_t* ol) {
+int IoOverlapped_check_free_able(const IoOverlapped_t* ol) {
 #ifdef	__linux__
 	if (ol->__wait_cqe_notify) {
 		return 0;
@@ -457,7 +457,7 @@ int IoOverlapped_check_free_able(IoOverlapped_t* ol) {
 }
 */
 
-int IoOverlapped_check_reuse_able(IoOverlapped_t* ol) {
+int IoOverlapped_check_reuse_able(const IoOverlapped_t* ol) {
 #ifdef	__linux__
 	if (ol->__wait_cqe_notify) {
 		return 0;
