@@ -106,7 +106,7 @@ __declspec_dll void iobufSkip(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, 
 __declspec_dll size_t iobufShardCopy(const Iobuf_t* iov, size_t iovcnt, size_t* iov_i, size_t* iov_off, void* buf, size_t n);
 
 __declspec_dll IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize);
-__declspec_dll unsigned int IoOverlapped_get_append_size(IoOverlapped_t* ol);
+__declspec_dll Iobuf_t* IoOverlapped_get_append_iobuf(IoOverlapped_t* ol, Iobuf_t* iobuf);
 __declspec_dll struct sockaddr* IoOverlapped_get_peer_sockaddr(IoOverlapped_t* ol, struct sockaddr* saddr, socklen_t* plen);
 __declspec_dll void IoOverlapped_set_peer_sockaddr(IoOverlapped_t* ol, const struct sockaddr* saddr, socklen_t saddrlen);
 __declspec_dll long long IoOverlapped_get_file_offset(IoOverlapped_t* ol);

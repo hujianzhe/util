@@ -174,26 +174,44 @@ IoOverlapped_t* IoOverlapped_alloc(int opcode, unsigned int appendsize) {
 #endif
 }
 
-unsigned int IoOverlapped_get_append_size(IoOverlapped_t* ol) {
+Iobuf_t* IoOverlapped_get_append_iobuf(IoOverlapped_t* ol, Iobuf_t* iobuf) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
-		return ((IocpWriteOverlapped_t*)ol)->appendsize;
+		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
+		iobuf->len = write_ol->appendsize;
+		iobuf->buf = iobuf->len ? write_ol->append_data : NULL;
 	}
-	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
-		return ((IocpReadOverlapped_t*)ol)->appendsize;
+	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
+		iobuf->len = read_ol->appendsize;
+		iobuf->buf = iobuf->len ? read_ol->append_data : NULL;
 	}
-	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
-		return ((IocpConnectExOverlapped_t*)ol)->appendsize;
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
+		iobuf->len = conn_ol->appendsize;
+		iobuf->buf = iobuf->len ? conn_ol->append_data : NULL;
+	}
+	else {
+		iobuf->len = 0;
+		iobuf->buf = NULL;
 	}
 #else
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
-		return ((UnixWriteOverlapped_t*)ol)->appendsize;
+		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
+		iobuf->iov_len = write_ol->appendsize;
+		iobuf->iov_base = iobuf->iov_len ? write_ol->append_data : NULL;
 	}
-	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
-		return ((UnixReadOverlapped_t*)ol)->appendsize;
+	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
+		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
+		iobuf->iov_len = read_ol->appendsize;
+		iobuf->iov_base = iobuf->iov_len ? read_ol->append_data : NULL;
+	}
+	else {
+		iobuf->iov_len = 0;
+		iobuf->iov_base = NULL;
 	}
 #endif
-	return 0;
+	return iobuf;
 }
 
 long long IoOverlapped_get_file_offset(IoOverlapped_t* ol) {
