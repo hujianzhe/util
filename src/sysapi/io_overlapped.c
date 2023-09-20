@@ -179,17 +179,17 @@ Iobuf_t* IoOverlapped_get_append_iobuf(IoOverlapped_t* ol, Iobuf_t* iobuf) {
 	if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
 		iobuf->len = write_ol->appendsize;
-		iobuf->buf = iobuf->len ? write_ol->append_data : NULL;
+		iobuf->buf = iobuf->len ? (char*)write_ol->append_data : NULL;
 	}
 	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
 		iobuf->len = read_ol->appendsize;
-		iobuf->buf = iobuf->len ? read_ol->append_data : NULL;
+		iobuf->buf = iobuf->len ? (char*)read_ol->append_data : NULL;
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
 		iobuf->len = conn_ol->appendsize;
-		iobuf->buf = iobuf->len ? conn_ol->append_data : NULL;
+		iobuf->buf = iobuf->len ? (char*)conn_ol->append_data : NULL;
 	}
 	else {
 		iobuf->len = 0;
