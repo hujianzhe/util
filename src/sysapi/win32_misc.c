@@ -54,6 +54,26 @@ BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain) {
 	return TRUE;
 }
 
+int win32_OverlappedConnectUpdate(SOCKET fd) {
+	int sec = ~0, err;
+	int len = sizeof(sec);
+	if (getsockopt(fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
+		return WSAGetLastError();
+	}
+	if (~0 == sec) {
+		return WSAETIMEDOUT;
+	}
+	if (setsockopt(fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
+		return WSAGetLastError();
+	}
+	err = 0;
+	len = sizeof(err);
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
+		return WSAGetLastError();
+	}
+	return 0;
+}
+
 #ifdef	__cplusplus
 }
 #endif

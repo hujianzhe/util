@@ -50,6 +50,7 @@ static void nio_exit_clean_soft(Nio_t* nio) {
 
 #if _WIN32
 extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
+extern int win32_OverlappedConnectUpdate(SOCKET fd);
 
 static void iocp_nio_link_ol(Nio_t* nio, IoOverlapped_t* ol) {
 	ol->__prev = NULL;
@@ -724,18 +725,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 
 int nioConnectUpdate(NioFD_t* niofd) {
 #if defined(_WIN32) || defined(_WIN64)
-	int sec;
-	int len = sizeof(sec);
-	if (getsockopt(niofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
-		return WSAGetLastError();
-	}
-	if (~0 == sec) {
-		return ERROR_TIMEOUT;
-	}
-	if (setsockopt(niofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
-		return WSAGetLastError();
-	}
-	return 0;
+	return win32_OverlappedConnectUpdate(niofd->fd);
 #else
 	int err = 0;
 	socklen_t len = sizeof(int);

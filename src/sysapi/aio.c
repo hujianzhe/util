@@ -95,6 +95,7 @@ extern "C" {
 #endif
 #if _WIN32
 extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
+extern int win32_OverlappedConnectUpdate(SOCKET fd);
 #endif
 #ifdef	__cplusplus
 }
@@ -781,23 +782,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		ol->error = e->Internal;
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
-		do {
-			int sec = ~0;
-			int len = sizeof(sec);
-			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
-				ol->error = STATUS_UNEXPECTED_NETWORK_ERROR;
-				break;
-			}
-			if (~0 == sec) {
-				ol->error = STATUS_IO_TIMEOUT;
-				break;
-			}
-			if (setsockopt(aiofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
-				ol->error = STATUS_UNEXPECTED_NETWORK_ERROR;
-				break;
-			}
-			ol->error = 0;
-		} while (0);
+		ol->error = win32_OverlappedConnectUpdate(aiofd->fd);
 	}
 	else {
 		ol->error = 0;
