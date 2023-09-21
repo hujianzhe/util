@@ -24,6 +24,8 @@
 struct sockaddr;
 struct sockaddr_storage;
 
+/* not support disk file io */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
