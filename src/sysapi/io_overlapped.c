@@ -252,30 +252,6 @@ IoOverlapped_t* IoOverlapped_set_file_offest(IoOverlapped_t* ol, long long offse
 	return ol;
 }
 
-int IoOverlapped_connect_update(FD_t sockfd) {
-#if defined(_WIN32) || defined(_WIN64)
-	int sec;
-	int len = sizeof(sec);
-	if (getsockopt(sockfd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
-		return WSAGetLastError();
-	}
-	if (~0 == sec) {
-		return ERROR_TIMEOUT;
-	}
-	if (setsockopt(sockfd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
-		return WSAGetLastError();
-	}
-	return 0;
-#else
-	int err = 0;
-	socklen_t len = sizeof(int);
-	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
-		return errno;
-	}
-	return err;
-#endif
-}
-
 FD_t IoOverlapped_pop_acceptfd(IoOverlapped_t* ol, struct sockaddr* p_peer_saddr, socklen_t* plen) {
 #if defined(_WIN32) || defined(_WIN64)
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {

@@ -722,6 +722,30 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	return NULL;
 }
 
+int nioConnectUpdate(NioFD_t* niofd) {
+#if defined(_WIN32) || defined(_WIN64)
+	int sec;
+	int len = sizeof(sec);
+	if (getsockopt(niofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
+		return WSAGetLastError();
+	}
+	if (~0 == sec) {
+		return ERROR_TIMEOUT;
+	}
+	if (setsockopt(niofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
+		return WSAGetLastError();
+	}
+	return 0;
+#else
+	int err = 0;
+	socklen_t len = sizeof(int);
+	if (getsockopt(niofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
+		return errno;
+	}
+	return err;
+#endif
+}
+
 FD_t nioAccept(NioFD_t* niofd, struct sockaddr* peer_saddr, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	IocpAcceptExOverlapped_t* iocp_ol = (IocpAcceptExOverlapped_t*)niofd->__read_ol;

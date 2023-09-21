@@ -707,7 +707,7 @@ static int reactor_stream_connect(Reactor_t* reactor, ChannelBase_t* channel, Re
 		listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
 		o->stream.m_connect_end_msec = 0;
 	}
-	if (IoOverlapped_connect_update(o->niofd.fd)) {
+	if (nioConnectUpdate(&o->niofd)) {
 		return 0;
 	}
 	if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_READ, NULL, 0)) {

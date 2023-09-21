@@ -806,6 +806,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	*ol_aiofd = aiofd;
 	return ol;
 #elif	__linux__
+	AioFD_t* aiofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
 	if (&s_wakeup_ol == ol) {
 		_xchg16(&aio->__wakeup, 0);
@@ -813,8 +814,9 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
+	aiofd = (AioFD_t*)ol->__completion_key;
 	if (!ol->__wait_cqe_notify) {
-		aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 1);
+		aio_ol_acked(aio, aiofd, ol, 1);
 	}
 	ol->commit = 0;
 	if (ol->free_flag) {
@@ -826,9 +828,21 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
-	*ol_aiofd = (AioFD_t*)ol->__completion_key;
+	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode && 0 == ol->error) {
+		int err = 0;
+		socklen_t len = sizeof(err);
+		if (getsockopt(aiofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
+			ol->error = errno;
+		}
+		else {
+			ol->error = err;
+		}
+	}
+
+	*ol_aiofd = aiofd;
 	return ol;
 #else
+	*ol_aiofd = NULL;
 	return NULL;
 #endif
 }
