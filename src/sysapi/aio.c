@@ -759,14 +759,15 @@ void aioWakeup(Aio_t* aio) {
 
 IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) {
 #if defined(_WIN32) || defined(_WIN64)
+	AioFD_t* aiofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
 	if (!ol) {
 		_xchg16(&aio->__wakeup, 0);
 		*ol_aiofd = NULL;
 		return NULL;
 	}
-
-	aio_ol_acked(aio, (AioFD_t*)e->lpCompletionKey, ol, 1);
+	aiofd = (AioFD_t*)e->lpCompletionKey;
+	aio_ol_acked(aio, aiofd, ol, 1);
 
 	ol->commit = 0;
 	if (ol->free_flag) {
@@ -779,11 +780,30 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	if (NT_ERROR(e->Internal)) {
 		ol->error = e->Internal;
 	}
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+		do {
+			int sec = ~0;
+			int len = sizeof(sec);
+			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_CONNECT_TIME, (char*)&sec, &len)) {
+				ol->error = STATUS_UNEXPECTED_NETWORK_ERROR;
+				break;
+			}
+			if (~0 == sec) {
+				ol->error = STATUS_IO_TIMEOUT;
+				break;
+			}
+			if (setsockopt(aiofd->fd, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0)) {
+				ol->error = STATUS_UNEXPECTED_NETWORK_ERROR;
+				break;
+			}
+			ol->error = 0;
+		} while (0);
+	}
 	else {
 		ol->error = 0;
 	}
 
-	*ol_aiofd = (AioFD_t*)e->lpCompletionKey;
+	*ol_aiofd = aiofd;
 	return ol;
 #elif	__linux__
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
