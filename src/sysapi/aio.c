@@ -56,7 +56,7 @@ static void aio_ol_acked(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ent
 	aiofd_unlink_pending_ol(aiofd, ol);
 	if (aiofd->__delete_flag && !aiofd->__ol_pending_list_tail) {
 	#if defined(_WIN32) || defined(_WIN64)
-		if (aiofd->__domain != AF_UNSPEC) {
+		if (aiofd->domain != AF_UNSPEC) {
 			closesocket(aiofd->fd);
 			aiofd->fd = INVALID_SOCKET;
 		}
@@ -106,8 +106,8 @@ static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
 		return 1;
 	}
 #if defined(_WIN32) || defined(_WIN64)
-	if (SOCK_DGRAM == aiofd->__socktype && AF_UNSPEC != aiofd->__domain) {
-		if (!win32_Iocp_PrepareRegUdp(aiofd->fd, aiofd->__domain)) {
+	if (SOCK_DGRAM == aiofd->socktype && AF_UNSPEC != aiofd->domain) {
+		if (!win32_Iocp_PrepareRegUdp(aiofd->fd, aiofd->domain)) {
 			return 0;
 		}
 	}
@@ -177,7 +177,7 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 	struct io_uring_sqe* sqe = io_uring_get_sqe(r);
 	if (!sqe) {
-		if (SOCK_STREAM == aiofd->__socktype) {
+		if (SOCK_STREAM == aiofd->socktype) {
 			shutdown(aiofd->fd, SHUT_RDWR);
 		}
 		return 0;
@@ -329,18 +329,12 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	aiofd->__ol_pending_list_tail = NULL;
 	aiofd->__delete_flag = 0;
 	aiofd->__reg = 0;
-	aiofd->__domain = 0;
-	aiofd->__socktype = 0;
-	aiofd->__protocol = 0;
 
 	aiofd->fd = fd;
+	aiofd->domain = AF_UNSPEC;
+	aiofd->socktype = 0;
+	aiofd->protocol = 0;
 	return aiofd;
-}
-
-void aiofdSetSocketInfo(AioFD_t* aiofd, int domain, int socktype, int protocol) {
-	aiofd->__domain = domain;
-	aiofd->__socktype = socktype;
-	aiofd->__protocol = protocol;
 }
 
 void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
@@ -363,7 +357,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	aiofd_free_all_pending_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
 	if (!aiofd->__ol_pending_list_tail) {
-		if (aiofd->__domain != AF_UNSPEC) {
+		if (aiofd->domain != AF_UNSPEC) {
 			closesocket(aiofd->fd);
 			aiofd->fd = INVALID_SOCKET;
 		}
@@ -377,7 +371,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	CancelIo((HANDLE)aiofd->fd);
 #elif	__linux__
 	if (!aiofd->__ol_pending_list_tail) {
-		if (SOCK_STREAM == aiofd->__socktype) {
+		if (SOCK_STREAM == aiofd->socktype) {
 			shutdown(aiofd->fd, SHUT_RDWR);
 		}
 		free(aiofd->__delete_ol);
@@ -410,7 +404,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 
 BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 #if defined(_WIN32) || defined(_WIN64)
-	int fd_domain = aiofd->__domain;
+	int fd_domain = aiofd->domain;
 	FD_t fd = aiofd->fd;
 	if (aiofd->__delete_flag) {
 		return FALSE;
@@ -449,7 +443,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		if (fd_domain != AF_UNSPEC) {
 			const struct sockaddr* toaddr;
 			int toaddrlen = write_ol->saddrlen;
-			if (toaddrlen > 0 && aiofd->__socktype != SOCK_STREAM) {
+			if (toaddrlen > 0 && aiofd->socktype != SOCK_STREAM) {
 				toaddr = (const struct sockaddr*)&write_ol->saddr;
 			}
 			else {
@@ -555,7 +549,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		}
 		read_ol->iov.iov_base = ((char*)read_ol->base.iobuf.iov_base) + read_ol->base.bytes_off;
 		read_ol->iov.iov_len = read_ol->base.iobuf.iov_len - read_ol->base.bytes_off;
-		if (aiofd->__domain != AF_UNSPEC) {
+		if (aiofd->domain != AF_UNSPEC) {
 			read_ol->msghdr.msg_name = &read_ol->saddr;
 			read_ol->msghdr.msg_namelen = sizeof(read_ol->saddr);
 
@@ -573,7 +567,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		}
 		write_ol->iov.iov_base = ((char*)write_ol->base.iobuf.iov_base) + write_ol->base.bytes_off;
 		write_ol->iov.iov_len = write_ol->base.iobuf.iov_len - write_ol->base.bytes_off;
-		if (aiofd->__domain != AF_UNSPEC) {
+		if (aiofd->domain != AF_UNSPEC) {
 			if (ol_flags & IO_OVERLAPPED_FLAG_BIT_WRITE_ZC) {
 				io_uring_prep_sendmsg_zc(sqe, aiofd->fd, &write_ol->msghdr, 0);
 			}

@@ -26,15 +26,15 @@
 
 typedef struct AioFD_t {
 	FD_t fd;
+	int domain;
+	int socktype;
+	int protocol;
 	/* private */
 	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
 	IoOverlapped_t* __ol_pending_list_tail;
 	short __delete_flag;
 	short __reg;
-	int __domain;
-	int __socktype;
-	int __protocol;
 #if	__linux__
 	IoOverlapped_t* __delete_ol;
 #endif
@@ -61,7 +61,6 @@ __declspec_dll Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsi
 __declspec_dll BOOL aioClose(Aio_t* aio);
 
 __declspec_dll AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd);
-__declspec_dll void aiofdSetSocketInfo(AioFD_t* aiofd, int domain, int socktype, int protocol);
 __declspec_dll void aiofdDelete(Aio_t* aio, AioFD_t* aiofd);
 
 __declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags);
