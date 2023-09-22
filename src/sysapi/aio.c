@@ -334,7 +334,6 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	aiofd->__protocol = 0;
 
 	aiofd->fd = fd;
-	aiofd->enable_zero_copy = 0;
 	return aiofd;
 }
 
@@ -409,7 +408,7 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	aio->__delete_list_head = aiofd;
 }
 
-BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol) {
+BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 #if defined(_WIN32) || defined(_WIN64)
 	int fd_domain = aiofd->__domain;
 	FD_t fd = aiofd->fd;
@@ -575,7 +574,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol) {
 		write_ol->iov.iov_base = ((char*)write_ol->base.iobuf.iov_base) + write_ol->base.bytes_off;
 		write_ol->iov.iov_len = write_ol->base.iobuf.iov_len - write_ol->base.bytes_off;
 		if (aiofd->__domain != AF_UNSPEC) {
-			if (aiofd->enable_zero_copy) {
+			if (ol_flags & IO_OVERLAPPED_FLAG_BIT_WRITE_ZC) {
 				io_uring_prep_sendmsg_zc(sqe, aiofd->fd, &write_ol->msghdr, 0);
 			}
 			else {

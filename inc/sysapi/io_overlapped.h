@@ -23,11 +23,15 @@
 
 enum {
 	IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE = -1,
-
+	/* public */
 	IO_OVERLAPPED_OP_READ = 1,
 	IO_OVERLAPPED_OP_WRITE = 2,
 	IO_OVERLAPPED_OP_ACCEPT = 3,
 	IO_OVERLAPPED_OP_CONNECT = 4,
+};
+
+enum {
+	IO_OVERLAPPED_FLAG_BIT_WRITE_ZC = 0x1, /* linux io_uring maybe support... */
 };
 
 typedef struct IoOverlapped_t {

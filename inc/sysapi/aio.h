@@ -26,8 +26,7 @@
 
 typedef struct AioFD_t {
 	FD_t fd;
-	int enable_zero_copy;
-
+	/* private */
 	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
 	IoOverlapped_t* __ol_pending_list_tail;
@@ -65,7 +64,7 @@ __declspec_dll AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd);
 __declspec_dll void aiofdSetSocketInfo(AioFD_t* aiofd, int domain, int socktype, int protocol);
 __declspec_dll void aiofdDelete(Aio_t* aio, AioFD_t* aiofd);
 
-__declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol);
+__declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags);
 __declspec_dll int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec);
 __declspec_dll void aioWakeup(Aio_t* aio);
 __declspec_dll IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd);
