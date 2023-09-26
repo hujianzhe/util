@@ -93,10 +93,12 @@ static void aio_ol_acked(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ent
 #ifdef	__cplusplus
 extern "C" {
 #endif
+
 #if _WIN32
 extern BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain);
 extern int win32_OverlappedConnectUpdate(SOCKET fd);
 #endif
+
 #ifdef	__cplusplus
 }
 #endif
@@ -272,6 +274,54 @@ static void iocp_aio_exit_clean__(Aio_t* aio) {
 }
 #endif
 
+static void ol_stream_push_back(AioOverlappedStream_t* s, IoOverlapped_t* ol) {
+	if (!s->head) {
+		s->head = ol;
+	}
+	if (s->tail) {
+		s->tail->__next = ol;
+	}
+	ol->__prev = s->tail;
+	ol->__next = NULL;
+	s->tail = ol;
+}
+
+static void ol_stream_push_front(AioOverlappedStream_t* s, IoOverlapped_t* ol) {
+	if (!s->tail) {
+		s->tail = ol;
+	}
+	if (s->head) {
+		s->head->__prev = ol;
+	}
+	ol->__next = s->head;
+	ol->__prev = NULL;
+	s->head = ol;
+}
+
+static IoOverlapped_t* ol_stream_pop_front(AioOverlappedStream_t* s) {
+	IoOverlapped_t* ol = s->head;
+	if (!ol) {
+		return NULL;
+	}
+	if (s->tail == s->head) {
+		s->head = s->tail = NULL;
+		return ol;
+	}
+	s->head = s->head->__next;
+	s->head->__prev = NULL;
+	return ol;
+}
+
+static void ol_stream_destroy(AioOverlappedStream_t* s) {
+	IoOverlapped_t* ol = s->head;
+	while (ol) {
+		IoOverlapped_t* next_ol = ol->__next;
+		IoOverlapped_free(ol);
+		ol = next_ol;
+	}
+	s->head = s->tail = s->running = NULL;
+}
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -334,6 +384,8 @@ AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
 	aiofd->domain = AF_UNSPEC;
 	aiofd->socktype = 0;
 	aiofd->protocol = 0;
+	aiofd->stream_rq = NULL;
+	aiofd->stream_wq = NULL;
 	return aiofd;
 }
 
@@ -353,6 +405,12 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		if (aiofd == aio->__alive_list_head) {
 			aio->__alive_list_head = aiofd->__lnext;
 		}
+	}
+	if (aiofd->stream_rq) {
+		ol_stream_destroy(aiofd->stream_rq);
+	}
+	if (aiofd->stream_wq) {
+		ol_stream_destroy(aiofd->stream_wq);
 	}
 	aiofd_free_all_pending_ol(aiofd);
 #if defined(_WIN32) || defined(_WIN64)
@@ -402,8 +460,9 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 	aio->__delete_list_head = aiofd;
 }
 
-BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
+BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 #if defined(_WIN32) || defined(_WIN64)
+	AioOverlappedStream_t* ol_stream;
 	int fd_domain = aiofd->domain;
 	FD_t fd = aiofd->fd;
 	if (aiofd->__delete_flag) {
@@ -415,8 +474,16 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 	if (!aio_regfd(aio, aiofd)) {
 		return FALSE;
 	}
+	ol_stream = NULL;
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
+		ol_stream = aiofd->stream_rq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		read_ol->wsabuf.buf = read_ol->base.iobuf.buf + read_ol->base.bytes_off;
 		read_ol->wsabuf.len = read_ol->base.iobuf.len - read_ol->base.bytes_off;
 		if (fd_domain != AF_UNSPEC) {
@@ -438,6 +505,13 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		IocpWriteOverlapped_t* write_ol = (IocpWriteOverlapped_t*)ol;
+		ol_stream = aiofd->stream_wq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		write_ol->wsabuf.buf = write_ol->base.iobuf.buf + write_ol->base.bytes_off;
 		write_ol->wsabuf.len = write_ol->base.iobuf.len - write_ol->base.bytes_off;
 		if (fd_domain != AF_UNSPEC) {
@@ -498,6 +572,13 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		static LPFN_CONNECTEX lpfnConnectEx = NULL;
 		struct sockaddr_storage st;
 		IocpConnectExOverlapped_t* conn_ol = (IocpConnectExOverlapped_t*)ol;
+		ol_stream = aiofd->stream_wq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		/* ConnectEx must use really namelen, otherwise report WSAEADDRNOTAVAIL(10049) */
 		if (!lpfnConnectEx) {
 			DWORD dwBytes;
@@ -527,10 +608,16 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		SetLastError(ERROR_INVALID_PARAMETER);
 		return FALSE;
 	}
+
+	if (ol_stream) {
+		ol_stream->running = ol;
+	}
 	ol->commit = 1;
+	ol->flag_bits = flag_bits;
 	aiofd_link_pending_ol(aiofd, ol);
 	return TRUE;
 #elif	__linux__
+	AioOverlappedStream_t* ol_stream;
 	struct io_uring_sqe* sqe;
 	if (aiofd->__delete_flag) {
 		return 0;
@@ -541,8 +628,16 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 	if (!aio_regfd(aio, aiofd)) {
 		return 0;
 	}
+	ol_stream = NULL;
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
+		ol_stream = aiofd->stream_rq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		sqe = io_uring_get_sqe(&aio->__r);
 		if (!sqe) {
 			return 0;
@@ -561,6 +656,13 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 	}
 	else if (IO_OVERLAPPED_OP_WRITE == ol->opcode) {
 		UnixWriteOverlapped_t* write_ol = (UnixWriteOverlapped_t*)ol;
+		ol_stream = aiofd->stream_wq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		sqe = io_uring_get_sqe(&aio->__r);
 		if (!sqe) {
 			return 0;
@@ -568,7 +670,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		write_ol->iov.iov_base = ((char*)write_ol->base.iobuf.iov_base) + write_ol->base.bytes_off;
 		write_ol->iov.iov_len = write_ol->base.iobuf.iov_len - write_ol->base.bytes_off;
 		if (aiofd->domain != AF_UNSPEC) {
-			if (ol_flags & IO_OVERLAPPED_FLAG_BIT_WRITE_ZC) {
+			if (flag_bits & IO_OVERLAPPED_FLAG_BIT_WRITE_ZC) {
 				io_uring_prep_sendmsg_zc(sqe, aiofd->fd, &write_ol->msghdr, 0);
 			}
 			else {
@@ -581,6 +683,13 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		UnixConnectOverlapped_t* conn_ol = (UnixConnectOverlapped_t*)ol;
+		ol_stream = aiofd->stream_wq;
+		if (ol_stream) {
+			if (ol_stream->running && ol_stream->running != ol) {
+				ol_stream_push_back(ol_stream, ol);
+				return 1;
+			}
+		}
 		sqe = io_uring_get_sqe(&aio->__r);
 		if (!sqe) {
 			return 0;
@@ -602,7 +711,12 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int ol_flags) {
 		errno = EOPNOTSUPP;
 		return 0;
 	}
+
+	if (ol_stream) {
+		ol_stream->running = ol;
+	}
 	ol->commit = 1;
+	ol->flag_bits = flag_bits;
 	ol->__completion_key = aiofd;
 	aiofd_link_pending_ol(aiofd, ol);
 	io_uring_sqe_set_data(sqe, ol);
@@ -776,8 +890,14 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		ol->error = win32_OverlappedConnectUpdate(aiofd->fd);
+		if (0 == ol->error) {
+			ol->bytes_off += ol->transfer_bytes;
+		}
 	}
 	else {
+		if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+			ol->bytes_off += ol->transfer_bytes;
+		}
 		ol->error = 0;
 	}
 
@@ -806,14 +926,19 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
-	if (IO_OVERLAPPED_OP_CONNECT == ol->opcode && 0 == ol->error) {
-		int err = 0;
-		socklen_t len = sizeof(err);
-		if (getsockopt(aiofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
-			ol->error = errno;
+	if (0 == ol->error) {
+		if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+			ol->bytes_off += ol->transfer_bytes;
 		}
-		else {
-			ol->error = err;
+		else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+			int err = 0;
+			socklen_t len = sizeof(err);
+			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
+				ol->error = errno;
+			}
+			else {
+				ol->error = err;
+			}
 		}
 	}
 
@@ -823,6 +948,35 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	*ol_aiofd = NULL;
 	return NULL;
 #endif
+}
+
+BOOL aioAckOverlappedStream(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ack_ol) {
+	size_t i;
+	AioOverlappedStream_t* s_arr[] = {
+		aiofd->stream_wq,
+		aiofd->stream_rq
+	};
+	for (i = 0; i < sizeof(s_arr) / sizeof(s_arr[0]); ++i) {
+		IoOverlapped_t* ol;
+		AioOverlappedStream_t* s = s_arr[i];
+		if (!s || s->running != ack_ol) {
+			continue;
+		}
+		s->running = NULL;
+		if (ack_ol->bytes_off < iobufLen(&ack_ol->iobuf)) {
+			continue;
+		}
+		ol = ol_stream_pop_front(s);
+		if (!ol) {
+			continue;
+		}
+		if (aioCommit(aio, aiofd, ol, ol->flag_bits)) {
+			continue;
+		}
+		ol_stream_push_front(s, ol);
+		return FALSE;
+	}
+	return TRUE;
 }
 
 #ifdef	__cplusplus

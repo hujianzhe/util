@@ -56,6 +56,7 @@ typedef struct IoOverlapped_t {
 	unsigned char commit;
 	unsigned char free_flag;
 	short opcode;
+	int flag_bits;
 	unsigned int bytes_off;
 	struct IoOverlapped_t* __prev; /* private */
 	struct IoOverlapped_t* __next; /* private */

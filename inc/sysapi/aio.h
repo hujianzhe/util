@@ -24,11 +24,19 @@
 	} AioEv_t;
 #endif
 
+typedef struct AioOverlappedStream_t {
+	IoOverlapped_t* head;
+	IoOverlapped_t* tail;
+	IoOverlapped_t* running;
+} AioOverlappedStream_t;
+
 typedef struct AioFD_t {
 	FD_t fd;
 	int domain;
 	int socktype;
 	int protocol;
+	AioOverlappedStream_t* stream_rq;
+	AioOverlappedStream_t* stream_wq;
 	/* private */
 	struct AioFD_t* __lprev;
 	struct AioFD_t* __lnext;
@@ -67,6 +75,7 @@ __declspec_dll BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, in
 __declspec_dll int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec);
 __declspec_dll void aioWakeup(Aio_t* aio);
 __declspec_dll IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd);
+__declspec_dll BOOL aioAckOverlappedStream(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol);
 
 #ifdef	__cplusplus
 }
