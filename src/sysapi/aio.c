@@ -964,14 +964,14 @@ BOOL aioAckOverlappedStream(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ack_ol) 
 		}
 		s->running = NULL;
 		if (ack_ol->bytes_off < iobufLen(&ack_ol->iobuf)) {
-			continue;
+			break;
 		}
 		ol = ol_stream_pop_front(s);
 		if (!ol) {
-			continue;
+			break;
 		}
 		if (aioCommit(aio, aiofd, ol, ol->flag_bits)) {
-			continue;
+			break;
 		}
 		ol_stream_push_front(s, ol);
 		return FALSE;
