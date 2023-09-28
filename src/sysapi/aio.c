@@ -744,7 +744,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	unsigned int arg_n = n;
 	unsigned head, advance_n;
 	IoOverlapped_t* ol;
-	struct io_uring_cqe* cqe, **cqes;
+	struct io_uring_cqe* cqe;
 
 	aio_handle_free_dead(aio);
 
