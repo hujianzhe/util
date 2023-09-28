@@ -475,6 +475,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 		return FALSE;
 	}
 	ol_stream = NULL;
+	ol->flag_bits = flag_bits;
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		IocpReadOverlapped_t* read_ol = (IocpReadOverlapped_t*)ol;
 		ol_stream = aiofd->stream_rq;
@@ -613,7 +614,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 		ol_stream->running = ol;
 	}
 	ol->commit = 1;
-	ol->flag_bits = flag_bits;
 	aiofd_link_pending_ol(aiofd, ol);
 	return TRUE;
 #elif	__linux__
@@ -628,6 +628,7 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 	if (!aio_regfd(aio, aiofd)) {
 		return 0;
 	}
+	ol->flag_bits = flag_bits;
 	ol_stream = NULL;
 	if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		UnixReadOverlapped_t* read_ol = (UnixReadOverlapped_t*)ol;
@@ -716,7 +717,6 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 		ol_stream->running = ol;
 	}
 	ol->commit = 1;
-	ol->flag_bits = flag_bits;
 	ol->__completion_key = aiofd;
 	aiofd_link_pending_ol(aiofd, ol);
 	io_uring_sqe_set_data(sqe, ol);
