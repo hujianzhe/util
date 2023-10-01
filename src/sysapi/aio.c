@@ -234,7 +234,7 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 			aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
 			IoOverlapped_free(ol);
 			if (advance_n >= 128) {
-				break;
+				usleep(5000); /* avoid cpu busy */
 			}
 		}
 		io_uring_cq_advance(&aio->__r, advance_n);
