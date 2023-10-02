@@ -204,19 +204,10 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 	}
 	aio_handle_free_dead(aio);
 	while (aio->__delete_list_head) {
+		int ret;
 		unsigned head, advance_n = 0;
 		struct io_uring_cqe* cqe;
-		int ret = io_uring_peek_cqe(&aio->__r, &cqe);
-		if (ret != 0) {
-			if (EAGAIN == -ret) {
-				continue;
-			}
-			if (EINTR != -ret) {
-				errno = -ret;
-				return;
-			}
-			continue;
-		}
+		/* scan left */
 		io_uring_for_each_cqe(&aio->__r, head, cqe) {
 			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			advance_n++;
@@ -239,6 +230,18 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 		}
 		io_uring_cq_advance(&aio->__r, advance_n);
 		usleep(5000); /* avoid cpu busy */
+		/* get more */
+		ret = io_uring_peek_cqe(&aio->__r, &cqe);
+		if (0 == ret) {
+			continue;
+		}
+		if (EAGAIN == -ret) {
+			continue;
+		}
+		if (EINTR != -ret) {
+			errno = -ret;
+			return;
+		}
 	}
 }
 #endif
@@ -748,6 +751,25 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 
 	aio_handle_free_dead(aio);
 
+	n = advance_n = 0;
+	io_uring_for_each_cqe(&aio->__r, head, cqe) {
+		advance_n++;
+		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+		if (uring_filter_internal_ol__(aio, ol, cqe->flags)) {
+			continue;
+		}
+		uring_cqe_save__(ol, cqe);
+		e[n].ol = ol;
+		n++;
+		if (n >= arg_n) {
+			break;
+		}
+	}
+	io_uring_cq_advance(&aio->__r, advance_n);
+	if (n > 0) {
+		return n;
+	}
+
 	if (msec >= 0) {
 		long long start_tm;
 		struct timeval tval;
@@ -821,27 +843,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 	uring_cqe_save__(ol, cqe);
 	io_uring_cqe_seen(&aio->__r, cqe);
 	e[0].ol = ol;
-	if (n <= 1) {
-		return 1;
-	}
-
-	n = 1;
-	advance_n = 0;
-	io_uring_for_each_cqe(&aio->__r, head, cqe) {
-		advance_n++;
-		ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
-		if (uring_filter_internal_ol__(aio, ol, cqe->flags)) {
-			continue;
-		}
-		uring_cqe_save__(ol, cqe);
-		e[n].ol = ol;
-		n++;
-		if (n >= arg_n) {
-			break;
-		}
-	}
-	io_uring_cq_advance(&aio->__r, advance_n);
-	return n;
+	return 1;
 #else
 	errno = ENOSYS;
 	return -1;
