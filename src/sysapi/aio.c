@@ -196,7 +196,25 @@ static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
 	return 1;
 }
 
+static void uring_cqe_exit_clean__(Aio_t* aio, struct io_uring_cqe* cqe) {
+	IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
+	if (&s_wakeup_ol == ol) {
+		return;
+	}
+	if (uring_filter_internal_ol__(aio, ol, cqe->flags)) {
+		return;
+	}
+	ol->commit = 0;
+	if (cqe->flags & IORING_CQE_F_MORE) {
+		ol->__wait_cqe_notify = 1;
+		return;
+	}
+	aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
+	IoOverlapped_free(ol);
+}
+
 static void uring_aio_exit_clean__(Aio_t* aio) {
+	unsigned sleep_peek_cnt = 128;
 	AioFD_t* aiofd, *aiofd_next;
 	for (aiofd = aio->__alive_list_head; aiofd; aiofd = aiofd_next) {
 		aiofd_next = aiofd->__lnext;
@@ -205,43 +223,44 @@ static void uring_aio_exit_clean__(Aio_t* aio) {
 	aio_handle_free_dead(aio);
 	while (aio->__delete_list_head) {
 		int ret;
-		unsigned head, advance_n = 0;
+		unsigned head, advance_n;
 		struct io_uring_cqe* cqe;
+		/* avoid cpu busy */
+		if (sleep_peek_cnt <= 0) {
+			sleep_peek_cnt = 128;
+			usleep(5000);
+		}
 		/* scan left */
+		advance_n = 0;
 		io_uring_for_each_cqe(&aio->__r, head, cqe) {
-			IoOverlapped_t* ol = (IoOverlapped_t*)io_uring_cqe_get_data(cqe);
 			advance_n++;
-			if (&s_wakeup_ol == ol) {
-				continue;
-			}
-			if (uring_filter_internal_ol__(aio, ol, cqe->flags)) {
-				continue;
-			}
-			ol->commit = 0;
-			if (cqe->flags & IORING_CQE_F_MORE) {
-				ol->__wait_cqe_notify = 1;
-				continue;
-			}
-			aio_ol_acked(aio, (AioFD_t*)ol->__completion_key, ol, 0);
-			IoOverlapped_free(ol);
-			if (advance_n >= 128) {
-				usleep(5000); /* avoid cpu busy */
+			uring_cqe_exit_clean__(aio, cqe);
+			if (advance_n >= sleep_peek_cnt) {
+				break;
 			}
 		}
 		io_uring_cq_advance(&aio->__r, advance_n);
-		usleep(5000); /* avoid cpu busy */
-		/* get more */
-		ret = io_uring_peek_cqe(&aio->__r, &cqe);
-		if (0 == ret) {
+		sleep_peek_cnt -= advance_n;
+		if (sleep_peek_cnt <= 0 || advance_n > 0) {
 			continue;
 		}
-		if (EAGAIN == -ret) {
-			continue;
-		}
-		if (EINTR != -ret) {
+		/* wait more */
+		ret = io_uring_wait_cqe(&aio->__r, &cqe);
+		if (ret != 0) {
+			/*
+			if (EINTR == -ret) {
+				continue;
+			}
+			*/
 			errno = -ret;
 			return;
 		}
+		if (!cqe) {
+			continue;
+		}
+		uring_cqe_exit_clean__(aio, cqe);
+		io_uring_cqe_seen(&aio->__r, cqe);
+		sleep_peek_cnt -= 1;
 	}
 }
 #endif
