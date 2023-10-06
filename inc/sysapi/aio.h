@@ -43,9 +43,6 @@ typedef struct AioFD_t {
 	IoOverlapped_t* __ol_pending_list_tail;
 	short __delete_flag;
 	short __reg;
-#if	__linux__
-	IoOverlapped_t* __delete_ol;
-#endif
 } AioFD_t;
 
 typedef struct Aio_t {

@@ -176,22 +176,27 @@ static void uring_cqe_save__(IoOverlapped_t* ol, struct io_uring_cqe* cqe) {
 	}
 }
 
-static int aiofd_post_delete_ol(struct io_uring* r, AioFD_t* aiofd) {
-	struct io_uring_sqe* sqe = io_uring_get_sqe(r);
-	if (!sqe) {
-		if (SOCK_STREAM == aiofd->socktype) {
-			shutdown(aiofd->fd, SHUT_RDWR);
-		}
+static int uring_submit_async_cancel__(struct io_uring* r, AioFD_t* aiofd) {
+	struct io_uring_sqe* sqe;
+	IoOverlapped_t* ol;
+
+	ol = (IoOverlapped_t*)calloc(1, sizeof(IoOverlapped_t));
+	if (!ol) {
 		return 0;
 	}
-	aiofd->__delete_ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
-	aiofd->__delete_ol->__fd = aiofd->fd;
-	aiofd->__delete_ol->__completion_key = aiofd;
-	aiofd->__delete_ol->commit = 1;
-	aiofd_link_pending_ol(aiofd, aiofd->__delete_ol);
+	sqe = io_uring_get_sqe(r);
+	if (!sqe) {
+		IoOverlapped_free(ol);
+		return 0;
+	}
+	ol->opcode = IO_OVERLAPPED_OP_INTERNAL_FD_CLOSE;
+	ol->__fd = aiofd->fd;
+	ol->__completion_key = aiofd;
+	ol->commit = 1;
+	aiofd_link_pending_ol(aiofd, ol);
 
 	io_uring_prep_cancel_fd(sqe, aiofd->fd, IORING_ASYNC_CANCEL_ALL);
-	io_uring_sqe_set_data(sqe, aiofd->__delete_ol);
+	io_uring_sqe_set_data(sqe, ol);
 	io_uring_submit(r);
 	return 1;
 }
@@ -389,13 +394,6 @@ BOOL aioClose(Aio_t* aio) {
 }
 
 AioFD_t* aiofdInit(AioFD_t* aiofd, FD_t fd) {
-#ifdef	__linux__
-	aiofd->__delete_ol = (IoOverlapped_t*)calloc(1, sizeof(IoOverlapped_t));
-	if (!aiofd->__delete_ol) {
-		return NULL;
-	}
-	aiofd->__delete_ol->__fd = -1;
-#endif
 	aiofd->__lprev = NULL;
 	aiofd->__lnext = NULL;
 	aiofd->__ol_pending_list_tail = NULL;
@@ -454,23 +452,18 @@ void aiofdDelete(Aio_t* aio, AioFD_t* aiofd) {
 		if (SOCK_STREAM == aiofd->socktype) {
 			shutdown(aiofd->fd, SHUT_RDWR);
 		}
-		free(aiofd->__delete_ol);
-		aiofd->__delete_ol = NULL;
 		close(aiofd->fd);
 		aiofd->fd = -1;
 		aio->__fn_free_aiofd(aiofd);
 		return;
 	}
-	if (aiofd->__delete_ol) {
-		if (!aiofd_post_delete_ol(&aio->__r, aiofd)) {
-			free(aiofd->__delete_ol);
-			aiofd->__delete_ol = NULL;
-			close(aiofd->fd);
-			aiofd->fd = -1;
-			aio->__fn_free_aiofd(aiofd);
-			return;
-		}
-		aiofd->__delete_ol = NULL;
+	if (!uring_submit_async_cancel__(&aio->__r, aiofd)) {
+		struct io_uring_sync_cancel_reg param = { 0 };
+		param.fd = aiofd->fd;
+		param.flags = (IORING_ASYNC_CANCEL_FD | IORING_ASYNC_CANCEL_ALL);
+		param.timeout.tv_sec = -1UL;
+		param.timeout.tv_nsec = -1UL;
+		io_uring_register_sync_cancel(&aio->__r, &param);
 	}
 #endif
 	/* insert into delete list */
@@ -944,19 +937,20 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 		return NULL;
 	}
 
-	if (0 == ol->error) {
-		if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
-			ol->bytes_off += ol->transfer_bytes;
+	if (ol->error) {
+		ol->transfer_bytes = 0;
+	}
+	else if (IO_OVERLAPPED_OP_READ == ol->opcode || IO_OVERLAPPED_OP_WRITE == ol->opcode) {
+		ol->bytes_off += ol->transfer_bytes;
+	}
+	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
+		int err = 0;
+		socklen_t len = sizeof(err);
+		if (getsockopt(aiofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
+			ol->error = errno;
 		}
-		else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
-			int err = 0;
-			socklen_t len = sizeof(err);
-			if (getsockopt(aiofd->fd, SOL_SOCKET, SO_ERROR, (char*)&err, &len)) {
-				ol->error = errno;
-			}
-			else {
-				ol->error = err;
-			}
+		else {
+			ol->error = err;
 		}
 	}
 
