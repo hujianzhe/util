@@ -840,9 +840,6 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 		while (1) {
 			ret = io_uring_wait_cqe(&aio->__r, &cqe);
 			if (ret != 0) {
-				if (ETIME == -ret) {
-					return 0;
-				}
 				if (EINTR == -ret) {
 					continue;
 				}
