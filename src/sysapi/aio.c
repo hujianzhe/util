@@ -637,6 +637,9 @@ BOOL aioCommit(Aio_t* aio, AioFD_t* aiofd, IoOverlapped_t* ol, int flag_bits) {
 	if (aiofd->__delete_flag) {
 		return 0;
 	}
+	if (ol->__wait_cqe_notify) {
+		return 0;
+	}
 	if (ol->commit) {
 		return 1;
 	}
