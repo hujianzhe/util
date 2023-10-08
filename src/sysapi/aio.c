@@ -365,11 +365,19 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entrie
 		return NULL;
 	}
 #elif	__linux__
-	__u32 flags = 	IORING_SETUP_CLAMP | IORING_SETUP_SUBMIT_ALL |
-					IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG;
-	int ret = io_uring_queue_init(entries, &aio->__r, flags);
+	struct io_uring_params p = { 0 };
+	p.flags = 	IORING_SETUP_CLAMP | IORING_SETUP_SUBMIT_ALL |
+				IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG;
+	int ret = io_uring_queue_init_params(entries, &aio->__r, &p);
 	if (ret < 0) {
 		errno = -ret;
+		return NULL;
+	}
+	if (!(p.features & IORING_FEAT_NODROP) ||
+		!(p.features & IORING_FEAT_SUBMIT_STABLE))
+	{
+		io_uring_queue_exit(&aio->__r);
+		errno = ENOSYS;
 		return NULL;
 	}
 #else
