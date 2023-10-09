@@ -130,7 +130,7 @@ static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
 
 #ifdef	__linux__
 static IoOverlapped_t s_wakeup_ol;
-static uint64_t s_wakeup_read_buf;
+static uint64_t s_wakeup_buf;
 
 static int uring_submit_wakeup__(struct io_uring* r, int fd) {
 	struct io_uring_sqe* sqe;
@@ -138,7 +138,7 @@ static int uring_submit_wakeup__(struct io_uring* r, int fd) {
 	if (!sqe) {
 		return 0;
 	}
-	io_uring_prep_read(sqe, fd, &s_wakeup_read_buf, sizeof(s_wakeup_read_buf), 0);
+	io_uring_prep_read(sqe, fd, &s_wakeup_buf, sizeof(s_wakeup_buf), 0);
 	io_uring_sqe_set_data(sqe, &s_wakeup_ol);
 	io_uring_submit(r);
 	return 1;
@@ -907,14 +907,14 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 }
 
 void aioWakeup(Aio_t* aio) {
-	if (0 == _xchg16(&aio->__wakeup, 1)) {
-#if defined(_WIN32) || defined(_WIN64)
-		PostQueuedCompletionStatus(aio->__handle, 0, 0, NULL);
-#elif	__linux__
-		char v;
-		write(aio->__wakeup_fds[1], &v, sizeof(v));
-#endif
+	if (_xchg16(&aio->__wakeup, 1)) {
+		return;
 	}
+#if defined(_WIN32) || defined(_WIN64)
+	PostQueuedCompletionStatus(aio->__handle, 0, 0, NULL);
+#elif	__linux__
+	write(aio->__wakeup_fds[1], &s_wakeup_buf, 1);
+#endif
 }
 
 IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) {
