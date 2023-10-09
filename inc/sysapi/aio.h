@@ -50,6 +50,7 @@ typedef struct Aio_t {
 	HANDLE __handle;
 #elif	__linux__
 	struct io_uring __r;
+	int __wakeup_fds[2];
 #endif
 	Atom16_t __wakeup;
 	AioFD_t* __alive_list_head;

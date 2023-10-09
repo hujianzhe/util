@@ -6,9 +6,9 @@
 
 #include "../../inc/sysapi/aio.h"
 #ifdef _WIN32
-#include <mswsock.h>
+	#include <mswsock.h>
 #else
-#include <sys/time.h>
+	#include <sys/time.h>
 #endif
 #include <string.h>
 #include <stdlib.h>
@@ -130,6 +130,19 @@ static int aio_regfd(Aio_t* aio, AioFD_t* aiofd) {
 
 #ifdef	__linux__
 static IoOverlapped_t s_wakeup_ol;
+static uint64_t s_wakeup_read_buf;
+
+static int uring_submit_wakeup__(struct io_uring* r, int fd) {
+	struct io_uring_sqe* sqe;
+	sqe = io_uring_get_sqe(r);
+	if (!sqe) {
+		return 0;
+	}
+	io_uring_prep_read(sqe, fd, &s_wakeup_read_buf, sizeof(s_wakeup_read_buf), 0);
+	io_uring_sqe_set_data(sqe, &s_wakeup_ol);
+	io_uring_submit(r);
+	return 1;
+}
 
 static int uring_filter_internal_ol__(Aio_t* aio, IoOverlapped_t* ol, __u32 flags) {
 	if (!ol) {
@@ -365,11 +378,19 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entrie
 		return NULL;
 	}
 #elif	__linux__
-	struct io_uring_params p = { 0 };
+	int evfds[2], ret;
+	struct io_uring_params p;
+
+	if (pipe(evfds)) {
+		return NULL;
+	}
+	memset(&p, 0, sizeof(p));
 	p.flags = 	IORING_SETUP_CLAMP | IORING_SETUP_SUBMIT_ALL |
 				IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG;
-	int ret = io_uring_queue_init_params(entries, &aio->__r, &p);
+	ret = io_uring_queue_init_params(entries, &aio->__r, &p);
 	if (ret < 0) {
+		close(evfds[0]);
+		close(evfds[1]);
 		errno = -ret;
 		return NULL;
 	}
@@ -377,9 +398,21 @@ Aio_t* aioCreate(Aio_t* aio, void(*fn_free_aiofd)(AioFD_t*), unsigned int entrie
 		!(p.features & IORING_FEAT_SUBMIT_STABLE))
 	{
 		io_uring_queue_exit(&aio->__r);
+		close(evfds[0]);
+		close(evfds[1]);
 		errno = ENOSYS;
 		return NULL;
 	}
+	if (!uring_submit_wakeup__(&aio->__r, evfds[0])) {
+		int e = errno;
+		io_uring_queue_exit(&aio->__r);
+		close(evfds[0]);
+		close(evfds[1]);
+		errno = e;
+		return NULL;
+	}
+	aio->__wakeup_fds[0] = evfds[0];
+	aio->__wakeup_fds[1] = evfds[1];
 #else
 	return NULL;
 #endif
@@ -398,6 +431,8 @@ BOOL aioClose(Aio_t* aio) {
 #elif	__linux__
 	uring_aio_exit_clean__(aio);
 	io_uring_queue_exit(&aio->__r);
+	close(aio->__wakeup_fds[0]);
+	close(aio->__wakeup_fds[1]);
 #endif
 	return 1;
 }
@@ -876,14 +911,8 @@ void aioWakeup(Aio_t* aio) {
 #if defined(_WIN32) || defined(_WIN64)
 		PostQueuedCompletionStatus(aio->__handle, 0, 0, NULL);
 #elif	__linux__
-		struct io_uring_sqe* sqe = io_uring_get_sqe(&aio->__r);
-		if (!sqe) {
-			_xchg16(&aio->__wakeup, 0);
-			return;
-		}
-		io_uring_prep_nop(sqe);
-		io_uring_sqe_set_data(sqe, &s_wakeup_ol);
-		io_uring_submit(&aio->__r);
+		char v;
+		write(aio->__wakeup_fds[1], &v, sizeof(v));
 #endif
 	}
 }
@@ -930,6 +959,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	AioFD_t* aiofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
 	if (&s_wakeup_ol == ol) {
+		uring_submit_wakeup__(&aio->__r, aio->__wakeup_fds[0]);
 		_xchg16(&aio->__wakeup, 0);
 		*ol_aiofd = NULL;
 		return NULL;
