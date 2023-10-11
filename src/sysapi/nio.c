@@ -246,6 +246,7 @@ void niofdDelete(Nio_t* nio, NioFD_t* niofd) {
 		nio->__alive_list_head = niofd->__lnext;
 	}
 	/* insert into free list */
+	niofd->__lprev = NULL;
 	niofd->__lnext = nio->__free_list_head;
 	nio->__free_list_head = niofd;
 }
