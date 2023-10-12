@@ -1027,9 +1027,6 @@ static void reactor_free_alive_objects(Reactor_t* reactor) {
 		if (channel->proc->on_free) {
 			channel->proc->on_free(channel);
 		}
-		if (!o->niofd.__reg) {
-			reactorobject_free(o);
-		}
 		channelobject_free(channel);
 	}
 }
