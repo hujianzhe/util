@@ -1292,11 +1292,12 @@ void channelbaseReg(Reactor_t* reactor, ChannelBase_t* channel) {
 	if (_xchg8(&channel->m_reghaspost, 1)) {
 		return;
 	}
+	_xadd32(&channel->m_refcnt, 1);
 	channel->reactor = reactor;
 	reactor_commit_cmd(reactor, &channel->m_regcmd);
 }
 
-void channelbaseClose(ChannelBase_t* channel) {
+void channelbaseCloseRef(ChannelBase_t* channel) {
 	Reactor_t* reactor;
 	if (!channel) {
 		return;

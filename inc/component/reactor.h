@@ -157,7 +157,7 @@ __declspec_dll ChannelBase_t* channelbaseOpenWithFD(unsigned short side, const C
 __declspec_dll ChannelBase_t* channelbaseSetOperatorSockaddr(ChannelBase_t* channel, const struct sockaddr* op_addr, socklen_t op_addrlen);
 __declspec_dll ChannelBase_t* channelbaseAddRef(ChannelBase_t* channel);
 __declspec_dll void channelbaseReg(struct Reactor_t* reactor, ChannelBase_t* channel);
-__declspec_dll void channelbaseClose(ChannelBase_t* channel);
+__declspec_dll void channelbaseCloseRef(ChannelBase_t* channel);
 
 __declspec_dll void channelbaseSendFin(ChannelBase_t* channel);
 __declspec_dll void channelbaseSend(ChannelBase_t* channel, const void* data, size_t len, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen);
