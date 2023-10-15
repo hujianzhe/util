@@ -9,7 +9,6 @@
 #include "../sysapi/ipc.h"
 #include "../sysapi/socket.h"
 #include "../datastruct/list.h"
-#include "../datastruct/hashtable.h"
 #include "../datastruct/transport_ctx.h"
 
 enum {
@@ -45,12 +44,10 @@ typedef struct ReactorObject_t {
 	char inbuf_saved;
 /* private */
 	struct ChannelBase_t* m_channel;
-	HashtableNode_t m_hashnode;
 	struct {
 		long long m_connect_end_msec;
 		ListNode_t m_connect_endnode;
 	} stream;
-	char m_has_inserted;
 	char m_connected;
 	unsigned char* m_inbuf;
 	int m_inbufoff;

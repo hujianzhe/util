@@ -24,8 +24,6 @@ typedef struct Reactor_t {
 	CriticalSection_t m_cmdlistlock;
 	List_t m_cmdlist;
 	List_t m_connect_endlist;
-	Hashtable_t m_objht;
-	HashtableNode_t* m_objht_bulks[2048];
 } Reactor_t;
 
 ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen, const struct sockaddr* addr, socklen_t addrlen) {
@@ -173,10 +171,6 @@ static void reactorobject_invalid_inner_handler(Reactor_t* reactor, ChannelBase_
 	}
 	o = channel->o;
 	o->m_channel = NULL;
-	if (o->m_has_inserted) {
-		o->m_has_inserted = 0;
-		hashtableRemoveNode(&reactor->m_objht, &o->m_hashnode);
-	}
 	if (SOCK_STREAM == channel->socktype) {
 		if (o->stream.m_connect_end_msec > 0) {
 			listRemoveNode(&reactor->m_connect_endlist, &o->stream.m_connect_endnode);
@@ -259,14 +253,6 @@ static int reactor_reg_object_check(Reactor_t* reactor, ChannelBase_t* channel, 
 static int reactor_reg_object(Reactor_t* reactor, ChannelBase_t* channel, long long timestamp_msec) {
 	ReactorObject_t* o = channel->o;
 	if (reactor_reg_object_check(reactor, channel, o, timestamp_msec)) {
-		HashtableNode_t* htnode = hashtableInsertNode(&reactor->m_objht, &o->m_hashnode);
-		if (htnode != &o->m_hashnode) {
-			ReactorObject_t* exist_o = pod_container_of(htnode, ReactorObject_t, m_hashnode);
-			hashtableReplaceNode(&reactor->m_objht, htnode, &o->m_hashnode);
-			exist_o->m_has_inserted = 0;
-			reactorobject_invalid_inner_handler(reactor, exist_o->m_channel, timestamp_msec);
-		}
-		o->m_has_inserted = 1;
 		return 1;
 	}
 	return 0;
@@ -350,11 +336,11 @@ static int channel_heartbeat_handler(ChannelBase_t* channel, long long now_msec)
 }
 
 static void reactor_exec_object(Reactor_t* reactor, long long now_msec) {
-	HashtableNode_t *cur, *next;
-	for (cur = hashtableFirstNode(&reactor->m_objht); cur; cur = next) {
-		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, m_hashnode);
+	NioFD_t* cur, *next;
+	for (cur = reactor->m_nio.__alive_list_head; cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, niofd);
 		ChannelBase_t* channel = o->m_channel;
-		next = hashtableNextNode(cur);
+		next = cur->__lnext;
 
 		if (!channel->valid) {
 			reactorobject_invalid_inner_handler(reactor, channel, now_msec);
@@ -783,12 +769,6 @@ static void reactor_exec_cmdlist(Reactor_t* reactor, long long timestamp_msec) {
 	}
 }
 
-static int objht_keycmp(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
-	return *(FD_t*)(node_key->ptr) != *(FD_t*)(key->ptr);
-}
-
-static unsigned int objht_keyhash(const HashtableNodeKey_t* key) { return *(FD_t*)(key->ptr); }
-
 static void reactor_commit_cmd(Reactor_t* reactor, ReactorCmd_t* cmdnode) {
 	criticalsectionEnter(&reactor->m_cmdlistlock);
 	listInsertNodeBack(&reactor->m_cmdlist, reactor->m_cmdlist.tail, &cmdnode->_);
@@ -820,8 +800,6 @@ static void reactorobject_init_comm(ReactorObject_t* o, FD_t fd, int domain) {
 
 	o->m_connected = 0;
 	o->m_channel = NULL;
-	o->m_hashnode.key.ptr = &o->niofd.fd;
-	o->m_has_inserted = 0;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
 	o->m_inbufoff = 0;
@@ -1016,11 +994,12 @@ static void reactor_free_cmdlist(Reactor_t* reactor) {
 }
 
 static void reactor_free_alive_objects(Reactor_t* reactor) {
-	HashtableNode_t* hcur, *hnext;
-	for (hcur = hashtableFirstNode(&reactor->m_objht); hcur; hcur = hnext) {
-		ReactorObject_t* o = pod_container_of(hcur, ReactorObject_t, m_hashnode);
+	NioFD_t* cur, *next;
+	for (cur = reactor->m_nio.__alive_list_head; cur; cur = next) {
+		ReactorObject_t* o = pod_container_of(cur, ReactorObject_t, niofd);
 		ChannelBase_t* channel = o->m_channel;
-		hnext = hashtableNextNode(hcur);
+		next = cur->__lnext;
+
 		if (!channel) {
 			continue;
 		}
@@ -1053,9 +1032,6 @@ Reactor_t* reactorCreate(void) {
 	}
 	listInit(&reactor->m_cmdlist);
 	listInit(&reactor->m_connect_endlist);
-	hashtableInit(&reactor->m_objht,
-		reactor->m_objht_bulks, sizeof(reactor->m_objht_bulks) / sizeof(reactor->m_objht_bulks[0]),
-		objht_keycmp, objht_keyhash);
 	reactor->m_event_msec = 0;
 	return reactor;
 }
