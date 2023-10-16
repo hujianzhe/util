@@ -411,13 +411,18 @@ static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, R
 		iov_wnd_bytes -= pkg_left_bytes;
 	}
 
-	res = socketWritev(o->niofd.fd, iov, iov_cnt, 0, NULL, 0);
-	if (res < 0) {
-		if (errnoGet() != EWOULDBLOCK) {
-			channel->valid = 0;
-			channel->detach_error = REACTOR_IO_WRITE_ERR;
-			return;
+	if (iov_cnt > 0) {
+		res = socketWritev(o->niofd.fd, iov, iov_cnt, 0, NULL, 0);
+		if (res < 0) {
+			if (errnoGet() != EWOULDBLOCK) {
+				channel->valid = 0;
+				channel->detach_error = REACTOR_IO_WRITE_ERR;
+				return;
+			}
+			res = 0;
 		}
+	}
+	else {
 		res = 0;
 	}
 
