@@ -389,26 +389,50 @@ static void reactor_exec_connect_timeout(Reactor_t* reactor, long long now_msec)
 static void reactor_stream_writeev(Reactor_t* reactor, ChannelBase_t* channel, ReactorObject_t* o) {
 	ListNode_t* cur, *next;
 	StreamTransportCtx_t* ctxptr = &channel->stream_ctx;
-	for (cur = ctxptr->sendlist.head; cur; cur = next) {
-		int res;
+	Iobuf_t iov[8];
+	size_t iov_cnt = 0;
+	int res;
+	size_t iov_wnd_bytes = 4096;
+
+	for (cur = ctxptr->sendlist.head; cur && iov_cnt < sizeof(iov)/sizeof(iov[0]); cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		size_t pkg_left_bytes = packet->hdrlen + packet->bodylen - packet->off;
 		next = cur->next;
 
-		res = send(o->niofd.fd, (char*)(packet->buf + packet->off), packet->hdrlen + packet->bodylen - packet->off, 0);
-		if (res < 0) {
-			if (errnoGet() != EWOULDBLOCK) {
-				channel->valid = 0;
-				channel->detach_error = REACTOR_IO_WRITE_ERR;
-				return;
-			}
-			res = 0;
+		iobufPtr(iov + iov_cnt) = (char*)(packet->buf + packet->off);
+		if (pkg_left_bytes >= iov_wnd_bytes) {
+			iobufLen(iov + iov_cnt) = iov_wnd_bytes;
+			iov_cnt++;
+			iov_wnd_bytes = 0;
+			break;
 		}
-		packet->off += res;
-		if (packet->off >= packet->hdrlen + packet->bodylen) {
+		iobufLen(iov + iov_cnt) = pkg_left_bytes;
+		iov_cnt++;
+		iov_wnd_bytes -= pkg_left_bytes;
+	}
+
+	res = socketWritev(o->niofd.fd, iov, iov_cnt, 0, NULL, 0);
+	if (res < 0) {
+		if (errnoGet() != EWOULDBLOCK) {
+			channel->valid = 0;
+			channel->detach_error = REACTOR_IO_WRITE_ERR;
+			return;
+		}
+		res = 0;
+	}
+
+	for (cur = ctxptr->sendlist.head; cur; cur = next) {
+		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
+		size_t pkg_left_bytes = packet->hdrlen + packet->bodylen - packet->off;
+		next = cur->next;
+
+		if (res >= pkg_left_bytes) {
+			res -= pkg_left_bytes;
 			streamtransportctxRemoveCacheSendPacket(ctxptr, packet);
 			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
 			continue;
 		}
+		packet->off += res;
 		if (nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_WRITE, NULL, 0)) {
 			break;
 		}
