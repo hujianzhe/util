@@ -471,7 +471,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		sys_event_mask |= EPOLLOUT;
 	}
 
-	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
+	if (NIO_OP_READ == opcode) {
 		if (event_mask & NIO_OP_READ) {
 			return TRUE;
 		}
@@ -485,6 +485,13 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		event_mask |= NIO_OP_WRITE;
 		sys_event_mask |= EPOLLOUT;
 	}
+	else if (NIO_OP_ACCEPT == opcode) {
+		if (event_mask & NIO_OP_READ) {
+			return TRUE;
+		}
+		event_mask |= (NIO_OP_READ | NIO_OP_ACCEPT);
+		sys_event_mask |= EPOLLIN;
+	}
 	else if (NIO_OP_CONNECT == opcode) {
 		if (event_mask & NIO_OP_WRITE) {
 			return TRUE;
@@ -492,7 +499,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		if (connect(niofd->fd, saddr, addrlen) && EINPROGRESS != errno) {
 			return FALSE;
 		}
-		event_mask |= NIO_OP_WRITE;
+		event_mask |= (NIO_OP_WRITE | NIO_OP_CONNECT);
 		sys_event_mask |= EPOLLOUT;
 		/* 
 		 * fd always add epoll when connect immediately finish or not...
@@ -527,7 +534,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 	if (niofd->__delete_flag) {
 		return FALSE;
 	}
-	if (NIO_OP_READ == opcode || NIO_OP_ACCEPT == opcode) {
+	if (NIO_OP_READ == opcode) {
 		if (niofd->__event_mask & NIO_OP_READ) {
 			return TRUE;
 		}
@@ -547,6 +554,16 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		}
 		niofd->__event_mask |= NIO_OP_WRITE;
 	}
+	else if (NIO_OP_ACCEPT == opcode) {
+		if (niofd->__event_mask & NIO_OP_READ) {
+			return TRUE;
+		}
+		EV_SET(&e, (uintptr_t)niofd->fd, EVFILT_READ, EV_ADD | EV_ONESHOT, 0, 0, niofd);
+		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
+			return FALSE;
+		}
+		niofd->__event_mask |= (NIO_OP_READ | NIO_OP_ACCEPT);
+	}
 	else if (NIO_OP_CONNECT == opcode) {
 		if (niofd->__event_mask & NIO_OP_WRITE) {
 			return TRUE;
@@ -562,7 +579,7 @@ BOOL nioCommit(Nio_t* nio, NioFD_t* niofd, int opcode, const struct sockaddr* sa
 		if (kevent(nio->__hNio, &e, 1, NULL, 0, NULL)) {
 			return FALSE;
 		}
-		niofd->__event_mask |= NIO_OP_WRITE;
+		niofd->__event_mask |= (NIO_OP_WRITE | NIO_OP_CONNECT);
 	}
 	else {
 		errno = EINVAL;
@@ -655,11 +672,11 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	}
 
 	if (IO_OVERLAPPED_OP_ACCEPT == ol->opcode) {
-		*ev_mask = NIO_OP_READ;
+		*ev_mask = (NIO_OP_READ | NIO_OP_ACCEPT);
 	}
 	else if (IO_OVERLAPPED_OP_CONNECT == ol->opcode) {
 		ol->opcode = IO_OVERLAPPED_OP_WRITE;
-		*ev_mask = NIO_OP_WRITE;
+		*ev_mask = (NIO_OP_WRITE | NIO_OP_CONNECT);
 	}
 	else if (IO_OVERLAPPED_OP_READ == ol->opcode) {
 		*ev_mask = NIO_OP_READ;
@@ -682,25 +699,32 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (niofd->__delete_flag) {
 		return NULL;
 	}
+
+	*ev_mask = 0;
 	/* epoll must catch this event */
 	if ((e->events & EPOLLRDHUP) || (e->events & EPOLLHUP)) {
+		if (niofd->__event_mask & NIO_OP_ACCEPT) {
+			*ev_mask |= NIO_OP_ACCEPT;
+		}
+		*ev_mask |= NIO_OP_READ;
 		niofd->__event_mask = 0;
-		*ev_mask = NIO_OP_READ;
+		return niofd;
 	}
-	else {
-		*ev_mask = 0;
-		if (e->events & EPOLLIN) {
-			if (niofd->__event_mask & NIO_OP_READ) {
-				niofd->__event_mask &= ~NIO_OP_READ;
-				*ev_mask |= NIO_OP_READ;
-			}
+	if (e->events & EPOLLIN) {
+		if (niofd->__event_mask & NIO_OP_ACCEPT) {
+			niofd->__event_mask &= ~NIO_OP_ACCEPT;
+			*ev_mask |= NIO_OP_ACCEPT;
 		}
-		if (e->events & EPOLLOUT) {
-			if (niofd->__event_mask & NIO_OP_WRITE) {
-				niofd->__event_mask &= ~NIO_OP_WRITE;
-				*ev_mask |= NIO_OP_WRITE;
-			}
+		niofd->__event_mask &= ~NIO_OP_READ;
+		*ev_mask |= NIO_OP_READ;
+	}
+	if (e->events & EPOLLOUT) {
+		if (niofd->__event_mask & NIO_OP_CONNECT) {
+			niofd->__event_mask &= ~NIO_OP_CONNECT;
+			*ev_mask |= NIO_OP_CONNECT;
 		}
+		niofd->__event_mask &= ~NIO_OP_WRITE;
+		*ev_mask |= NIO_OP_WRITE;
 	}
 	return niofd;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
@@ -714,13 +738,23 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (niofd->__delete_flag) {
 		return NULL;
 	}
+
+	*ev_mask = 0;
 	if (EVFILT_READ == e->filter) {
+		if (niofd->__event_mask & NIO_OP_ACCEPT) {
+			niofd->__event_mask &= ~NIO_OP_ACCEPT;
+			*ev_mask |= NIO_OP_ACCEPT;
+		}
 		niofd->__event_mask &= ~NIO_OP_READ;
-		*ev_mask = NIO_OP_READ;
+		*ev_mask |= NIO_OP_READ;
 	}
 	else if (EVFILT_WRITE == e->filter) {
+		if (niofd->__event_mask & NIO_OP_CONNECT) {
+			niofd->__event_mask &= ~NIO_OP_CONNECT;
+			*ev_mask |= NIO_OP_CONNECT;
+		}
 		niofd->__event_mask &= ~NIO_OP_WRITE;
-		*ev_mask = NIO_OP_WRITE;
+		*ev_mask |= NIO_OP_WRITE;
 	}
 	else { /* program don't run here... */
 		return NULL;
