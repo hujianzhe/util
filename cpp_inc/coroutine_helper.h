@@ -19,6 +19,7 @@ template <typename T>
 struct CoroutinePromise;
 
 class CoroutineScheBase;
+class CoroutineScheBaseImpl;
 class CoroutineAwaiter;
 class CoroutineAwaiterAnyone;
 class CoroutinePromiseBase;
@@ -28,7 +29,7 @@ class CoroutineNode {
 template <typename T>
 friend struct CoroutinePromise;
 
-friend class CoroutineScheBase;
+friend class CoroutineScheBaseImpl;
 friend class CoroutineAwaiter;
 friend class CoroutineAwaiterAnyone;
 friend class CoroutinePromiseBase;
@@ -64,11 +65,30 @@ private:
     CoroutinePromiseBase* m_promise_base;
 };
 
-inline thread_local CoroutineNode* ptr_CURRENT_CO_NODE = nullptr;
-inline CoroutineNode* this_coroutine() { return ptr_CURRENT_CO_NODE; }
+class CoroutineScheBase {
+friend class CoroutineAwaiter;
+friend class CoroutinePromiseBase;
+friend class CoroutineAwaiterAnyone;
+public:
+	CoroutineScheBase()
+		:m_current_co_node(nullptr)
+		,m_unhandled_exception(nullptr)
+	{}
+
+	virtual ~CoroutineScheBase() {}
+
+	static inline thread_local CoroutineScheBase* p = nullptr;
+
+	const CoroutineNode* current_co_node() const { return m_current_co_node; }
+	void set_unhandled_exception(void(*fn)(std::exception_ptr)) { m_unhandled_exception = fn; }
+
+protected:
+	CoroutineNode* m_current_co_node;
+	void(*m_unhandled_exception)(std::exception_ptr);
+};
 
 class CoroutineAwaiter {
-friend class CoroutineScheBase;
+friend class CoroutineScheBaseImpl;
 public:
     enum {
         INVALID_AWAITER_ID = 0
@@ -86,8 +106,8 @@ public:
         return m_value;
     }
     void await_suspend(std::coroutine_handle<void> h) {
-        ptr_CURRENT_CO_NODE->m_awaiter = this;
-        ptr_CURRENT_CO_NODE = ptr_CURRENT_CO_NODE->m_parent;
+		CoroutineScheBase::p->m_current_co_node->m_awaiter = this;
+		CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
     }
 
     int32_t id() const { return m_id; };
@@ -112,7 +132,7 @@ private:
 };
 
 class CoroutinePromiseBase {
-friend class CoroutineScheBase;
+friend class CoroutineScheBaseImpl;
 friend class CoroutineAwaiterAnyone;
 public:
     struct promise_type {
@@ -120,8 +140,8 @@ public:
         std::exception_ptr current_exception_ptr;
 
         std::suspend_never initial_suspend() noexcept {
-            co_node->m_parent = ptr_CURRENT_CO_NODE;
-            ptr_CURRENT_CO_NODE = co_node;
+            co_node->m_parent = CoroutineScheBase::p->m_current_co_node;
+            CoroutineScheBase::p->m_current_co_node = co_node;
             return {};
         }
         std::suspend_always final_suspend() noexcept { return {}; }
@@ -131,7 +151,7 @@ public:
         }
 
         void handleReturn() {
-            ptr_CURRENT_CO_NODE = ptr_CURRENT_CO_NODE->m_parent;
+            CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
         }
     };
     bool await_ready() const {
@@ -139,7 +159,7 @@ public:
     }
     void await_suspend(std::coroutine_handle<void> h) {
         m_co_node->m_awaiting = true;
-        ptr_CURRENT_CO_NODE = ptr_CURRENT_CO_NODE->m_parent;
+        CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
     }
 
     const std::any& getAny() const { return m_co_node->m_value; }
@@ -176,7 +196,7 @@ protected:
 };
 
 class CoroutineAwaiterAnyone {
-friend class CoroutineScheBase;
+friend class CoroutineScheBaseImpl;
 public:
     CoroutineAwaiterAnyone& operator=(const CoroutineAwaiterAnyone&) = delete;
     CoroutineAwaiterAnyone(const CoroutineAwaiterAnyone&) = delete;
@@ -219,7 +239,7 @@ public:
         for (auto co_node : m_run_nodes) {
             co_node->m_awaiter_anyone = this;
         }
-        ptr_CURRENT_CO_NODE = ptr_CURRENT_CO_NODE->m_parent;
+        CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
     }
 
     void add(const CoroutinePromiseBase& cpb) {
@@ -301,12 +321,8 @@ friend class CoroutinePromiseBase;
     }
 };
 
-class CoroutineScheBase {
+class CoroutineScheBaseImpl : public CoroutineScheBase {
 public:
-    virtual ~CoroutineScheBase() {}
-
-    void set_unhandled_exception(void(*fn)(std::exception_ptr)) { m_unhandled_exception = fn; }
-
     CoroutineAwaiter blockPoint() {
         CoroutineAwaiter awaiter;
         regAwaiter(awaiter);
@@ -314,23 +330,14 @@ public:
     }
 
 protected:
-    CoroutineScheBase() : m_unhandled_exception(nullptr) {}
-
-    template <typename T = std::any>
-    void doResume(CoroutineNode* co_node, const T& v) {
-        if (co_node->m_awaiter) {
-            co_node->m_awaiter->m_value = v;
-        }
-        doResumeImpl(co_node);
-    }
-
     void doResumeImpl(CoroutineNode* co_node) {
         bool last_free = true;
         CoroutineNode* last, *cur = co_node;
+		CoroutineScheBase::p = this;
         do {
             CoroutineNode* parent = cur->m_parent;
             last = cur;
-            ptr_CURRENT_CO_NODE = cur;
+            m_current_co_node = cur;
             auto co_handle = std::coroutine_handle<CoroutinePromiseBase::promise_type>::from_address(cur->m_co_addr);
             co_handle.resume();
             if (!co_handle.done()) {
@@ -352,13 +359,22 @@ protected:
             }
             cur = parent;
         } while (cur);
-        ptr_CURRENT_CO_NODE = nullptr;
+        m_current_co_node = nullptr;
+		CoroutineScheBase::p = nullptr;
         if (last->m_promise_base) {
             return;
         }
         if (last_free) {
             delete last;
         }
+    }
+
+    template <typename T = std::any>
+    void doResume(CoroutineNode* co_node, const T& v) {
+        if (co_node->m_awaiter) {
+            co_node->m_awaiter->m_value = v;
+        }
+        doResumeImpl(co_node);
     }
 
     template <typename T = std::any>
@@ -378,7 +394,7 @@ protected:
     bool regAwaiter(CoroutineAwaiter& awaiter) {
         awaiter.m_value.reset();
         int32_t awaiter_id = CoroutineAwaiter::gen_id();
-        if (m_block_points.insert({awaiter_id, ptr_CURRENT_CO_NODE}).second) {
+        if (m_block_points.insert({awaiter_id, m_current_co_node}).second) {
             awaiter.m_id = awaiter_id;
             awaiter.m_await_ready = false;
             return true;
@@ -390,7 +406,7 @@ protected:
         }
     }
 
-    CoroutineNode* onDestroy(CoroutineNode* co_node) {
+    static CoroutineNode* onDestroy(CoroutineNode* co_node) {
         CoroutineNode* parent = co_node->m_parent;
         if (co_node->m_promise_base) {
             co_node->m_promise_base->m_delete_co_node = false;
@@ -406,8 +422,7 @@ protected:
     }
 
 protected:
-    void(*m_unhandled_exception)(std::exception_ptr);
-    std::unordered_map<int32_t, CoroutineNode*> m_block_points;
+	std::unordered_map<int32_t, CoroutineNode*> m_block_points;
 };
 }
 

@@ -16,7 +16,7 @@
 #include <condition_variable>
 
 namespace util {
-class CoroutineDefaultSche : public CoroutineScheBase {
+class CoroutineDefaultSche : public CoroutineScheBaseImpl {
 private:
     enum {
         ST_RUN = 0,
@@ -30,13 +30,15 @@ public:
     typedef std::function<CoroutinePromise<void>(const std::any&)> EntryFunc;
 
     CoroutineDefaultSche()
-        :CoroutineScheBase()
+        :CoroutineScheBaseImpl()
         ,m_status(ST_RUN)
     {
         m_peak_events.reserve(MAX_PEAK_CNT);
     }
 
-    bool check_exit() { return ST_EXIT == m_status; }
+	static CoroutineDefaultSche* get() { return (CoroutineDefaultSche*)CoroutineScheBase::p; }
+
+    bool check_exit() const { return ST_EXIT == m_status; }
 
     void doExit() {
         if (m_status.exchange(ST_EXIT) == ST_RUN) {
@@ -86,12 +88,12 @@ public:
 
     CoroutineAwaiter sleepTimeout(long long tlen_msec) {
         CoroutineAwaiter awaiter;
-        addTimeoutEvent(Event(this_coroutine(), get_current_ts_msec() + tlen_msec));
+        addTimeoutEvent(Event(m_current_co_node, get_current_ts_msec() + tlen_msec));
         return awaiter;
     }
     CoroutineAwaiter sleepUtil(long long ts_msec) {
         CoroutineAwaiter awaiter;
-        addTimeoutEvent(Event(this_coroutine(), ts_msec));
+        addTimeoutEvent(Event(m_current_co_node, ts_msec));
         return awaiter;
     }
 
@@ -258,6 +260,7 @@ private:
                 continue;
             }
             if (e.func) {
+				CoroutineScheBase::p = this;
                 e.func(e.param);
             }
             else {
@@ -278,6 +281,7 @@ private:
             while (!evlist.empty() && cnt < MAX_PEAK_CNT) {
                 Event& e = evlist.front();
                 if (e.func) {
+					CoroutineScheBase::p = this;
                     e.func(e.param);
                 }
                 else if (e.sleep_co_node) {
