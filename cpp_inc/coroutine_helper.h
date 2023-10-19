@@ -77,10 +77,11 @@ public:
 
 	virtual ~CoroutineScheBase() {}
 
-	static inline thread_local CoroutineScheBase* p = nullptr;
-
 	const CoroutineNode* current_co_node() const { return m_current_co_node; }
 	void set_unhandled_exception(void(*fn)(std::exception_ptr)) { m_unhandled_exception = fn; }
+
+protected:
+	static inline thread_local CoroutineScheBase* p = nullptr;
 
 protected:
 	CoroutineNode* m_current_co_node;
