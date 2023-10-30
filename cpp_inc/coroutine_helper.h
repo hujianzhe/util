@@ -330,7 +330,7 @@ public:
         return awaiter;
     }
 
-protected:
+private:
     void doResumeImpl(CoroutineNode* co_node) {
         bool last_free = true;
         CoroutineNode* last, *cur = co_node;
@@ -370,42 +370,42 @@ protected:
         }
     }
 
-    template <typename T = std::any>
-    void doResume(CoroutineNode* co_node, const T& v) {
-        if (co_node->m_awaiter) {
-            co_node->m_awaiter->m_value = v;
-        }
-        doResumeImpl(co_node);
-    }
+protected:
+	bool regAwaiter(CoroutineAwaiter& awaiter) {
+		awaiter.m_value.reset();
+		int32_t awaiter_id = CoroutineAwaiter::gen_id();
+		if (m_block_points.insert({awaiter_id, m_current_co_node}).second) {
+			awaiter.m_id = awaiter_id;
+			awaiter.m_await_ready = false;
+			return true;
+		}
+		else {
+			awaiter.m_id = CoroutineAwaiter::INVALID_AWAITER_ID;
+			awaiter.m_await_ready = true;
+			return false;
+		}
+	}
 
-    template <typename T = std::any>
-    void doResumeById(int32_t awaiter_id, const T& v) {
-        if (CoroutineAwaiter::INVALID_AWAITER_ID == awaiter_id) {
-            return;
-        }
-        auto it = m_block_points.find(awaiter_id);
-        if (it == m_block_points.end()) {
-            return;
-        }
-        CoroutineNode* co_node = it->second;
-        m_block_points.erase(it);
-        doResume(co_node, v);
-    }
+	CoroutineNode* removeAwaiterId(int32_t awaiter_id) {
+		if (CoroutineAwaiter::INVALID_AWAITER_ID == awaiter_id) {
+			return nullptr;
+		}
+		auto it = m_block_points.find(awaiter_id);
+		if (it == m_block_points.end()) {
+			return nullptr;
+		}
+		CoroutineNode* co_node = it->second;
+		m_block_points.erase(it);
+		return co_node;
+	}
 
-    bool regAwaiter(CoroutineAwaiter& awaiter) {
-        awaiter.m_value.reset();
-        int32_t awaiter_id = CoroutineAwaiter::gen_id();
-        if (m_block_points.insert({awaiter_id, m_current_co_node}).second) {
-            awaiter.m_id = awaiter_id;
-            awaiter.m_await_ready = false;
-            return true;
-        }
-        else {
-            awaiter.m_id = CoroutineAwaiter::INVALID_AWAITER_ID;
-            awaiter.m_await_ready = true;
-            return false;
-        }
-    }
+	template <typename T = std::any>
+	void doResume(CoroutineNode* co_node, const T& v) {
+		if (co_node->m_awaiter) {
+			co_node->m_awaiter->m_value = v;
+		}
+		doResumeImpl(co_node);
+	}
 
     static CoroutineNode* onDestroy(CoroutineNode* co_node) {
         CoroutineNode* parent = co_node->m_parent;

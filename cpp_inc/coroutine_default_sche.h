@@ -264,7 +264,10 @@ private:
                 e.func(e.param);
             }
             else {
-                doResumeById(e.resume_id, e.param);
+				CoroutineNode* co_node = removeAwaiterId(e.resume_id);
+				if (co_node) {
+                	doResume(co_node, e.param);
+				}
             }
             e.reset();
         }
@@ -288,7 +291,10 @@ private:
                     doResume(e.sleep_co_node, std::any());
                 }
                 else {
-                    doResumeById(e.resume_id, e.param);
+					CoroutineNode* co_node = removeAwaiterId(e.resume_id);
+					if (co_node) {
+                    	doResume(co_node, e.param);
+					}
                 }
                 evlist.pop_front();
                 cnt++;
