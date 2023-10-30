@@ -114,7 +114,18 @@ public:
     int32_t id() const { return m_id; };
     const std::any& getAny() const { return m_value; }
 
-private:
+	void reset(int32_t id = gen_id()) {
+		m_id = id;
+		m_await_ready = false;
+		m_value.reset();
+	}
+	void invalid() {
+		m_id = INVALID_AWAITER_ID;
+		m_await_ready = true;
+		m_value.reset();
+	}
+
+public:
     static int32_t gen_id() {
         static std::atomic_int32_t SEQ;
         int32_t v;
@@ -124,12 +135,10 @@ private:
         return v;
     }
 
-protected:
-    std::any m_value;
-
 private:
     int32_t m_id;
     bool m_await_ready;
+    std::any m_value;
 };
 
 class CoroutinePromiseBase {
@@ -323,13 +332,6 @@ friend class CoroutinePromiseBase;
 };
 
 class CoroutineScheBaseImpl : public CoroutineScheBase {
-public:
-    CoroutineAwaiter blockPoint() {
-        CoroutineAwaiter awaiter;
-        regAwaiter(awaiter);
-        return awaiter;
-    }
-
 private:
     void doResumeImpl(CoroutineNode* co_node) {
         bool last_free = true;
@@ -371,34 +373,6 @@ private:
     }
 
 protected:
-	bool regAwaiter(CoroutineAwaiter& awaiter) {
-		awaiter.m_value.reset();
-		int32_t awaiter_id = CoroutineAwaiter::gen_id();
-		if (m_block_points.insert({awaiter_id, m_current_co_node}).second) {
-			awaiter.m_id = awaiter_id;
-			awaiter.m_await_ready = false;
-			return true;
-		}
-		else {
-			awaiter.m_id = CoroutineAwaiter::INVALID_AWAITER_ID;
-			awaiter.m_await_ready = true;
-			return false;
-		}
-	}
-
-	CoroutineNode* removeAwaiterId(int32_t awaiter_id) {
-		if (CoroutineAwaiter::INVALID_AWAITER_ID == awaiter_id) {
-			return nullptr;
-		}
-		auto it = m_block_points.find(awaiter_id);
-		if (it == m_block_points.end()) {
-			return nullptr;
-		}
-		CoroutineNode* co_node = it->second;
-		m_block_points.erase(it);
-		return co_node;
-	}
-
 	template <typename T = std::any>
 	void doResume(CoroutineNode* co_node, const T& v) {
 		if (co_node->m_awaiter) {
@@ -421,9 +395,6 @@ protected:
         delete co_node;
         return parent;
     }
-
-protected:
-	std::unordered_map<int32_t, CoroutineNode*> m_block_points;
 };
 }
 

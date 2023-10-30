@@ -71,20 +71,28 @@ public:
         }
     }
 
-    CoroutineAwaiter blockPointUtil(long long ts_msec) {
-        CoroutineAwaiter awaiter;
-        if (regAwaiter(awaiter)) {
-            addTimeoutEvent(Event(awaiter.id(), std::any(), ts_msec));
-        }
-        return awaiter;
-    }
-    CoroutineAwaiter blockPointTimeout(long long tlen_msec) {
-        CoroutineAwaiter awaiter;
-        if (regAwaiter(awaiter)) {
-            addTimeoutEvent(Event(awaiter.id(), std::any(), get_current_ts_msec() + tlen_msec));
-        }
-        return awaiter;
-    }
+	CoroutineAwaiter blockPoint() {
+		CoroutineAwaiter awaiter;
+		regAwaiter(awaiter);
+		return awaiter;
+	}
+
+	CoroutineAwaiter blockPointUtil(long long ts_msec) {
+		CoroutineAwaiter awaiter;
+		BlockPointData* pdata = regAwaiter(awaiter);
+		if (pdata && ts_msec >= 0) {
+			pdata->timeout_event = addTimeoutEvent(Event(awaiter.id(), std::any(), ts_msec));
+		}
+		return awaiter;
+	}
+	CoroutineAwaiter blockPointTimeout(long long tlen_msec) {
+		CoroutineAwaiter awaiter;
+		BlockPointData* pdata = regAwaiter(awaiter);
+		if (pdata && tlen_msec >= 0) {
+			pdata->timeout_event = addTimeoutEvent(Event(awaiter.id(), std::any(), get_current_ts_msec() + tlen_msec));
+		}
+		return awaiter;
+	}
 
     CoroutineAwaiter sleepTimeout(long long tlen_msec) {
         CoroutineAwaiter awaiter;
@@ -132,7 +140,7 @@ public:
             it = m_timeout_events.erase(it);
         }
         for (auto it = m_block_points.begin(); it != m_block_points.end(); ) {
-            CoroutineNode* co_node = it->second;
+            CoroutineNode* co_node = it->second.co_node;
             CoroutineNode* parent = onDestroy(co_node);
             if (parent) {
                 next_set.insert(parent);
@@ -199,6 +207,11 @@ private:
         }
     };
 
+	typedef struct BlockPointData {
+		CoroutineNode* co_node;
+		Event* timeout_event;
+	} BlockPointData;
+
 private:
     bool check_need_wake_up() {
         return m_events.empty() && ST_RUN == m_status;
@@ -219,17 +232,19 @@ private:
         return tlen < idle_timelen ? (int)tlen : idle_timelen;
     }
 
-    void addTimeoutEvent(Event& e) {
+	Event* addTimeoutEvent(Event& e) {
         auto result_pair = m_timeout_events.try_emplace(e.ts, std::list<Event>());
         std::list<Event>& evlist = result_pair.first->second;
         evlist.emplace_back();
         evlist.back().swap(e);
+		return &evlist.back();
     }
 
-    void addTimeoutEvent(Event&& e) {
+	Event* addTimeoutEvent(Event&& e) {
         auto result_pair = m_timeout_events.try_emplace(e.ts, std::list<Event>());
         std::list<Event>& evlist = result_pair.first->second;
         evlist.emplace_back(e);
+		return &evlist.back();
     }
 
     void doPeakEvent(int wait_msec) {
@@ -264,9 +279,15 @@ private:
                 e.func(e.param);
             }
             else {
-				CoroutineNode* co_node = removeAwaiterId(e.resume_id);
-				if (co_node) {
-                	doResume(co_node, e.param);
+				auto it = m_block_points.find(e.resume_id);
+				if (it != m_block_points.end()) {
+					BlockPointData& data = it->second;
+					if (data.timeout_event) {
+						data.timeout_event->resume_id = CoroutineAwaiter::INVALID_AWAITER_ID;
+					}
+					CoroutineNode* co_node = data.co_node;
+					m_block_points.erase(it);
+					doResume(co_node, e.param);
 				}
             }
             e.reset();
@@ -290,10 +311,12 @@ private:
                 else if (e.sleep_co_node) {
                     doResume(e.sleep_co_node, std::any());
                 }
-                else {
-					CoroutineNode* co_node = removeAwaiterId(e.resume_id);
-					if (co_node) {
-                    	doResume(co_node, e.param);
+                else if (e.resume_id != CoroutineAwaiter::INVALID_AWAITER_ID) {
+					auto it = m_block_points.find(e.resume_id);
+					if (it != m_block_points.end()) {
+						CoroutineNode* co_node = it->second.co_node;
+						m_block_points.erase(it);
+						doResume(co_node, e.param);
 					}
                 }
                 evlist.pop_front();
@@ -305,6 +328,20 @@ private:
         }
     }
 
+	BlockPointData* regAwaiter(CoroutineAwaiter& awaiter) {
+		int32_t awaiter_id = CoroutineAwaiter::gen_id();
+		BlockPointData data;
+		data.co_node = m_current_co_node;
+		data.timeout_event = nullptr;
+		auto result = m_block_points.insert({awaiter_id, data});
+		if (!result.second) {
+			awaiter.invalid();
+			return nullptr;
+		}
+		awaiter.reset(awaiter_id);
+		return &result.first->second;
+	}
+
 private:
     std::mutex m_mtx;
     std::condition_variable m_cv;
@@ -312,6 +349,7 @@ private:
     std::list<Event> m_events;
     std::vector<Event> m_peak_events;
     std::map<long long, std::list<Event> > m_timeout_events;
+	std::unordered_map<int32_t, BlockPointData> m_block_points;
 };
 }
 
