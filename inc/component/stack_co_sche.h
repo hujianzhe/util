@@ -39,7 +39,7 @@ __declspec_dll void StackCoSche_at_exit(struct StackCoSche_t* sche, void(*fn_at_
 __declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 __declspec_dll StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 __declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec);
-__declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long msec);
+__declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long tm_msec);
 
 __declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
 __declspec_dll void StackCoSche_no_arg_free(struct StackCoSche_t* sche);
