@@ -72,24 +72,35 @@ public:
     }
 
 	CoroutineAwaiter blockPoint() {
-		CoroutineAwaiter awaiter;
-		regAwaiter(awaiter);
+		CoroutineAwaiter awaiter(CoroutineAwaiter::gen_id());
+		if (!regAwaiter(awaiter.id())) {
+			awaiter.invalid();
+		}
 		return awaiter;
 	}
 
 	CoroutineAwaiter blockPointUtil(long long ts_msec) {
-		CoroutineAwaiter awaiter;
-		BlockPointData* pdata = regAwaiter(awaiter);
-		if (pdata && ts_msec >= 0) {
+		CoroutineAwaiter awaiter(CoroutineAwaiter::gen_id());
+		BlockPointData* pdata = regAwaiter(awaiter.id());
+		if (!pdata) {
+			awaiter.invalid();
+			return awaiter;
+		}
+		if (ts_msec >= 0) {
 			pdata->timeout_event = addTimeoutEvent(Event(awaiter.id(), std::any(), ts_msec));
 		}
 		return awaiter;
 	}
 	CoroutineAwaiter blockPointTimeout(long long tlen_msec) {
-		CoroutineAwaiter awaiter;
-		BlockPointData* pdata = regAwaiter(awaiter);
-		if (pdata && tlen_msec >= 0) {
-			pdata->timeout_event = addTimeoutEvent(Event(awaiter.id(), std::any(), get_current_ts_msec() + tlen_msec));
+		CoroutineAwaiter awaiter(CoroutineAwaiter::gen_id());
+		BlockPointData* pdata = regAwaiter(awaiter.id());
+		if (!pdata) {
+			awaiter.invalid();
+			return awaiter;
+		}
+		if (tlen_msec >= 0) {
+			long long ts_msec = get_current_ts_msec() + tlen_msec;
+			pdata->timeout_event = addTimeoutEvent(Event(awaiter.id(), std::any(), ts_msec));
 		}
 		return awaiter;
 	}
@@ -328,17 +339,14 @@ private:
         }
     }
 
-	BlockPointData* regAwaiter(CoroutineAwaiter& awaiter) {
-		int32_t awaiter_id = CoroutineAwaiter::gen_id();
+	BlockPointData* regAwaiter(int32_t awaiter_id) {
 		BlockPointData data;
 		data.co_node = m_current_co_node;
 		data.timeout_event = nullptr;
 		auto result = m_block_points.insert({awaiter_id, data});
 		if (!result.second) {
-			awaiter.invalid();
 			return nullptr;
 		}
-		awaiter.reset(awaiter_id);
 		return &result.first->second;
 	}
 

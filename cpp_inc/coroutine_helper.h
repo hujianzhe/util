@@ -100,6 +100,10 @@ public:
         :m_id(INVALID_AWAITER_ID)
         ,m_await_ready(false)
     {}
+	CoroutineAwaiter(int32_t id)
+		:m_id(id)
+		,m_await_ready(false)
+	{}
 
     bool await_ready() const { return m_await_ready; }
     std::any await_resume() {
@@ -114,11 +118,6 @@ public:
     int32_t id() const { return m_id; };
     const std::any& getAny() const { return m_value; }
 
-	void reset(int32_t id = gen_id()) {
-		m_id = id;
-		m_await_ready = false;
-		m_value.reset();
-	}
 	void invalid() {
 		m_id = INVALID_AWAITER_ID;
 		m_await_ready = true;
