@@ -108,37 +108,6 @@ public:
 		postEvent(Event(id, param, 0));
     }
 
-	struct LockData;
-	class Mutex {
-	friend class CoroutineDefaultSche;
-	public:
-		Mutex() : m_data(nullptr) {}
-
-		~Mutex() {
-			unlock();
-		}
-
-		CoroutineAwaiter lock(const std::string& name) {
-			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-			return sc->lock(*this, name);
-		}
-
-		void unlock() {
-			if (!m_data) {
-				return;
-			}
-			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-			if (!sc) { /* on sche destroy */
-				return;
-			}
-			sc->unlock(m_data);
-			m_data = nullptr;
-		}
-
-	private:
-		CoroutineDefaultSche::LockData* m_data;
-	};
-
     void doSche(int idle_msec) {
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
         doPeakEvent(idle_msec);
@@ -255,6 +224,37 @@ private:
 		const std::string* ptr_name;
 		std::list<CoroutineNode*> wait_co_nodes;
 	} LockData;
+
+public:
+    class Mutex {
+        friend class CoroutineDefaultSche;
+    public:
+        Mutex() : m_data(nullptr) {}
+
+        ~Mutex() {
+            unlock();
+        }
+
+        CoroutineAwaiter lock(const std::string& name) {
+            CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
+            return sc->lock(*this, name);
+        }
+
+        void unlock() {
+            if (!m_data) {
+                return;
+            }
+            CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
+            if (!sc) { /* on sche destroy */
+                return;
+            }
+            sc->unlock(m_data);
+            m_data = nullptr;
+        }
+
+    private:
+        LockData* m_data;
+    };
 
 private:
     bool check_need_wake_up() {
