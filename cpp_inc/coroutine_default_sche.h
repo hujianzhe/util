@@ -227,13 +227,20 @@ private:
 
 public:
     class Mutex {
-        friend class CoroutineDefaultSche;
+	friend class CoroutineDefaultSche;
     public:
         Mutex() : m_data(nullptr) {}
 
         ~Mutex() {
             unlock();
         }
+
+		std::string name() const {
+			if (!m_data || !m_data->ptr_name) {
+				return std::string();
+			}
+			return *(m_data->ptr_name);
+		}
 
         CoroutineAwaiter lock(const std::string& name) {
             CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
