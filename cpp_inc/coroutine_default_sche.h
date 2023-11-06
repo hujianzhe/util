@@ -17,15 +17,6 @@
 
 namespace util {
 class CoroutineDefaultSche : public CoroutineScheBaseImpl {
-private:
-    enum {
-        ST_RUN = 0,
-        ST_EXIT
-    };
-    enum {
-        MAX_PEAK_CNT = 100
-    };
-
 public:
     typedef std::function<CoroutinePromise<void>(const std::any&)> EntryFunc;
 
@@ -117,30 +108,36 @@ public:
 		postEvent(Event(id, param, 0));
     }
 
-	CoroutineAwaiter lock(const std::string& name) {
-		auto result = m_locks.insert({name, std::list<CoroutineNode*>()});
-		if (result.second) {
-			CoroutineAwaiter awaiter;
-			awaiter.invalid();
-			return awaiter;
+	struct LockData;
+	class Mutex {
+	friend class CoroutineDefaultSche;
+	public:
+		Mutex() : m_data(nullptr) {}
+
+		~Mutex() {
+			unlock();
 		}
-		result.first->second.emplace_back(m_current_co_node);
-		return CoroutineAwaiter();
-	}
-	void unlock(const std::string& name) {
-		auto it = m_locks.find(name);
-		if (it == m_locks.end()) {
-			return;
+
+		CoroutineAwaiter lock(const std::string& name) {
+			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
+			return sc->lock(*this, name);
 		}
-		std::list<CoroutineNode*>& wait_list = it->second;
-		if (wait_list.empty()) {
-			m_locks.erase(it);
-			return;
+
+		void unlock() {
+			if (!m_data) {
+				return;
+			}
+			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
+			if (!sc) { /* on sche destroy */
+				return;
+			}
+			sc->unlock(m_data);
+			m_data = nullptr;
 		}
-		CoroutineNode* co_node = wait_list.front();
-		wait_list.pop_front();
-		postEvent(Event(co_node, 0));
-	}
+
+	private:
+		CoroutineDefaultSche::LockData* m_data;
+	};
 
     void doSche(int idle_msec) {
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
@@ -153,12 +150,13 @@ public:
     }
 
     void scheDestroy() {
+		CoroutineScheBase::p = nullptr;
         std::unordered_set<CoroutineNode*> next_set;
 		for (auto it = m_locks.begin(); it != m_locks.end(); ) {
-			std::list<CoroutineNode*>& co_node_list = it->second;
-			for (auto it = co_node_list.begin(); it != co_node_list.end(); ) {
+			LockData& data = it->second;
+			for (auto it = data.wait_co_nodes.begin(); it != data.wait_co_nodes.end(); ) {
 				next_set.insert(*it);
-				it = co_node_list.erase(it);
+				it = data.wait_co_nodes.erase(it);
 			}
 			it = m_locks.erase(it);
 		}
@@ -195,6 +193,14 @@ public:
     }
 
 private:
+	enum {
+        ST_RUN = 0,
+        ST_EXIT
+    };
+    enum {
+        MAX_PEAK_CNT = 100
+    };
+
     struct Event {
         int32_t resume_id;
         long long ts;
@@ -244,6 +250,11 @@ private:
 		CoroutineNode* co_node;
 		Event* timeout_event;
 	} BlockPointData;
+
+	typedef struct LockData {
+		const std::string* ptr_name;
+		std::list<CoroutineNode*> wait_co_nodes;
+	} LockData;
 
 private:
     bool check_need_wake_up() {
@@ -384,6 +395,29 @@ private:
 		return &result.first->second;
 	}
 
+	CoroutineAwaiter lock(Mutex& mtx, const std::string& name) {
+		auto result = m_locks.insert({name, LockData()});
+		LockData& data = result.first->second;
+		mtx.m_data = &data;
+		if (result.second) {
+			data.ptr_name = &result.first->first;
+			CoroutineAwaiter awaiter;
+			awaiter.invalid();
+			return awaiter;
+		}
+		data.wait_co_nodes.emplace_back(m_current_co_node);
+		return CoroutineAwaiter();
+	}
+	void unlock(LockData* data) {
+		if (data->wait_co_nodes.empty()) {
+			m_locks.erase(*(data->ptr_name));
+			return;
+		}
+		CoroutineNode* co_node = data->wait_co_nodes.front();
+		data->wait_co_nodes.pop_front();
+		postEvent(Event(co_node, 0));
+	}
+
 private:
     std::mutex m_mtx;
     std::condition_variable m_cv;
@@ -392,7 +426,7 @@ private:
     std::vector<Event> m_peak_events;
     std::map<long long, std::list<Event> > m_timeout_events;
 	std::unordered_map<int32_t, BlockPointData> m_block_points;
-	std::unordered_map<std::string, std::list<CoroutineNode*> > m_locks;
+	std::unordered_map<std::string, LockData> m_locks;
 };
 }
 
