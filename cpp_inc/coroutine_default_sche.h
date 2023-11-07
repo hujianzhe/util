@@ -123,9 +123,9 @@ public:
         std::unordered_set<CoroutineNode*> next_set;
 		for (auto it = m_locks.begin(); it != m_locks.end(); ) {
 			LockData& lock_data = it->second;
-			for (auto it = lock_data.wait_infos.begin(); it != lock_data.wait_infos.end(); ) {
+			for (auto it = lock_data.m_wait_infos.begin(); it != lock_data.m_wait_infos.end(); ) {
 				next_set.insert(it->co_node);
-				it = lock_data.wait_infos.erase(it);
+				it = lock_data.m_wait_infos.erase(it);
 			}
 			it = m_locks.erase(it);
 		}
@@ -220,18 +220,6 @@ private:
 		Event* timeout_event;
 	} BlockPointData;
 
-	typedef struct LockData {
-		typedef struct WaitInfo {
-			CoroutineNode* co_node = nullptr;
-			void* scope = nullptr;
-		} WaitInfo;
-
-		void* scope;
-		size_t scope_enter_times;
-		const std::string* ptr_name;
-		std::list<WaitInfo> wait_infos;
-	} LockData;
-
 public:
     class Mutex {
 	friend class CoroutineDefaultSche;
@@ -243,10 +231,10 @@ public:
         }
 
 		std::string name() const {
-			if (!m_data || !m_data->ptr_name) {
+			if (!m_data || !m_data->m_ptr_name) {
 				return std::string();
 			}
-			return *(m_data->ptr_name);
+			return *(m_data->m_ptr_name);
 		}
 
         CoroutineAwaiter lock(const std::string& name) {
@@ -254,7 +242,8 @@ public:
 				return CoroutineAwaiter();
 			}
             CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-            return sc->lock(this, name);
+			m_data = sc->lock_acquire(m_scope, name);
+			return m_data->get_awaiter(m_scope);
         }
 
         void unlock() {
@@ -265,8 +254,12 @@ public:
             if (!sc) { /* on sche destroy */
                 return;
             }
-            sc->unlock(m_data);
+            CoroutineNode* co_node = sc->lock_release(m_data);
             m_data = nullptr;
+			if (!co_node) {
+				return;
+			}
+			sc->postEvent(Event(co_node, 0));
         }
 
     private:
@@ -413,44 +406,6 @@ private:
 		return &result.first->second;
 	}
 
-	CoroutineAwaiter lock(Mutex* mtx, const std::string& name) {
-		auto result = m_locks.insert({name, LockData()});
-		LockData& lock_data = result.first->second;
-		mtx->m_data = &lock_data;
-		if (result.second) {
-			lock_data.scope = mtx->m_scope;
-			lock_data.scope_enter_times = 1;
-			lock_data.ptr_name = &result.first->first;
-
-			CoroutineAwaiter awaiter;
-			awaiter.invalid();
-			return awaiter;
-		}
-		if (lock_data.scope == mtx->m_scope) {
-			++lock_data.scope_enter_times;
-
-			CoroutineAwaiter awaiter;
-			awaiter.invalid();
-			return awaiter;
-		}
-		lock_data.wait_infos.emplace_back(LockData::WaitInfo{m_current_co_node, mtx->m_scope});
-		return CoroutineAwaiter();
-	}
-	void unlock(LockData* lock_data) {
-		if (lock_data->scope_enter_times > 1) {
-			--lock_data->scope_enter_times;
-			return;
-		}
-		if (lock_data->wait_infos.empty()) {
-			m_locks.erase(*(lock_data->ptr_name));
-			return;
-		}
-		LockData::WaitInfo& wait_info = lock_data->wait_infos.front();
-		lock_data->scope = wait_info.scope;
-		postEvent(Event(wait_info.co_node, 0));
-		lock_data->wait_infos.pop_front();
-	}
-
 private:
     std::mutex m_mtx;
     std::condition_variable m_cv;
@@ -459,7 +414,6 @@ private:
     std::vector<Event> m_peak_events;
     std::map<long long, std::list<Event> > m_timeout_events;
 	std::unordered_map<int32_t, BlockPointData> m_block_points;
-	std::unordered_map<std::string, LockData> m_locks;
 };
 }
 

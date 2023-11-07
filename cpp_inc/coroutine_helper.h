@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include <list>
 
 namespace util {
 template <typename T>
@@ -394,6 +395,63 @@ protected:
         delete co_node;
         return parent;
     }
+
+protected:
+	typedef struct LockData {
+		typedef struct WaitInfo {
+			CoroutineNode* co_node = nullptr;
+			void* scope = nullptr;
+		} WaitInfo;
+
+		void* m_scope;
+		size_t m_scope_enter_times;
+		const std::string* m_ptr_name;
+		std::list<WaitInfo> m_wait_infos;
+
+		CoroutineAwaiter get_awaiter(void* scope) const {
+			CoroutineAwaiter awaiter;
+			if (scope == m_scope) {
+				awaiter.invalid();
+			}
+			return awaiter;
+		}
+	} LockData;
+
+	LockData* lock_acquire(void* scope, const std::string& name) {
+		auto result = m_locks.insert({name, LockData()});
+		LockData* lock_data = &result.first->second;
+		if (result.second) {
+			lock_data->m_scope = scope;
+			lock_data->m_scope_enter_times = 1;
+			lock_data->m_ptr_name = &result.first->first;
+			return lock_data;
+		}
+		if (lock_data->m_scope == scope) {
+			++lock_data->m_scope_enter_times;
+			return lock_data;
+		}
+		lock_data->m_wait_infos.emplace_back(LockData::WaitInfo{m_current_co_node, scope});
+		return lock_data;
+	}
+
+	CoroutineNode* lock_release(LockData* lock_data) {
+		if (lock_data->m_scope_enter_times > 1) {
+			--lock_data->m_scope_enter_times;
+			return nullptr;
+		}
+		if (lock_data->m_wait_infos.empty()) {
+			m_locks.erase(*(lock_data->m_ptr_name));
+			return nullptr;
+		}
+		LockData::WaitInfo& wait_info = lock_data->m_wait_infos.front();
+		CoroutineNode* co_node = wait_info.co_node;
+		lock_data->m_scope = wait_info.scope;
+		lock_data->m_wait_infos.pop_front();
+		return co_node;
+	}
+
+protected:
+	std::unordered_map<std::string, LockData> m_locks;
 };
 }
 
