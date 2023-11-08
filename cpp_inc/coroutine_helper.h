@@ -11,6 +11,7 @@
 #include <coroutine>
 #include <exception>
 #include <list>
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
@@ -420,11 +421,16 @@ protected:
         }
 	}
 
+public:
+	static std::shared_ptr<int> new_scope() {
+		return std::make_shared<int>(0);
+	}
+
 protected:
 	class LockData {
 	friend class CoroutineScheBaseImpl;
 	public:
-		CoroutineAwaiter get_awaiter(void* scope) const {
+		CoroutineAwaiter get_awaiter(const std::shared_ptr<int>& scope) const {
 			CoroutineAwaiter awaiter;
 			if (scope == m_scope) {
 				awaiter.invalid();
@@ -435,17 +441,17 @@ protected:
 	private:
 		typedef struct WaitInfo {
 			CoroutineNode* co_node = nullptr;
-			void* scope = nullptr;
+			std::shared_ptr<int> scope;
 		} WaitInfo;
 
 	private:
-		void* m_scope;
+		std::shared_ptr<int> m_scope;
 		size_t m_scope_enter_times;
 		const std::string* m_ptr_name;
 		std::list<WaitInfo> m_wait_infos;
 	};
 
-	LockData* lock_acquire(void* scope, const std::string& name) {
+	LockData* lock_acquire(std::shared_ptr<int> scope, const std::string& name) {
 		auto result = m_locks.insert({name, LockData()});
 		LockData* lock_data = &result.first->second;
 		if (result.second) {

@@ -198,11 +198,15 @@ public:
     class Mutex {
 	friend class CoroutineDefaultSche;
     public:
-        Mutex(void* scope) : m_scope(scope), m_data(nullptr) {}
+        Mutex(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
+		Mutex(const Mutex&) = delete;
+		Mutex& operator=(const Mutex&) = delete;
 
         ~Mutex() {
             unlock();
         }
+
+		std::shared_ptr<int> scope() const { return m_scope; }
 
         CoroutineAwaiter lock(const std::string& name) {
 			if (m_data) {
@@ -230,7 +234,7 @@ public:
         }
 
     private:
-		void* m_scope;
+		std::shared_ptr<int> m_scope;
         LockData* m_data;
     };
 
