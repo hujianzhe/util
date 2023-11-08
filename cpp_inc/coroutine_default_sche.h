@@ -41,16 +41,16 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     }
 
-    void readyExec(const EntryFunc& func, const std::any& param) {
-        readyExecUtil(func, param, 0);
+    void readyExec(const EntryFunc& func, const std::any& param = std::any()) {
+        readyExecUtil(func, 0, param);
     }
-    void readyExecTimeout(const EntryFunc& func, const std::any& param, long long tlen_msec) {
+    void readyExecTimeout(const EntryFunc& func, long long tlen_msec, const std::any& param = std::any()) {
         if (!func) {
             return;
         }
-        readyExecUtil(func, param, get_current_ts_msec() + tlen_msec);
+        readyExecUtil(func, get_current_ts_msec() + tlen_msec, param);
     }
-    void readyExecUtil(const EntryFunc& func, const std::any& param, long long ts_msec) {
+    void readyExecUtil(const EntryFunc& func, long long ts_msec, const std::any& param = std::any()) {
         if (!func) {
             return;
         }
