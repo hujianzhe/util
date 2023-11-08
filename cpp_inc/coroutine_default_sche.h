@@ -119,46 +119,22 @@ public:
     }
 
     void scheDestroy() {
-		CoroutineScheBase::p = nullptr;
-        std::unordered_set<CoroutineNode*> next_set;
-		for (auto it = m_locks.begin(); it != m_locks.end(); ) {
-			LockData& lock_data = it->second;
-			for (auto it = lock_data.m_wait_infos.begin(); it != lock_data.m_wait_infos.end(); ) {
-				next_set.insert(it->co_node);
-				it = lock_data.m_wait_infos.erase(it);
-			}
-			it = m_locks.erase(it);
-		}
+        std::unordered_set<CoroutineNode*> top_set;
         for (auto it = m_timeout_events.begin(); it != m_timeout_events.end(); ) {
             std::list<Event>& evlist = it->second;
             for (auto it = evlist.begin(); it != evlist.end(); ) {
                 if (it->sleep_co_node) {
-                    next_set.insert(it->sleep_co_node);
+                    top_set.insert(it->sleep_co_node);
                 }
                 it = evlist.erase(it);
             }
             it = m_timeout_events.erase(it);
         }
         for (auto it = m_block_points.begin(); it != m_block_points.end(); ) {
-            CoroutineNode* co_node = it->second.co_node;
-            CoroutineNode* parent = onDestroy(co_node);
-            if (parent) {
-                next_set.insert(parent);
-            }
+			top_set.insert(it->second.co_node);
             it = m_block_points.erase(it);
         }
-        while (!next_set.empty()) {
-            std::unordered_set<CoroutineNode*> tmp_set;
-            for (auto it = next_set.begin(); it != next_set.end(); ) {
-                CoroutineNode* co_node = *it;
-                CoroutineNode* parent = onDestroy(co_node);
-                if (parent) {
-                    tmp_set.insert(parent);
-                }
-                it = next_set.erase(it);
-            }
-            next_set.swap(tmp_set);
-        }
+		CoroutineScheBaseImpl::scheDestroy(top_set);
     }
 
 private:
@@ -229,13 +205,6 @@ public:
         ~Mutex() {
             unlock();
         }
-
-		std::string name() const {
-			if (!m_data || !m_data->m_ptr_name) {
-				return std::string();
-			}
-			return *(m_data->m_ptr_name);
-		}
 
         CoroutineAwaiter lock(const std::string& name) {
 			if (m_data) {
