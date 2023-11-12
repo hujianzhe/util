@@ -400,13 +400,13 @@ protected:
 
 	void scheDestroy(std::unordered_set<CoroutineNode*>& top_set) {
 		CoroutineScheBase::p = nullptr;
-		for (auto it = m_locks.begin(); it != m_locks.end(); ) {
+		for (auto it = m_lock_datas.begin(); it != m_lock_datas.end(); ) {
 			LockData& lock_data = it->second;
 			for (auto it = lock_data.m_wait_infos.begin(); it != lock_data.m_wait_infos.end(); ) {
 				top_set.insert(it->co_node);
 				it = lock_data.m_wait_infos.erase(it);
 			}
-			it = m_locks.erase(it);
+			it = m_lock_datas.erase(it);
 		}
 		while (!top_set.empty()) {
             std::unordered_set<CoroutineNode*> tmp_set;
@@ -430,17 +430,16 @@ protected:
 	class LockData {
 	friend class CoroutineScheBaseImpl;
 	public:
-		CoroutineAwaiter get_awaiter(const std::shared_ptr<int>& scope) const {
-			CoroutineAwaiter awaiter;
-			if (scope == m_scope) {
-				awaiter.invalid();
-			}
-			return awaiter;
-		}
+		LockData()
+			:m_scope_enter_times(0)
+			,m_ptr_name(nullptr)
+		{}
+
+		std::shared_ptr<int> scope() const { return m_scope; }
 
 	private:
 		typedef struct WaitInfo {
-			CoroutineNode* co_node = nullptr;
+			CoroutineNode* co_node;
 			std::shared_ptr<int> scope;
 		} WaitInfo;
 
@@ -451,8 +450,42 @@ protected:
 		std::list<WaitInfo> m_wait_infos;
 	};
 
+	class LockGuardImpl {
+	public:
+		LockGuardImpl(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
+		LockGuardImpl(const LockGuardImpl&) = delete;
+		LockGuardImpl& operator=(const LockGuardImpl&) = delete;
+
+		std::shared_ptr<int> scope() const { return m_scope; }
+
+	protected:
+		CoroutineAwaiter lock(const std::string& name) {
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+			m_data = sc->lock_acquire(m_scope, name);
+			CoroutineAwaiter awaiter;
+			if (m_data->scope() == m_scope) {
+				awaiter.invalid();
+			}
+			return awaiter;
+		}
+
+		bool try_lock(const std::string& name) {
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+			LockData* lock_data = sc->lock_acquire(m_scope, name);
+			if (lock_data->scope() != m_scope) {
+				return false;
+			}
+			m_data = lock_data;
+			return true;
+		}
+
+	protected:
+		std::shared_ptr<int> m_scope;
+		LockData* m_data;
+	};
+
 	LockData* lock_acquire(std::shared_ptr<int> scope, const std::string& name) {
-		auto result = m_locks.insert({name, LockData()});
+		auto result = m_lock_datas.insert({name, LockData()});
 		LockData* lock_data = &result.first->second;
 		if (result.second) {
 			lock_data->m_scope = scope;
@@ -474,7 +507,7 @@ protected:
 			return nullptr;
 		}
 		if (lock_data->m_wait_infos.empty()) {
-			m_locks.erase(*(lock_data->m_ptr_name));
+			m_lock_datas.erase(*(lock_data->m_ptr_name));
 			return nullptr;
 		}
 		LockData::WaitInfo& wait_info = lock_data->m_wait_infos.front();
@@ -484,8 +517,25 @@ protected:
 		return co_node;
 	}
 
+	void lock_release_all(LockData* lock_data, std::vector<CoroutineNode*>& ret_co_nodes) {
+		if (lock_data->m_scope_enter_times > 1) {
+			--lock_data->m_scope_enter_times;
+			return;
+		}
+		if (lock_data->m_wait_infos.empty()) {
+			m_lock_datas.erase(*(lock_data->m_ptr_name));
+			return;
+		}
+		ret_co_nodes.reserve(lock_data->m_wait_infos.size());
+		for (auto it = lock_data->m_wait_infos.begin(); it != lock_data->m_wait_infos.end(); ) {
+			ret_co_nodes.push_back(it->co_node);
+			it = lock_data->m_wait_infos.erase(it);
+		}
+		m_lock_datas.erase(*(lock_data->m_ptr_name));
+	}
+
 private:
-	std::unordered_map<std::string, LockData> m_locks;
+	std::unordered_map<std::string, LockData> m_lock_datas;
 };
 }
 

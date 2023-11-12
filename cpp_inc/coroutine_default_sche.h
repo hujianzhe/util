@@ -90,12 +90,12 @@ public:
 
     CoroutineAwaiter sleepTimeout(long long tlen_msec) {
         CoroutineAwaiter awaiter;
-        addTimeoutEvent(Event(m_current_co_node, get_current_ts_msec() + tlen_msec));
+        addTimeoutEvent(Event(m_current_co_node, std::any(), get_current_ts_msec() + tlen_msec));
         return awaiter;
     }
     CoroutineAwaiter sleepUtil(long long ts_msec) {
         CoroutineAwaiter awaiter;
-        addTimeoutEvent(Event(m_current_co_node, ts_msec));
+        addTimeoutEvent(Event(m_current_co_node, std::any(), ts_msec));
         return awaiter;
     }
 
@@ -169,9 +169,10 @@ private:
             ,param(param)
             ,sleep_co_node(nullptr)
         {}
-        Event(CoroutineNode* sleep_co_node, long long ts)
+        Event(CoroutineNode* sleep_co_node, const std::any& param, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
             ,ts(ts)
+			,param(param)
             ,sleep_co_node(sleep_co_node)
         {}
 
@@ -195,26 +196,16 @@ private:
 	} BlockPointData;
 
 public:
-    class Mutex {
+    class Mutex : public LockGuardImpl {
 	friend class CoroutineDefaultSche;
     public:
-        Mutex(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
-		Mutex(const Mutex&) = delete;
-		Mutex& operator=(const Mutex&) = delete;
-
+        Mutex(const std::shared_ptr<int>& scope) : LockGuardImpl(scope) {}
         ~Mutex() {
             unlock();
         }
 
-		std::shared_ptr<int> scope() const { return m_scope; }
-
         CoroutineAwaiter lock(const std::string& name) {
-			if (m_data) {
-				return CoroutineAwaiter();
-			}
-            CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-			m_data = sc->lock_acquire(m_scope, name);
-			return m_data->get_awaiter(m_scope);
+			return LockGuardImpl::lock(name);
         }
 
         void unlock() {
@@ -230,13 +221,40 @@ public:
 			if (!co_node) {
 				return;
 			}
-			sc->postEvent(Event(co_node, 0));
+			sc->postEvent(Event(co_node, std::any(), 0));
         }
-
-    private:
-		std::shared_ptr<int> m_scope;
-        LockData* m_data;
     };
+
+	class Notify : public LockGuardImpl {
+	public:
+		Notify(const std::shared_ptr<int>& scope) : LockGuardImpl(scope) {}
+		~Notify() {
+			do_emit(std::any());
+		}
+
+		bool do_once(const std::string& name) {
+			return LockGuardImpl::try_lock(name);
+		}
+
+		void do_emit(const std::any& param) {
+			if (!m_data) {
+				return;
+			}
+			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
+			if (!sc) { /* on sche destroy */
+				return;
+			}
+			std::vector<CoroutineNode*> co_nodes;
+			sc->lock_release_all(m_data, co_nodes);
+			m_data = nullptr;
+			if (co_nodes.empty()) {
+				return;
+			}
+			for (CoroutineNode* co_node : co_nodes) {
+				sc->postEvent(Event(co_node, param, 0));
+			}
+		}
+	};
 
 private:
     bool check_need_wake_up() {
