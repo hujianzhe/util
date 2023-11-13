@@ -383,6 +383,20 @@ protected:
 		doResumeImpl(co_node);
 	}
 
+	size_t readyResumeCount() const { return m_ready_resumes.size(); }
+
+	void readyResume(CoroutineNode* co_node, const std::any& param) {
+		m_ready_resumes.emplace_back(std::pair{co_node, param});
+	}
+
+	void scanResume(size_t peak_cnt) {
+		for (auto it = m_ready_resumes.begin(); it != m_ready_resumes.end() && peak_cnt; ) {
+			doResume(it->first, it->second);
+			it = m_ready_resumes.erase(it);
+			--peak_cnt;
+		}
+	}
+
     static CoroutineNode* onDestroy(CoroutineNode* co_node) {
         CoroutineNode* parent = co_node->m_parent;
         if (co_node->m_promise_base) {
@@ -407,6 +421,10 @@ protected:
 				it = lock_data.m_wait_infos.erase(it);
 			}
 			it = m_lock_datas.erase(it);
+		}
+		for (auto it = m_ready_resumes.begin(); it != m_ready_resumes.end(); ) {
+			top_set.insert(it->first);
+			it = m_ready_resumes.erase(it);
 		}
 		while (!top_set.empty()) {
             std::unordered_set<CoroutineNode*> tmp_set;
@@ -479,6 +497,30 @@ protected:
 			return true;
 		}
 
+		void unlock() {
+            if (!m_data) {
+                return;
+            }
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+            if (!sc) { /* on sche destroy */
+                return;
+            }
+            sc->lock_release(m_data, std::any());
+            m_data = nullptr;
+        }
+
+		void emit_all(const std::any& param) {
+			if (!m_data) {
+				return;
+			}
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+			if (!sc) { /* on sche destroy */
+				return;
+			}
+			sc->lock_release_all(m_data, param);
+			m_data = nullptr;
+		}
+
 	protected:
 		std::shared_ptr<int> m_scope;
 		LockData* m_data;
@@ -501,34 +543,29 @@ protected:
 		return lock_data;
 	}
 
-	CoroutineNode* lock_release(LockData* lock_data) {
+	void lock_release(LockData* lock_data, const std::any& param) {
 		if (lock_data->m_scope_enter_times > 1) {
 			--lock_data->m_scope_enter_times;
-			return nullptr;
+			return;
 		}
 		if (lock_data->m_wait_infos.empty()) {
 			m_lock_datas.erase(*(lock_data->m_ptr_name));
-			return nullptr;
+			return;
 		}
 		LockData::WaitInfo& wait_info = lock_data->m_wait_infos.front();
 		CoroutineNode* co_node = wait_info.co_node;
 		lock_data->m_scope = wait_info.scope;
 		lock_data->m_wait_infos.pop_front();
-		return co_node;
+		readyResume(co_node, param);
 	}
 
-	void lock_release_all(LockData* lock_data, std::vector<CoroutineNode*>& ret_co_nodes) {
+	void lock_release_all(LockData* lock_data, const std::any& param) {
 		if (lock_data->m_scope_enter_times > 1) {
 			--lock_data->m_scope_enter_times;
 			return;
 		}
-		if (lock_data->m_wait_infos.empty()) {
-			m_lock_datas.erase(*(lock_data->m_ptr_name));
-			return;
-		}
-		ret_co_nodes.reserve(lock_data->m_wait_infos.size());
 		for (auto it = lock_data->m_wait_infos.begin(); it != lock_data->m_wait_infos.end(); ) {
-			ret_co_nodes.push_back(it->co_node);
+			readyResume(it->co_node, param);
 			it = lock_data->m_wait_infos.erase(it);
 		}
 		m_lock_datas.erase(*(lock_data->m_ptr_name));
@@ -536,6 +573,7 @@ protected:
 
 private:
 	std::unordered_map<std::string, LockData> m_lock_datas;
+	std::list<std::pair<CoroutineNode*, std::any> > m_ready_resumes;
 };
 }
 

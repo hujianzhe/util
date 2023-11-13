@@ -112,6 +112,7 @@ public:
         if (ST_RUN != m_status) {
             return;
         }
+		scanResume(MAX_PEAK_CNT);
         handlePeakEvent(get_current_ts_msec());
         handleTimeoutEvents(get_current_ts_msec());
     }
@@ -209,19 +210,7 @@ public:
         }
 
         void unlock() {
-            if (!m_data) {
-                return;
-            }
-            CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-            if (!sc) { /* on sche destroy */
-                return;
-            }
-            CoroutineNode* co_node = sc->lock_release(m_data);
-            m_data = nullptr;
-			if (!co_node) {
-				return;
-			}
-			sc->postEvent(Event(co_node, std::any(), 0));
+			LockGuardImpl::unlock();
         }
     };
 
@@ -229,36 +218,21 @@ public:
 	public:
 		Notify(const std::shared_ptr<int>& scope) : LockGuardImpl(scope) {}
 		~Notify() {
-			do_emit(std::any());
+			emit_all(std::any());
 		}
 
 		bool do_once(const std::string& name) {
 			return LockGuardImpl::try_lock(name);
 		}
 
-		void do_emit(const std::any& param) {
-			if (!m_data) {
-				return;
-			}
-			CoroutineDefaultSche* sc = CoroutineDefaultSche::get();
-			if (!sc) { /* on sche destroy */
-				return;
-			}
-			std::vector<CoroutineNode*> co_nodes;
-			sc->lock_release_all(m_data, co_nodes);
-			m_data = nullptr;
-			if (co_nodes.empty()) {
-				return;
-			}
-			for (CoroutineNode* co_node : co_nodes) {
-				sc->postEvent(Event(co_node, param, 0));
-			}
+		void emit_all(const std::any& param) {
+			LockGuardImpl::emit_all(param);
 		}
 	};
 
 private:
     bool check_need_wake_up() {
-        return m_events.empty() && ST_RUN == m_status;
+        return m_events.empty() && 0 == readyResumeCount() && ST_RUN == m_status;
     }
 
     int calculateWaitTimelen(long long cur_ts, int idle_timelen) {
