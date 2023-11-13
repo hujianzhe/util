@@ -38,10 +38,10 @@ friend class CoroutineAwaiterAnyone;
 friend class CoroutinePromiseBase;
 public:
     ~CoroutineNode() {
-        std::coroutine_handle<void>::from_address(m_co_addr).destroy();
+		m_handle.destroy();
     }
 
-    bool done() const { return m_co_addr ? std::coroutine_handle<void>::from_address(m_co_addr).done() : true; }
+    bool done() const { return m_handle.done(); }
 
     size_t ident() const { return m_ident; }
     const std::any& getAny() const { return m_value; }
@@ -49,7 +49,6 @@ public:
 private:
     CoroutineNode()
         :m_awaiting(false)
-        ,m_co_addr(nullptr)
         ,m_ident(0)
         ,m_parent(nullptr)
         ,m_awaiter(nullptr)
@@ -59,7 +58,7 @@ private:
 
 private:
     bool m_awaiting;
-    void* m_co_addr;
+	std::coroutine_handle<void> m_handle;
     size_t m_ident;
     std::any m_value;
     CoroutineNode* m_parent;
@@ -167,7 +166,7 @@ public:
         }
     };
     bool await_ready() const {
-        return std::coroutine_handle<void>::from_address(m_co_node->m_co_addr).done();
+		return m_co_node->m_handle.done();
     }
     void await_suspend(std::coroutine_handle<void> h) {
         m_co_node->m_awaiting = true;
@@ -309,7 +308,7 @@ friend class CoroutinePromiseBase;
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
         handle.promise().co_node = m_co_node;
-        m_co_node->m_co_addr = handle.address();
+		m_co_node->m_handle = handle;
     }
 };
 
@@ -329,7 +328,7 @@ friend class CoroutinePromiseBase;
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
         handle.promise().co_node = m_co_node;
-        m_co_node->m_co_addr = handle.address();
+		m_co_node->m_handle = handle;
     }
 };
 
@@ -343,9 +342,8 @@ private:
             CoroutineNode* parent = cur->m_parent;
             last = cur;
             m_current_co_node = cur;
-            auto co_handle = std::coroutine_handle<CoroutinePromiseBase::promise_type>::from_address(cur->m_co_addr);
-            co_handle.resume();
-            if (!co_handle.done()) {
+			cur->m_handle.resume();
+            if (!cur->m_handle.done()) {
                 last_free = false;
                 break;
             }
@@ -355,9 +353,13 @@ private:
                         cur->m_promise_base->m_delete_co_node = false;
                         cur->m_promise_base = nullptr;
                     }
-                    if (co_handle.promise().current_exception_ptr && m_unhandled_exception) {
-                        m_unhandled_exception(co_handle.promise().current_exception_ptr);
-                    }
+					if (m_unhandled_exception) {
+            			auto co_handle = std::coroutine_handle<CoroutinePromiseBase::promise_type>::from_address(cur->m_handle.address());
+        				std::exception_ptr ep = co_handle.promise().current_exception_ptr;
+                    	if (ep) {
+                    	    m_unhandled_exception(ep);
+                    	}
+					}
                     break;
                 }
                 cur->m_awaiter_anyone->m_resume_node = cur;
