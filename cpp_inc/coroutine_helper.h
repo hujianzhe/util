@@ -54,6 +54,7 @@ private:
         ,m_awaiter(nullptr)
         ,m_awaiter_anyone(nullptr)
         ,m_promise_base(nullptr)
+		,m_exception_ptr(nullptr)
     {}
 
 private:
@@ -65,6 +66,7 @@ private:
     CoroutineAwaiter* m_awaiter;
     CoroutineAwaiterAnyone* m_awaiter_anyone;
     CoroutinePromiseBase* m_promise_base;
+	std::exception_ptr m_exception_ptr;
 };
 
 class CoroutineScheBase {
@@ -148,7 +150,6 @@ friend class CoroutineAwaiterAnyone;
 public:
     struct promise_type {
         CoroutineNode* co_node = nullptr;
-        std::exception_ptr current_exception_ptr;
 
         std::suspend_never initial_suspend() noexcept {
             co_node->m_parent = CoroutineScheBase::p->m_current_co_node;
@@ -157,7 +158,7 @@ public:
         }
         std::suspend_always final_suspend() noexcept { return {}; }
         void unhandled_exception() {
-            current_exception_ptr = std::current_exception();
+            co_node->m_exception_ptr = std::current_exception();
             handleReturn();
         }
 
@@ -353,12 +354,8 @@ private:
                         cur->m_promise_base->m_delete_co_node = false;
                         cur->m_promise_base = nullptr;
                     }
-					if (m_unhandled_exception) {
-            			auto co_handle = std::coroutine_handle<CoroutinePromiseBase::promise_type>::from_address(cur->m_handle.address());
-        				std::exception_ptr ep = co_handle.promise().current_exception_ptr;
-                    	if (ep) {
-                    	    m_unhandled_exception(ep);
-                    	}
+					if (m_unhandled_exception && cur->m_exception_ptr) {
+						m_unhandled_exception(cur->m_exception_ptr);
 					}
                     break;
                 }
