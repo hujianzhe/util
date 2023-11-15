@@ -54,6 +54,7 @@ typedef struct StackCoResume_t {
 
 typedef struct StackCoSche_t {
 	volatile int exit_flag;
+	int handle_cnt;
 	void* userdata;
 	void(*fn_at_exit)(struct StackCoSche_t*, void*);
 	void* fn_at_exit_arg;
@@ -230,6 +231,7 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	}
 	timer_ok = 1;
 	sche->exit_flag = 0;
+	sche->handle_cnt = 100;
 	sche->userdata = userdata;
 	sche->fn_at_exit = NULL;
 	sche->fn_at_exit_arg = NULL;
@@ -531,7 +533,7 @@ void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int statu
 }
 
 int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
-	int i;
+	int i, handle_cnt;
 	long long wait_msec;
 	long long min_t, cur_msec;
 	ListNode_t *lcur, *lnext;
@@ -596,7 +598,8 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		wait_msec = idle_msec;
 	}
 
-	for (lcur = dataqueuePopWait(&sche->dq, wait_msec, 100); lcur; lcur = lnext) {
+	handle_cnt = sche->handle_cnt;
+	for (lcur = dataqueuePopWait(&sche->dq, wait_msec, handle_cnt); lcur; lcur = lnext) {
 		StackCoHdr_t* hdr = pod_container_of(lcur, StackCoHdr_t, listnode);
 		lnext = lcur->next;
 
@@ -639,7 +642,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	}
 
 	cur_msec = gmtimeMillisecond();
-	for (i = 0; i < 100; ++i) {
+	for (i = 0; i < handle_cnt; ++i) {
 		RBTimerEvent_t* e = rbtimerTimeoutPopup(&sche->timer, cur_msec);
 		if (!e) {
 			break;
@@ -661,6 +664,13 @@ void StackCoSche_exit(StackCoSche_t* sche) {
 
 void* StackCoSche_userdata(StackCoSche_t* sche) {
 	return sche->userdata;
+}
+
+void StackCoSche_set_handle_cnt(struct StackCoSche_t* sche, int handle_cnt) {
+	if (handle_cnt <= 0) {
+		return;
+	}
+	sche->handle_cnt = handle_cnt;
 }
 
 void StackCoSche_at_exit(StackCoSche_t* sche, void(*fn_at_exit)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {

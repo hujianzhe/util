@@ -34,6 +34,7 @@ __declspec_dll int StackCoSche_sche(struct StackCoSche_t* sche, int idle_msec);
 __declspec_dll void StackCoSche_wake_up(struct StackCoSche_t* sche);
 __declspec_dll void StackCoSche_exit(struct StackCoSche_t* sche);
 __declspec_dll void* StackCoSche_userdata(struct StackCoSche_t* sche);
+__declspec_dll void StackCoSche_set_handle_cnt(struct StackCoSche_t* sche, int handle_cnt);
 __declspec_dll void StackCoSche_at_exit(struct StackCoSche_t* sche, void(*fn_at_exit)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 
 __declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
