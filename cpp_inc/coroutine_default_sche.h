@@ -20,14 +20,22 @@ public:
 
     CoroutineDefaultSche()
         :CoroutineScheBaseImpl()
+		,m_handle_cnt(100)
         ,m_status(ST_RUN)
     {
-        m_peak_events.reserve(MAX_PEAK_CNT);
+        m_peak_events.reserve(m_handle_cnt);
     }
 
 	static CoroutineDefaultSche* get() { return (CoroutineDefaultSche*)CoroutineScheBase::p; }
 
     bool check_exit() const { return ST_EXIT == m_status; }
+
+	int handle_cnt() const { return m_handle_cnt; }
+	void set_handle_cnt(int cnt) {
+		if (cnt > 0) {
+			m_handle_cnt = cnt;
+		}
+	}
 
     void doExit() {
         if (m_status.exchange(ST_EXIT) == ST_RUN) {
@@ -112,7 +120,7 @@ public:
         if (ST_RUN != m_status) {
             return;
         }
-		scanResume(MAX_PEAK_CNT);
+		scanResume(m_handle_cnt);
         handlePeakEvent(get_current_ts_msec());
         handleTimeoutEvents(get_current_ts_msec());
     }
@@ -140,9 +148,6 @@ private:
 	enum {
         ST_RUN = 0,
         ST_EXIT
-    };
-    enum {
-        MAX_PEAK_CNT = 100
     };
 
     struct Event {
@@ -286,7 +291,7 @@ private:
         if (ST_RUN != m_status) {
             return;
         }
-        while (!m_events.empty() && m_peak_events.size() < MAX_PEAK_CNT) {
+        while (!m_events.empty() && m_peak_events.size() < m_handle_cnt) {
             size_t idx = m_peak_events.size();
             m_peak_events.resize(idx + 1);
             m_peak_events[idx].swap(m_events.front());
@@ -326,13 +331,14 @@ private:
     }
 
     void handleTimeoutEvents(long long cur_ts) {
+		int handle_cnt = m_handle_cnt;
         size_t cnt = 0;
-        for (auto iter = m_timeout_events.begin(); cnt < MAX_PEAK_CNT && iter != m_timeout_events.end(); ) {
+        for (auto iter = m_timeout_events.begin(); cnt < handle_cnt && iter != m_timeout_events.end(); ) {
             if (cur_ts < iter->first) {
                 break;
             }
             std::list<Event>& evlist = iter->second;
-            while (!evlist.empty() && cnt < MAX_PEAK_CNT) {
+            while (!evlist.empty() && cnt < handle_cnt) {
                 Event& e = evlist.front();
                 if (e.func) {
 					CoroutineScheBase::p = this;
@@ -372,6 +378,7 @@ private:
 private:
     std::mutex m_mtx;
     std::condition_variable m_cv;
+	int m_handle_cnt;
     std::atomic_int m_status;
     std::list<Event> m_events;
     std::vector<Event> m_peak_events;
