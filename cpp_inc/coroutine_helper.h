@@ -111,6 +111,7 @@ public:
 
     bool await_ready() const { return m_await_ready; }
     std::any await_resume() {
+		CoroutineScheBase::p->m_current_co_node->m_awaiter = nullptr;
         m_await_ready = true;
         return m_value;
     }
