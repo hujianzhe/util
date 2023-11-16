@@ -161,7 +161,15 @@ public:
         }
         std::suspend_always final_suspend() noexcept { return {}; }
         void unhandled_exception() {
-            co_node->m_unhandle_exception_ptr = std::current_exception();
+			if (co_node->m_awaiting) {
+            	co_node->m_unhandle_exception_ptr = std::current_exception();
+			}
+			else if (CoroutineScheBase::p->m_unhandled_exception) {
+				try {
+					CoroutineScheBase::p->m_unhandled_exception(std::current_exception());
+				}
+				catch (...) {}
+			}
             handleReturn();
         }
 
@@ -303,7 +311,13 @@ friend class CoroutinePromiseBase;
             handleReturn();
         }
     };
-    T await_resume() const { return getValue(); }
+    T await_resume() const {
+		std::exception_ptr eptr = m_co_node->m_unhandle_exception_ptr;
+		if (eptr) {
+			std::rethrow_exception(eptr);
+		}
+		return getValue();
+	}
 
     T getValue() const { return std::any_cast<const T&>(m_co_node->m_value); }
 
@@ -325,7 +339,12 @@ friend class CoroutinePromiseBase;
             handleReturn();
         }
     };
-    void await_resume() const {}
+    void await_resume() const {
+		std::exception_ptr eptr = m_co_node->m_unhandle_exception_ptr;
+		if (eptr) {
+			std::rethrow_exception(eptr);
+		}
+	}
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
         handle.promise().co_node = m_co_node;
@@ -365,9 +384,6 @@ private:
                         cur->m_promise_base->m_delete_co_node = false;
                         cur->m_promise_base = nullptr;
                     }
-					if (m_unhandled_exception && cur->m_unhandle_exception_ptr) {
-						m_unhandled_exception(cur->m_unhandle_exception_ptr);
-					}
                     break;
                 }
             }
