@@ -120,7 +120,7 @@ public:
         if (ST_RUN != m_status) {
             return;
         }
-		scanResume(m_handle_cnt);
+		CoroutineScheBaseImpl::doSche(m_handle_cnt);
         handlePeakEvent(get_current_ts_msec());
         handleTimeoutEvents(get_current_ts_msec());
     }
@@ -236,8 +236,14 @@ public:
 	};
 
 private:
-    bool check_need_wake_up() {
-        return m_events.empty() && 0 == readyResumeCount() && ST_RUN == m_status;
+    bool checkBusy() {
+		if (!m_events.empty()) {
+			return true;
+		}
+		if (CoroutineScheBaseImpl::checkBusy()) {
+			return true;
+		}
+		return false;
     }
 
     int calculateWaitTimelen(long long cur_ts, int idle_timelen) {
@@ -272,9 +278,9 @@ private:
 
 	void postEvent(const Event& e) {
 		std::lock_guard<std::mutex> guard(m_mtx);
-		bool is_empty = check_need_wake_up();
+		bool is_busy = checkBusy();
 		m_events.emplace_back(e);
-		if (is_empty) {
+		if (!is_busy) {
 			m_cv.notify_one();
 		}
 	}
@@ -283,10 +289,10 @@ private:
         m_peak_events.clear();
         std::unique_lock lk(m_mtx);
         if (wait_msec >= 0) {
-            m_cv.wait_for(lk, std::chrono::milliseconds(wait_msec), [this] { return !check_need_wake_up(); });
+            m_cv.wait_for(lk, std::chrono::milliseconds(wait_msec), [this] { return ST_RUN != m_status || checkBusy(); });
         }
         else {
-            m_cv.wait(lk, [this] { return !check_need_wake_up(); });
+            m_cv.wait(lk, [this] { return ST_RUN != m_status || checkBusy(); });
         }
         if (ST_RUN != m_status) {
             return;

@@ -101,6 +101,11 @@ public:
 protected:
 	static inline thread_local CoroutineScheBase* p = nullptr;
 
+private:
+	void handleReturn() {
+		m_current_co_node = m_current_co_node->m_parent;
+	}
+
 	void saveUnhandleException(CoroutineNode* co_node, std::exception_ptr eptr) {
 		co_node->m_unhandle_exception_ptr = eptr;
 		if (m_unhandle_exception_cnt >= m_unhandle_exceptions.size()) {
@@ -200,11 +205,7 @@ public:
         std::suspend_always final_suspend() noexcept { return {}; }
         void unhandled_exception() {
 			CoroutineScheBase::p->saveUnhandleException(co_node, std::current_exception());
-            handleReturn();
-        }
-
-        void handleReturn() {
-            CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
+			CoroutineScheBase::p->handleReturn();
         }
     };
     bool await_ready() const {
@@ -334,7 +335,7 @@ friend class CoroutinePromiseBase;
 
         void return_value(const T& v) {
             co_node->m_value = v;
-            handleReturn();
+			CoroutineScheBase::p->handleReturn();
         }
     };
     T await_resume() const {
@@ -359,7 +360,7 @@ friend class CoroutinePromiseBase;
         }
 
         void return_void() {
-            handleReturn();
+			CoroutineScheBase::p->handleReturn();
         }
     };
     void await_resume() const {
@@ -428,13 +429,31 @@ protected:
 		doResumeImpl(co_node);
 	}
 
-	size_t readyResumeCount() const { return m_ready_resumes.size(); }
+	bool checkBusy() const {
+		if (m_unhandle_exception_cnt > 0) {
+			return true;
+		}
+		if (!m_ready_resumes.empty()) {
+			return true;
+		}
+		return false;
+	}
 
 	void readyResume(CoroutineNode* co_node, const std::any& param) {
 		m_ready_resumes.emplace_back(std::pair{co_node, param});
 	}
 
-	void scanResume(size_t peak_cnt) {
+	void doSche(size_t peak_cnt) {
+		for (size_t i = 0; i < m_unhandle_exception_cnt; ++i) {
+			if (m_fn_unhandled_exception) { /* avoid fn change to nullptr */
+				try {
+					m_fn_unhandled_exception(m_unhandle_exceptions[i]);
+				} catch (...) {}
+			}
+			m_unhandle_exceptions[i] = nullptr;
+		}
+		m_unhandle_exception_cnt = 0;
+
 		for (auto it = m_ready_resumes.begin(); it != m_ready_resumes.end() && peak_cnt; ) {
 			doResume(it->first, it->second);
 			it = m_ready_resumes.erase(it);
