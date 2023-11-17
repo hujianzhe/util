@@ -280,6 +280,7 @@ public:
 		if (beg_it != m_down_nodes.end()) {
 			CoroutineNode* co_node = *beg_it;
 			m_down_nodes.erase(beg_it);
+			CoroutineScheBase::p->awaitMaybeThrowUnhandleException(co_node);
 			return co_node;
 		}
 		return nullptr;
