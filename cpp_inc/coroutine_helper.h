@@ -32,6 +32,7 @@ class CoroutineNode {
 template <typename T>
 friend struct CoroutinePromise;
 
+friend class CoroutineScheBase;
 friend class CoroutineScheBaseImpl;
 friend class CoroutineAwaiter;
 friend class CoroutineAwaiterAnyone;
@@ -58,14 +59,6 @@ private:
 		,m_unhandle_exception_ptr(nullptr)
     {}
 
-	void maybe_throw_exception() {
-		std::exception_ptr eptr = m_unhandle_exception_ptr;
-		if (eptr) {
-			m_unhandle_exception_ptr = nullptr;
-			std::rethrow_exception(eptr);
-		}
-	}
-
 private:
     bool m_awaiting;
 	std::coroutine_handle<void> m_handle;
@@ -80,26 +73,63 @@ private:
 };
 
 class CoroutineScheBase {
+template <typename T>
+friend struct CoroutinePromise;
+
 friend class CoroutineAwaiter;
 friend class CoroutinePromiseBase;
 friend class CoroutineAwaiterAnyone;
 public:
 	CoroutineScheBase()
 		:m_current_co_node(nullptr)
-		,m_unhandled_exception(nullptr)
+		,m_unhandle_exception_cnt(0)
+		,m_fn_unhandled_exception(nullptr)
 	{}
 
 	virtual ~CoroutineScheBase() {}
 
 	const CoroutineNode* current_co_node() const { return m_current_co_node; }
-	void set_unhandled_exception(void(*fn)(std::exception_ptr)) { m_unhandled_exception = fn; }
+
+	void setUnhandledException(void(*fn)(std::exception_ptr), size_t max_cnt) {
+		if (m_unhandle_exception_cnt > max_cnt) {
+			m_unhandle_exception_cnt = max_cnt;
+		}
+		m_unhandle_exceptions.resize(max_cnt);
+		m_fn_unhandled_exception = fn;
+	}
 
 protected:
 	static inline thread_local CoroutineScheBase* p = nullptr;
 
+	void saveUnhandleException(CoroutineNode* co_node, std::exception_ptr eptr) {
+		co_node->m_unhandle_exception_ptr = eptr;
+		if (m_unhandle_exception_cnt >= m_unhandle_exceptions.size()) {
+			return;
+		}
+		m_unhandle_exceptions[m_unhandle_exception_cnt++] = eptr;
+	}
+
+	void awaitMaybeThrowUnhandleException(CoroutineNode* co_node) {
+		std::exception_ptr eptr = co_node->m_unhandle_exception_ptr;
+		if (!eptr) {
+			return;
+		}
+		co_node->m_unhandle_exception_ptr = nullptr;
+		if (m_unhandle_exception_cnt > 0) {
+			size_t idx = m_unhandle_exception_cnt - 1;
+			if (eptr == m_unhandle_exceptions[idx]) {
+				m_unhandle_exceptions[idx] = nullptr;
+				m_unhandle_exception_cnt = idx;
+			}
+		}
+		std::rethrow_exception(eptr);
+	}
+
 protected:
 	CoroutineNode* m_current_co_node;
-	void(*m_unhandled_exception)(std::exception_ptr);
+	size_t m_unhandle_exception_cnt;
+	void(*m_fn_unhandled_exception)(std::exception_ptr);
+	std::vector<std::exception_ptr> m_unhandle_exceptions;
 };
 
 class CoroutineAwaiter {
@@ -169,15 +199,7 @@ public:
         }
         std::suspend_always final_suspend() noexcept { return {}; }
         void unhandled_exception() {
-			if (co_node->m_awaiting) {
-            	co_node->m_unhandle_exception_ptr = std::current_exception();
-			}
-			else if (CoroutineScheBase::p->m_unhandled_exception) {
-				try {
-					CoroutineScheBase::p->m_unhandled_exception(std::current_exception());
-				}
-				catch (...) {}
-			}
+			CoroutineScheBase::p->saveUnhandleException(co_node, std::current_exception());
             handleReturn();
         }
 
@@ -186,7 +208,6 @@ public:
         }
     };
     bool await_ready() const {
-		m_co_node->maybe_throw_exception();
 		return m_co_node->m_handle.done();
     }
     void await_suspend(std::coroutine_handle<void> h) {
@@ -317,7 +338,7 @@ friend class CoroutinePromiseBase;
         }
     };
     T await_resume() const {
-		m_co_node->maybe_throw_exception();
+		CoroutineScheBase::p->awaitMaybeThrowUnhandleException(m_co_node);
 		return getValue();
 	}
 
@@ -342,7 +363,7 @@ friend class CoroutinePromiseBase;
         }
     };
     void await_resume() const {
-		m_co_node->maybe_throw_exception();
+		CoroutineScheBase::p->awaitMaybeThrowUnhandleException(m_co_node);
 	}
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
