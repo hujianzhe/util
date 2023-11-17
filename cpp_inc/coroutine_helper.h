@@ -58,6 +58,14 @@ private:
 		,m_unhandle_exception_ptr(nullptr)
     {}
 
+	void maybe_throw_exception() {
+		std::exception_ptr eptr = m_unhandle_exception_ptr;
+		if (eptr) {
+			m_unhandle_exception_ptr = nullptr;
+			std::rethrow_exception(eptr);
+		}
+	}
+
 private:
     bool m_awaiting;
 	std::coroutine_handle<void> m_handle;
@@ -178,10 +186,7 @@ public:
         }
     };
     bool await_ready() const {
-		std::exception_ptr eptr = m_co_node->m_unhandle_exception_ptr;
-		if (eptr) {
-			std::rethrow_exception(eptr);
-		}
+		m_co_node->maybe_throw_exception();
 		return m_co_node->m_handle.done();
     }
     void await_suspend(std::coroutine_handle<void> h) {
@@ -312,10 +317,7 @@ friend class CoroutinePromiseBase;
         }
     };
     T await_resume() const {
-		std::exception_ptr eptr = m_co_node->m_unhandle_exception_ptr;
-		if (eptr) {
-			std::rethrow_exception(eptr);
-		}
+		m_co_node->maybe_throw_exception();
 		return getValue();
 	}
 
@@ -340,10 +342,7 @@ friend class CoroutinePromiseBase;
         }
     };
     void await_resume() const {
-		std::exception_ptr eptr = m_co_node->m_unhandle_exception_ptr;
-		if (eptr) {
-			std::rethrow_exception(eptr);
-		}
+		m_co_node->maybe_throw_exception();
 	}
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
