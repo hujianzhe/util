@@ -120,11 +120,13 @@ private:
 			return;
 		}
 		co_node->m_unhandle_exception_ptr = nullptr;
-		if (m_unhandle_exception_cnt > 0) {
-			size_t idx = m_unhandle_exception_cnt - 1;
-			if (eptr == m_unhandle_exceptions[idx]) {
-				m_unhandle_exceptions[idx] = nullptr;
-				m_unhandle_exception_cnt = idx;
+		for (size_t n = m_unhandle_exception_cnt; n > 0; --n) {
+			if (eptr == m_unhandle_exceptions[n - 1]) {
+				m_unhandle_exceptions[n - 1] = nullptr;
+				if (n == m_unhandle_exception_cnt) {
+					--m_unhandle_exception_cnt;
+				}
+				break;
 			}
 		}
 		std::rethrow_exception(eptr);
@@ -446,6 +448,9 @@ protected:
 
 	void doSche(size_t peak_cnt) {
 		for (size_t i = 0; i < m_unhandle_exception_cnt; ++i) {
+			if (!m_unhandle_exceptions[i]) {
+				continue;
+			}
 			if (m_fn_unhandled_exception) { /* avoid fn change to nullptr */
 				try {
 					m_fn_unhandled_exception(m_unhandle_exceptions[i]);
