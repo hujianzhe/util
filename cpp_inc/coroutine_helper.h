@@ -343,10 +343,8 @@ friend class CoroutinePromiseBase;
     };
     T await_resume() const {
 		CoroutineScheBase::p->awaitMaybeThrowUnhandleException(m_co_node);
-		return getValue();
+		return std::any_cast<T>(m_co_node->m_value);
 	}
-
-    T getValue() const { return std::any_cast<const T&>(m_co_node->m_value); }
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
         handle.promise().co_node = m_co_node;
