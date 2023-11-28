@@ -102,6 +102,9 @@ protected:
 	static inline thread_local CoroutineScheBase* p = nullptr;
 
 private:
+	CoroutineScheBase(const CoroutineScheBase&) = delete;
+	CoroutineScheBase& operator=(const CoroutineScheBase&) = delete;
+
 	void handleReturn() {
 		m_current_co_node = m_current_co_node->m_parent;
 	}
