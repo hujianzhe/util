@@ -132,8 +132,7 @@ typedef struct ReactorPacket_t {
 } ReactorPacket_t;
 
 typedef struct Session_t {
-	ChannelBase_t* channel_client;
-	ChannelBase_t* channel_server;
+	ChannelBase_t* channel;
 	char* ident;
 	void* userdata;
 	ChannelBase_t*(*do_connect_handshake)(struct Session_t*, int socktype, const char* ip, unsigned short port); /* optional */
@@ -162,9 +161,6 @@ __declspec_dll void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[]
 
 __declspec_dll Session_t* sessionInit(Session_t* session);
 __declspec_dll void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel);
-__declspec_dll void sessionDisconnect(Session_t* session);
-__declspec_dll void sessionUnbindChannel(Session_t* session);
-__declspec_dll ChannelBase_t* sessionChannel(Session_t* session);
 
 #ifdef	__cplusplus
 }

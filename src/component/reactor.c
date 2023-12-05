@@ -1387,8 +1387,7 @@ void channelbaseSendv(ChannelBase_t* channel, const Iobuf_t iov[], unsigned int 
 }
 
 Session_t* sessionInit(Session_t* session) {
-	session->channel_client = NULL;
-	session->channel_server = NULL;
+	session->channel = NULL;
 	session->ident = NULL;
 	session->userdata = NULL;
 	session->do_connect_handshake = NULL;
@@ -1397,67 +1396,17 @@ Session_t* sessionInit(Session_t* session) {
 }
 
 void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel) {
-	ChannelBase_t* old_channel;
-	if (CHANNEL_SIDE_CLIENT == channel->side) {
-		old_channel = session->channel_client;
-		if (old_channel == channel) {
-			return;
-		}
-		session->channel_client = channel;
-	}
-	else if (CHANNEL_SIDE_SERVER == channel->side) {
-		old_channel = session->channel_server;
-		if (old_channel == channel) {
-			return;
-		}
-		session->channel_server = channel;
-	}
-	else {
+	ChannelBase_t* old_channel = session->channel;
+	if (old_channel == channel) {
 		return;
 	}
 	if (old_channel) {
 		old_channel->session = NULL;
-		channelbaseSendFin(old_channel);
 	}
 	if (channel) {
 		channel->session = session;
 	}
-}
-
-void sessionDisconnect(Session_t* session) {
-	if (session->channel_client) {
-		channelbaseSendFin(session->channel_client);
-		session->channel_client->session = NULL;
-		session->channel_client = NULL;
-	}
-	if (session->channel_server) {
-		channelbaseSendFin(session->channel_server);
-		session->channel_server->session = NULL;
-		session->channel_server = NULL;
-	}
-}
-
-void sessionUnbindChannel(Session_t* session) {
-	if (session->channel_client) {
-		session->channel_client->session = NULL;
-		session->channel_client = NULL;
-	}
-	if (session->channel_server) {
-		session->channel_server->session = NULL;
-		session->channel_server = NULL;
-	}
-}
-
-ChannelBase_t* sessionChannel(Session_t* session) {
-	if (session->channel_client) {
-		return session->channel_client;
-	}
-	else if (session->channel_server) {
-		return session->channel_server;
-	}
-	else {
-		return NULL;
-	}
+	session->channel = channel;
 }
 
 #ifdef	__cplusplus
