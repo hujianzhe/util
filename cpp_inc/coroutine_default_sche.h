@@ -214,26 +214,14 @@ public:
 			return LockGuardImpl::lock(name);
         }
 
+		CoroutineAwaiter try_lock(const std::string& name) {
+			return LockGuardImpl::try_lock(name);
+        }
+
         void unlock() {
 			LockGuardImpl::unlock();
         }
     };
-
-	class Notify : public LockGuardImpl {
-	public:
-		Notify(const std::shared_ptr<int>& scope) : LockGuardImpl(scope) {}
-		~Notify() {
-			emit_all(std::any());
-		}
-
-		bool do_once(const std::string& name) {
-			return LockGuardImpl::try_lock(name);
-		}
-
-		void emit_all(const std::any& param) {
-			LockGuardImpl::emit_all(param);
-		}
-	};
 
 private:
     bool checkBusy() {

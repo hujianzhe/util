@@ -564,7 +564,7 @@ protected:
 
 		bool try_lock(const std::string& name) {
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			LockData* lock_data = sc->lock_acquire(m_scope, name);
+			LockData* lock_data = sc->lock_try_acquire(m_scope, name);
 			if (lock_data->scope() != m_scope) {
 				return false;
 			}
@@ -584,24 +584,12 @@ protected:
             m_data = nullptr;
         }
 
-		void emit_all(const std::any& param) {
-			if (!m_data) {
-				return;
-			}
-			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			if (!sc) { /* on sche destroy */
-				return;
-			}
-			sc->lock_release_all(m_data, param);
-			m_data = nullptr;
-		}
-
 	protected:
 		std::shared_ptr<int> m_scope;
 		LockData* m_data;
 	};
 
-	LockData* lock_acquire(std::shared_ptr<int> scope, const std::string& name) {
+	LockData* lock_try_acquire(std::shared_ptr<int> scope, const std::string& name) {
 		auto result = m_lock_datas.insert({name, LockData()});
 		LockData* lock_data = &result.first->second;
 		if (result.second) {
@@ -614,7 +602,14 @@ protected:
 			++lock_data->m_scope_enter_times;
 			return lock_data;
 		}
-		lock_data->m_wait_infos.emplace_back(LockData::WaitInfo{m_current_co_node, scope});
+		return lock_data;
+	}
+
+	LockData* lock_acquire(std::shared_ptr<int> scope, const std::string& name) {
+		LockData* lock_data = lock_try_acquire(scope, name);
+		if (lock_data->m_scope != scope) {
+			lock_data->m_wait_infos.emplace_back(LockData::WaitInfo{m_current_co_node, scope});
+		}
 		return lock_data;
 	}
 
@@ -632,18 +627,6 @@ protected:
 		lock_data->m_scope = wait_info.scope;
 		lock_data->m_wait_infos.pop_front();
 		readyResume(co_node, param);
-	}
-
-	void lock_release_all(LockData* lock_data, const std::any& param) {
-		if (lock_data->m_scope_enter_times > 1) {
-			--lock_data->m_scope_enter_times;
-			return;
-		}
-		for (auto it = lock_data->m_wait_infos.begin(); it != lock_data->m_wait_infos.end(); ) {
-			readyResume(it->co_node, param);
-			it = lock_data->m_wait_infos.erase(it);
-		}
-		m_lock_datas.erase(*(lock_data->m_ptr_name));
 	}
 
 private:
