@@ -10,8 +10,9 @@
 #include "../../inc/component/stack_co_sche.h"
 #include "../../inc/datastruct/list.h"
 #include "../../inc/datastruct/hashtable.h"
-#include <stdlib.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 enum {
 	STACK_CO_HDR_PROC = 1,
@@ -33,7 +34,15 @@ typedef struct StackCoNode_t {
 	List_t block_list;
 	List_t reuse_block_list;
 	RBTimerEvent_t* timeout_event;
+	StackCoBlockGroup_t* wait_group;
 } StackCoNode_t;
+
+typedef struct StackCoLock_t {
+	HashtableNode_t htnode;
+	List_t wait_block_list;
+	StackCoNode_t* owner;
+	size_t enter_times;
+} StackCoLock_t;
 
 typedef struct StackCoBlockNode_t {
 	StackCoBlock_t block;
@@ -42,6 +51,10 @@ typedef struct StackCoBlockNode_t {
 	HashtableNode_t htnode;
 	void(*fn_resume_ret_free)(void*);
 	RBTimerEvent_t* timeout_event;
+	ListNode_t ready_resume_listnode;
+	int ready_resume_flag;
+	StackCoLock_t* wait_lock;
+	StackCoBlockGroup_t* wait_group;
 } StackCoBlockNode_t;
 
 typedef struct StackCoResume_t {
@@ -69,8 +82,11 @@ typedef struct StackCoSche_t {
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* resume_block_node;
 	List_t exec_co_list;
+	List_t ready_resume_block_list;
 	Hashtable_t block_co_htbl;
 	HashtableNode_t* block_co_htbl_bulks[2048];
+	Hashtable_t lock_htbl;
+	HashtableNode_t* lock_htbl_bulks[2048];
 } StackCoSche_t;
 
 #ifdef __cplusplus
@@ -94,8 +110,17 @@ static StackCoNode_t* alloc_stack_co_node(void) {
 	return co_node;
 }
 
+static void reset_block_data(StackCoBlock_t* block) {
+	block->id = 0;
+	block->status = STACK_CO_STATUS_START;
+	block->resume_ret = NULL;
+}
+
 static StackCoBlockNode_t* alloc_block_node(void) {
 	StackCoBlockNode_t* block_node = (StackCoBlockNode_t*)calloc(1, sizeof(StackCoBlockNode_t));
+	if (block_node) {
+		reset_block_data(&block_node->block);
+	}
 	return block_node;
 }
 
@@ -121,6 +146,22 @@ static void free_block_node(StackCoSche_t* sche, StackCoBlockNode_t* block_node)
 	if (block_node->fn_resume_ret_free) {
 		block_node->fn_resume_ret_free(block_node->block.resume_ret);
 	}
+
+	if (block_node->ready_resume_flag) {
+		listRemoveNode(&sche->ready_resume_block_list, &block_node->ready_resume_listnode);
+	}
+	else if (block_node->wait_lock) {
+		listRemoveNode(&block_node->wait_lock->wait_block_list, &block_node->ready_resume_listnode);
+	}
+	else if (block_node->wait_group) {
+		if (block_node->block.status != STACK_CO_STATUS_START) {
+			listRemoveNode(&block_node->wait_group->ready_block_list, &block_node->ready_resume_listnode);
+		}
+		else {
+			listRemoveNode(&block_node->wait_group->wait_block_list, &block_node->ready_resume_listnode);
+		}
+	}
+
 	free(block_node);
 }
 
@@ -138,12 +179,6 @@ static void free_co_block_nodes(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	}
 }
 
-static void reset_block_data(StackCoBlock_t* block) {
-	block->id = 0;
-	block->status = STACK_CO_STATUS_START;
-	block->resume_ret = NULL;
-}
-
 static void FiberProcEntry(Fiber_t* fiber) {
 	StackCoSche_t* sche = (StackCoSche_t*)fiber->arg;
 	while (1) {
@@ -156,9 +191,25 @@ static void FiberProcEntry(Fiber_t* fiber) {
 }
 
 static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node, StackCoBlockNode_t* dst_block_node) {
-	Fiber_t* cur_fiber = sche->cur_fiber;
-	Fiber_t* dst_fiber = dst_co_node->fiber;
+	Fiber_t* cur_fiber, *dst_fiber;
 	StackCoNode_t* exec_co_node = dst_co_node;
+
+	if (dst_block_node) {
+		StackCoBlockGroup_t* dst_group = dst_block_node->wait_group;
+		if (dst_group) {
+			listRemoveNode(&dst_group->wait_block_list, &dst_block_node->ready_resume_listnode);
+		}
+		if (exec_co_node->wait_group != dst_group) {
+			if (dst_group) {
+				listPushNodeBack(&dst_group->ready_block_list, &dst_block_node->ready_resume_listnode);
+			}
+			return;
+		}
+		dst_block_node->wait_group = NULL;
+		exec_co_node->wait_group = NULL;
+	}
+	cur_fiber = sche->cur_fiber;
+	dst_fiber = dst_co_node->fiber;
 
 	sche->exec_co_node = exec_co_node;
 	sche->resume_block_node = dst_block_node;
@@ -216,6 +267,101 @@ static int sche_update_proc_fiber(StackCoSche_t* sche) {
 	return 1;
 }
 
+static long long sche_calculate_min_wait_timelen(StackCoSche_t* sche, int idle_msec) {
+	long long t, cur_msec;
+
+	if (!listIsEmpty(&sche->ready_resume_block_list)) {
+		return 0;
+	}
+	t = rbtimerMiniumTimestamp(&sche->timer);
+	if (t < 0) {
+		return idle_msec;
+	}
+	cur_msec = gmtimeMillisecond();
+	if (t <= cur_msec) {
+		return 0;
+	}
+	t -= cur_msec;
+	if (idle_msec < 0) {
+		return t;
+	}
+	if (t > idle_msec) {
+		return idle_msec;
+	}
+	return t;
+}
+
+static StackCoLock_t* get_stack_co_lock(StackCoSche_t* sche, const char* name) {
+	HashtableNode_t* htnode;
+	HashtableNodeKey_t key;
+
+	key.ptr = name;
+	htnode = hashtableSearchKey(&sche->lock_htbl, key);
+	return htnode ? pod_container_of(htnode, StackCoLock_t, htnode) : NULL;
+}
+
+static StackCoLock_t* new_stack_co_lock(StackCoSche_t* sche, const char* name) {
+	StackCoLock_t* co_lock = (StackCoLock_t*)calloc(1, sizeof(StackCoLock_t));
+	if (!co_lock) {
+		return NULL;
+	}
+	co_lock->htnode.key.ptr = strdup(name);
+	hashtableInsertNode(&sche->lock_htbl, &co_lock->htnode);
+	listInit(&co_lock->wait_block_list);
+	return co_lock;
+}
+
+static StackCoLock_t* sche_lock(StackCoSche_t* sche, StackCoLock_t* lock) {
+	StackCoNode_t* exec_co_node;
+	StackCoBlockNode_t* block_node;
+	int block_node_alloc = 0;
+
+	exec_co_node = sche->exec_co_node;
+	if (lock->owner == exec_co_node) {
+		lock->enter_times++;
+		return lock;
+	}
+	if (lock->owner) {
+		if (listIsEmpty(&exec_co_node->reuse_block_list)) {
+			block_node = alloc_block_node();
+			if (!block_node) {
+				goto err;
+			}
+			block_node_alloc = 1;
+		}
+		else {
+			ListNode_t* listnode = listPopNodeBack(&exec_co_node->reuse_block_list);
+			block_node = pod_container_of(listnode, StackCoBlockNode_t, listnode);
+			reset_block_data(&block_node->block);
+		}
+		if (!sche_update_proc_fiber(sche)) {
+			goto err;
+		}
+		block_node->exec_co_node = exec_co_node;
+		listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
+		block_node->wait_lock = lock;
+		listPushNodeBack(&lock->wait_block_list, &block_node->ready_resume_listnode);
+		StackCoSche_yield(sche);
+		return lock;
+	}
+	lock->owner = exec_co_node;
+	lock->enter_times = 1;
+	return lock;
+err:
+	if (block_node_alloc) {
+		free(block_node);
+	}
+	else if (block_node) {
+		listPushNodeBack(&exec_co_node->reuse_block_list, &block_node->listnode);
+	}
+	return NULL;
+}
+
+static void free_stack_co_lock(StackCoLock_t* co_lock) {
+	free((void*)co_lock->htnode.key.ptr);
+	free(co_lock);
+}
+
 StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	int dq_ok = 0, timer_ok = 0;
 	StackCoSche_t* sche = (StackCoSche_t*)malloc(sizeof(StackCoSche_t));
@@ -243,9 +389,13 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	sche->exec_co_node = NULL;
 	sche->resume_block_node = NULL;
 	listInit(&sche->exec_co_list);
+	listInit(&sche->ready_resume_block_list);
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
 			hashtableDefaultKeyCmp32, hashtableDefaultKeyHash32);
+	hashtableInit(&sche->lock_htbl,
+			sche->lock_htbl_bulks, sizeof(sche->lock_htbl_bulks) / sizeof(sche->lock_htbl_bulks[0]),
+			hashtableDefaultKeyCmpStr, hashtableDefaultKeyHashStr);
 	return sche;
 err:
 	if (dq_ok) {
@@ -337,7 +487,7 @@ StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_mse
 	return &co_node->co;
 }
 
-StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec) {
+StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group) {
 	RBTimerEvent_t* e = NULL;
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* block_node = NULL;
@@ -391,6 +541,11 @@ StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_m
 		rbtimerAddEvent(&sche->timer, e);
 	}
 
+	if (group) {
+		listPushNodeBack(&group->wait_block_list, &block_node->ready_resume_listnode);
+	}
+	block_node->wait_group = group;
+
 	listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
 	return &block_node->block;
 err:
@@ -406,7 +561,7 @@ err:
 	return NULL;
 }
 
-StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
+StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group) {
 	RBTimerEvent_t* e = NULL;
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* block_node = NULL;
@@ -454,6 +609,11 @@ StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec) {
 		rbtimerAddEvent(&sche->timer, e);
 	}
 
+	if (group) {
+		listPushNodeBack(&group->wait_block_list, &block_node->ready_resume_listnode);
+	}
+	block_node->wait_group = group;
+
 	listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
 	return &block_node->block;
 err:
@@ -469,6 +629,84 @@ err:
 	return NULL;
 }
 
+StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const char* name) {
+	StackCoLock_t* lock = NULL;
+	StackCoNode_t* exec_co_node;
+	StackCoBlockNode_t* block_node;
+	int co_lock_alloc = 0;
+
+	lock = get_stack_co_lock(sche, name);
+	if (!lock) {
+		lock = new_stack_co_lock(sche, name);
+		if (!lock) {
+			goto err;
+		}
+		co_lock_alloc = 1;
+	}
+	if (!sche_lock(sche, lock)) {
+		goto err;
+	}
+	return lock;
+err:
+	if (co_lock_alloc) {
+		hashtableRemoveNode(&sche->lock_htbl, &lock->htnode);
+		free_stack_co_lock(lock);
+	}
+	return NULL;
+}
+
+StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const char* name) {
+	int co_lock_alloc = 0;
+	StackCoLock_t* lock;
+
+	lock = get_stack_co_lock(sche, name);
+	if (!lock) {
+		lock = new_stack_co_lock(sche, name);
+		if (!lock) {
+			goto err;
+		}
+		co_lock_alloc = 1;
+	}
+	else if (lock->owner && lock->owner != sche->exec_co_node) {
+		return NULL;
+	}
+	if (!sche_lock(sche, lock)) {
+		goto err;
+	}
+	return lock;
+err:
+	if (co_lock_alloc) {
+		hashtableRemoveNode(&sche->lock_htbl, &lock->htnode);
+		free_stack_co_lock(lock);
+	}
+	return NULL;
+}
+
+void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
+	ListNode_t* lnode;
+	StackCoBlockNode_t* block_node;
+
+	if (lock->enter_times > 1) {
+		lock->enter_times--;
+		return;
+	}
+	if (listIsEmpty(&lock->wait_block_list)) {
+		hashtableRemoveNode(&sche->lock_htbl, &lock->htnode);
+		free_stack_co_lock(lock);
+		return;
+	}
+	lnode = listPopNodeFront(&lock->wait_block_list);
+	block_node = pod_container_of(lnode, StackCoBlockNode_t, ready_resume_listnode);
+	block_node->wait_lock = NULL;
+	block_node->ready_resume_flag = 1;
+	block_node->block.status = STACK_CO_STATUS_FINISH;
+	block_node->block.resume_ret = NULL;
+	block_node->fn_resume_ret_free = NULL;
+
+	lock->owner = block_node->exec_co_node;
+	listPushNodeBack(&sche->ready_resume_block_list, lnode);
+}
+
 StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
 	Fiber_t* cur_fiber = sche->cur_fiber;
 	sche->cur_fiber = sche->sche_fiber;
@@ -479,7 +717,21 @@ StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
 	return NULL;
 }
 
-void StackCoSche_no_arg_free(struct StackCoSche_t* sche) {
+StackCoBlock_t* StackCoSche_yield_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group) {
+	ListNode_t* lcur = listPopNodeFront(&group->ready_block_list);
+	if (lcur) {
+		StackCoBlockNode_t* block_node = pod_container_of(lcur, StackCoBlockNode_t, ready_resume_listnode);
+		block_node->wait_group = NULL;
+		return &block_node->block;
+	}
+	if (listIsEmpty(&group->wait_block_list)) {
+		return NULL;
+	}
+	sche->exec_co_node->wait_group = group;
+	return StackCoSche_yield(sche);
+}
+
+void StackCoSche_no_arg_free(StackCoSche_t* sche) {
 	if (sche->exec_co_node) {
 		sche->exec_co_node->fn_proc_arg_free = NULL;
 	}
@@ -511,8 +763,43 @@ void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 		block_node->fn_resume_ret_free(block->resume_ret);
 		block_node->fn_resume_ret_free = NULL;
 	}
+
+	if (block_node->ready_resume_flag) {
+		listRemoveNode(&sche->ready_resume_block_list, &block_node->ready_resume_listnode);
+		block_node->ready_resume_flag = 0;
+	}
+	else if (block_node->wait_lock) {
+		listRemoveNode(&block_node->wait_lock->wait_block_list, &block_node->ready_resume_listnode);
+		block_node->wait_lock = NULL;
+	}
+	else if (block_node->wait_group) {
+		if (block_node->block.status != STACK_CO_STATUS_START) {
+			listRemoveNode(&block_node->wait_group->ready_block_list, &block_node->ready_resume_listnode);
+		}
+		else {
+			listRemoveNode(&block_node->wait_group->wait_block_list, &block_node->ready_resume_listnode);
+		}
+		block_node->wait_group = NULL;
+	}
+
 	listRemoveNode(&exec_co_node->block_list, &block_node->listnode);
 	listPushNodeBack(&exec_co_node->reuse_block_list, &block_node->listnode);
+}
+
+void StackCoSche_reuse_block_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group) {
+	ListNode_t* lcur;
+	for (lcur = group->wait_block_list.head; lcur; lcur = lcur->next) {
+		StackCoBlockNode_t* block_node = pod_container_of(lcur, StackCoBlockNode_t, ready_resume_listnode);
+		block_node->wait_group = NULL;
+		StackCoSche_reuse_block(sche, &block_node->block);
+	}
+	for (lcur = group->ready_block_list.head; lcur; lcur = lcur->next) {
+		StackCoBlockNode_t* block_node = pod_container_of(lcur, StackCoBlockNode_t, ready_resume_listnode);
+		block_node->wait_group = NULL;
+		StackCoSche_reuse_block(sche, &block_node->block);
+	}
+	listInit(&group->wait_block_list);
+	listInit(&group->ready_block_list);
 }
 
 void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int status, void* ret, void(*fn_ret_free)(void*)) {
@@ -535,7 +822,7 @@ void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int statu
 int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	int i, handle_cnt;
 	long long wait_msec;
-	long long min_t, cur_msec;
+	long long cur_msec;
 	ListNode_t *lcur, *lnext;
 
 	if (!sche->sche_fiber) {
@@ -581,23 +868,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		return 1;
 	}
 
-	min_t = rbtimerMiniumTimestamp(&sche->timer);
-	if (min_t >= 0) {
-		cur_msec = gmtimeMillisecond();
-		if (min_t <= cur_msec) {
-			wait_msec = 0;
-		}
-		else {
-			wait_msec = min_t - cur_msec;
-			if (idle_msec >= 0 && wait_msec > idle_msec) {
-				wait_msec = idle_msec;
-			}
-		}
-	}
-	else {
-		wait_msec = idle_msec;
-	}
-
+	wait_msec = sche_calculate_min_wait_timelen(sche, idle_msec);
 	handle_cnt = sche->handle_cnt;
 	for (lcur = dataqueuePopWait(&sche->dq, wait_msec, handle_cnt); lcur; lcur = lnext) {
 		StackCoHdr_t* hdr = pod_container_of(lcur, StackCoHdr_t, listnode);
@@ -615,7 +886,9 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* co_resume = pod_container_of(hdr, StackCoResume_t, hdr);
+			StackCoNode_t* exec_co_node;
 			StackCoBlockNode_t* block_node;
+			StackCoBlockGroup_t* group;
 			HashtableNode_t* htnode;
 			HashtableNodeKey_t key;
 
@@ -639,6 +912,18 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			free(co_resume);
 			stack_co_switch(sche, block_node->exec_co_node, block_node);
 		}
+	}
+	i = 0;
+	for (lcur = sche->ready_resume_block_list.head; lcur && i < handle_cnt; lcur = lnext, ++i) {
+		StackCoBlockNode_t* block_node = pod_container_of(lcur, StackCoBlockNode_t, ready_resume_listnode);
+		lnext = lcur->next;
+		listRemoveNode(&sche->ready_resume_block_list, lcur);
+		block_node->ready_resume_flag = 0;
+
+		if (block_node->timeout_event) {
+			rbtimerDetachEvent(block_node->timeout_event);
+		}
+		stack_co_switch(sche, block_node->exec_co_node, block_node);
 	}
 
 	cur_msec = gmtimeMillisecond();
