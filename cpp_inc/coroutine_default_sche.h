@@ -214,7 +214,7 @@ public:
 			return LockGuardImpl::lock(name);
         }
 
-		CoroutineAwaiter try_lock(const std::string& name) {
+		bool try_lock(const std::string& name) {
 			return LockGuardImpl::try_lock(name);
         }
 
