@@ -2,6 +2,9 @@
 // Created by hujianzhe on 22-3-16
 //
 
+#ifndef	UTIL_CPP_MISC_H
+#define	UTIL_CPP_MISC_H
+
 #include <string.h>
 
 namespace util {
@@ -31,3 +34,5 @@ struct cstruct_wrap : public T {
 	void copy(const T& t) { copy(&t); }
 };
 }
+
+#endif
