@@ -631,8 +631,6 @@ err:
 
 StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const char* name) {
 	StackCoLock_t* lock = NULL;
-	StackCoNode_t* exec_co_node;
-	StackCoBlockNode_t* block_node;
 	int co_lock_alloc = 0;
 
 	lock = get_stack_co_lock(sche, name);
@@ -886,9 +884,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* co_resume = pod_container_of(hdr, StackCoResume_t, hdr);
-			StackCoNode_t* exec_co_node;
 			StackCoBlockNode_t* block_node;
-			StackCoBlockGroup_t* group;
 			HashtableNode_t* htnode;
 			HashtableNodeKey_t key;
 
