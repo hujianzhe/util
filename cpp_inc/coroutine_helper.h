@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <coroutine>
 #include <exception>
+#include <stdexcept>
 #include <list>
 #include <memory>
 #include <string>
@@ -553,6 +554,9 @@ protected:
 
 	protected:
 		CoroutineAwaiter lock(const std::string& name) {
+			if (m_data) {
+				throw std::logic_error("coroutine already locked");
+			}
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
 			m_data = sc->lock_acquire(m_scope, name);
 			CoroutineAwaiter awaiter;
@@ -563,6 +567,9 @@ protected:
 		}
 
 		bool try_lock(const std::string& name) {
+			if (m_data) {
+				throw std::logic_error("coroutine already locked");
+			}
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
 			LockData* lock_data = sc->lock_try_acquire(m_scope, name);
 			if (lock_data->scope() != m_scope) {
