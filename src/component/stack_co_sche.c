@@ -40,7 +40,7 @@ typedef struct StackCoNode_t {
 typedef struct StackCoLock_t {
 	HashtableNode_t htnode;
 	List_t wait_block_list;
-	StackCoNode_t* owner;
+	const void* owner;
 	size_t enter_times;
 } StackCoLock_t;
 
@@ -53,6 +53,7 @@ typedef struct StackCoBlockNode_t {
 	RBTimerEvent_t* timeout_event;
 	ListNode_t ready_resume_listnode;
 	int ready_resume_flag;
+	const void* lock_owner;
 	StackCoLock_t* wait_lock;
 	StackCoBlockGroup_t* wait_group;
 } StackCoBlockNode_t;
@@ -311,13 +312,13 @@ static StackCoLock_t* new_stack_co_lock(StackCoSche_t* sche, const char* name) {
 	return co_lock;
 }
 
-static StackCoLock_t* sche_lock(StackCoSche_t* sche, StackCoLock_t* lock) {
+static StackCoLock_t* sche_lock(StackCoSche_t* sche, const void* owner, StackCoLock_t* lock) {
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* block_node;
 	int block_node_alloc = 0;
 
 	exec_co_node = sche->exec_co_node;
-	if (lock->owner == exec_co_node) {
+	if (lock->owner == owner) {
 		lock->enter_times++;
 		return lock;
 	}
@@ -339,12 +340,13 @@ static StackCoLock_t* sche_lock(StackCoSche_t* sche, StackCoLock_t* lock) {
 		}
 		block_node->exec_co_node = exec_co_node;
 		listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
+		block_node->lock_owner = owner;
 		block_node->wait_lock = lock;
 		listPushNodeBack(&lock->wait_block_list, &block_node->ready_resume_listnode);
 		StackCoSche_yield(sche);
 		return lock;
 	}
-	lock->owner = exec_co_node;
+	lock->owner = owner;
 	lock->enter_times = 1;
 	return lock;
 err:
@@ -629,7 +631,7 @@ err:
 	return NULL;
 }
 
-StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const char* name) {
+StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const void* owner, const char* name) {
 	StackCoLock_t* lock = NULL;
 	int co_lock_alloc = 0;
 
@@ -641,7 +643,7 @@ StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const char* name) {
 		}
 		co_lock_alloc = 1;
 	}
-	if (!sche_lock(sche, lock)) {
+	if (!sche_lock(sche, owner, lock)) {
 		goto err;
 	}
 	return lock;
@@ -653,7 +655,7 @@ err:
 	return NULL;
 }
 
-StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const char* name) {
+StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const void* owner, const char* name) {
 	int co_lock_alloc = 0;
 	StackCoLock_t* lock;
 
@@ -665,10 +667,10 @@ StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const char* name
 		}
 		co_lock_alloc = 1;
 	}
-	else if (lock->owner && lock->owner != sche->exec_co_node) {
+	else if (lock->owner && lock->owner != owner) {
 		return NULL;
 	}
-	if (!sche_lock(sche, lock)) {
+	if (!sche_lock(sche, owner, lock)) {
 		goto err;
 	}
 	return lock;
@@ -695,13 +697,14 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 	}
 	lnode = listPopNodeFront(&lock->wait_block_list);
 	block_node = pod_container_of(lnode, StackCoBlockNode_t, ready_resume_listnode);
+	lock->owner = block_node->lock_owner;
+	block_node->lock_owner = NULL;
 	block_node->wait_lock = NULL;
 	block_node->ready_resume_flag = 1;
 	block_node->block.status = STACK_CO_STATUS_FINISH;
 	block_node->block.resume_ret = NULL;
 	block_node->fn_resume_ret_free = NULL;
 
-	lock->owner = block_node->exec_co_node;
 	listPushNodeBack(&sche->ready_resume_block_list, lnode);
 }
 

@@ -50,8 +50,8 @@ __declspec_dll StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, l
 __declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
 __declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
 
-__declspec_dll struct StackCoLock_t* StackCoSche_lock(struct StackCoSche_t* sche, const char* name);
-__declspec_dll struct StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const char* name);
+__declspec_dll struct StackCoLock_t* StackCoSche_lock(struct StackCoSche_t* sche, const void* owner, const char* name);
+__declspec_dll struct StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const void* owner, const char* name);
 __declspec_dll void StackCoSche_unlock(struct StackCoSche_t* sche, struct StackCoLock_t* lock);
 
 __declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
