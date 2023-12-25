@@ -12,27 +12,22 @@ template <typename T>
 struct cstruct_wrap : public T {
 	virtual ~cstruct_wrap() {}
 
-	void bzero() {
-		T* base = this;
-		memset(base, 0, sizeof(T));
-	}
+	T* c_ptr() { return this; }
+	const T* c_ptr() const { return this; }
 
-	void copy(const void* p, size_t n) {
-		T* base = this;
-		if (base == p) {
-			return;
-		}
-		memmove(base, p, n > sizeof(T) ? sizeof(T) : n);
+	void bzero() {
+		memset((T*)this, 0, sizeof(T));
 	}
-	void copy(const T* t) {
-		T* base = this;
-		if (base == t) {
-			return;
-		}
-		memmove(base, t, sizeof(T));
-	}
-	void copy(const T& t) { copy(&t); }
 };
+
+template <typename T>
+void delete_fn(void* p) { delete (T*)p; }
+template <typename T>
+void delete_fn(T* p) { delete p; }
+template <typename T>
+void delete_arr_fn(T* p) { delete [] p; }
+template <typename T>
+void delete_arr_fn(void* p) { delete [] (T*)p; }
 }
 
 #endif
