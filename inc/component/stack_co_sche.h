@@ -12,10 +12,6 @@ enum {
 	STACK_CO_STATUS_START = 0
 };
 
-typedef struct StackCo_t {
-	int status; /* switch status, user read only */
-} StackCo_t;
-
 typedef struct StackCoBlock_t {
 	int id; /* unique id, user read only */
 	int status; /* switch status, user read only */
@@ -45,8 +41,8 @@ __declspec_dll void StackCoSche_set_handle_cnt(struct StackCoSche_t* sche, int h
 __declspec_dll int StackCoSche_has_exit(struct StackCoSche_t* sche);
 __declspec_dll void StackCoSche_at_exit(struct StackCoSche_t* sche, void(*fn_at_exit)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 
-__declspec_dll StackCo_t* StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
-__declspec_dll StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
+__declspec_dll int StackCoSche_function(struct StackCoSche_t* sche, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
+__declspec_dll int StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*));
 __declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
 __declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
 

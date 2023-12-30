@@ -26,7 +26,7 @@ typedef struct StackCoHdr_t {
 
 typedef struct StackCoNode_t {
 	StackCoHdr_t hdr;
-	StackCo_t co;
+	int status;
 	Fiber_t* fiber;
 	void(*proc)(struct StackCoSche_t*, void*);
 	void* proc_arg;
@@ -185,7 +185,7 @@ static void FiberProcEntry(Fiber_t* fiber) {
 	while (1) {
 		StackCoNode_t* exec_co_node = sche->exec_co_node;
 		exec_co_node->proc(sche, exec_co_node->proc_arg);
-		exec_co_node->co.status = STACK_CO_STATUS_FINISH;
+		exec_co_node->status = STACK_CO_STATUS_FINISH;
 		sche->cur_fiber = sche->sche_fiber;
 		fiberSwitch(fiber, sche->sche_fiber);
 	}
@@ -216,7 +216,7 @@ static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node, Sta
 	sche->resume_block_node = dst_block_node;
 	sche->cur_fiber = dst_fiber;
 	fiberSwitch(cur_fiber, dst_fiber);
-	if (exec_co_node->co.status >= 0) {
+	if (exec_co_node->status >= 0) {
 		return;
 	}
 	if (dst_fiber != sche->proc_fiber) {
@@ -446,34 +446,34 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 	free(sche);
 }
 
-StackCo_t* StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+int StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	StackCoNode_t* co_node = alloc_stack_co_node();
 	if (!co_node) {
-		return NULL;
+		return 0;
 	}
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
 	co_node->proc_arg = arg;
 	co_node->fn_proc_arg_free = fn_arg_free;
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
-	return &co_node->co;
+	return 1;
 }
 
-StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+int StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
 	RBTimerEvent_t* e;
 	StackCoNode_t* co_node;
 
 	if (tm_msec < 0) {
-		return NULL;
+		return 0;
 	}
 	e = (RBTimerEvent_t*)calloc(1, sizeof(RBTimerEvent_t));
 	if (!e) {
-		return NULL;
+		return 0;
 	}
 	co_node = alloc_stack_co_node();
 	if (!co_node) {
 		free(e);
-		return NULL;
+		return 0;
 	}
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
@@ -486,7 +486,7 @@ StackCo_t* StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_mse
 	e->arg = co_node;
 
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
-	return &co_node->co;
+	return 1;
 }
 
 StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group) {
