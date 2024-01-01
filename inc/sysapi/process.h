@@ -29,12 +29,6 @@
 		HANDLE handle;
 		unsigned int id;
 	} Thread_t;
-	typedef struct Fiber_t {
-		void* arg;
-		struct Fiber_t* m_creater;
-		void(*m_entry)(struct Fiber_t*);
-		LPVOID m_ctx;
-	} Fiber_t;
 	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
 	#define	__declspec_tls			__declspec(thread)
@@ -58,17 +52,11 @@
 	typedef struct {
 		pthread_t id;
 	} Thread_t;
-	typedef struct Fiber_t {
-		void* arg;
-		struct Fiber_t* m_creater;
-		void(*m_entry)(struct Fiber_t*);
-		ucontext_t m_ctx;
-		unsigned char m_stack[1];
-	} Fiber_t;
 	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
 	#define	__declspec_tls			__thread
 #endif
+struct Fiber_t;
 
 #ifdef	__cplusplus
 extern "C" {
@@ -107,10 +95,10 @@ __declspec_dll BOOL threadSetLocalValue(Tls_t key, void* value);
 __declspec_dll void* threadGetLocalValue(Tls_t key);
 __declspec_dll BOOL threadFreeLocalKey(Tls_t key);
 /* fiber operator */
-__declspec_dll Fiber_t* fiberFromThread(void);
-__declspec_dll Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_t*));
-__declspec_dll void fiberSwitch(Fiber_t* from, Fiber_t* to);
-__declspec_dll void fiberFree(Fiber_t* fiber);
+__declspec_dll struct Fiber_t* fiberFromThread(void);
+__declspec_dll struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (*entry)(struct Fiber_t*, void*), void* arg);
+__declspec_dll void fiberSwitch(struct Fiber_t* from, struct Fiber_t* to);
+__declspec_dll void fiberFree(struct Fiber_t* fiber);
 
 #ifdef	__cplusplus
 }

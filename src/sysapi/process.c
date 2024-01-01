@@ -348,22 +348,35 @@ BOOL threadFreeLocalKey(Tls_t key) {
 
 /* fiber operator */
 #if defined(_WIN32) || defined(_WIN64)
+typedef struct Fiber_t {
+	void* m_arg;
+	struct Fiber_t* m_creater;
+	void(*m_entry)(struct Fiber_t*, void*);
+	LPVOID m_ctx;
+} Fiber_t;
 static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
 	Fiber_t* fiber = (Fiber_t*)lpFiberParameter;
-	fiber->m_entry(fiber);
+	fiber->m_entry(fiber, fiber->m_arg);
 }
 #else
+typedef struct Fiber_t {
+	void* m_arg;
+	struct Fiber_t* m_creater;
+	void(*m_entry)(struct Fiber_t*, void*);
+	ucontext_t m_ctx;
+	unsigned char m_stack[1];
+} Fiber_t;
 static int volatile __fiber_object_spinlock;
 static Fiber_t* volatile __fiber_last_create_object;
 static void __fiber_start_routine(void) {
 	Fiber_t* fiber = __fiber_last_create_object;
 	__sync_lock_test_and_set(&__fiber_object_spinlock, 0);
 	swapcontext(&fiber->m_ctx, &fiber->m_creater->m_ctx);
-	fiber->m_entry(fiber);
+	fiber->m_entry(fiber, fiber->m_arg);
 }
 #endif
 
-Fiber_t* fiberFromThread(void) {
+struct Fiber_t* fiberFromThread(void) {
 	Fiber_t* fiber;
 #if defined(_WIN32) || defined(_WIN64)
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
@@ -374,7 +387,7 @@ Fiber_t* fiberFromThread(void) {
 		free(fiber);
 		return NULL;
 	}
-	fiber->arg = NULL;
+	fiber->m_arg = NULL;
 	fiber->m_entry = NULL;
 	fiber->m_creater = fiber;
 	return fiber;
@@ -382,14 +395,14 @@ Fiber_t* fiberFromThread(void) {
 	fiber = (Fiber_t*)calloc(1, sizeof(Fiber_t));
 	if (!fiber)
 		return NULL;
-	fiber->arg = NULL;
+	fiber->m_arg = NULL;
 	fiber->m_ctx.uc_link = NULL;
 	fiber->m_creater = fiber;
 	return fiber;
 #endif
 }
 
-Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_t*)) {
+struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (*entry)(struct Fiber_t*, void*), void* arg) {
 	Fiber_t* fiber;
 #if defined(_WIN32) || defined(_WIN64)
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
@@ -400,7 +413,7 @@ Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_
 		free(fiber);
 		return NULL;
 	}
-	fiber->arg = NULL;
+	fiber->m_arg = arg;
 	fiber->m_entry = entry;
 	fiber->m_creater = cur_fiber;
 	return fiber;
@@ -418,7 +431,7 @@ Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_
 	fiber->m_ctx.uc_stack.ss_size = stack_size;
 	fiber->m_ctx.uc_stack.ss_sp = fiber->m_stack;
 	fiber->m_ctx.uc_link = NULL;
-	fiber->arg = NULL;
+	fiber->m_arg = arg;
 	fiber->m_entry = entry;
 	fiber->m_creater = cur_fiber;
 	makecontext(&fiber->m_ctx, __fiber_start_routine, 0);
@@ -433,7 +446,7 @@ Fiber_t* fiberCreate(Fiber_t* cur_fiber, size_t stack_size, void (*entry)(Fiber_
 #endif
 }
 
-void fiberSwitch(Fiber_t* from, Fiber_t* to) {
+void fiberSwitch(struct Fiber_t* from, struct Fiber_t* to) {
 #if defined(_WIN32) || defined(_WIN64)
 	assertTRUE(from->m_ctx == GetCurrentFiber() && from->m_ctx != to->m_ctx);
 	SwitchToFiber(to->m_ctx);
@@ -443,7 +456,7 @@ void fiberSwitch(Fiber_t* from, Fiber_t* to) {
 #endif
 }
 
-void fiberFree(Fiber_t* fiber) {
+void fiberFree(struct Fiber_t* fiber) {
 	if (!fiber) {
 		return;
 	}

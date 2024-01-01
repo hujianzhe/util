@@ -27,7 +27,7 @@ typedef struct StackCoHdr_t {
 typedef struct StackCoNode_t {
 	StackCoHdr_t hdr;
 	int status;
-	Fiber_t* fiber;
+	struct Fiber_t* fiber;
 	void(*proc)(struct StackCoSche_t*, void*);
 	void* proc_arg;
 	void(*fn_proc_arg_free)(void*);
@@ -76,9 +76,9 @@ typedef struct StackCoSche_t {
 
 	DataQueue_t dq;
 	RBTimer_t timer;
-	Fiber_t* proc_fiber;
-	Fiber_t* cur_fiber;
-	Fiber_t* sche_fiber;
+	struct Fiber_t* proc_fiber;
+	struct Fiber_t* cur_fiber;
+	struct Fiber_t* sche_fiber;
 	int stack_size;
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* resume_block_node;
@@ -180,8 +180,8 @@ static void free_co_block_nodes(StackCoSche_t* sche, StackCoNode_t* co_node) {
 	}
 }
 
-static void FiberProcEntry(Fiber_t* fiber) {
-	StackCoSche_t* sche = (StackCoSche_t*)fiber->arg;
+static void FiberProcEntry(struct Fiber_t* fiber, void* arg) {
+	StackCoSche_t* sche = (StackCoSche_t*)arg;
 	while (1) {
 		StackCoNode_t* exec_co_node = sche->exec_co_node;
 		exec_co_node->proc(sche, exec_co_node->proc_arg);
@@ -192,7 +192,7 @@ static void FiberProcEntry(Fiber_t* fiber) {
 }
 
 static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node, StackCoBlockNode_t* dst_block_node) {
-	Fiber_t* cur_fiber, *dst_fiber;
+	struct Fiber_t* cur_fiber, *dst_fiber;
 	StackCoNode_t* exec_co_node = dst_co_node;
 
 	if (dst_block_node) {
@@ -258,11 +258,10 @@ static void timer_timeout_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 
 static int sche_update_proc_fiber(StackCoSche_t* sche) {
 	if (sche->cur_fiber == sche->proc_fiber) {
-		Fiber_t* proc_fiber = fiberCreate(sche->cur_fiber, sche->stack_size, FiberProcEntry);
+		struct Fiber_t* proc_fiber = fiberCreate(sche->cur_fiber, sche->stack_size, FiberProcEntry, sche);
 		if (!proc_fiber) {
 			return 0;
 		}
-		proc_fiber->arg = sche;
 		sche->proc_fiber = proc_fiber;
 	}
 	return 1;
@@ -709,7 +708,7 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 }
 
 StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
-	Fiber_t* cur_fiber = sche->cur_fiber;
+	struct Fiber_t* cur_fiber = sche->cur_fiber;
 	sche->cur_fiber = sche->sche_fiber;
 	fiberSwitch(cur_fiber, sche->sche_fiber);
 	if (sche->resume_block_node) {
@@ -827,17 +826,16 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	ListNode_t *lcur, *lnext;
 
 	if (!sche->sche_fiber) {
-		Fiber_t* sche_fiber = fiberFromThread();
+		struct Fiber_t* sche_fiber = fiberFromThread();
 		if (!sche_fiber) {
 			return 1;
 		}
 
-		sche->proc_fiber = fiberCreate(sche_fiber, sche->stack_size, FiberProcEntry);
+		sche->proc_fiber = fiberCreate(sche_fiber, sche->stack_size, FiberProcEntry, sche);
 		if (!sche->proc_fiber) {
 			fiberFree(sche_fiber);
 			return 1;
 		}
-		sche->proc_fiber->arg = sche;
 
 		sche->cur_fiber = sche_fiber;
 		sche->sche_fiber = sche_fiber;
