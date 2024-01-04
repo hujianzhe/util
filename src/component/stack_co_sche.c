@@ -737,12 +737,24 @@ void StackCoSche_no_arg_free(StackCoSche_t* sche) {
 	}
 }
 
-void* StackCoSche_pop_resume_ret(StackCoBlock_t* block) {
+void StackCoSche_pop_block_result(StackCoBlock_t* block, StackCoResumeResult_t* result) {
 	StackCoBlockNode_t* block_node = pod_container_of(block, StackCoBlockNode_t, block);
-	void* ret = block->resume_ret;
+	if (result) {
+		result->ret = block->resume_ret;
+		result->fn_ret_free = block_node->fn_resume_ret_free;
+	}
 	block->resume_ret = NULL;
 	block_node->fn_resume_ret_free = NULL;
-	return ret;
+}
+
+void StackCoSche_resume_result_clean(StackCoResumeResult_t* result) {
+	if (!result) {
+		return;
+	}
+	if (result->fn_ret_free) {
+		result->fn_ret_free(result->ret);
+		result->fn_ret_free = NULL;
+	}
 }
 
 void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
