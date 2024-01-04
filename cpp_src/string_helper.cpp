@@ -23,6 +23,7 @@ void string_split(const char* str, const char* delim, std::vector<std::string>& 
 	if (str != p)
 		v.push_back(std::string(p, str - p));
 }
+
 void string_splits(const char* str, const char* delim, std::vector<std::string>& v) {
 	const char* p;
 	size_t delim_len = strlen(delim);
@@ -61,73 +62,3 @@ std::string string_format(const char* format, ...) {
 	return s;
 }
 }
-
-#if	__CPP_VERSION < 2011
-namespace std11 {
-std::string to_string(int value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%d", value);
-	char buf[len + 1];
-	sprintf(buf, "%d", value);
-	return buf;
-}
-std::string to_string(long value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%ld", value);
-	char buf[len + 1];
-	sprintf(buf, "%ld", value);
-	return buf;
-}
-std::string to_string(long long value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%lld", value);
-	char buf[len + 1];
-	sprintf(buf, "%lld", value);
-	return buf;
-}
-std::string to_string(unsigned int value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%u", value);
-	char buf[len + 1];
-	sprintf(buf, "%u", value);
-	return buf;
-}
-std::string to_string(unsigned long value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%lu", value);
-	char buf[len + 1];
-	sprintf(buf, "%lu", value);
-	return buf;
-}
-std::string to_string(unsigned long long value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%llu", value);
-	char buf[len + 1];
-	sprintf(buf, "%llu", value);
-	return buf;
-}
-std::string to_string(float value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%f", value);
-	char buf[len + 1];
-	sprintf(buf, "%f", value);
-	return buf;
-}
-std::string to_string(double value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%f", value);
-	char buf[len + 1];
-	sprintf(buf, "%f", value);
-	return buf;
-}
-std::string to_string(long double value) {
-	char test_buf;
-	int len = snprintf(&test_buf, 0, "%Lf", value);
-	char buf[len + 1];
-	sprintf(buf, "%Lf", value);
-	return buf;
-}
-std::string to_string(const char* value) { return value; }
-std::string to_string(const std::string& value) { return value; }
-}
-#endif
