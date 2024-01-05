@@ -515,11 +515,6 @@ protected:
         }
 	}
 
-public:
-	static std::shared_ptr<int> new_scope() {
-		return std::make_shared<int>(0);
-	}
-
 protected:
 	class LockData {
 	friend class CoroutineScheBaseImpl;
@@ -542,58 +537,6 @@ protected:
 		size_t m_scope_enter_times;
 		const std::string* m_ptr_name;
 		std::list<WaitInfo> m_wait_infos;
-	};
-
-	class LockGuardImpl {
-	public:
-		LockGuardImpl(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
-		LockGuardImpl(const LockGuardImpl&) = delete;
-		LockGuardImpl& operator=(const LockGuardImpl&) = delete;
-
-		std::shared_ptr<int> scope() const { return m_scope; }
-
-	protected:
-		CoroutineAwaiter lock(const std::string& name) {
-			if (m_data) {
-				throw std::logic_error("coroutine already locked");
-			}
-			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			m_data = sc->lock_acquire(m_scope, name);
-			CoroutineAwaiter awaiter;
-			if (m_data->scope() == m_scope) {
-				awaiter.invalid();
-			}
-			return awaiter;
-		}
-
-		bool try_lock(const std::string& name) {
-			if (m_data) {
-				throw std::logic_error("coroutine already locked");
-			}
-			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			LockData* lock_data = sc->lock_try_acquire(m_scope, name);
-			if (lock_data->scope() != m_scope) {
-				return false;
-			}
-			m_data = lock_data;
-			return true;
-		}
-
-		void unlock() {
-            if (!m_data) {
-                return;
-            }
-			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-            if (!sc) { /* on sche destroy */
-                return;
-            }
-            sc->lock_release(m_data, std::any());
-            m_data = nullptr;
-        }
-
-	protected:
-		std::shared_ptr<int> m_scope;
-		LockData* m_data;
 	};
 
 	LockData* lock_try_acquire(std::shared_ptr<int> scope, const std::string& name) {
@@ -635,6 +578,63 @@ protected:
 		lock_data->m_wait_infos.pop_front();
 		readyResume(co_node, param);
 	}
+
+public:
+	static std::shared_ptr<int> new_scope() {
+		return std::make_shared<int>(0);
+	}
+
+	class LockGuard {
+	public:
+		LockGuard(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
+		~LockGuard() { unlock(); }
+		LockGuard(const LockGuard&) = delete;
+		LockGuard& operator=(const LockGuard&) = delete;
+
+		std::shared_ptr<int> scope() const { return m_scope; }
+
+		CoroutineAwaiter lock(const std::string& name) {
+			if (m_data) {
+				throw std::logic_error("coroutine already locked");
+			}
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+			m_data = sc->lock_acquire(m_scope, name);
+			CoroutineAwaiter awaiter;
+			if (m_data->scope() == m_scope) {
+				awaiter.invalid();
+			}
+			return awaiter;
+		}
+
+		bool try_lock(const std::string& name) {
+			if (m_data) {
+				throw std::logic_error("coroutine already locked");
+			}
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+			LockData* lock_data = sc->lock_try_acquire(m_scope, name);
+			if (lock_data->scope() != m_scope) {
+				return false;
+			}
+			m_data = lock_data;
+			return true;
+		}
+
+		void unlock() {
+            if (!m_data) {
+                return;
+            }
+			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
+            if (!sc) { /* on sche destroy */
+                return;
+            }
+            sc->lock_release(m_data, std::any());
+            m_data = nullptr;
+        }
+
+	private:
+		std::shared_ptr<int> m_scope;
+		LockData* m_data;
+	};
 
 private:
 	std::unordered_map<std::string, LockData> m_lock_datas;

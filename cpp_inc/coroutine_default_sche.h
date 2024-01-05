@@ -201,28 +201,6 @@ private:
 		Event* timeout_event;
 	} BlockPointData;
 
-public:
-    class Mutex : public LockGuardImpl {
-	friend class CoroutineDefaultSche;
-    public:
-        Mutex(const std::shared_ptr<int>& scope) : LockGuardImpl(scope) {}
-        ~Mutex() {
-            unlock();
-        }
-
-        CoroutineAwaiter lock(const std::string& name) {
-			return LockGuardImpl::lock(name);
-        }
-
-		bool try_lock(const std::string& name) {
-			return LockGuardImpl::try_lock(name);
-        }
-
-        void unlock() {
-			LockGuardImpl::unlock();
-        }
-    };
-
 private:
     bool checkBusy() {
 		if (!m_events.empty()) {
