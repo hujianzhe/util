@@ -59,12 +59,12 @@ __declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
 __declspec_dll StackCoBlock_t* StackCoSche_yield_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group);
 
 __declspec_dll void StackCoSche_no_arg_free(struct StackCoSche_t* sche);
+__declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int block_id, int status, void* ret, void(*fn_ret_free)(void*));
+__declspec_dll void StackCoSche_pop_block_result(StackCoBlock_t* block, StackCoResumeResult_t* result);
 __declspec_dll void StackCoSche_resume_result_clean(StackCoResumeResult_t* result);
 
-__declspec_dll void StackCoSche_pop_block_result(StackCoBlock_t* block, StackCoResumeResult_t* result);
 __declspec_dll void StackCoSche_reuse_block(struct StackCoSche_t* sche, StackCoBlock_t* block);
 __declspec_dll void StackCoSche_reuse_block_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group);
-__declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int block_id, int status, void* ret, void(*fn_ret_free)(void*));
 
 #ifdef __cplusplus
 }
