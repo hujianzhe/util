@@ -28,9 +28,8 @@ typedef struct StackCoNode_t {
 	StackCoHdr_t hdr;
 	int status;
 	struct Fiber_t* fiber;
-	void(*proc)(struct StackCoSche_t*, void*);
-	void* proc_arg;
-	void(*fn_proc_arg_free)(void*);
+	void(*proc)(struct StackCoSche_t*, StackCoAsyncParam_t*);
+	StackCoAsyncParam_t proc_param;
 	List_t block_list;
 	List_t reuse_block_list;
 	RBTimerEvent_t* timeout_event;
@@ -49,7 +48,6 @@ typedef struct StackCoBlockNode_t {
 	StackCoNode_t* exec_co_node;
 	ListNode_t listnode;
 	HashtableNode_t htnode;
-	void(*fn_resume_ret_free)(void*);
 	RBTimerEvent_t* timeout_event;
 	ListNode_t ready_resume_listnode;
 	int ready_resume_flag;
@@ -62,8 +60,7 @@ typedef struct StackCoResume_t {
 	StackCoHdr_t hdr;
 	int block_id;
 	int status;
-	void* ret;
-	void(*fn_ret_free)(void*);
+	StackCoAsyncParam_t param;
 } StackCoResume_t;
 
 typedef struct StackCoSche_t {
@@ -114,7 +111,7 @@ static StackCoNode_t* alloc_stack_co_node(void) {
 static void reset_block_data(StackCoBlock_t* block) {
 	block->id = 0;
 	block->status = STACK_CO_STATUS_START;
-	block->resume_ret = NULL;
+	memset(&block->resume_param, 0, sizeof(block->resume_param));
 }
 
 static StackCoBlockNode_t* alloc_block_node(void) {
@@ -130,9 +127,7 @@ static void free_stack_co_node(StackCoSche_t* sche, StackCoNode_t* co_node) {
 		rbtimerDetachEvent(co_node->timeout_event);
 		free(co_node->timeout_event);
 	}
-	if (co_node->fn_proc_arg_free) {
-		co_node->fn_proc_arg_free(co_node->proc_arg);
-	}
+	StackCoSche_cleanup_async_param(&co_node->proc_param);
 	free(co_node);
 }
 
@@ -144,9 +139,7 @@ static void free_block_node(StackCoSche_t* sche, StackCoBlockNode_t* block_node)
 	if (block_node->htnode.key.i32) {
 		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
 	}
-	if (block_node->fn_resume_ret_free) {
-		block_node->fn_resume_ret_free(block_node->block.resume_ret);
-	}
+	StackCoSche_cleanup_async_param(&block_node->block.resume_param);
 
 	if (block_node->ready_resume_flag) {
 		listRemoveNode(&sche->ready_resume_block_list, &block_node->ready_resume_listnode);
@@ -184,7 +177,7 @@ static void FiberProcEntry(struct Fiber_t* fiber, void* arg) {
 	StackCoSche_t* sche = (StackCoSche_t*)arg;
 	while (1) {
 		StackCoNode_t* exec_co_node = sche->exec_co_node;
-		exec_co_node->proc(sche, exec_co_node->proc_arg);
+		exec_co_node->proc(sche, &exec_co_node->proc_param);
 		exec_co_node->status = STACK_CO_STATUS_FINISH;
 		sche->cur_fiber = sche->sche_fiber;
 		fiberSwitch(fiber, sche->sche_fiber);
@@ -422,9 +415,7 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 		}
 		else if (STACK_CO_HDR_RESUME == hdr->type) {
 			StackCoResume_t* e = pod_container_of(hdr, StackCoResume_t, hdr);
-			if (e->fn_ret_free) {
-				e->fn_ret_free(e->ret);
-			}
+			StackCoSche_cleanup_async_param(&e->param);
 			free(e);
 		}
 		else {
@@ -445,20 +436,21 @@ void StackCoSche_destroy(StackCoSche_t* sche) {
 	free(sche);
 }
 
-int StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+int StackCoSche_function(StackCoSche_t* sche, void(*proc)(StackCoSche_t*, StackCoAsyncParam_t*), const StackCoAsyncParam_t* param) {
 	StackCoNode_t* co_node = alloc_stack_co_node();
 	if (!co_node) {
 		return 0;
 	}
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
-	co_node->proc_arg = arg;
-	co_node->fn_proc_arg_free = fn_arg_free;
+	if (param) {
+		co_node->proc_param = *param;
+	}
 	dataqueuePush(&sche->dq, &co_node->hdr.listnode);
 	return 1;
 }
 
-int StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void(*proc)(struct StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
+int StackCoSche_timeout_util(StackCoSche_t* sche, long long tm_msec, void(*proc)(StackCoSche_t*, StackCoAsyncParam_t*), const StackCoAsyncParam_t* param) {
 	RBTimerEvent_t* e;
 	StackCoNode_t* co_node;
 
@@ -476,8 +468,9 @@ int StackCoSche_timeout_util(struct StackCoSche_t* sche, long long tm_msec, void
 	}
 	co_node->hdr.type = STACK_CO_HDR_PROC;
 	co_node->proc = proc;
-	co_node->proc_arg = arg;
-	co_node->fn_proc_arg_free = fn_arg_free;
+	if (param) {
+		co_node->proc_param = *param;
+	}
 	co_node->timeout_event = e;
 
 	e->timestamp = tm_msec;
@@ -701,8 +694,6 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 	block_node->wait_lock = NULL;
 	block_node->ready_resume_flag = 1;
 	block_node->block.status = STACK_CO_STATUS_FINISH;
-	block_node->block.resume_ret = NULL;
-	block_node->fn_resume_ret_free = NULL;
 
 	listPushNodeBack(&sche->ready_resume_block_list, lnode);
 }
@@ -731,29 +722,13 @@ StackCoBlock_t* StackCoSche_yield_group(struct StackCoSche_t* sche, StackCoBlock
 	return StackCoSche_yield(sche);
 }
 
-void StackCoSche_no_arg_free(StackCoSche_t* sche) {
-	if (sche->exec_co_node) {
-		sche->exec_co_node->fn_proc_arg_free = NULL;
-	}
-}
-
-void StackCoSche_pop_block_result(StackCoBlock_t* block, StackCoResumeResult_t* result) {
-	StackCoBlockNode_t* block_node = pod_container_of(block, StackCoBlockNode_t, block);
-	if (result) {
-		result->ret = block->resume_ret;
-		result->fn_ret_free = block_node->fn_resume_ret_free;
-	}
-	block->resume_ret = NULL;
-	block_node->fn_resume_ret_free = NULL;
-}
-
-void StackCoSche_resume_result_clean(StackCoResumeResult_t* result) {
-	if (!result) {
+void StackCoSche_cleanup_async_param(StackCoAsyncParam_t* ap) {
+	if (!ap) {
 		return;
 	}
-	if (result->fn_ret_free) {
-		result->fn_ret_free(result->ret);
-		result->fn_ret_free = NULL;
+	if (ap->fn_value_free) {
+		ap->fn_value_free(ap->value);
+		ap->fn_value_free = NULL;
 	}
 }
 
@@ -771,10 +746,7 @@ void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
 		block_node->htnode.key.i32 = 0;
 	}
-	if (block_node->fn_resume_ret_free) {
-		block_node->fn_resume_ret_free(block->resume_ret);
-		block_node->fn_resume_ret_free = NULL;
-	}
+	StackCoSche_cleanup_async_param(&block->resume_param);
 
 	if (block_node->ready_resume_flag) {
 		listRemoveNode(&sche->ready_resume_block_list, &block_node->ready_resume_listnode);
@@ -814,7 +786,7 @@ void StackCoSche_reuse_block_group(struct StackCoSche_t* sche, StackCoBlockGroup
 	listInit(&group->ready_block_list);
 }
 
-void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int status, void* ret, void(*fn_ret_free)(void*)) {
+void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int status, const StackCoAsyncParam_t* param) {
 	StackCoResume_t* e;
 	if (status >= 0) {
 		return;
@@ -826,8 +798,12 @@ void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int statu
 	e->hdr.type = STACK_CO_HDR_RESUME;
 	e->block_id = block_id;
 	e->status = status;
-	e->ret = ret;
-	e->fn_ret_free = fn_ret_free;
+	if (param) {
+		e->param = *param;
+	}
+	else {
+		memset(&e->param, 0, sizeof(e->param));
+	}
 	dataqueuePush(&sche->dq, &e->hdr.listnode);
 }
 
@@ -904,9 +880,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			key.i32 = co_resume->block_id;
 			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 			if (!htnode) {
-				if (co_resume->fn_ret_free) {
-					co_resume->fn_ret_free(co_resume->ret);
-				}
+				StackCoSche_cleanup_async_param(&co_resume->param);
 				free(co_resume);
 				continue;
 			}
@@ -916,8 +890,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 				rbtimerDetachEvent(block_node->timeout_event);
 			}
 			block_node->block.status = co_resume->status;
-			block_node->fn_resume_ret_free = co_resume->fn_ret_free;
-			block_node->block.resume_ret = co_resume->ret;
+			block_node->block.resume_param = co_resume->param;
 			free(co_resume);
 			stack_co_switch(sche, block_node->exec_co_node, block_node);
 		}
