@@ -8,7 +8,18 @@
 #include <any>
 #include <atomic>
 #include <cstdint>
+#if __has_include(<coroutine>)
 #include <coroutine>
+#elif	__has_include(<experimental/coroutine>)
+// for Apple Clang
+#include <experimental/coroutine>
+namespace std {
+	typedef experimental::suspend_never suspend_never;
+	typedef experimental::suspend_always suspend_always;
+	template <typename T>
+	using coroutine_handle = experimental::coroutine_handle<T>;
+}
+#endif
 #include <exception>
 #include <stdexcept>
 #include <list>
