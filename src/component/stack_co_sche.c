@@ -708,6 +708,10 @@ StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
 	return NULL;
 }
 
+int StackCoSche_group_is_empty(StackCoBlockGroup_t* group) {
+	return listIsEmpty(&group->wait_block_list) && listIsEmpty(&group->ready_block_list);
+}
+
 StackCoBlock_t* StackCoSche_yield_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group) {
 	ListNode_t* lcur = listPopNodeFront(&group->ready_block_list);
 	if (lcur) {

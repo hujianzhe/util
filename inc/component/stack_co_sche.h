@@ -58,6 +58,7 @@ __declspec_dll struct StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* 
 __declspec_dll void StackCoSche_unlock(struct StackCoSche_t* sche, struct StackCoLock_t* lock);
 
 __declspec_dll StackCoBlock_t* StackCoSche_yield(struct StackCoSche_t* sche);
+__declspec_dll int StackCoSche_group_is_empty(StackCoBlockGroup_t* group);
 __declspec_dll StackCoBlock_t* StackCoSche_yield_group(struct StackCoSche_t* sche, StackCoBlockGroup_t* group);
 
 __declspec_dll void StackCoSche_cleanup_async_param(StackCoAsyncParam_t* ap);
