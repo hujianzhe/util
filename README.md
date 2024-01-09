@@ -5,6 +5,19 @@
 		.gitignore					用于git忽略一些无用文件  
 		lib_compile.sh				unix系统编译静态链接库脚本  
 		so_compile.sh				unix系统编译动态链接库脚本  
+
+CPP部分  
+		cpp_inc/  
+			astar						基于格子和邻接点的A*寻路算法  
+			coroutine_default_sche.h	基于C++20的无栈协程调度器,nodejs风格  
+			coroutine_helper.h			基于C++20的无栈协程结构定义,nodejs风格  
+			cpp_compiler_define			判断编译器当前指定的CPP版本  
+			heap_timer					基于标准库堆结构实现的定时器  
+			lexical_cast				简陋但可用的通用类型转换接口  
+			misc						一些无法归类的,方便兼容C风格的  
+			string_helper				一些简陋的字符串分割和to_string方法  
+
+纯C部分  
 		inc/  
 			all						自动include所有库内头文件  
 			compiler_define			根据编译器不同,给出统一的关键字,定一缺失类型,必须的预处理语句,频闭不需要的警告等  
@@ -70,12 +83,3 @@
 				statistics			一些杂项统计接口  
 				terminal			提供终端控制台的操作接口  
 				time				提供统一的线程安全的时间接口  
-		cpp_inc/  
-			astar						基于格子和邻接点的A*寻路算法  
-			coroutine_default_sche.h	基于C++20的无栈协程调度器,nodejs风格  
-			coroutine_helper.h			基于C++20的无栈协程结构定义,nodejs风格  
-			cpp_compiler_define			判断编译器当前指定的CPP版本,一些可以兼容98标准的关键字的定义  
-			heap_timer					基于标准库堆结构实现的定时器  
-			lexical_cast				简陋但可用的通用类型转换接口  
-			misc						一些无法归类的  
-			string_helper				一些简陋的字符串分割和to_string方法  
