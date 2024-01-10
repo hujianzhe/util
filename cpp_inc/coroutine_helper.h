@@ -23,7 +23,6 @@ namespace std {
 #include <exception>
 #include <stdexcept>
 #include <list>
-#include <memory>
 #include <string>
 #include <unordered_set>
 #include <unordered_map>
@@ -527,124 +526,155 @@ protected:
 	}
 
 protected:
+	class LockOwner {
+	public:
+		LockOwner() : m_used(false), m_unique(true) {}
+		LockOwner(const std::string& v) : m_used(false), m_unique(v.empty()), m_v(v) {}
+
+		bool used() const { return m_used; }
+		void set_used(bool v) { m_used = v; }
+
+		bool equal(const LockOwner& other) const {
+			if (m_unique || other.m_unique) {
+				return false;
+			}
+			return m_v == other.m_v;
+		}
+
+	private:
+		bool m_used;
+		bool m_unique;
+		std::string m_v;
+	};
+
 	class LockData {
 	friend class CoroutineScheBaseImpl;
 	public:
 		LockData()
-			:m_scope_enter_times(0)
+			:m_enter_times(0)
 			,m_ptr_name(nullptr)
 		{}
 
-		std::shared_ptr<int> scope() const { return m_scope; }
+		bool try_acquire(const LockOwner& owner) {
+			if (!m_owner.used()) {
+				m_owner = owner;
+				m_owner.set_used(true);
+				m_enter_times = 1;
+				return true;
+			}
+			if (owner.equal(m_owner)) {
+				m_enter_times++;
+				return true;
+			}
+			return false;
+		}
+
+		bool acquire(CoroutineNode* current_co_node, const LockOwner& owner) {
+			if (try_acquire(owner)) {
+				return true;
+			}
+			m_wait_infos.emplace_back(WaitInfo{current_co_node, owner});
+			return false;
+		}
+
+		CoroutineNode* release() {
+			if (m_enter_times > 1) {
+				m_enter_times--;
+				return nullptr;
+			}
+			if (m_wait_infos.empty()) {
+				m_owner.set_used(false);
+				return nullptr;
+			}
+			WaitInfo& wait_info = m_wait_infos.front();
+			CoroutineNode* co_node = wait_info.co_node;
+			m_owner = wait_info.owner;
+			m_owner.set_used(true);
+			m_wait_infos.pop_front();
+			return co_node;
+		}
 
 	private:
 		typedef struct WaitInfo {
 			CoroutineNode* co_node;
-			std::shared_ptr<int> scope;
+			LockOwner owner;
 		} WaitInfo;
 
 	private:
-		std::shared_ptr<int> m_scope;
-		size_t m_scope_enter_times;
+		LockOwner m_owner;
+		size_t m_enter_times;
 		const std::string* m_ptr_name;
 		std::list<WaitInfo> m_wait_infos;
 	};
 
-	LockData* lock_try_acquire(std::shared_ptr<int> scope, const std::string& name) {
+	LockData* get_or_new_lock(const std::string& name) {
 		auto result = m_lock_datas.insert({name, LockData()});
 		LockData* lock_data = &result.first->second;
 		if (result.second) {
-			lock_data->m_scope = scope;
-			lock_data->m_scope_enter_times = 1;
 			lock_data->m_ptr_name = &result.first->first;
-			return lock_data;
-		}
-		if (lock_data->m_scope == scope) {
-			++lock_data->m_scope_enter_times;
-			return lock_data;
 		}
 		return lock_data;
-	}
-
-	LockData* lock_acquire(std::shared_ptr<int> scope, const std::string& name) {
-		LockData* lock_data = lock_try_acquire(scope, name);
-		if (lock_data->m_scope != scope) {
-			lock_data->m_wait_infos.emplace_back(LockData::WaitInfo{m_current_co_node, scope});
-		}
-		return lock_data;
-	}
-
-	void lock_release(LockData* lock_data, const std::any& param) {
-		if (lock_data->m_scope_enter_times > 1) {
-			--lock_data->m_scope_enter_times;
-			return;
-		}
-		if (lock_data->m_wait_infos.empty()) {
-			m_lock_datas.erase(*(lock_data->m_ptr_name));
-			return;
-		}
-		LockData::WaitInfo& wait_info = lock_data->m_wait_infos.front();
-		CoroutineNode* co_node = wait_info.co_node;
-		lock_data->m_scope = wait_info.scope;
-		lock_data->m_wait_infos.pop_front();
-		readyResume(co_node, param);
 	}
 
 public:
-	static std::shared_ptr<int> new_scope() {
-		return std::make_shared<int>(0);
-	}
-
 	class LockGuard {
 	public:
-		LockGuard(const std::shared_ptr<int>& scope) : m_scope(scope), m_data(nullptr) {}
+		LockGuard() : m_lockData(nullptr) {}
+		LockGuard(const std::string& str_owner) : m_lockData(nullptr), m_strOwner(str_owner) {}
 		~LockGuard() { unlock(); }
 		LockGuard(const LockGuard&) = delete;
 		LockGuard& operator=(const LockGuard&) = delete;
 
-		std::shared_ptr<int> scope() const { return m_scope; }
-
 		CoroutineAwaiter lock(const std::string& name) {
-			if (m_data) {
+			if (m_lockData) {
 				throw std::logic_error("coroutine already locked");
 			}
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			m_data = sc->lock_acquire(m_scope, name);
+			m_lockData = sc->get_or_new_lock(name);
 			CoroutineAwaiter awaiter;
-			if (m_data->scope() == m_scope) {
+			if (m_lockData->acquire(sc->m_current_co_node, LockOwner(m_strOwner))) {
 				awaiter.invalid();
 			}
 			return awaiter;
 		}
 
 		bool try_lock(const std::string& name) {
-			if (m_data) {
+			if (m_lockData) {
 				throw std::logic_error("coroutine already locked");
 			}
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-			LockData* lock_data = sc->lock_try_acquire(m_scope, name);
-			if (lock_data->scope() != m_scope) {
-				return false;
+			LockData* lock_data = sc->get_or_new_lock(name);
+			if (lock_data->try_acquire(LockOwner(m_strOwner))) {
+				m_lockData = lock_data;
+				return true;
 			}
-			m_data = lock_data;
-			return true;
+			return false;
 		}
 
 		void unlock() {
-            if (!m_data) {
-                return;
-            }
+			if (!m_lockData) {
+				return;
+			}
 			CoroutineScheBaseImpl* sc = (CoroutineScheBaseImpl*)CoroutineScheBase::p;
-            if (!sc) { /* on sche destroy */
-                return;
-            }
-            sc->lock_release(m_data, std::any());
-            m_data = nullptr;
-        }
+			if (!sc) { /* on sche destroy */
+				return;
+			}
+			LockData* lock_data = m_lockData;
+			m_lockData = nullptr;
+			CoroutineNode* co_node = lock_data->release();
+			if (co_node) {
+				sc->readyResume(co_node, std::any());
+				return;
+			}
+			if (lock_data->m_owner.used()) {
+				return;
+			}
+			sc->m_lock_datas.erase(*(lock_data->m_ptr_name));
+		}
 
 	private:
-		std::shared_ptr<int> m_scope;
-		LockData* m_data;
+		LockData* m_lockData;
+		std::string m_strOwner;
 	};
 
 private:
