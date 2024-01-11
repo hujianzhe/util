@@ -191,39 +191,38 @@ static void FiberProcEntry(struct Fiber_t* fiber, void* arg) {
 
 static void stack_co_switch(StackCoSche_t* sche, StackCoNode_t* dst_co_node, StackCoBlockNode_t* dst_block_node) {
 	struct Fiber_t* cur_fiber, *dst_fiber;
-	StackCoNode_t* exec_co_node = dst_co_node;
 
 	if (dst_block_node) {
 		StackCoBlockGroup_t* dst_group = dst_block_node->wait_group;
 		if (dst_group) {
 			listRemoveNode(&dst_group->wait_block_list, &dst_block_node->ready_resume_listnode);
 		}
-		if (exec_co_node->wait_group != dst_group) {
+		if (dst_co_node->wait_group != dst_group) {
 			if (dst_group) {
 				listPushNodeBack(&dst_group->ready_block_list, &dst_block_node->ready_resume_listnode);
 			}
 			return;
 		}
 		dst_block_node->wait_group = NULL;
-		exec_co_node->wait_group = NULL;
+		dst_co_node->wait_group = NULL;
 	}
 	cur_fiber = sche->cur_fiber;
 	dst_fiber = dst_co_node->fiber;
 
-	sche->exec_co_node = exec_co_node;
+	sche->exec_co_node = dst_co_node;
 	sche->resume_block_node = dst_block_node;
 	sche->cur_fiber = dst_fiber;
 	fiberSwitch(cur_fiber, dst_fiber);
-	if (exec_co_node->status >= 0) {
+	if (dst_co_node->status >= 0) {
 		return;
 	}
 	if (dst_fiber != sche->proc_fiber) {
 		fiberFree(dst_fiber);
 	}
-	exec_co_node->fiber = NULL;
-	listRemoveNode(&sche->exec_co_list, &exec_co_node->hdr.listnode);
-	free_co_block_nodes(sche, exec_co_node);
-	free_stack_co_node(sche, exec_co_node);
+	dst_co_node->fiber = NULL;
+	listRemoveNode(&sche->exec_co_list, &dst_co_node->hdr.listnode);
+	free_co_block_nodes(sche, dst_co_node);
+	free_stack_co_node(sche, dst_co_node);
 	sche->exec_co_node = NULL;
 }
 
