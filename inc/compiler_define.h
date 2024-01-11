@@ -92,6 +92,13 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	STATIC_ASSERT(sizeof(unsigned long) == sizeof(void*), "");
 	typedef	long									SignedPtr_t;
 	typedef	unsigned long							UnsignedPtr_t;
+	#ifdef	__clang__
+		#if	__has_feature(address_sanitizer)
+			#ifndef	__SANITIZE_ADDRESS__
+			#define	__SANITIZE_ADDRESS__
+			#endif
+		#endif
+	#endif
 
 #else
 	#define	__declspec_noinline
