@@ -5,6 +5,9 @@
 #ifndef	UTIL_C_COMPONENT_STACK_CO_SCHE_H
 #define	UTIL_C_COMPONENT_STACK_CO_SCHE_H
 
+#include "../compiler_define.h"
+#include "../datastruct/list.h"
+
 enum {
 	STACK_CO_STATUS_CANCEL = -3,
 	STACK_CO_STATUS_ERROR = -2,

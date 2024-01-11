@@ -349,8 +349,8 @@ BOOL threadFreeLocalKey(Tls_t key) {
 /* fiber operator */
 #if defined(_WIN32) || defined(_WIN64)
 typedef struct Fiber_t {
+	int m_from_thread;
 	void* m_arg;
-	struct Fiber_t* m_creater;
 	void(*m_entry)(struct Fiber_t*, void*);
 	LPVOID m_ctx;
 } Fiber_t;
@@ -360,28 +360,33 @@ static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
 }
 #else
 typedef struct Fiber_t {
+	int m_from_thread;
 	void* m_arg;
-	struct Fiber_t* m_creater;
 	void(*m_entry)(struct Fiber_t*, void*);
 	ucontext_t m_ctx;
 	unsigned char m_stack[1];
 } Fiber_t;
-static int volatile __fiber_object_spinlock;
-static Fiber_t* volatile __fiber_last_create_object;
+static struct {
+	int volatile spinlock;
+	Fiber_t* volatile fiber;
+	Fiber_t* volatile fiber_creator;
+} s_ucontext_make_arg;
 static void __fiber_start_routine(void) {
-	Fiber_t* fiber = __fiber_last_create_object;
-	__sync_lock_test_and_set(&__fiber_object_spinlock, 0);
-	swapcontext(&fiber->m_ctx, &fiber->m_creater->m_ctx);
+	Fiber_t* fiber = s_ucontext_make_arg.fiber;
+	Fiber_t* fiber_creator = s_ucontext_make_arg.fiber_creator;
+	__sync_lock_test_and_set(&s_ucontext_make_arg.spinlock, 0);
+
+	swapcontext(&fiber->m_ctx, &fiber_creator->m_ctx);
 	fiber->m_entry(fiber, fiber->m_arg);
 }
 #endif
 
 struct Fiber_t* fiberFromThread(void) {
-	Fiber_t* fiber;
 #if defined(_WIN32) || defined(_WIN64)
-	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
-	if (!fiber)
+	Fiber_t* fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	if (!fiber) {
 		return NULL;
+	}
 	fiber->m_ctx = ConvertThreadToFiberEx(fiber, FIBER_FLAG_FLOAT_SWITCH);
 	if (!fiber->m_ctx) {
 		free(fiber);
@@ -389,25 +394,26 @@ struct Fiber_t* fiberFromThread(void) {
 	}
 	fiber->m_arg = NULL;
 	fiber->m_entry = NULL;
-	fiber->m_creater = fiber;
+	fiber->m_from_thread = 1;
 	return fiber;
 #else
-	fiber = (Fiber_t*)calloc(1, sizeof(Fiber_t));
-	if (!fiber)
+	Fiber_t* fiber = (Fiber_t*)calloc(1, sizeof(Fiber_t));
+	if (!fiber) {
 		return NULL;
+	}
 	fiber->m_arg = NULL;
 	fiber->m_ctx.uc_link = NULL;
-	fiber->m_creater = fiber;
+	fiber->m_from_thread = 1;
 	return fiber;
 #endif
 }
 
 struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (*entry)(struct Fiber_t*, void*), void* arg) {
-	Fiber_t* fiber;
 #if defined(_WIN32) || defined(_WIN64)
-	fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
-	if (!fiber)
+	Fiber_t* fiber = (Fiber_t*)malloc(sizeof(Fiber_t));
+	if (!fiber) {
 		return NULL;
+	}
 	fiber->m_ctx = CreateFiberEx(0, stack_size, FIBER_FLAG_FLOAT_SWITCH, __fiber_start_routine, fiber);
 	if (!fiber->m_ctx) {
 		free(fiber);
@@ -415,14 +421,17 @@ struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (
 	}
 	fiber->m_arg = arg;
 	fiber->m_entry = entry;
-	fiber->m_creater = cur_fiber;
+	fiber->m_from_thread = 0;
 	return fiber;
 #else
-	if (stack_size < SIGSTKSZ) // or MINSIGSTKSZ
+	Fiber_t* fiber;
+	if (stack_size < SIGSTKSZ) { // or MINSIGSTKSZ
 		stack_size = SIGSTKSZ;
+	}
 	fiber = (Fiber_t*)malloc(sizeof(Fiber_t) + stack_size);
-	if (!fiber)
+	if (!fiber) {
 		return NULL;
+	}
 	memset(&fiber->m_ctx, 0, sizeof(fiber->m_ctx));
 	if (-1 == getcontext(&fiber->m_ctx)) {
 		free(fiber);
@@ -433,14 +442,16 @@ struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (
 	fiber->m_ctx.uc_link = NULL;
 	fiber->m_arg = arg;
 	fiber->m_entry = entry;
-	fiber->m_creater = cur_fiber;
-	makecontext(&fiber->m_ctx, __fiber_start_routine, 0);
+	fiber->m_from_thread = 0;
 	/* makecontext,, argc -- the number of argument, but sizeof every argument is sizeof(int)
 	   so pass pointer is hard,,,use some int merge???,,,forget it.
 	   so, use a urgly solution to avoid...\o/
 	 */
-	while (__sync_lock_test_and_set(&__fiber_object_spinlock, 1));
-	__fiber_last_create_object = fiber;
+	makecontext(&fiber->m_ctx, __fiber_start_routine, 0);
+	while (__sync_lock_test_and_set(&s_ucontext_make_arg.spinlock, 1));
+	s_ucontext_make_arg.fiber = fiber;
+	s_ucontext_make_arg.fiber_creator = cur_fiber;
+
 	swapcontext(&cur_fiber->m_ctx, &fiber->m_ctx);
 	return fiber;
 #endif
@@ -461,7 +472,7 @@ void fiberFree(struct Fiber_t* fiber) {
 		return;
 	}
 #if defined(_WIN32) || defined(_WIN64)
-	if (fiber->m_creater == fiber) {
+	if (fiber->m_from_thread) {
 		assertTRUE(ConvertFiberToThread());
 	}
 	else {
