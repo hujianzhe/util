@@ -10,6 +10,9 @@
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <signal.h>
+#ifdef	__SANITIZE_ADDRESS__
+#include <sanitizer/asan_interface.h>
+#endif
 #endif
 
 #ifdef	__cplusplus
@@ -349,6 +352,7 @@ BOOL threadFreeLocalKey(Tls_t key) {
 /* fiber operator */
 #if defined(_WIN32) || defined(_WIN64)
 typedef struct Fiber_t {
+	int m_dead;
 	int m_from_thread;
 	void* m_arg;
 	void(*m_entry)(struct Fiber_t*, void*);
@@ -360,6 +364,14 @@ static void WINAPI __fiber_start_routine(LPVOID lpFiberParameter) {
 }
 #else
 typedef struct Fiber_t {
+	#ifdef	__SANITIZE_ADDRESS__
+	struct {
+		void* fake_stack;
+		const void* old_stack;
+		size_t old_stack_sz;
+	} m_asan;
+	#endif
+	int m_dead;
 	int m_from_thread;
 	void* m_arg;
 	void(*m_entry)(struct Fiber_t*, void*);
@@ -376,7 +388,14 @@ static void __fiber_start_routine(void) {
 	Fiber_t* fiber_creator = s_ucontext_make_arg.fiber_creator;
 	__sync_lock_test_and_set(&s_ucontext_make_arg.spinlock, 0);
 
+	#ifdef	__SANITIZE_ADDRESS__
+	__sanitizer_finish_switch_fiber(NULL, NULL, NULL);
+	__sanitizer_start_switch_fiber(&fiber->m_asan.fake_stack, fiber_creator->m_ctx.uc_stack.ss_sp, fiber_creator->m_ctx.uc_stack.ss_size);
+	#endif
 	swapcontext(&fiber->m_ctx, &fiber_creator->m_ctx);
+	#ifdef	__SANITIZE_ADDRESS__
+	__sanitizer_finish_switch_fiber(fiber->m_asan.fake_stack, NULL, NULL);
+	#endif
 	fiber->m_entry(fiber, fiber->m_arg);
 }
 #endif
@@ -394,6 +413,7 @@ struct Fiber_t* fiberFromThread(void) {
 	}
 	fiber->m_arg = NULL;
 	fiber->m_entry = NULL;
+	fiber->m_dead = 0;
 	fiber->m_from_thread = 1;
 	return fiber;
 #else
@@ -403,6 +423,7 @@ struct Fiber_t* fiberFromThread(void) {
 	}
 	fiber->m_arg = NULL;
 	fiber->m_ctx.uc_link = NULL;
+	fiber->m_dead = 0;
 	fiber->m_from_thread = 1;
 	return fiber;
 #endif
@@ -421,6 +442,7 @@ struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (
 	}
 	fiber->m_arg = arg;
 	fiber->m_entry = entry;
+	fiber->m_dead = 0;
 	fiber->m_from_thread = 0;
 	return fiber;
 #else
@@ -442,6 +464,7 @@ struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (
 	fiber->m_ctx.uc_link = NULL;
 	fiber->m_arg = arg;
 	fiber->m_entry = entry;
+	fiber->m_dead = 0;
 	fiber->m_from_thread = 0;
 	/* makecontext,, argc -- the number of argument, but sizeof every argument is sizeof(int)
 	   so pass pointer is hard,,,use some int merge???,,,forget it.
@@ -452,20 +475,41 @@ struct Fiber_t* fiberCreate(struct Fiber_t* cur_fiber, size_t stack_size, void (
 	s_ucontext_make_arg.fiber = fiber;
 	s_ucontext_make_arg.fiber_creator = cur_fiber;
 
+	#ifdef	__SANITIZE_ADDRESS__
+	__sanitizer_start_switch_fiber(&cur_fiber->m_asan.fake_stack, fiber->m_ctx.uc_stack.ss_sp, fiber->m_ctx.uc_stack.ss_size);
+	#endif
 	swapcontext(&cur_fiber->m_ctx, &fiber->m_ctx);
+	#ifdef	__SANITIZE_ADDRESS__
+	__sanitizer_finish_switch_fiber(cur_fiber->m_asan.fake_stack, NULL, NULL);
+	#endif
 	return fiber;
 #endif
 }
 
-void fiberSwitch(struct Fiber_t* from, struct Fiber_t* to) {
+void fiberSwitch(struct Fiber_t* cur, struct Fiber_t* to, int cur_dead) {
 #if defined(_WIN32) || defined(_WIN64)
-	assertTRUE(from->m_ctx == GetCurrentFiber() && from->m_ctx != to->m_ctx);
+	assertTRUE(cur->m_ctx == GetCurrentFiber() && cur->m_ctx != to->m_ctx);
+	cur->m_dead = cur_dead;
 	SwitchToFiber(to->m_ctx);
 #else
-	assertTRUE(from != to);
-	swapcontext(&from->m_ctx, &to->m_ctx);
+	assertTRUE(cur != to);
+	cur->m_dead = cur_dead;
+	#ifdef	__SANITIZE_ADDRESS__
+	if (cur_dead) {
+		__sanitizer_start_switch_fiber(NULL, to->m_ctx.uc_stack.ss_sp, to->m_ctx.uc_stack.ss_size);
+	}
+	else {
+		__sanitizer_start_switch_fiber(&cur->m_asan.fake_stack, to->m_ctx.uc_stack.ss_sp, to->m_ctx.uc_stack.ss_size);
+	}
+	#endif
+	swapcontext(&cur->m_ctx, &to->m_ctx);
+	#ifdef	__SANITIZE_ADDRESS__
+	__sanitizer_finish_switch_fiber(cur->m_asan.fake_stack, NULL, NULL);
+	#endif
 #endif
 }
+
+int fiberIsDead(struct Fiber_t* fiber) { return fiber->m_dead; }
 
 void fiberFree(struct Fiber_t* fiber) {
 	if (!fiber) {
