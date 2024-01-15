@@ -593,14 +593,13 @@ protected:
 			m_wait_infos.pop_front();
 
 			sc->readyResume(co_node, std::any());
-			while (!m_wait_infos.empty()) {
-				WaitInfo& wait_info = m_wait_infos.front();
-				if (!m_owner.equal(wait_info.owner)) {
+			for (auto it = m_wait_infos.begin(); it != m_wait_infos.end(); ) {
+				if (!m_owner.equal(it->owner)) {
 					return;
 				}
-				co_node = wait_info.co_node;
+				co_node = it->co_node;
 				m_enter_times++;
-				m_wait_infos.pop_front();
+				it = m_wait_infos.erase(it);
 
 				sc->readyResume(co_node, std::any());
 			}
