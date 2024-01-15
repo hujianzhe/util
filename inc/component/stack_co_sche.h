@@ -58,6 +58,7 @@ __declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche
 __declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int block_id, int status, const StackCoAsyncParam_t* param);
 
 __declspec_dll struct StackCoLockOwner_t* StackCoSche_new_lock_owner(const char* s, size_t slen);
+__declspec_dll struct StackCoLockOwner_t* StackCoSche_clone_lock_owner(const struct StackCoLockOwner_t* owner);
 __declspec_dll void StackCoSche_free_lock_owner(struct StackCoLockOwner_t* owner);
 __declspec_dll struct StackCoLock_t* StackCoSche_lock(struct StackCoSche_t* sche, const struct StackCoLockOwner_t* owner, const char* name);
 __declspec_dll struct StackCoLock_t* StackCoSche_try_lock(struct StackCoSche_t* sche, const struct StackCoLockOwner_t* owner, const char* name);

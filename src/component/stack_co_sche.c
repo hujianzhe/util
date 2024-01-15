@@ -38,13 +38,14 @@ typedef struct StackCoNode_t {
 
 typedef struct StackCoLockOwner_t {
 	int unique;
+	size_t slen;
 	char str[1];
 } StackCoLockOwner_t;
 
 typedef struct StackCoLock_t {
 	HashtableNode_t htnode;
 	List_t wait_block_list;
-	const StackCoLockOwner_t* owner;
+	StackCoLockOwner_t* owner;
 	size_t enter_times;
 } StackCoLock_t;
 
@@ -56,7 +57,7 @@ typedef struct StackCoBlockNode_t {
 	RBTimerEvent_t* timeout_event;
 	ListNode_t ready_resume_listnode;
 	int ready_resume_flag;
-	const StackCoLockOwner_t* lock_owner;
+	StackCoLockOwner_t* lock_owner;
 	StackCoLock_t* wait_lock;
 	StackCoBlockGroup_t* wait_group;
 } StackCoBlockNode_t;
@@ -151,6 +152,9 @@ static void free_block_node(StackCoSche_t* sche, StackCoBlockNode_t* block_node)
 	}
 	else if (block_node->wait_lock) {
 		listRemoveNode(&block_node->wait_lock->wait_block_list, &block_node->ready_resume_listnode);
+		if (block_node->lock_owner) {
+			StackCoSche_free_lock_owner(block_node->lock_owner);
+		}
 	}
 	else if (block_node->wait_group) {
 		if (block_node->block.status != STACK_CO_STATUS_START) {
@@ -315,16 +319,23 @@ static int lock_owner_check_equal(const StackCoLockOwner_t* a, const StackCoLock
 	if (a->unique || b->unique) {
 		return 0;
 	}
-	return 0 == strcmp(a->str, b->str);
+	if (a->slen != b->slen) {
+		return 0;
+	}
+	return 0 == memcmp(a->str, b->str, b->slen);
 }
 
 static StackCoLock_t* sche_lock(StackCoSche_t* sche, const StackCoLockOwner_t* owner, StackCoLock_t* lock) {
 	StackCoNode_t* exec_co_node;
 	StackCoBlockNode_t* block_node;
+	StackCoLockOwner_t* clone_owner;
 	int block_node_alloc = 0;
 
 	if (!lock->owner) {
-		lock->owner = owner;
+		lock->owner = StackCoSche_clone_lock_owner(owner);
+		if (!lock->owner) {
+			return NULL;
+		}
 		lock->enter_times = 1;
 		return lock;
 	}
@@ -333,6 +344,10 @@ static StackCoLock_t* sche_lock(StackCoSche_t* sche, const StackCoLockOwner_t* o
 		return lock;
 	}
 
+	clone_owner = StackCoSche_clone_lock_owner(owner);
+	if (!clone_owner) {
+		return NULL;
+	}
 	exec_co_node = sche->exec_co_node;
 	if (listIsEmpty(&exec_co_node->reuse_block_list)) {
 		block_node = alloc_block_node();
@@ -351,13 +366,17 @@ static StackCoLock_t* sche_lock(StackCoSche_t* sche, const StackCoLockOwner_t* o
 	}
 
 	block_node->exec_co_node = exec_co_node;
-	listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
-	block_node->lock_owner = owner;
+	block_node->lock_owner = clone_owner;
 	block_node->wait_lock = lock;
+	listPushNodeBack(&exec_co_node->block_list, &block_node->listnode);
 	listPushNodeBack(&lock->wait_block_list, &block_node->ready_resume_listnode);
+
 	StackCoSche_yield(sche);
 	return lock;
 err:
+	if (clone_owner) {
+		StackCoSche_free_lock_owner(clone_owner);
+	}
 	if (block_node_alloc) {
 		free(block_node);
 	}
@@ -368,6 +387,7 @@ err:
 }
 
 static void free_stack_co_lock(StackCoLock_t* co_lock) {
+	StackCoSche_free_lock_owner(co_lock->owner);
 	free((void*)co_lock->htnode.key.ptr);
 	free(co_lock);
 }
@@ -651,8 +671,13 @@ StackCoLockOwner_t* StackCoSche_new_lock_owner(const char* s, size_t slen) {
 	else {
 		owner->unique = 1;
 	}
+	owner->slen = slen;
 	owner->str[slen] = 0;
 	return owner;
+}
+
+StackCoLockOwner_t* StackCoSche_clone_lock_owner(const StackCoLockOwner_t* owner) {
+	return StackCoSche_new_lock_owner(owner->str, owner->slen);
 }
 
 void StackCoSche_free_lock_owner(StackCoLockOwner_t* owner) { free(owner); }
@@ -723,6 +748,7 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 	}
 	lnode = listPopNodeFront(&lock->wait_block_list);
 	block_node = pod_container_of(lnode, StackCoBlockNode_t, ready_resume_listnode);
+	StackCoSche_free_lock_owner(lock->owner);
 	lock->owner = block_node->lock_owner;
 	block_node->lock_owner = NULL;
 	block_node->wait_lock = NULL;
@@ -737,6 +763,7 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 			return;
 		}
 		lock->enter_times++;
+		StackCoSche_free_lock_owner(block_node->lock_owner);
 		block_node->lock_owner = NULL;
 		block_node->wait_lock = NULL;
 		block_node->ready_resume_flag = 1;
@@ -810,6 +837,10 @@ void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 	else if (block_node->wait_lock) {
 		listRemoveNode(&block_node->wait_lock->wait_block_list, &block_node->ready_resume_listnode);
 		block_node->wait_lock = NULL;
+		if (block_node->lock_owner) {
+			StackCoSche_free_lock_owner(block_node->lock_owner);
+			block_node->lock_owner = NULL;
+		}
 	}
 	else if (block_node->wait_group) {
 		if (block_node->block.status != STACK_CO_STATUS_START) {
