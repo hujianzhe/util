@@ -577,21 +577,33 @@ protected:
 			return false;
 		}
 
-		CoroutineNode* release() {
+		void release(CoroutineScheBaseImpl* sc) {
 			if (m_enter_times > 1) {
 				m_enter_times--;
-				return nullptr;
+				return;
 			}
 			if (m_wait_infos.empty()) {
 				m_owner.set_used(false);
-				return nullptr;
+				return;
 			}
 			WaitInfo& wait_info = m_wait_infos.front();
 			CoroutineNode* co_node = wait_info.co_node;
 			m_owner = wait_info.owner;
 			m_owner.set_used(true);
 			m_wait_infos.pop_front();
-			return co_node;
+
+			sc->readyResume(co_node, std::any());
+			while (!m_wait_infos.empty()) {
+				WaitInfo& wait_info = m_wait_infos.front();
+				if (!m_owner.equal(wait_info.owner)) {
+					return;
+				}
+				co_node = wait_info.co_node;
+				m_enter_times++;
+				m_wait_infos.pop_front();
+
+				sc->readyResume(co_node, std::any());
+			}
 		}
 
 	private:
@@ -661,11 +673,7 @@ public:
 			}
 			LockData* lock_data = m_lockData;
 			m_lockData = nullptr;
-			CoroutineNode* co_node = lock_data->release();
-			if (co_node) {
-				sc->readyResume(co_node, std::any());
-				return;
-			}
+			lock_data->release(sc);
 			if (lock_data->m_owner.used()) {
 				return;
 			}
