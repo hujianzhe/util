@@ -660,7 +660,11 @@ err:
 }
 
 StackCoLockOwner_t* StackCoSche_new_lock_owner(const char* s, size_t slen) {
-	StackCoLockOwner_t* owner = (StackCoLockOwner_t*)malloc(sizeof(StackCoLockOwner_t) + slen);
+	StackCoLockOwner_t* owner;
+	if (!s) {
+		slen = 0;
+	}
+	owner = (StackCoLockOwner_t*)malloc(sizeof(StackCoLockOwner_t) + slen);
 	if (!owner) {
 		return NULL;
 	}
