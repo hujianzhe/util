@@ -730,6 +730,23 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 	block_node->block.status = STACK_CO_STATUS_FINISH;
 
 	listPushNodeBack(&sche->ready_resume_block_list, lnode);
+	for (lnode = lock->wait_block_list.head; lnode; ) {
+		ListNode_t* lnext;
+		block_node = pod_container_of(lnode, StackCoBlockNode_t, ready_resume_listnode);
+		if (!lock_owner_check_equal(lock->owner, block_node->lock_owner)) {
+			return;
+		}
+		lock->enter_times++;
+		block_node->lock_owner = NULL;
+		block_node->wait_lock = NULL;
+		block_node->ready_resume_flag = 1;
+		block_node->block.status = STACK_CO_STATUS_FINISH;
+
+		lnext = lnode->next;
+		listRemoveNode(&lock->wait_block_list, lnode);
+		listPushNodeBack(&sche->ready_resume_block_list, lnode);
+		lnode = lnext;
+	}
 }
 
 StackCoBlock_t* StackCoSche_yield(StackCoSche_t* sche) {
