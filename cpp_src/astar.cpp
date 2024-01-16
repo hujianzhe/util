@@ -6,8 +6,6 @@
 #include <algorithm>
 
 namespace util {
-AStarBase::Walkable AStarBase::def_walkable;
-
 //////////////////////////////////////////////////////////////////////////////
 
 void AStarGridBase::init() {
@@ -37,7 +35,7 @@ void AStarGridBase::init() {
 	m_openheap.reserve(m_maxSearchPoint);
 }
 
-AStarBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarBase::Walkable& walkable) {
+AStarGridBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarBase::Walkable& walkable) {
 	if (x < 0 || x >= m_xsize || y < 0 || y >= m_ysize) {
 		return NULL;
 	}
@@ -55,7 +53,7 @@ AStarBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarBase::Walkabl
 	return pos;
 }
 
-bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarBase::Point>& poslist, const AStarBase::Walkable& walkable) {
+bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarGridBase::Point>& poslist, const AStarBase::Walkable& walkable) {
 	if (sx == ex && sy == ey) {
 		return true;
 	}
@@ -145,7 +143,7 @@ bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarBase
 			return false;
 		}
 
-		nextpos = m_openheap.front();
+		nextpos = static_cast<Pos*>(m_openheap.front());
 		std::pop_heap(m_openheap.begin(), m_openheap.end(), openheapCompare);
 		m_openheap.pop_back();
 
@@ -162,13 +160,13 @@ bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarBase
 	return true;
 }
 
-void AStarGridBase::merge(const AStarBase::Pos* endpos, std::list<AStarBase::Point>& poslist) {
-	std::list<AStarBase::Point> templist;
+void AStarGridBase::merge(const AStarGridBase::Pos* endpos, std::list<AStarGridBase::Point>& poslist) {
+	std::list<Point> templist;
 	templist.push_front(Point(endpos->x, endpos->y));
 	const Pos* npos = endpos;
 	int dx = 0;
 	int dy = 0;
-	for (const Pos* pos = endpos->from; pos; pos = pos->from) {
+	for (const Pos* pos = static_cast<const Pos*>(endpos->from); pos; pos = static_cast<const Pos*>(pos->from)) {
 		int new_dx = pos->x - npos->x;
 		int new_dy = pos->y - npos->y;
 		if (new_dx != dx || new_dy != dy) {
@@ -197,7 +195,7 @@ AStarAdjPointBase::Pos* AStarAdjPointBase::getPos(int id) {
 	return it != m_poses.end() ? &it->second : NULL;
 }
 
-AStarBase::Pos* AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase::Walkable& walkable) {
+AStarAdjPointBase::Pos* AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase::Walkable& walkable) {
 	if (pos->version == m_curVersion) {
 		return NULL;
 	}
@@ -278,9 +276,8 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 		curpos = nextpos;
 	}
 	std::list<int> templist;
-	for (const AStarBase::Pos* pos = nextpos; pos; pos = pos->from) {
-		const Pos* adjpos = static_cast<const Pos*>(pos);
-		templist.push_front(adjpos->id);
+	for (const Pos* pos = nextpos; pos; pos = static_cast<const Pos*>(pos->from)) {
+		templist.push_front(pos->id);
 	}
 	idlist.splice(idlist.end(), templist);
 	return true;
