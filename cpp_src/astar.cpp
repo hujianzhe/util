@@ -195,15 +195,15 @@ AStarAdjPointBase::Pos* AStarAdjPointBase::getPos(int id) {
 	return it != m_poses.end() ? &it->second : NULL;
 }
 
-AStarAdjPointBase::Pos* AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase::Walkable& walkable) {
+bool AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase::Walkable& walkable) {
 	if (pos->version == m_curVersion) {
-		return NULL;
+		return false;
 	}
 	pos->version = m_curVersion;
 	if (!walkable.canMove(pos)) {
-		return NULL;
+		return false;
 	}
-	return pos;
+	return true;
 }
 
 bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const AStarBase::Walkable& walkable) {

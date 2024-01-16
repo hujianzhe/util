@@ -135,7 +135,7 @@ protected:
 	Pos* getPos(int id);
 
 private:
-	Pos* tryOpenPos(Pos* pos, const AStarBase::Walkable& walkable);
+	bool tryOpenPos(Pos* pos, const AStarBase::Walkable& walkable);
 
 private:
 	std::map<int, Pos> m_poses;
