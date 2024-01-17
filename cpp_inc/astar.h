@@ -26,12 +26,6 @@ public:
 		virtual ~Pos() {}
 	} Pos;
 
-	typedef struct Walkable {
-		virtual bool canMove(const Pos* pos) const { return true; }
-		virtual bool earlyFinish(const Pos* pos) const { return false; }
-		virtual ~Walkable() {}
-	} Walkable;
-
 	AStarBase() :
 		m_curVersion(0),
 		m_maxSearchPoint(1024)
@@ -48,9 +42,6 @@ public:
 	virtual void init() = 0;
 
 protected:
-	virtual int H(const Pos* openpos, const Pos* endpos) { return 0; }
-	virtual int G(const Pos* openpos, const Pos* curpos, const Pos* startpos) { return 0; }
-
 	static bool openheapCompare(const Pos* a, const Pos* b) { return a->f > b->f; }
 
 protected:
@@ -82,29 +73,37 @@ public:
 		Pos() : AStarBase::Pos(), x(0), y(0) {}
 	} Pos;
 
+	typedef struct Walkable {
+		virtual ~Walkable() {}
+
+		virtual bool canMove(const Pos* pos) const { return true; }
+		virtual bool earlyFinish(const Pos* pos) const { return false; }
+		virtual int G(const Pos* openpos, const Pos* curpos, const Pos* startpos) const { return 0; }
+		virtual int H(const Pos* openpos, const Pos* endpos) const {
+			int delta_x = endpos->x - openpos->x;
+			int delta_y = endpos->y - openpos->y;
+			if (delta_x < 0) {
+				delta_x = -delta_x;
+			}
+			if (delta_y < 0) {
+				delta_y = -delta_y;
+			}
+			return delta_x + delta_y;
+		}
+	} Walkable;
+
 	int xsize() { return m_xsize; }
 	int ysize() { return m_ysize; }
 
 	virtual void init();
 
-	bool findPath(int sx, int sy, int ex, int ey, std::list<Point>& poslist, const AStarBase::Walkable& walkable = AStarBase::Walkable());
+	bool findPath(int sx, int sy, int ex, int ey, std::list<Point>& poslist, const Walkable& walkable = Walkable());
 
 protected:
-	virtual int H(const Pos* openpos, const Pos* endpos) {
-		int delta_x = endpos->x - openpos->x;
-		int delta_y = endpos->y - openpos->y;
-		if (delta_x < 0) {
-			delta_x = -delta_x;
-		}
-		if (delta_y < 0) {
-			delta_y = -delta_y;
-		}
-		return delta_x + delta_y;
-	}
 
 private:
 	virtual bool isStaticObstacle(int x, int y) { return false; }
-	Pos* tryOpenPos(int x, int y, const AStarBase::Walkable& walkable);
+	Pos* tryOpenPos(int x, int y, const Walkable& walkable);
 
 	static void merge(const Pos* endpos, std::list<Point>& poslist);
 
@@ -126,16 +125,25 @@ public:
 		Pos() : AStarBase::Pos(), id(0) {}
 	} Pos;
 
+	typedef struct Walkable {
+		virtual ~Walkable() {}
+
+		virtual bool canMove(const Pos* pos) const { return true; }
+		virtual bool earlyFinish(const Pos* pos) const { return false; }
+		virtual int G(const Pos* openpos, const Pos* curpos, const Pos* startpos) const { return 0; }
+		virtual int H(const Pos* openpos, const Pos* endpos) const { return 0; }
+	} Walkable;
+
 	virtual void init() = 0;
 
-	bool findPath(int sid, int eid, std::list<int>& idlist, const AStarBase::Walkable& walkable = AStarBase::Walkable());
+	bool findPath(int sid, int eid, std::list<int>& idlist, const Walkable& walkable = Walkable());
 
 protected:
 	Pos* addPos(int id);
 	Pos* getPos(int id);
 
 private:
-	bool tryOpenPos(Pos* pos, const AStarBase::Walkable& walkable);
+	bool tryOpenPos(Pos* pos, const Walkable& walkable);
 
 private:
 	std::map<int, Pos> m_poses;

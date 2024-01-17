@@ -35,7 +35,7 @@ void AStarGridBase::init() {
 	m_openheap.reserve(m_maxSearchPoint);
 }
 
-AStarGridBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarBase::Walkable& walkable) {
+AStarGridBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarGridBase::Walkable& walkable) {
 	if (x < 0 || x >= m_xsize || y < 0 || y >= m_ysize) {
 		return NULL;
 	}
@@ -53,7 +53,7 @@ AStarGridBase::Pos* AStarGridBase::tryOpenPos(int x, int y, const AStarBase::Wal
 	return pos;
 }
 
-bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarGridBase::Point>& poslist, const AStarBase::Walkable& walkable) {
+bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarGridBase::Point>& poslist, const AStarGridBase::Walkable& walkable) {
 	if (sx == ex && sy == ey) {
 		return true;
 	}
@@ -131,8 +131,8 @@ bool AStarGridBase::findPath(int sx, int sy, int ex, int ey, std::list<AStarGrid
 		if (vec_openpos_cnt) {
 			for (unsigned int i = 0; i < vec_openpos_cnt; ++i) {
 				openpos = vec_openpos[i];
-				openpos->g = G(openpos, curpos, startpos);
-				openpos->f = H(openpos, endpos) + openpos->g;
+				openpos->g = walkable.G(openpos, curpos, startpos);
+				openpos->f = walkable.H(openpos, endpos) + openpos->g;
 				openpos->from = curpos;
 				m_openheap.push_back(openpos);
 				std::push_heap(m_openheap.begin(), m_openheap.end(), openheapCompare);
@@ -195,7 +195,7 @@ AStarAdjPointBase::Pos* AStarAdjPointBase::getPos(int id) {
 	return it != m_poses.end() ? &it->second : NULL;
 }
 
-bool AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase::Walkable& walkable) {
+bool AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarAdjPointBase::Walkable& walkable) {
 	if (pos->version == m_curVersion) {
 		return false;
 	}
@@ -206,7 +206,7 @@ bool AStarAdjPointBase::tryOpenPos(AStarAdjPointBase::Pos* pos, const AStarBase:
 	return true;
 }
 
-bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const AStarBase::Walkable& walkable) {
+bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const AStarAdjPointBase::Walkable& walkable) {
 	if (sid == eid) {
 		return true;
 	}
@@ -251,8 +251,8 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 		if (!vec_openpos.empty()) {
 			for (size_t i = 0; i < vec_openpos.size(); ++i) {
 				Pos* openpos = vec_openpos[i];
-				openpos->g = G(openpos, curpos, startpos);
-				openpos->f = H(openpos, endpos) + openpos->g;
+				openpos->g = walkable.G(openpos, curpos, startpos);
+				openpos->f = walkable.H(openpos, endpos) + openpos->g;
 				openpos->from = curpos;
 				m_openheap.push_back(openpos);
 				std::push_heap(m_openheap.begin(), m_openheap.end(), openheapCompare);
