@@ -13,41 +13,41 @@
 namespace util {
 class AStarBase {
 public:
-	typedef struct Pos {
+	typedef struct Node {
 		int g, f;
 		int version;
-		struct Pos* from;
+		struct Node* from;
 
-		Pos() :
+		Node() :
 			g(0), f(0),
 			version(0),
 			from(NULL)
 		{}
-		virtual ~Pos() {}
-	} Pos;
+		virtual ~Node() {}
+	} Node;
 
 	AStarBase() :
 		m_curVersion(0),
-		m_maxSearchPoint(1024)
+		m_maxSearchNum(1024)
 	{}
 
 	virtual ~AStarBase() {}
 
-	size_t maxSearchPoint() { return m_maxSearchPoint; }
-	void maxSearchPoint(size_t v) {
-		m_maxSearchPoint = v;
+	size_t maxSearchNum() { return m_maxSearchNum; }
+	void maxSearchNum(size_t v) {
+		m_maxSearchNum = v;
 		m_openheap.reserve(v);
 	}
 
 	virtual void init() = 0;
 
 protected:
-	static bool openheapCompare(const Pos* a, const Pos* b) { return a->f > b->f; }
+	static bool openheapCompare(const Node* a, const Node* b) { return a->f > b->f; }
 
 protected:
 	int m_curVersion;
-	size_t m_maxSearchPoint;
-	std::vector<Pos*> m_openheap;
+	size_t m_maxSearchNum;
+	std::vector<Node*> m_openheap;
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,7 @@ public:
 		AStarBase(),
 		m_xsize(xsize),
 		m_ysize(ysize),
-		m_posmap(xsize * ysize)
+		m_nodes_map(xsize * ysize)
 	{}
 
 	typedef struct Point {
@@ -67,21 +67,21 @@ public:
 		Point(int px, int py) : x(px), y(py) {}
 	} Point;
 
-	typedef struct Pos : public AStarBase::Pos {
+	typedef struct Node : public AStarBase::Node {
 		int x, y;
 
-		Pos() : AStarBase::Pos(), x(0), y(0) {}
-	} Pos;
+		Node() : AStarBase::Node(), x(0), y(0) {}
+	} Node;
 
 	typedef struct Walkable {
 		virtual ~Walkable() {}
 
-		virtual bool canMove(const Pos* pos) const { return true; }
-		virtual bool earlyFinish(const Pos* pos) const { return false; }
-		virtual int G(const Pos* openpos, const Pos* curpos, const Pos* startpos) const { return 0; }
-		virtual int H(const Pos* openpos, const Pos* endpos) const {
-			int delta_x = endpos->x - openpos->x;
-			int delta_y = endpos->y - openpos->y;
+		virtual bool canMove(const Node* node) const { return true; }
+		virtual bool earlyFinish(const Node* node) const { return false; }
+		virtual int G(const Node* open_node, const Node* cur_node, const Node* start_node) const { return 0; }
+		virtual int H(const Node* open_node, const Node* end_node) const {
+			int delta_x = end_node->x - open_node->x;
+			int delta_y = end_node->y - open_node->y;
 			if (delta_x < 0) {
 				delta_x = -delta_x;
 			}
@@ -97,41 +97,39 @@ public:
 
 	virtual void init();
 
-	bool findPath(int sx, int sy, int ex, int ey, std::list<Point>& poslist, const Walkable& walkable = Walkable());
-
-protected:
+	bool findPath(const Point& sp, const Point& ep, std::list<Point>& poslist, const Walkable& walkable = Walkable());
 
 private:
 	virtual bool isStaticObstacle(int x, int y) { return false; }
-	Pos* tryOpenPos(int x, int y, const Walkable& walkable);
+	Node* tryOpenNode(int x, int y, const Walkable& walkable);
 
-	static void merge(const Pos* endpos, std::list<Point>& poslist);
+	static void merge(const Node* endpos, std::list<Point>& poslist);
 
 private:
 	int m_xsize;
 	int m_ysize;
-	std::vector<Pos> m_poses;
-	std::vector<Pos*> m_posmap;
+	std::vector<Node> m_nodes;
+	std::vector<Node*> m_nodes_map;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 class AStarAdjPointBase : public AStarBase {
 public:
-	typedef struct Pos : public AStarBase::Pos {
+	typedef struct Node : public AStarBase::Node {
 		int id;
-		std::list<struct Pos*> adjs;
+		std::list<struct Node*> adjs;
 
-		Pos() : AStarBase::Pos(), id(0) {}
-	} Pos;
+		Node() : AStarBase::Node(), id(0) {}
+	} Node;
 
 	typedef struct Walkable {
 		virtual ~Walkable() {}
 
-		virtual bool canMove(const Pos* pos) const { return true; }
-		virtual bool earlyFinish(const Pos* pos) const { return false; }
-		virtual int G(const Pos* openpos, const Pos* curpos, const Pos* startpos) const { return 0; }
-		virtual int H(const Pos* openpos, const Pos* endpos) const { return 0; }
+		virtual bool canMove(const Node* node) const { return true; }
+		virtual bool earlyFinish(const Node* node) const { return false; }
+		virtual int G(const Node* open_node, const Node* cur_node, const Node* start_node) const { return 0; }
+		virtual int H(const Node* open_node, const Node* end_node) const { return 0; }
 	} Walkable;
 
 	virtual void init() = 0;
@@ -139,14 +137,14 @@ public:
 	bool findPath(int sid, int eid, std::list<int>& idlist, const Walkable& walkable = Walkable());
 
 protected:
-	Pos* addPos(int id);
-	Pos* getPos(int id);
+	Node* addNode(int id);
+	Node* getNode(int id);
 
 private:
-	bool tryOpenPos(Pos* pos, const Walkable& walkable);
+	bool tryOpenNode(Node* node, const Walkable& walkable);
 
 private:
-	std::map<int, Pos> m_poses;
+	std::map<int, Node> m_nodes;
 };
 }
 
