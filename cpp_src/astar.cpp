@@ -31,8 +31,6 @@ void AStarGridBase::init() {
 			node->y = y;
 		}
 	}
-
-	m_openheap.reserve(m_maxSearchNum);
 }
 
 AStarGridBase::Node* AStarGridBase::tryOpenNode(int x, int y, const Walkable& walkable) {
@@ -87,11 +85,14 @@ bool AStarGridBase::findPath(const Point& sp, const Point& ep, std::list<Point>&
 	Node* start_node = cur_node;
 	Node* next_node = NULL;
 	size_t cur_search_num = 0;
+	if (walkable.max_search_num != -1) {
+		m_openheap.reserve(walkable.max_search_num);
+	}
 	while (true) {
 		Node* vec_open_nodes[8];
 		unsigned int vec_open_nodes_cnt = 0;
 		Node* open_node = NULL;
-		if (cur_search_num >= m_maxSearchNum) {
+		if (cur_search_num >= walkable.max_search_num) {
 			return false;
 		}
 
@@ -184,18 +185,18 @@ void AStarGridBase::merge(const Node* end_node, std::list<Point>& poslist) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-AStarAdjPointBase::Node* AStarAdjPointBase::addNode(int id) {
+AStarAdjacencyBase::Node* AStarAdjacencyBase::addNode(int id) {
 	Node* node = &m_nodes[id];
 	node->id = id;
 	return node;
 }
 
-AStarAdjPointBase::Node* AStarAdjPointBase::getNode(int id) {
+AStarAdjacencyBase::Node* AStarAdjacencyBase::getNode(int id) {
 	std::map<int, Node>::iterator it = m_nodes.find(id);
 	return it != m_nodes.end() ? &it->second : NULL;
 }
 
-bool AStarAdjPointBase::tryOpenNode(Node* node, const Walkable& walkable) {
+bool AStarAdjacencyBase::tryOpenNode(Node* node, const Walkable& walkable) {
 	if (node->version == m_curVersion) {
 		return false;
 	}
@@ -206,7 +207,7 @@ bool AStarAdjPointBase::tryOpenNode(Node* node, const Walkable& walkable) {
 	return true;
 }
 
-bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const Walkable& walkable) {
+bool AStarAdjacencyBase::findPath(int sid, int eid, std::list<int>& idlist, const Walkable& walkable) {
 	if (sid == eid) {
 		return true;
 	}
@@ -235,9 +236,12 @@ bool AStarAdjPointBase::findPath(int sid, int eid, std::list<int>& idlist, const
 	Node* start_node = cur_node;
 	Node* next_node = NULL;
 	size_t cur_search_num = 0;
+	if (walkable.max_search_num != -1) {
+		m_openheap.reserve(walkable.max_search_num);
+	}
 	while (true) {
 		std::vector<Node*> vec_open_nodes;
-		if (cur_search_num >= m_maxSearchNum) {
+		if (cur_search_num >= walkable.max_search_num) {
 			return false;
 		}
 

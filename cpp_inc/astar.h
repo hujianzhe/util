@@ -27,26 +27,25 @@ public:
 	} Node;
 
 	AStarBase() :
-		m_curVersion(0),
-		m_maxSearchNum(1024)
+		m_curVersion(0)
 	{}
 
 	virtual ~AStarBase() {}
 
-	size_t maxSearchNum() { return m_maxSearchNum; }
-	void maxSearchNum(size_t v) {
-		m_maxSearchNum = v;
-		m_openheap.reserve(v);
-	}
-
 	virtual void init() = 0;
 
 protected:
+	typedef struct Walkable {
+		Walkable() : max_search_num(-1) {}
+		virtual ~Walkable() {}
+
+		size_t max_search_num;
+	} Walkable;
+
 	static bool openheapCompare(const Node* a, const Node* b) { return a->f > b->f; }
 
 protected:
 	int m_curVersion;
-	size_t m_maxSearchNum;
 	std::vector<Node*> m_openheap;
 };
 
@@ -73,9 +72,7 @@ public:
 		Node() : AStarBase::Node(), x(0), y(0) {}
 	} Node;
 
-	typedef struct Walkable {
-		virtual ~Walkable() {}
-
+	typedef struct Walkable : public AStarBase::Walkable {
 		virtual bool canMove(const Node* node) const { return true; }
 		virtual bool earlyFinish(const Node* node) const { return false; }
 		virtual int G(const Node* open_node, const Node* cur_node, const Node* start_node) const { return 0; }
@@ -114,7 +111,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-class AStarAdjPointBase : public AStarBase {
+class AStarAdjacencyBase : public AStarBase {
 public:
 	typedef struct Node : public AStarBase::Node {
 		int id;
@@ -123,9 +120,7 @@ public:
 		Node() : AStarBase::Node(), id(0) {}
 	} Node;
 
-	typedef struct Walkable {
-		virtual ~Walkable() {}
-
+	typedef struct Walkable : public AStarBase::Walkable {
 		virtual bool canMove(const Node* node) const { return true; }
 		virtual bool earlyFinish(const Node* node) const { return false; }
 		virtual int G(const Node* open_node, const Node* cur_node, const Node* start_node) const { return 0; }
