@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <list>
 #include <unordered_set>
 #include <vector>
@@ -84,7 +85,7 @@ protected:
 	std::vector<AStarNodeBase*> m_openheap;
 };
 
-template <typename NodeId_t>
+template <typename NodeId_t, typename NodeHash_t = std::hash<NodeId_t> >
 class AStarWalkBase : public AStarWalkImpl {
 public:
 	void doStart(const NodeId_t& start_node_id) {
@@ -99,48 +100,49 @@ public:
 	}
 
 private:
-	std::unordered_set<NodeId_t> m_closeset;
+	std::unordered_set<NodeId_t, NodeHash_t> m_closeset;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename T>
+struct AStarPoint2D {
+	union {
+		T v[2];
+		struct {
+			T x;
+			T y;
+		};
+	};
+
+	AStarPoint2D() : x(0), y(0) {}
+	AStarPoint2D(T px, T py) : x(px), y(py) {}
+
+	bool operator==(const AStarPoint2D& p) const {
+		return this->x == p.x && this->y == p.y;
+	}
+	bool operator!=(const AStarPoint2D& p) const {
+		return this->x != p.x || this->y != p.y;
+	}
+	T getManhattanDistance(const AStarPoint2D& p) const {
+		T deltaX = this->x - p.x;
+		T deltaY = this->y - p.y;
+		return std::abs(this->x - p.x) + std::abs(this->y - p.y);
+	}
+};
+
+template <typename T, typename Point2D = AStarPoint2D<T> >
 class AStarNode_Grid2D : public AStarNodeBase {
 public:
-	typedef struct Point {
-		union {
-			T v[2];
-			struct {
-				T x;
-				T y;
-			};
-		};
-
-		Point() : x(0), y(0) {}
-		Point(T px, T py) : x(px), y(py) {}
-
-		bool operator==(const Point& p) const {
-			return this->x == p.x && this->y == p.y;
-		}
-		bool operator!=(const Point& p) const {
-			return this->x != p.x || this->y != p.y;
-		}
-		T getManhattanDistance(const Point& p) const {
-			T deltaX = this->x - p.x;
-			T deltaY = this->y - p.y;
-			return std::abs(this->x - p.x) + std::abs(this->y - p.y);
-		}
-	} Point;
-
 	AStarNode_Grid2D() : util::AStarNodeBase() {}
 	AStarNode_Grid2D(T x, T y) : util::AStarNodeBase(), p(x, y) {}
 
 public:
-	static void merge(const AStarNode_Grid2D* end_node, std::list<Point>& poslist) {
+	static void merge(const AStarNode_Grid2D* end_node, std::list<Point2D>& poslist) {
 		if (!end_node) {
 			return;
 		}
-		std::list<Point> templist;
+		std::list<Point2D> templist;
 		templist.push_front(end_node->p);
 		const AStarNode_Grid2D* prev_node = end_node;
 		T dx = 0;
@@ -164,8 +166,18 @@ public:
 	}
 
 public:
-	Point p;
+	Point2D p;
 };
+}
+
+namespace std {
+	template <class T>
+	struct hash<util::AStarPoint2D<T> > {
+		typedef util::AStarPoint2D<T> argument_type;
+		typedef size_t result_type;
+
+		result_type operator()(const argument_type& p) const noexcept { return p.x + p.y; }
+	};
 }
 
 #endif
