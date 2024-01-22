@@ -206,7 +206,7 @@ int mathMeshVerticesToAABB(const float (*v)[3], const unsigned int* v_indices, u
 	return 1;
 }
 
-static int mathPolygenCookingVertices(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t* polygen) {
+int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t* polygen) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
 	unsigned int tmp_edge_pair_indices_cnt = 0;
@@ -236,6 +236,7 @@ static int mathPolygenCookingVertices(const float (*v)[3], const unsigned int* t
 		polygen->v_indices_cnt = 3;
 		return 1;
 	}
+	/* Filters all share triangle edges, leaving all non-shared edges */
 	for (i = 0; i < tri_indices_cnt; i += 3) {
 		unsigned int ei[6] = {
 			tri_indices[i], tri_indices[i+1],
@@ -309,6 +310,7 @@ static int mathPolygenCookingVertices(const float (*v)[3], const unsigned int* t
 	if (!tmp_edge_pair_indices) {
 		return 0;
 	}
+	/* Calculates the order of edge vertex traversal */
 	tmp_edge_indices = (unsigned int*)malloc(sizeof(tmp_edge_indices[0]) * tmp_edge_pair_indices_cnt);
 	if (!tmp_edge_indices) {
 		free(tmp_edge_pair_indices);
@@ -348,6 +350,7 @@ static int mathPolygenCookingVertices(const float (*v)[3], const unsigned int* t
 		free(tmp_edge_indices);
 		return 0;
 	}
+	/* Merge vertices on the same edge */
 	--tmp_edge_indices_cnt;
 	++ret_v_indices_cnt;
 	last_s = 0;
@@ -386,7 +389,7 @@ static int mathPolygenCookingVertices(const float (*v)[3], const unsigned int* t
 		ret_v_indices[n++] = tmp_edge_indices[i];
 	}
 	free(tmp_edge_indices);
-
+	/* save result */
 	polygen->v_indices = ret_v_indices;
 	polygen->v_indices_cnt = ret_v_indices_cnt;
 	return 1;
@@ -474,6 +477,7 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
 	}
+	/* Merge triangles on the same plane */
 	tmp_polygens_arrcnt = tri_indices_cnt / 3;
 	tmp_polygens = (GeometryPolygen_t**)calloc(1, tmp_polygens_arrcnt * sizeof(tmp_polygens[0]));
 	if (!tmp_polygens) {
@@ -532,19 +536,19 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 			if (2 != same_cnt) {
 				continue;
 			}
-			tmp_polygens[pj] = tmp_polygens[pi];
+			tmp_polygens[pj] = tmp_polygens[pi]; /* flag same plane */
 		}
 	}
 	free(tmp_polygens);
 	tmp_polygens = NULL;
-
+	/* Cooking all polygen */
 	tmp_ret_polygens = (GeometryPolygen_t*)malloc(tmp_ret_polygens_cnt * sizeof(tmp_ret_polygens[0]));
 	if (!tmp_ret_polygens) {
 		goto err;
 	}
 	for (i = 0; i < tmp_ret_polygens_cnt; ++i) {
 		GeometryPolygen_t* polygen = tmp_ret_polygens_unique[i];
-		if (!mathPolygenCookingVertices((const float(*)[3])polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, polygen)) {
+		if (!mathPolygenCooking((const float(*)[3])polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, polygen)) {
 			goto err;
 		}
 		tmp_ret_polygens[i] = *polygen;
