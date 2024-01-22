@@ -141,20 +141,32 @@ int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
 	else {
 		unsigned int i;
 		float v[3], dot;
-		mathVec3Sub(v, polygen->v[polygen->tri_indices[0]], p);
+		float vp[3], eg[3];
+		mathVec3Sub(v, polygen->v[polygen->v_indices[0]], p);
 		dot = mathVec3Dot(polygen->normal, v);
 		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
 			return 0;
 		}
-		for (i = 0; i < polygen->tri_indices_cnt; ) {
-			float tri[3][3];
-			mathVec3Copy(tri[0], polygen->v[polygen->tri_indices[i++]]);
-			mathVec3Copy(tri[1], polygen->v[polygen->tri_indices[i++]]);
-			mathVec3Copy(tri[2], polygen->v[polygen->tri_indices[i++]]);
-			if (mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL)) {
+		mathVec3Sub(vp, p, polygen->v[polygen->v_indices[0]]);
+		mathVec3Sub(eg, polygen->v[polygen->v_indices[0]], polygen->v[polygen->v_indices[polygen->v_indices_cnt - 1]]);
+		mathVec3Cross(v, vp, eg);
+		if (mathVec3IsZero(v) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
+			return 1;
+		}
+		for (i = 1; i < polygen->v_indices_cnt; ++i) {
+			float vi[3];
+			mathVec3Sub(vp, p, polygen->v[polygen->v_indices[i]]);
+			mathVec3Sub(eg, polygen->v[polygen->v_indices[i]], polygen->v[polygen->v_indices[i - 1]]);
+			mathVec3Cross(vi, vp, eg);
+			if (mathVec3IsZero(vi) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
 				return 1;
 			}
+			dot = mathVec3Dot(v, vi);
+			if (dot <= 0.0f) {
+				return 0;
+			}
 		}
+		return 1;
 	}
 	return 0;
 }
