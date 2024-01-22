@@ -15,7 +15,7 @@
 namespace util {
 class string {
 public:
-	void split(const char* str, int delim, std::vector<std::string>& v) {
+	static void split(const char* str, int delim, std::vector<std::string>& v) {
 		const char* p;
 		for (p = str; *str; ++str) {
 			if (*p == delim) {
@@ -28,7 +28,7 @@ public:
 		}
 	}
 
-	void split(const char* str, const char* delim, std::vector<std::string>& v) {
+	static void split(const char* str, const char* delim, std::vector<std::string>& v) {
 		const char* p, *dp;
 		for (p = str; *str; ++str) {
 			for (dp = delim; *dp; ++dp) {
@@ -44,7 +44,7 @@ public:
 		}
 	}
 
-	void splits(const char* str, const char* delim, std::vector<std::string>& v) {
+	static void splits(const char* str, const char* delim, std::vector<std::string>& v) {
 		const char* p;
 		size_t delim_len = strlen(delim);
 		while ((p = strstr(str, delim))) {
@@ -56,7 +56,7 @@ public:
 		}
 	}
 
-	std::string format(const char* format, ...) {
+	static std::string format(const char* format, ...) {
 		char test_buf;
 		char* buf;
 		int len;
