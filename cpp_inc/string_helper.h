@@ -13,7 +13,8 @@
 #include <vector>
 
 namespace util {
-void string_split(const char* str, int delim, std::vector<std::string>& v) {
+template <typename StdContainer>
+void string_split(const char* str, int delim, StdContainer<std::string>& v) {
 	const char* p;
 	for (p = str; *str; ++str) {
 		if (*p == delim) {
@@ -26,7 +27,8 @@ void string_split(const char* str, int delim, std::vector<std::string>& v) {
 	}
 }
 
-void string_split(const char* str, const char* delim, std::vector<std::string>& v) {
+template <typename StdContainer>
+void string_split(const char* str, const char* delim, StdContainer<std::string>& v) {
 	const char* p, *dp;
 	for (p = str; *str; ++str) {
 		for (dp = delim; *dp; ++dp) {
@@ -42,7 +44,8 @@ void string_split(const char* str, const char* delim, std::vector<std::string>& 
 	}
 }
 
-void string_splits(const char* str, const char* delim, std::vector<std::string>& v) {
+template <typename StdContainer>
+void string_splits(const char* str, const char* delim, StdContainer<std::string>& v) {
 	const char* p;
 	size_t delim_len = strlen(delim);
 	while ((p = strstr(str, delim))) {
