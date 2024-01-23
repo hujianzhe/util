@@ -171,41 +171,6 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 	return 0;
 }
 
-int mathMeshVerticesToAABB(const float (*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]) {
-	unsigned int i, set_;
-	float v_min[3], v_max[3];
-	if (v_indices_cnt <= 0) {
-		return 0;
-	}
-	set_ = 0;
-	for (i = 0; i < v_indices_cnt; ++i) {
-		unsigned int j;
-		const float* cur_v = v[v_indices[i]];
-		if (!set_) {
-			set_ = 1;
-			mathVec3Copy(v_min, cur_v);
-			mathVec3Copy(v_max, cur_v);
-			continue;
-		}
-		for (j = 0; j < 3; ++j) {
-			if (cur_v[j] < v_min[j]) {
-				v_min[j] = cur_v[j];
-			}
-			else if (cur_v[j] > v_max[j]) {
-				v_max[j] = cur_v[j];
-			}
-		}
-	}
-	for (i = 0; i < 3; ++i) {
-		half[i] = (v_max[i] - v_min[i]) * 0.5f;
-		if (half[i] < 1e-5f + 1e-5f) {
-			half[i] = 1e-5f + 1e-5f;
-		}
-		o[i] = (v_min[i] + v_max[i]) * 0.5f;
-	}
-	return 1;
-}
-
 int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;

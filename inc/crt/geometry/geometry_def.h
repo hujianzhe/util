@@ -73,6 +73,7 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_POLYGON = 7,
 	GEOMETRY_BODY_OBB = 8,
 	GEOMETRY_BODY_TRIANGLE_MESH = 9,
+	GEOMETRY_BODY_CONVEX_POLYHEDRON = 10,
 };
 
 typedef struct GeometryBody_t {
@@ -85,6 +86,7 @@ typedef struct GeometryBody_t {
 		GeometryPolygon_t polygon;
 		GeometryOBB_t obb;
 		GeometryTriangleMesh_t mesh;
+		GeometryTriangleMesh_t convex;
 	};
 	int type;
 } GeometryBody_t;
@@ -100,6 +102,7 @@ typedef struct GeometryBodyRef_t {
 		const GeometryPolygon_t* polygon;
 		const GeometryOBB_t* obb;
 		const GeometryTriangleMesh_t* mesh;
+		const GeometryTriangleMesh_t* convex;
 	};
 	int type;
 } GeometryBodyRef_t;
