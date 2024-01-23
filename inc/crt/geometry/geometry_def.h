@@ -43,21 +43,21 @@ typedef struct GeometryRect_t {
 	float half_h;
 } GeometryRect_t;
 
-typedef struct GeometryPolygen_t {
+typedef struct GeometryPolygon_t {
 	float (*v)[3]; /* vertices vec3 */
 	float normal[3];
 	unsigned int v_indices_cnt; /* number of edge vertices index */
 	unsigned int tri_indices_cnt;  /* number of triangle vertices index */
 	const unsigned int* v_indices; /* edge vertices index, must be ordered(clockwise or counterclockwise) */
 	const unsigned int* tri_indices; /* triangle vertices index */
-} GeometryPolygen_t;
+} GeometryPolygon_t;
 
 typedef struct GeometryTriangleMesh_t {
 	float (*v)[3]; /* vertices vec3 */
-	unsigned int polygens_cnt; /* number of polygen plane */
+	unsigned int polygons_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */
 	unsigned int v_indices_cnt; /* number of triangle vertices index */
-	GeometryPolygen_t* polygens; /* array of polygens */
+	GeometryPolygon_t* polygons; /* array of polygens */
 	const unsigned int* edge_indices; /* edge vertices index */
 	const unsigned int* v_indices; /* triangle vertices index */
 } GeometryTriangleMesh_t;
@@ -70,7 +70,7 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_PLANE = 3,
 	GEOMETRY_BODY_SPHERE = 4,
 	GEOMETRY_BODY_AABB = 5,
-	GEOMETRY_BODY_POLYGEN = 7,
+	GEOMETRY_BODY_POLYGON = 7,
 	GEOMETRY_BODY_OBB = 8,
 	GEOMETRY_BODY_TRIANGLE_MESH = 9,
 };
@@ -82,7 +82,7 @@ typedef struct GeometryBody_t {
 		GeometryPlane_t plane;
 		GeometrySphere_t sphere;
 		GeometryAABB_t aabb;
-		GeometryPolygen_t polygen;
+		GeometryPolygon_t polygon;
 		GeometryOBB_t obb;
 		GeometryTriangleMesh_t mesh;
 	};
@@ -97,7 +97,7 @@ typedef struct GeometryBodyRef_t {
 		const GeometryPlane_t* plane;
 		const GeometrySphere_t* sphere;
 		const GeometryAABB_t* aabb;
-		const GeometryPolygen_t* polygen;
+		const GeometryPolygon_t* polygon;
 		const GeometryOBB_t* obb;
 		const GeometryTriangleMesh_t* mesh;
 	};

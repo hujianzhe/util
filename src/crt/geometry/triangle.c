@@ -64,11 +64,11 @@ int mathTriangleHasPoint(const float tri[3][3], const float p[3]) {
 	return mathTrianglePointUV(tri, p, NULL, NULL);
 }
 
-void mathTriangleToPolygen(const float tri[3][3], GeometryPolygen_t* polygen) {
-	polygen->v_indices = DEFAULT_TRIANGLE_VERTICE_INDICES;
-	polygen->v_indices_cnt = 3;
-	polygen->v = (float(*)[3])tri;
-	mathPlaneNormalByVertices3(tri[0], tri[1], tri[2], polygen->normal);
+void mathTriangleToPolygon(const float tri[3][3], GeometryPolygon_t* polygon) {
+	polygon->v_indices = DEFAULT_TRIANGLE_VERTICE_INDICES;
+	polygon->v_indices_cnt = 3;
+	polygon->v = (float(*)[3])tri;
+	mathPlaneNormalByVertices3(tri[0], tri[1], tri[2], polygon->normal);
 }
 
 int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
@@ -100,38 +100,38 @@ void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 	mathVec3AddScalar(p[3], rect->w_axis, rect->half_w);
 }
 
-void mathRectToPolygen(const GeometryRect_t* rect, GeometryPolygen_t* polygen, float p[4][3]) {
+void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float p[4][3]) {
 	mathRectVertices(rect, p);
-	polygen->v_indices = DEFAULT_RECT_VERTICE_INDICES;
-	polygen->v_indices_cnt = 4;
-	polygen->v = p;
-	mathVec3Copy(polygen->normal, rect->normal);
+	polygon->v_indices = DEFAULT_RECT_VERTICE_INDICES;
+	polygon->v_indices_cnt = 4;
+	polygon->v = p;
+	mathVec3Copy(polygon->normal, rect->normal);
 }
 
-int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
-	if (polygen->v_indices_cnt < 3) {
+int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
+	if (polygon->v_indices_cnt < 3) {
 		return 0;
 	}
-	else if (3 == polygen->v_indices_cnt) {
+	else if (3 == polygon->v_indices_cnt) {
 		float tri[3][3];
-		mathVec3Copy(tri[0], polygen->v[polygen->v_indices[0]]);
-		mathVec3Copy(tri[1], polygen->v[polygen->v_indices[1]]);
-		mathVec3Copy(tri[2], polygen->v[polygen->v_indices[2]]);
+		mathVec3Copy(tri[0], polygon->v[polygon->v_indices[0]]);
+		mathVec3Copy(tri[1], polygon->v[polygon->v_indices[1]]);
+		mathVec3Copy(tri[2], polygon->v[polygon->v_indices[2]]);
 		return mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL);
 	}
-	else if (polygen->v_indices == DEFAULT_RECT_VERTICE_INDICES) {
+	else if (polygon->v_indices == DEFAULT_RECT_VERTICE_INDICES) {
 		float ls_vec[3], v[3], dot;
-		mathVec3Sub(v, p, polygen->v[polygen->v_indices[0]]);
-		dot = mathVec3Dot(polygen->normal, v);
+		mathVec3Sub(v, p, polygon->v[polygon->v_indices[0]]);
+		dot = mathVec3Dot(polygon->normal, v);
 		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
 			return 0;
 		}
-		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[1]], polygen->v[polygen->v_indices[0]]);
+		mathVec3Sub(ls_vec, polygon->v[polygon->v_indices[1]], polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
 		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
 		}
-		mathVec3Sub(ls_vec, polygen->v[polygen->v_indices[3]], polygen->v[polygen->v_indices[0]]);
+		mathVec3Sub(ls_vec, polygon->v[polygon->v_indices[3]], polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
 		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
@@ -142,21 +142,21 @@ int mathPolygenHasPoint(const GeometryPolygen_t* polygen, const float p[3]) {
 		unsigned int i;
 		float v[3], dot;
 		float vp[3], eg[3];
-		mathVec3Sub(v, polygen->v[polygen->v_indices[0]], p);
-		dot = mathVec3Dot(polygen->normal, v);
+		mathVec3Sub(v, polygon->v[polygon->v_indices[0]], p);
+		dot = mathVec3Dot(polygon->normal, v);
 		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
 			return 0;
 		}
-		mathVec3Sub(vp, p, polygen->v[polygen->v_indices[0]]);
-		mathVec3Sub(eg, polygen->v[polygen->v_indices[0]], polygen->v[polygen->v_indices[polygen->v_indices_cnt - 1]]);
+		mathVec3Sub(vp, p, polygon->v[polygon->v_indices[0]]);
+		mathVec3Sub(eg, polygon->v[polygon->v_indices[0]], polygon->v[polygon->v_indices[polygon->v_indices_cnt - 1]]);
 		mathVec3Cross(v, vp, eg);
 		if (mathVec3IsZero(v) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
 			return 1;
 		}
-		for (i = 1; i < polygen->v_indices_cnt; ++i) {
+		for (i = 1; i < polygon->v_indices_cnt; ++i) {
 			float vi[3];
-			mathVec3Sub(vp, p, polygen->v[polygen->v_indices[i]]);
-			mathVec3Sub(eg, polygen->v[polygen->v_indices[i]], polygen->v[polygen->v_indices[i - 1]]);
+			mathVec3Sub(vp, p, polygon->v[polygon->v_indices[i]]);
+			mathVec3Sub(eg, polygon->v[polygon->v_indices[i]], polygon->v[polygon->v_indices[i - 1]]);
 			mathVec3Cross(vi, vp, eg);
 			if (mathVec3IsZero(vi) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
 				return 1;
@@ -206,7 +206,7 @@ int mathMeshVerticesToAABB(const float (*v)[3], const unsigned int* v_indices, u
 	return 1;
 }
 
-int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygen_t* polygen) {
+int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
 	unsigned int tmp_edge_pair_indices_cnt = 0;
@@ -232,8 +232,8 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		ret_v_indices[1] = tri_indices[1];
 		ret_v_indices[2] = tri_indices[2];
 
-		polygen->v_indices = ret_v_indices;
-		polygen->v_indices_cnt = 3;
+		polygon->v_indices = ret_v_indices;
+		polygon->v_indices_cnt = 3;
 		return 1;
 	}
 	/* Filters all share triangle edges, leaving all non-shared edges */
@@ -390,8 +390,8 @@ int mathPolygenCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	}
 	free(tmp_edge_indices);
 	/* save result */
-	polygen->v_indices = ret_v_indices;
-	polygen->v_indices_cnt = ret_v_indices_cnt;
+	polygon->v_indices = ret_v_indices;
+	polygon->v_indices_cnt = ret_v_indices_cnt;
 	return 1;
 }
 
@@ -399,16 +399,16 @@ static int mathTriangleMeshCookingEdge(const float (*v)[3], GeometryTriangleMesh
 	unsigned int i;
 	unsigned int* ret_edge_indices = NULL;
 	unsigned int ret_edge_indices_cnt = 0;
-	const GeometryPolygen_t* polygens = mesh->polygens;
-	unsigned int polygens_cnt = mesh->polygens_cnt;
+	const GeometryPolygon_t* polygons = mesh->polygons;
+	unsigned int polygons_cnt = mesh->polygons_cnt;
 
-	for (i = 0; i < polygens_cnt; ++i) {
-		const GeometryPolygen_t* polygen = polygens + i;
+	for (i = 0; i < polygons_cnt; ++i) {
+		const GeometryPolygon_t* polygon = polygons + i;
 		unsigned int j;
-		for (j = 0; j < polygen->v_indices_cnt; ) {
+		for (j = 0; j < polygon->v_indices_cnt; ) {
 			unsigned int k;
-			unsigned int s = polygen->v_indices[j++];
-			unsigned int e = polygen->v_indices[j >= polygen->v_indices_cnt ? 0 : j];
+			unsigned int s = polygon->v_indices[j++];
+			unsigned int e = polygon->v_indices[j >= polygon->v_indices_cnt ? 0 : j];
 			unsigned int* new_p;
 			for (k = 0; k < ret_edge_indices_cnt; k += 2) {
 				if (s == ret_edge_indices[k] || mathVec3Equal(v[s], v[ret_edge_indices[k]])) {
@@ -442,7 +442,7 @@ static int mathTriangleMeshCookingEdge(const float (*v)[3], GeometryTriangleMesh
 	return 1;
 }
 
-static GeometryPolygen_t* _insert_tri_indices(GeometryPolygen_t* polygen, const unsigned int* tri_indices) {
+static GeometryPolygon_t* _insert_tri_indices(GeometryPolygon_t* polygen, const unsigned int* tri_indices) {
 	unsigned int cnt = polygen->tri_indices_cnt;
 	unsigned int* new_p = (unsigned int*)realloc((void*)polygen->tri_indices, sizeof(polygen->tri_indices[0]) * (cnt + 3));
 	if (!new_p) {
@@ -456,31 +456,31 @@ static GeometryPolygen_t* _insert_tri_indices(GeometryPolygen_t* polygen, const 
 	return polygen;
 }
 
-static void mathPolygenFreeCookingData(GeometryPolygen_t* polygen) {
-	free((void*)polygen->tri_indices);
-	polygen->tri_indices = NULL;
-	polygen->tri_indices_cnt = 0;
+static void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
+	free((void*)polygon->tri_indices);
+	polygon->tri_indices = NULL;
+	polygon->tri_indices_cnt = 0;
 
-	free((void*)polygen->v_indices);
-	polygen->v_indices = NULL;
-	polygen->v_indices_cnt = 0;
+	free((void*)polygon->v_indices);
+	polygon->v_indices = NULL;
+	polygon->v_indices_cnt = 0;
 }
 
 static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh) {
 	unsigned int i, pi;
-	GeometryPolygen_t** tmp_polygens = NULL;
-	unsigned int tmp_polygens_arrcnt = 0;
-	GeometryPolygen_t* tmp_ret_polygens = NULL;
-	GeometryPolygen_t** tmp_ret_polygens_unique = NULL;
-	unsigned int tmp_ret_polygens_cnt = 0;
+	GeometryPolygon_t** tmp_polygons = NULL;
+	unsigned int tmp_polygons_arrcnt = 0;
+	GeometryPolygon_t* tmp_ret_polygons = NULL;
+	GeometryPolygon_t** tmp_ret_polygons_unique = NULL;
+	unsigned int tmp_ret_polygons_cnt = 0;
 
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
 	}
 	/* Merge triangles on the same plane */
-	tmp_polygens_arrcnt = tri_indices_cnt / 3;
-	tmp_polygens = (GeometryPolygen_t**)calloc(1, tmp_polygens_arrcnt * sizeof(tmp_polygens[0]));
-	if (!tmp_polygens) {
+	tmp_polygons_arrcnt = tri_indices_cnt / 3;
+	tmp_polygons = (GeometryPolygon_t**)calloc(1, tmp_polygons_arrcnt * sizeof(tmp_polygons[0]));
+	if (!tmp_polygons) {
 		return 0;
 	}
 	for (pi = i = 0; i < tri_indices_cnt; i += 3, pi++) {
@@ -490,24 +490,24 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 		if (mathVec3IsZero(N)) {
 			goto err;
 		}
-		if (!tmp_polygens[pi]) {
-			GeometryPolygen_t *new_p, **new_parr;
-			new_p = (GeometryPolygen_t*)calloc(1, sizeof(GeometryPolygen_t));
+		if (!tmp_polygons[pi]) {
+			GeometryPolygon_t *new_p, **new_parr;
+			new_p = (GeometryPolygon_t*)calloc(1, sizeof(GeometryPolygon_t));
 			if (!new_p) {
 				goto err;
 			}
-			tmp_polygens[pi] = new_p;
+			tmp_polygons[pi] = new_p;
 			new_p->v = (float(*)[3])v;
 			mathVec3Normalized(new_p->normal, N);
 
-			new_parr = (GeometryPolygen_t**)realloc(tmp_ret_polygens_unique, (tmp_ret_polygens_cnt + 1) * sizeof(tmp_ret_polygens_unique[0]));
+			new_parr = (GeometryPolygon_t**)realloc(tmp_ret_polygons_unique, (tmp_ret_polygons_cnt + 1) * sizeof(tmp_ret_polygons_unique[0]));
 			if (!new_parr) {
 				goto err;
 			}
-			tmp_ret_polygens_unique = new_parr;
-			tmp_ret_polygens_unique[tmp_ret_polygens_cnt++] = tmp_polygens[pi];
+			tmp_ret_polygons_unique = new_parr;
+			tmp_ret_polygons_unique[tmp_ret_polygons_cnt++] = tmp_polygons[pi];
 		}
-		if (!_insert_tri_indices(tmp_polygens[pi], tri_indices + i)) {
+		if (!_insert_tri_indices(tmp_polygons[pi], tri_indices + i)) {
 			goto err;
 		}
 		for (pj = j = 0; j < tri_indices_cnt; j += 3, pj++) {
@@ -536,41 +536,41 @@ static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned in
 			if (2 != same_cnt) {
 				continue;
 			}
-			tmp_polygens[pj] = tmp_polygens[pi]; /* flag same plane */
+			tmp_polygons[pj] = tmp_polygons[pi]; /* flag same plane */
 		}
 	}
-	free(tmp_polygens);
-	tmp_polygens = NULL;
+	free(tmp_polygons);
+	tmp_polygons = NULL;
 	/* Cooking all polygen */
-	tmp_ret_polygens = (GeometryPolygen_t*)malloc(tmp_ret_polygens_cnt * sizeof(tmp_ret_polygens[0]));
-	if (!tmp_ret_polygens) {
+	tmp_ret_polygons = (GeometryPolygon_t*)malloc(tmp_ret_polygons_cnt * sizeof(tmp_ret_polygons[0]));
+	if (!tmp_ret_polygons) {
 		goto err;
 	}
-	for (i = 0; i < tmp_ret_polygens_cnt; ++i) {
-		GeometryPolygen_t* polygen = tmp_ret_polygens_unique[i];
-		if (!mathPolygenCooking((const float(*)[3])polygen->v, polygen->tri_indices, polygen->tri_indices_cnt, polygen)) {
+	for (i = 0; i < tmp_ret_polygons_cnt; ++i) {
+		GeometryPolygon_t* polygon = tmp_ret_polygons_unique[i];
+		if (!mathPolygonCooking((const float(*)[3])polygon->v, polygon->tri_indices, polygon->tri_indices_cnt, polygon)) {
 			goto err;
 		}
-		tmp_ret_polygens[i] = *polygen;
-		free(polygen);
+		tmp_ret_polygons[i] = *polygon;
+		free(polygon);
 	}
-	free(tmp_ret_polygens_unique);
+	free(tmp_ret_polygons_unique);
 
-	mesh->polygens = tmp_ret_polygens;
-	mesh->polygens_cnt = tmp_ret_polygens_cnt;
+	mesh->polygons = tmp_ret_polygons;
+	mesh->polygons_cnt = tmp_ret_polygons_cnt;
 	return 1;
 err:
-	if (tmp_polygens) {
-		for (i = 0; i < tmp_polygens_arrcnt; ++i) {
-			if (!tmp_polygens[i]) {
+	if (tmp_polygons) {
+		for (i = 0; i < tmp_polygons_arrcnt; ++i) {
+			if (!tmp_polygons[i]) {
 				continue;
 			}
-			mathPolygenFreeCookingData(tmp_polygens[i]);
+			mathPolygonFreeCookingData(tmp_polygons[i]);
 		}
-		free(tmp_polygens);
+		free(tmp_polygons);
 	}
-	free(tmp_ret_polygens_unique);
-	free(tmp_ret_polygens);
+	free(tmp_ret_polygons_unique);
+	free(tmp_ret_polygons);
 	return 0;
 }
 
@@ -578,11 +578,11 @@ static int mathTriangleMeshCookingMergeVertices(const float (*v)[3], GeometryTri
 	unsigned int* tmp_indices = NULL;
 	unsigned int tmp_indices_cnt = 0;
 	unsigned int i;
-	for (i = 0; i < mesh->polygens_cnt; ++i) {
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		unsigned int j;
-		GeometryPolygen_t* polygen = mesh->polygens + i;
-		for (j = 0; j < polygen->v_indices_cnt; ++j) {
-			unsigned int vi = polygen->v_indices[j];
+		GeometryPolygon_t* polygon = mesh->polygons + i;
+		for (j = 0; j < polygon->v_indices_cnt; ++j) {
+			unsigned int vi = polygon->v_indices[j];
 			unsigned int* new_p;
 			unsigned int k;
 			for (k = 0; k < tmp_indices_cnt; ++k) {
@@ -634,11 +634,11 @@ int mathTriangleMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsig
 
 void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh) {
 	unsigned int i;
-	for (i = 0; i < mesh->polygens_cnt; ++i) {
-		mathPolygenFreeCookingData(mesh->polygens + i);
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		mathPolygonFreeCookingData(mesh->polygons + i);
 	}
-	free(mesh->polygens);
-	mesh->polygens_cnt = 0;
+	free(mesh->polygons);
+	mesh->polygons_cnt = 0;
 	free((void*)mesh->edge_indices);
 	mesh->edge_indices_cnt = 0;
 	free((void*)mesh->v_indices);
