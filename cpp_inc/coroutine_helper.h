@@ -563,6 +563,9 @@ protected:
 				return true;
 			}
 			if (owner.equal(m_owner)) {
+				if (!m_wait_infos.empty()) {
+					return false;
+				}
 				m_enter_times++;
 				return true;
 			}
