@@ -108,6 +108,41 @@ void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, f
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
+int mathPolygonIsConvex(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt) {
+	float e1[3], e2[3], test_n[3];
+	unsigned int i, has_test_n;
+	if (v_indices_cnt < 3) {
+		return 0;
+	}
+	has_test_n = 0;
+	for (i = 0; i < v_indices_cnt; ++i) {
+		float n[3];
+		unsigned int v_idx1, v_idx2;
+		if (i) {
+			v_idx1 = v_indices[i - 1];
+			v_idx2 = v_indices[i + 1 < v_indices_cnt ? i + 1 : 0];
+		}
+		else {
+			v_idx1 = v_indices[v_indices_cnt - 1];
+			v_idx2 = v_indices[1];
+		}
+		mathVec3Sub(e1, v[v_indices[i]], v[v_idx1]);
+		mathVec3Sub(e2, v[v_idx2], v[v_indices[i]]);
+		if (!has_test_n) {
+			mathVec3Cross(test_n, e1, e2);
+			if (!mathVec3IsZero(test_n)) {
+				has_test_n = 1;
+			}
+			continue;
+		}
+		mathVec3Cross(n, e1, e2);
+		if (mathVec3Dot(test_n, n) < 0.0f) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 	if (polygon->v_indices_cnt < 3) {
 		return 0;
