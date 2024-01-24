@@ -138,7 +138,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		}
 		return 1;
 	}
-	else if (polygon->tri_indices) {
+	else if (polygon->tri_indices && polygon->tri_indices_cnt >= 3) {
 		unsigned int i;
 		for (i = 0; i < polygon->tri_indices_cnt; ) {
 			float tri[3][3];
