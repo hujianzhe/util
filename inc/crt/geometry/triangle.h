@@ -23,8 +23,9 @@ __declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygo
 __declspec_dll int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]);
 __declspec_dll int mathPolygonCooking(const float(*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon);
 
-__declspec_dll int mathTriangleMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh);
-__declspec_dll void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh);
+__declspec_dll int mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh);
+__declspec_dll void mathMeshFreeData(GeometryMesh_t* mesh);
+__declspec_dll int mathMeshIsClosed(const GeometryMesh_t* mesh);
 
 #ifdef	__cplusplus
 }

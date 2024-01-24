@@ -52,7 +52,7 @@ typedef struct GeometryPolygon_t {
 	const unsigned int* tri_indices; /* triangle vertices index */
 } GeometryPolygon_t;
 
-typedef struct GeometryTriangleMesh_t {
+typedef struct GeometryMesh_t {
 	float (*v)[3]; /* vertices vec3 */
 	unsigned int polygons_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */
@@ -60,7 +60,7 @@ typedef struct GeometryTriangleMesh_t {
 	GeometryPolygon_t* polygons; /* array of polygens */
 	const unsigned int* edge_indices; /* edge vertices index */
 	const unsigned int* v_indices; /* triangle vertices index */
-} GeometryTriangleMesh_t;
+} GeometryMesh_t;
 
 /*********************************************************************/
 
@@ -72,7 +72,7 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_AABB = 5,
 	GEOMETRY_BODY_POLYGON = 7,
 	GEOMETRY_BODY_OBB = 8,
-	GEOMETRY_BODY_TRIANGLE_MESH = 9,
+	GEOMETRY_BODY_MESH = 9,
 	GEOMETRY_BODY_CONVEX_POLYHEDRON = 10,
 };
 
@@ -85,8 +85,8 @@ typedef struct GeometryBody_t {
 		GeometryAABB_t aabb;
 		GeometryPolygon_t polygon;
 		GeometryOBB_t obb;
-		GeometryTriangleMesh_t mesh;
-		GeometryTriangleMesh_t convex;
+		GeometryMesh_t mesh;
+		GeometryMesh_t convex;
 	};
 	int type;
 } GeometryBody_t;
@@ -101,8 +101,8 @@ typedef struct GeometryBodyRef_t {
 		const GeometryAABB_t* aabb;
 		const GeometryPolygon_t* polygon;
 		const GeometryOBB_t* obb;
-		const GeometryTriangleMesh_t* mesh;
-		const GeometryTriangleMesh_t* convex;
+		const GeometryMesh_t* mesh;
+		const GeometryMesh_t* convex;
 	};
 	int type;
 } GeometryBodyRef_t;

@@ -360,7 +360,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	return 1;
 }
 
-static int mathTriangleMeshCookingEdge(const float (*v)[3], GeometryTriangleMesh_t* mesh) {
+static int mathMeshCookingEdge(const float (*v)[3], GeometryMesh_t* mesh) {
 	unsigned int i;
 	unsigned int* ret_edge_indices = NULL;
 	unsigned int ret_edge_indices_cnt = 0;
@@ -431,7 +431,7 @@ static void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
 	polygon->v_indices_cnt = 0;
 }
 
-static int mathTriangleMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh) {
+static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
 	unsigned int i, pi;
 	GeometryPolygon_t** tmp_polygons = NULL;
 	unsigned int tmp_polygons_arrcnt = 0;
@@ -539,7 +539,7 @@ err:
 	return 0;
 }
 
-static int mathTriangleMeshCookingMergeVertices(const float (*v)[3], GeometryTriangleMesh_t* mesh) {
+static int mathMeshCookingMergeVertices(const float (*v)[3], GeometryMesh_t* mesh) {
 	unsigned int* tmp_indices = NULL;
 	unsigned int tmp_indices_cnt = 0;
 	unsigned int i;
@@ -574,16 +574,16 @@ static int mathTriangleMeshCookingMergeVertices(const float (*v)[3], GeometryTri
 	return 1;
 }
 
-int mathTriangleMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryTriangleMesh_t* mesh) {
+int mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
 	unsigned int i;
 	float (*vbuf)[3];
-	if (!mathTriangleMeshCookingPolygen(v, tri_indices, tri_indices_cnt, mesh)) {
+	if (!mathMeshCookingPolygen(v, tri_indices, tri_indices_cnt, mesh)) {
 		return 0;
 	}
-	if (!mathTriangleMeshCookingEdge(v, mesh)) {
+	if (!mathMeshCookingEdge(v, mesh)) {
 		return 0;
 	}
-	if (!mathTriangleMeshCookingMergeVertices(v, mesh)) {
+	if (!mathMeshCookingMergeVertices(v, mesh)) {
 		return 0;
 	}
 	vbuf = (float(*)[3])malloc(v_cnt * sizeof(v[0]));
@@ -597,7 +597,7 @@ int mathTriangleMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsig
 	return 1;
 }
 
-void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh) {
+void mathMeshFreeData(GeometryMesh_t* mesh) {
 	unsigned int i;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		mathPolygonFreeCookingData(mesh->polygons + i);
@@ -610,6 +610,32 @@ void mathTriangleMeshFreeData(GeometryTriangleMesh_t* mesh) {
 	mesh->v_indices_cnt = 0;
 	free(mesh->v);
 	mesh->v = NULL;
+}
+
+int mathMeshIsClosed(const GeometryMesh_t* mesh) {
+	unsigned int i;
+	for (i = 0; i < mesh->v_indices_cnt; ++i) {
+		unsigned int j, cnt = 0;
+		unsigned int vi = mesh->v_indices[i];
+		for (j = 0; j < mesh->polygons_cnt; ++j) {
+			unsigned int k;
+			const GeometryPolygon_t* polygon = mesh->polygons + j;
+			for (k = 0; k < polygon->v_indices_cnt; ++k) {
+				unsigned int vk = polygon->v_indices[k];
+				if (vi == vk || mathVec3Equal(mesh->v[vi], polygon->v[vk])) {
+					++cnt;
+					break;
+				}
+			}
+			if (cnt >= 2) {
+				break;
+			}
+		}
+		if (cnt < 2) {
+			return 0;
+		}
+	}
+	return 1;
 }
 
 #ifdef __cplusplus
