@@ -360,6 +360,16 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	return 1;
 }
 
+void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
+	free((void*)polygon->tri_indices);
+	polygon->tri_indices = NULL;
+	polygon->tri_indices_cnt = 0;
+
+	free((void*)polygon->v_indices);
+	polygon->v_indices = NULL;
+	polygon->v_indices_cnt = 0;
+}
+
 static int mathMeshCookingEdge(const float (*v)[3], GeometryMesh_t* mesh) {
 	unsigned int i;
 	unsigned int* ret_edge_indices = NULL;
@@ -419,16 +429,6 @@ static GeometryPolygon_t* _insert_tri_indices(GeometryPolygon_t* polygen, const 
 	polygen->tri_indices = new_p;
 	polygen->tri_indices_cnt = cnt;
 	return polygen;
-}
-
-static void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
-	free((void*)polygon->tri_indices);
-	polygon->tri_indices = NULL;
-	polygon->tri_indices_cnt = 0;
-
-	free((void*)polygon->v_indices);
-	polygon->v_indices = NULL;
-	polygon->v_indices_cnt = 0;
 }
 
 static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
