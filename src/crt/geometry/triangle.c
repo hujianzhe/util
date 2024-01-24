@@ -641,11 +641,11 @@ int mathMeshIsClosed(const GeometryMesh_t* mesh) {
 					break;
 				}
 			}
-			if (cnt >= 2) {
+			if (cnt >= 3) {
 				break;
 			}
 		}
-		if (cnt < 2) {
+		if (cnt < 3) {
 			return 0;
 		}
 	}
