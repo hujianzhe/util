@@ -138,7 +138,21 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		}
 		return 1;
 	}
+	else if (polygon->tri_indices) {
+		unsigned int i;
+		for (i = 0; i < polygon->tri_indices_cnt; ) {
+			float tri[3][3];
+			mathVec3Copy(tri[0], polygon->v[polygon->tri_indices[i++]]);
+			mathVec3Copy(tri[1], polygon->v[polygon->tri_indices[i++]]);
+			mathVec3Copy(tri[2], polygon->v[polygon->tri_indices[i++]]);
+			if (mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL)) {
+				return 1;
+			}
+		}
+		return 0;
+	}
 	else {
+		/* only convex polygon */
 		unsigned int i;
 		float v[3], dot;
 		float vp[3], eg[3];
