@@ -108,6 +108,45 @@ void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, f
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
+unsigned int mathMergeSameIndices(const float(*v)[3], const unsigned int* indices, unsigned int indices_cnt, unsigned int* result) {
+	unsigned int i, max_indices = 0;
+	for (i = 0; i < indices_cnt; ++i) {
+		unsigned int vi = indices[i];
+		unsigned int j;
+		int replace = 0;
+		for (j = 0; j < i; ++j) {
+			unsigned int vj = result[j];
+			if (vi == vj) {
+				break;
+			}
+			if (mathVec3Equal(v[vi], v[vj])) {
+				if (vi < vj) {
+					replace = 1;
+				}
+				else {
+					vi = vj;
+				}
+				break;
+			}
+		}
+		if (replace) {
+			for (j = 0; j < i; ++j) {
+				if (mathVec3Equal(v[result[j]], v[vi])) {
+					result[j] = vi;
+				}
+			}
+			if (max_indices > vi) {
+				max_indices = vi;
+			}
+		}
+		else if (max_indices < vi) {
+			max_indices = vi;
+		}
+		result[i] = vi;
+	}
+	return max_indices;
+}
+
 int mathPolygonIsConvex(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt) {
 	float e1[3], e2[3], test_n[3];
 	unsigned int i, has_test_n;
