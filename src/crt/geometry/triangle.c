@@ -668,7 +668,7 @@ int mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int*
 	return 1;
 }
 
-void mathMeshFreeData(GeometryMesh_t* mesh) {
+void mathMeshFreeCookingData(GeometryMesh_t* mesh) {
 	unsigned int i;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		mathPolygonFreeCookingData(mesh->polygons + i);

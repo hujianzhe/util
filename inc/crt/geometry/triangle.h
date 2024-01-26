@@ -27,7 +27,7 @@ __declspec_dll int mathPolygonCooking(const float(*v)[3], const unsigned int* tr
 __declspec_dll void mathPolygonFreeCookingData(GeometryPolygon_t* polygon);
 
 __declspec_dll int mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh);
-__declspec_dll void mathMeshFreeData(GeometryMesh_t* mesh);
+__declspec_dll void mathMeshFreeCookingData(GeometryMesh_t* mesh);
 __declspec_dll int mathMeshIsClosed(const GeometryMesh_t* mesh);
 
 #ifdef	__cplusplus
