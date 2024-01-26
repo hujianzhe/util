@@ -56,10 +56,10 @@ typedef struct GeometryMesh_t {
 	float (*v)[3]; /* vertices vec3 */
 	unsigned int polygons_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */
-	unsigned int v_indices_cnt; /* number of triangle vertices index */
+	unsigned int v_indices_cnt; /* number of vertices index */
 	GeometryPolygon_t* polygons; /* array of polygens */
 	const unsigned int* edge_indices; /* edge vertices index */
-	const unsigned int* v_indices; /* triangle vertices index */
+	const unsigned int* v_indices; /* vertices index */
 } GeometryMesh_t;
 
 /*********************************************************************/

@@ -215,7 +215,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		float vp[3], eg[3];
 		mathVec3Sub(v, polygon->v[polygon->v_indices[0]], p);
 		dot = mathVec3Dot(polygon->normal, v);
-		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+		if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
 			return 0;
 		}
 		mathVec3Sub(vp, p, polygon->v[polygon->v_indices[0]]);
@@ -704,6 +704,37 @@ int mathMeshIsClosed(const GeometryMesh_t* mesh) {
 		}
 		if (cnt < 3) {
 			return 0;
+		}
+	}
+	return 1;
+}
+
+int mathMeshIsConvex(const GeometryMesh_t* mesh) {
+	unsigned int i;
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
+		const float(*N)[3] = (const float(*)[3])polygon->normal;
+		const float(*P)[3] = (const float(*)[3])polygon->v[polygon->v_indices[0]];
+		unsigned int j, has_test_dot = 0;
+		float test_dot;
+		for (j = 0; j < mesh->v_indices_cnt; ++j) {
+			float vj[3], dot;
+			mathVec3Sub(vj, mesh->v[mesh->v_indices[j]], *P);
+			dot = mathVec3Dot(*N, vj);
+			if (dot <= CCT_EPSILON && dot >= -CCT_EPSILON) {
+				continue;
+			}
+			if (!has_test_dot) {
+				has_test_dot = 1;
+				test_dot = dot;
+				continue;
+			}
+			if (test_dot > 0.0f && dot < 0.0f) {
+				return 0;
+			}
+			if (test_dot < 0.0f && dot > 0.0f) {
+				return 0;
+			}
 		}
 	}
 	return 1;
