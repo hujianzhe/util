@@ -108,26 +108,26 @@ void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, f
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
-unsigned int mathMergeSameVertices(float(*v)[3], unsigned int v_cnt, unsigned int* indices, unsigned int indices_cnt) {
-	unsigned int i, n = 0;
-	for (i = 0; i < v_cnt; ++i) {
+unsigned int mathMergeSameVertices(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt) {
+	unsigned int i, dst_v_cnt = 0;
+	for (i = 0; i < src_v_cnt; ++i) {
 		unsigned int j;
-		for (j = 0; j < n; ++j) {
-			if (mathVec3Equal(v[i], v[j])) {
+		for (j = 0; j < dst_v_cnt; ++j) {
+			if (mathVec3Equal(src_v[i], dst_v[j])) {
 				break;
 			}
 		}
-		if (j < n) {
+		if (j < dst_v_cnt) {
 			continue;
 		}
 		for (j = 0; j < indices_cnt; ++j) {
-			if (indices[j] == i || mathVec3Equal(v[indices[j]], v[i])) {
-				indices[j] = n;
+			if (indices[j] == i || mathVec3Equal(src_v[indices[j]], src_v[i])) {
+				indices[j] = dst_v_cnt;
 			}
 		}
-		mathVec3Copy(v[n++], v[i]);
+		mathVec3Copy(dst_v[dst_v_cnt++], src_v[i]);
 	}
-	return n;
+	return dst_v_cnt;
 }
 
 int mathPolygonIsConvex(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt) {
