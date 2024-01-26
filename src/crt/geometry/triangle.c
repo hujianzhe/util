@@ -121,7 +121,7 @@ unsigned int mathMergeSameVertices(float(*v)[3], unsigned int v_cnt, unsigned in
 			continue;
 		}
 		for (j = 0; j < indices_cnt; ++j) {
-			if (mathVec3Equal(v[indices[j]], v[i])) {
+			if (indices[j] == i || mathVec3Equal(v[indices[j]], v[i])) {
 				indices[j] = n;
 			}
 		}
