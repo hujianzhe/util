@@ -20,7 +20,7 @@ __declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]
 __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
 __declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float p[4][3]);
 
-__declspec_dll unsigned int mathMergeSameIndices(const float(*v)[3], const unsigned int* indices, unsigned int indices_cnt, unsigned int* result);
+__declspec_dll unsigned int mathMergeSameVertices(float(*v)[3], unsigned int v_cnt, unsigned int* indices, unsigned int indices_cnt);
 __declspec_dll int mathPolygonIsConvex(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt);
 __declspec_dll int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]);
 __declspec_dll int mathPolygonCooking(const float(*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon);
