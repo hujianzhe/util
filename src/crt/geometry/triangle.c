@@ -108,7 +108,21 @@ void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, f
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
-unsigned int mathMergeSameVertices(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt) {
+unsigned int mathVerticesDistinctCount(const float(*src_v)[3], unsigned int src_v_cnt) {
+	unsigned int i, len = src_v_cnt;
+	for (i = 0; i < src_v_cnt; ++i) {
+		unsigned int j;
+		for (j = i + 1; j < src_v_cnt; ++j) {
+			if (mathVec3Equal(src_v[i], src_v[j])) {
+				--len;
+				break;
+			}
+		}
+	}
+	return len;
+}
+
+unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt) {
 	unsigned int i, dst_v_cnt = 0;
 	for (i = 0; i < src_v_cnt; ++i) {
 		unsigned int j;
