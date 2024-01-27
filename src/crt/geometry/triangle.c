@@ -700,6 +700,9 @@ void mathMeshFreeCookingData(GeometryMesh_t* mesh) {
 
 int mathMeshIsClosed(const GeometryMesh_t* mesh) {
 	unsigned int i;
+	if (mesh->v_indices_cnt < 3) {
+		return 0;
+	}
 	for (i = 0; i < mesh->v_indices_cnt; ++i) {
 		unsigned int j, cnt = 0;
 		unsigned int vi = mesh->v_indices[i];
@@ -726,6 +729,9 @@ int mathMeshIsClosed(const GeometryMesh_t* mesh) {
 
 int mathMeshIsConvex(const GeometryMesh_t* mesh) {
 	unsigned int i;
+	if (mesh->polygons_cnt < 4) {
+		return 0;
+	}
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		const GeometryPolygon_t* polygon = mesh->polygons + i;
 		const float(*N)[3] = (const float(*)[3])polygon->normal;
