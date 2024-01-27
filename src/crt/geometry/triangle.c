@@ -502,125 +502,126 @@ static int mathMeshCookingEdge(const float (*v)[3], GeometryMesh_t* mesh) {
 	return 1;
 }
 
-static GeometryPolygon_t* _insert_tri_indices(GeometryPolygon_t* polygen, const unsigned int* tri_indices) {
-	unsigned int cnt = polygen->tri_indices_cnt;
-	unsigned int* new_p = (unsigned int*)realloc((void*)polygen->tri_indices, sizeof(polygen->tri_indices[0]) * (cnt + 3));
+static GeometryPolygon_t* _insert_tri_indices(GeometryPolygon_t* polygon, const unsigned int* tri_indices) {
+	unsigned int cnt = polygon->tri_indices_cnt;
+	unsigned int* new_p = (unsigned int*)realloc((void*)polygon->tri_indices, sizeof(polygon->tri_indices[0]) * (cnt + 3));
 	if (!new_p) {
 		return NULL;
 	}
 	new_p[cnt++] = tri_indices[0];
 	new_p[cnt++] = tri_indices[1];
 	new_p[cnt++] = tri_indices[2];
-	polygen->tri_indices = new_p;
-	polygen->tri_indices_cnt = cnt;
-	return polygen;
+	polygon->tri_indices = new_p;
+	polygon->tri_indices_cnt = cnt;
+	return polygon;
+}
+
+static int _polygon_can_merge_triangle(GeometryPolygon_t* polygon, const float p0[3], const float p1[3], const float p2[3]) {
+	unsigned int i, n = 0;
+	const float* tri_p[] = { p0, p1, p2 };
+	for (i = 0; i < 3; ++i) {
+		unsigned int j;
+		if (!mathPlaneHasPoint(polygon->v[polygon->v_indices[0]], polygon->normal, tri_p[i])) {
+			return 0;
+		}
+		if (n >= 2) {
+			continue;
+		}
+		for (j = 0; j < polygon->tri_indices_cnt; ++j) {
+			const float* pv = polygon->v[polygon->tri_indices[j]];
+			if (mathVec3Equal(pv, tri_p[i])) {
+				++n;
+				break;
+			}
+		}
+	}
+	return n >= 2;
 }
 
 static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
-	unsigned int i, pi;
-	GeometryPolygon_t** tmp_polygons = NULL;
-	unsigned int tmp_polygons_arrcnt = 0;
-	GeometryPolygon_t* tmp_ret_polygons = NULL;
-	GeometryPolygon_t** tmp_ret_polygons_unique = NULL;
-	unsigned int tmp_ret_polygons_cnt = 0;
+	unsigned int i;
+	GeometryPolygon_t* tmp_polygons = NULL;
+	unsigned int tmp_polygons_cnt = 0;
+	unsigned int* tmp_tri_indices = NULL;
 
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
 	}
-	/* Merge triangles on the same plane */
-	tmp_polygons_arrcnt = tri_indices_cnt / 3;
-	tmp_polygons = (GeometryPolygon_t**)calloc(1, tmp_polygons_arrcnt * sizeof(tmp_polygons[0]));
-	if (!tmp_polygons) {
-		return 0;
+	tmp_tri_indices = (unsigned int*)malloc(sizeof(tri_indices[0]) * tri_indices_cnt);
+	if (!tmp_tri_indices) {
+		goto err;
 	}
-	for (pi = i = 0; i < tri_indices_cnt; i += 3, pi++) {
-		unsigned int j, pj;
+	for (i = 0; i < tri_indices_cnt; ++i) {
+		tmp_tri_indices[i] = tri_indices[i];
+	}
+	/* Merge triangles on the same plane */
+	for (i = 0; i < tri_indices_cnt; i += 3) {
+		unsigned int j;
 		float N[3];
-		mathPlaneNormalByVertices3(v[tri_indices[i]], v[tri_indices[i+1]], v[tri_indices[i+2]], N);
+		GeometryPolygon_t* tmp_parr, * new_pg;
+
+		if (-1 == tmp_tri_indices[i]) {
+			continue;
+		}
+		mathPlaneNormalByVertices3(v[tmp_tri_indices[i]], v[tmp_tri_indices[i + 1]], v[tmp_tri_indices[i + 2]], N);
 		if (mathVec3IsZero(N)) {
 			goto err;
 		}
-		if (!tmp_polygons[pi]) {
-			GeometryPolygon_t *new_p, **new_parr;
-			new_p = (GeometryPolygon_t*)calloc(1, sizeof(GeometryPolygon_t));
-			if (!new_p) {
-				goto err;
-			}
-			tmp_polygons[pi] = new_p;
-			new_p->v = (float(*)[3])v;
-			mathVec3Normalized(new_p->normal, N);
-
-			new_parr = (GeometryPolygon_t**)realloc(tmp_ret_polygons_unique, (tmp_ret_polygons_cnt + 1) * sizeof(tmp_ret_polygons_unique[0]));
-			if (!new_parr) {
-				goto err;
-			}
-			tmp_ret_polygons_unique = new_parr;
-			tmp_ret_polygons_unique[tmp_ret_polygons_cnt++] = tmp_polygons[pi];
-		}
-		if (!_insert_tri_indices(tmp_polygons[pi], tri_indices + i)) {
+		tmp_parr = (GeometryPolygon_t*)realloc(tmp_polygons, (tmp_polygons_cnt + 1) * sizeof(GeometryPolygon_t));
+		if (!tmp_parr) {
 			goto err;
 		}
-		for (pj = j = 0; j < tri_indices_cnt; j += 3, pj++) {
-			unsigned int k, same_cnt;
-			if (i == j) {
+		tmp_polygons = tmp_parr;
+		new_pg = tmp_polygons + tmp_polygons_cnt;
+		tmp_polygons_cnt++;
+
+		new_pg->v_indices = NULL;
+		new_pg->v_indices_cnt = 0;
+		new_pg->tri_indices = NULL;
+		new_pg->tri_indices_cnt = 0;
+		if (!_insert_tri_indices(new_pg, tmp_tri_indices + i)) {
+			goto err;
+		}
+		new_pg->v = (float(*)[3])v;
+		mathVec3Normalized(new_pg->normal, N);
+
+		tmp_tri_indices[i] = -1;
+		for (j = 0; j < tri_indices_cnt; j += 3) {
+			if (-1 == tmp_tri_indices[j]) {
 				continue;
 			}
-			same_cnt = 0;
-			for (k = 0; k < 3; ++k) {
-				if (!mathPlaneHasPoint(v[tri_indices[i]], N, v[tri_indices[j+k]])) {
-					break;
-				}
-				if (mathVec3Equal(v[tri_indices[i]], v[tri_indices[j+k]]) ||
-					mathVec3Equal(v[tri_indices[i+1]], v[tri_indices[j+k]]) ||
-					mathVec3Equal(v[tri_indices[i+2]], v[tri_indices[j+k]]))
-				{
-					same_cnt++;
-				}
-			}
-			if (k < 3) {
+			if (!_polygon_can_merge_triangle(new_pg,
+				v[tmp_tri_indices[j]], v[tmp_tri_indices[j + 1]], v[tmp_tri_indices[j + 2]]))
+			{
 				continue;
 			}
-			if (3 == same_cnt) {
+			if (!_insert_tri_indices(new_pg, tmp_tri_indices + j)) {
 				goto err;
 			}
-			if (2 != same_cnt) {
-				continue;
-			}
-			tmp_polygons[pj] = tmp_polygons[pi]; /* flag same plane */
+			tmp_tri_indices[j] = -1;
+			j = 0;
 		}
 	}
-	free(tmp_polygons);
-	tmp_polygons = NULL;
+	free(tmp_tri_indices);
+	tmp_tri_indices = NULL;
 	/* Cooking all polygen */
-	tmp_ret_polygons = (GeometryPolygon_t*)malloc(tmp_ret_polygons_cnt * sizeof(tmp_ret_polygons[0]));
-	if (!tmp_ret_polygons) {
-		goto err;
-	}
-	for (i = 0; i < tmp_ret_polygons_cnt; ++i) {
-		GeometryPolygon_t* polygon = tmp_ret_polygons_unique[i];
+	for (i = 0; i < tmp_polygons_cnt; ++i) {
+		GeometryPolygon_t* polygon = tmp_polygons + i;
 		if (!mathPolygonCooking((const float(*)[3])polygon->v, polygon->tri_indices, polygon->tri_indices_cnt, polygon)) {
 			goto err;
 		}
-		tmp_ret_polygons[i] = *polygon;
-		free(polygon);
 	}
-	free(tmp_ret_polygons_unique);
-
-	mesh->polygons = tmp_ret_polygons;
-	mesh->polygons_cnt = tmp_ret_polygons_cnt;
+	mesh->polygons = tmp_polygons;
+	mesh->polygons_cnt = tmp_polygons_cnt;
 	return 1;
 err:
 	if (tmp_polygons) {
-		for (i = 0; i < tmp_polygons_arrcnt; ++i) {
-			if (!tmp_polygons[i]) {
-				continue;
-			}
-			mathPolygonFreeCookingData(tmp_polygons[i]);
+		for (i = 0; i < tmp_polygons_cnt; ++i) {
+			mathPolygonFreeCookingData(tmp_polygons + i);
 		}
 		free(tmp_polygons);
 	}
-	free(tmp_ret_polygons_unique);
-	free(tmp_ret_polygons);
+	free(tmp_tri_indices);
 	return 0;
 }
 
