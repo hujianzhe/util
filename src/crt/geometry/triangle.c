@@ -521,7 +521,7 @@ static int _polygon_can_merge_triangle(GeometryPolygon_t* polygon, const float p
 	const float* tri_p[] = { p0, p1, p2 };
 	for (i = 0; i < 3; ++i) {
 		unsigned int j;
-		if (!mathPlaneHasPoint(polygon->v[polygon->v_indices[0]], polygon->normal, tri_p[i])) {
+		if (!mathPlaneHasPoint(polygon->v[polygon->tri_indices[0]], polygon->normal, tri_p[i])) {
 			return 0;
 		}
 		if (n >= 2) {
