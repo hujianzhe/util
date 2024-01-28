@@ -542,13 +542,13 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 	unsigned int i;
 	GeometryPolygon_t* tmp_polygons = NULL;
 	unsigned int tmp_polygons_cnt = 0;
-	unsigned int tri_cnt, tri_idx;
+	unsigned int tri_cnt;
 	char* tri_merge_bits = NULL;
 
-	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
+	tri_cnt = tri_indices_cnt / 3;
+	if (tri_cnt < 1) {
 		return 0;
 	}
-	tri_cnt = tri_indices_cnt / 3;
 	tri_merge_bits = (char*)calloc(1, tri_cnt / 8 + (tri_cnt % 8 ? 1 : 0));
 	if (!tri_merge_bits) {
 		goto err;
