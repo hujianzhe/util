@@ -542,28 +542,28 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 	unsigned int i;
 	GeometryPolygon_t* tmp_polygons = NULL;
 	unsigned int tmp_polygons_cnt = 0;
-	unsigned int* tmp_tri_indices = NULL;
+	unsigned int tri_cnt, tri_idx;
+	char* tri_merge_bits = NULL;
 
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
 		return 0;
 	}
-	tmp_tri_indices = (unsigned int*)malloc(sizeof(tri_indices[0]) * tri_indices_cnt);
-	if (!tmp_tri_indices) {
+	tri_cnt = tri_indices_cnt / 3;
+	tri_merge_bits = (char*)calloc(1, tri_cnt / 8 + (tri_cnt % 8 ? 1 : 0));
+	if (!tri_merge_bits) {
 		goto err;
-	}
-	for (i = 0; i < tri_indices_cnt; ++i) {
-		tmp_tri_indices[i] = tri_indices[i];
 	}
 	/* Merge triangles on the same plane */
 	for (i = 0; i < tri_indices_cnt; i += 3) {
-		unsigned int j;
+		unsigned int j, tri_idx;
 		float N[3];
 		GeometryPolygon_t* tmp_parr, * new_pg;
 
-		if (-1 == tmp_tri_indices[i]) {
+		tri_idx = i / 3;
+		if (tri_merge_bits[tri_idx / 8] & (1 << (tri_idx % 8))) {
 			continue;
 		}
-		mathPlaneNormalByVertices3(v[tmp_tri_indices[i]], v[tmp_tri_indices[i + 1]], v[tmp_tri_indices[i + 2]], N);
+		mathPlaneNormalByVertices3(v[tri_indices[i]], v[tri_indices[i + 1]], v[tri_indices[i + 2]], N);
 		if (mathVec3IsZero(N)) {
 			goto err;
 		}
@@ -579,31 +579,32 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 		new_pg->v_indices_cnt = 0;
 		new_pg->tri_indices = NULL;
 		new_pg->tri_indices_cnt = 0;
-		if (!_insert_tri_indices(new_pg, tmp_tri_indices + i)) {
+		if (!_insert_tri_indices(new_pg, tri_indices + i)) {
 			goto err;
 		}
 		new_pg->v = (float(*)[3])v;
 		mathVec3Normalized(new_pg->normal, N);
 
-		tmp_tri_indices[i] = -1;
+		tri_merge_bits[tri_idx / 8] |= (1 << (tri_idx % 8));
 		for (j = 0; j < tri_indices_cnt; j += 3) {
-			if (-1 == tmp_tri_indices[j]) {
+			tri_idx = j / 3;
+			if (tri_merge_bits[tri_idx / 8] & (1 << tri_idx % 8)) {
 				continue;
 			}
 			if (!_polygon_can_merge_triangle(new_pg,
-				v[tmp_tri_indices[j]], v[tmp_tri_indices[j + 1]], v[tmp_tri_indices[j + 2]]))
+				v[tri_indices[j]], v[tri_indices[j + 1]], v[tri_indices[j + 2]]))
 			{
 				continue;
 			}
-			if (!_insert_tri_indices(new_pg, tmp_tri_indices + j)) {
+			if (!_insert_tri_indices(new_pg, tri_indices + j)) {
 				goto err;
 			}
-			tmp_tri_indices[j] = -1;
+			tri_merge_bits[tri_idx / 8] |= (1 << (tri_idx % 8));
 			j = 0;
 		}
 	}
-	free(tmp_tri_indices);
-	tmp_tri_indices = NULL;
+	free(tri_merge_bits);
+	tri_merge_bits = NULL;
 	/* Cooking all polygen */
 	for (i = 0; i < tmp_polygons_cnt; ++i) {
 		GeometryPolygon_t* polygon = tmp_polygons + i;
@@ -621,7 +622,7 @@ err:
 		}
 		free(tmp_polygons);
 	}
-	free(tmp_tri_indices);
+	free(tri_merge_bits);
 	return 0;
 }
 
