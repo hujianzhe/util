@@ -144,26 +144,26 @@ unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int src_v_cnt, f
 	return dst_v_cnt;
 }
 
-int mathPolygonIsConvex(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt) {
+int mathPolygonIsConvex(const GeometryPolygon_t* polygon) {
 	float e1[3], e2[3], test_n[3];
 	unsigned int i, has_test_n;
-	if (v_indices_cnt < 3) {
+	if (polygon->v_indices_cnt < 3) {
 		return 0;
 	}
 	has_test_n = 0;
-	for (i = 0; i < v_indices_cnt; ++i) {
+	for (i = 0; i < polygon->v_indices_cnt; ++i) {
 		float n[3];
 		unsigned int v_idx1, v_idx2;
 		if (i) {
-			v_idx1 = v_indices[i - 1];
-			v_idx2 = v_indices[i + 1 < v_indices_cnt ? i + 1 : 0];
+			v_idx1 = polygon->v_indices[i - 1];
+			v_idx2 = polygon->v_indices[i + 1 < polygon->v_indices_cnt ? i + 1 : 0];
 		}
 		else {
-			v_idx1 = v_indices[v_indices_cnt - 1];
-			v_idx2 = v_indices[1];
+			v_idx1 = polygon->v_indices[polygon->v_indices_cnt - 1];
+			v_idx2 = polygon->v_indices[1];
 		}
-		mathVec3Sub(e1, v[v_indices[i]], v[v_idx1]);
-		mathVec3Sub(e2, v[v_idx2], v[v_indices[i]]);
+		mathVec3Sub(e1, polygon->v[polygon->v_indices[i]], polygon->v[v_idx1]);
+		mathVec3Sub(e2, polygon->v[v_idx2], polygon->v[polygon->v_indices[i]]);
 		if (!has_test_n) {
 			mathVec3Cross(test_n, e1, e2);
 			if (!mathVec3IsZero(test_n)) {
