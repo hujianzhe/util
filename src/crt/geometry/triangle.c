@@ -256,7 +256,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 	return 0;
 }
 
-int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
+static GeometryPolygon_t* PolygonCooking_InternalProc(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
 	unsigned int tmp_edge_pair_indices_cnt = 0;
@@ -267,16 +267,18 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	float v1[3], v2[3], N[3];
 
 	if (tri_indices_cnt < 3 || tri_indices_cnt % 3 != 0) {
-		return 0;
+		return NULL;
 	}
 	mathPlaneNormalByVertices3(v[tri_indices[0]], v[tri_indices[1]], v[tri_indices[2]], N);
 	if (mathVec3IsZero(N)) {
-		return 0;
+		return NULL;
 	}
+	polygon->v = (float(*)[3])v;
+	mathVec3Copy(polygon->normal, N);
 	if (tri_indices_cnt == 3) {
 		ret_v_indices = (unsigned int*)malloc(3 * sizeof(ret_v_indices[0]));
 		if (!ret_v_indices) {
-			return 0;
+			return NULL;
 		}
 		ret_v_indices[0] = tri_indices[0];
 		ret_v_indices[1] = tri_indices[1];
@@ -284,7 +286,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 
 		polygon->v_indices = ret_v_indices;
 		polygon->v_indices_cnt = 3;
-		return 1;
+		return polygon;
 	}
 	/* Filters all share triangle edges, leaving all non-shared edges */
 	for (i = 0; i < tri_indices_cnt; i += 3) {
@@ -304,7 +306,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 			for (k = 0; k < 3; ++k) {
 				if (!mathPlaneHasPoint(v[tri_indices[i]], N, v[tri_indices[j+k]])) {
 					free(tmp_edge_pair_indices);
-					return 0;
+					return NULL;
 				}
 			}
 			ej[0] = tri_indices[j]; ej[1] = tri_indices[j+1];
@@ -339,7 +341,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		}
 		if (!same[0] && !same[1] && !same[2]) {
 			free(tmp_edge_pair_indices);
-			return 0;
+			return NULL;
 		}
 		for (j = 0; j < 6; j += 2) {
 			unsigned int* ptr;
@@ -350,7 +352,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 			ptr = (unsigned int*)realloc(tmp_edge_pair_indices, tmp_edge_pair_indices_cnt * sizeof(tmp_edge_pair_indices[0]));
 			if (!ptr) {
 				free(tmp_edge_pair_indices);
-				return 0;
+				return NULL;
 			}
 			tmp_edge_pair_indices = ptr;
 			tmp_edge_pair_indices[tmp_edge_pair_indices_cnt - 2] = ei[j];
@@ -358,13 +360,13 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 		}
 	}
 	if (!tmp_edge_pair_indices) {
-		return 0;
+		return NULL;
 	}
 	/* Calculates the order of edge vertex traversal */
 	tmp_edge_indices = (unsigned int*)malloc(sizeof(tmp_edge_indices[0]) * tmp_edge_pair_indices_cnt);
 	if (!tmp_edge_indices) {
 		free(tmp_edge_pair_indices);
-		return 0;
+		return NULL;
 	}
 	s = tmp_edge_pair_indices[0];
 	n = tmp_edge_pair_indices[1];
@@ -398,7 +400,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	free(tmp_edge_pair_indices);
 	if (s != n || tmp_edge_indices_cnt < 2) {
 		free(tmp_edge_indices);
-		return 0;
+		return NULL;
 	}
 	/* Merge vertices on the same edge */
 	--tmp_edge_indices_cnt;
@@ -429,7 +431,7 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	ret_v_indices = (unsigned int*)malloc(ret_v_indices_cnt * sizeof(ret_v_indices[0]));
 	if (!ret_v_indices) {
 		free(tmp_edge_indices);
-		return 0;
+		return NULL;
 	}
 	n = 0;
 	for (i = 0; i < tmp_edge_indices_cnt && n < ret_v_indices_cnt; ++i) {
@@ -442,20 +444,65 @@ int mathPolygonCooking(const float (*v)[3], const unsigned int* tri_indices, uns
 	/* save result */
 	polygon->v_indices = ret_v_indices;
 	polygon->v_indices_cnt = ret_v_indices_cnt;
-	return 1;
+	return polygon;
+}
+
+GeometryPolygon_t* mathPolygonCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
+	float(*dup_v)[3] = NULL;
+	unsigned int i, dup_v_cnt;
+	unsigned int* dup_tri_indices;
+
+	if (v_cnt < 3 || tri_indices_cnt < 3) {
+		return NULL;
+	}
+	dup_v_cnt = mathVerticesDistinctCount(v, v_cnt);
+	if (dup_v_cnt < 3) {
+		return NULL;
+	}
+	dup_v = (float(*)[3])malloc(dup_v_cnt * sizeof(dup_v[0]));
+	if (!dup_v) {
+		goto err;
+	}
+	dup_tri_indices = (unsigned int*)malloc(sizeof(tri_indices[0]) * tri_indices_cnt);
+	if (!dup_tri_indices) {
+		goto err;
+	}
+	for (i = 0; i < tri_indices_cnt; ++i) {
+		dup_tri_indices[i] = tri_indices[i];
+	}
+	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
+	if (!PolygonCooking_InternalProc(dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
+		goto err;
+	}
+	free(dup_tri_indices);
+	return polygon;
+err:
+	free(dup_v);
+	free(dup_tri_indices);
+	return NULL;
 }
 
 void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
-	free((void*)polygon->tri_indices);
-	polygon->tri_indices = NULL;
-	polygon->tri_indices_cnt = 0;
-
-	free((void*)polygon->v_indices);
-	polygon->v_indices = NULL;
-	polygon->v_indices_cnt = 0;
+	if (!polygon) {
+		return;
+	}
+	if (polygon->tri_indices) {
+		free((void*)polygon->tri_indices);
+		polygon->tri_indices = NULL;
+		polygon->tri_indices_cnt = 0;
+	}
+	if (polygon->v_indices) {
+		free((void*)polygon->v_indices);
+		polygon->v_indices = NULL;
+		polygon->v_indices_cnt = 0;
+	}
+	if (polygon->v) {
+		free(polygon->v);
+		polygon->v = NULL;
+	}
 }
 
-static int mathMeshCookingEdge(const float (*v)[3], GeometryMesh_t* mesh) {
+static int Mesh_Cooking_Edge_InternalProc(const float (*v)[3], GeometryMesh_t* mesh) {
 	unsigned int i;
 	unsigned int* ret_edge_indices = NULL;
 	unsigned int ret_edge_indices_cnt = 0;
@@ -538,7 +585,7 @@ static int _polygon_can_merge_triangle(GeometryPolygon_t* polygon, const float p
 	return n >= 2;
 }
 
-static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
+static int Mesh_Cooking_Polygen_InternalProc(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
 	unsigned int i;
 	GeometryPolygon_t* tmp_polygons = NULL;
 	unsigned int tmp_polygons_cnt = 0;
@@ -547,7 +594,7 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 
 	tri_cnt = tri_indices_cnt / 3;
 	if (tri_cnt < 1) {
-		return 0;
+		goto err;
 	}
 	tri_merge_bits = (char*)calloc(1, tri_cnt / 8 + (tri_cnt % 8 ? 1 : 0));
 	if (!tri_merge_bits) {
@@ -608,7 +655,7 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 	/* Cooking all polygen */
 	for (i = 0; i < tmp_polygons_cnt; ++i) {
 		GeometryPolygon_t* polygon = tmp_polygons + i;
-		if (!mathPolygonCooking((const float(*)[3])polygon->v, polygon->tri_indices, polygon->tri_indices_cnt, polygon)) {
+		if (!PolygonCooking_InternalProc((const float(*)[3])polygon->v, polygon->tri_indices, polygon->tri_indices_cnt, polygon)) {
 			goto err;
 		}
 	}
@@ -618,6 +665,7 @@ static int mathMeshCookingPolygen(const float (*v)[3], const unsigned int* tri_i
 err:
 	if (tmp_polygons) {
 		for (i = 0; i < tmp_polygons_cnt; ++i) {
+			tmp_polygons[i].v = NULL;
 			mathPolygonFreeCookingData(tmp_polygons + i);
 		}
 		free(tmp_polygons);
@@ -626,77 +674,87 @@ err:
 	return 0;
 }
 
-static int mathMeshCookingMergeVertices(const float (*v)[3], GeometryMesh_t* mesh) {
-	unsigned int* tmp_indices = NULL;
-	unsigned int tmp_indices_cnt = 0;
-	unsigned int i;
+GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
+	float(*dup_v)[3] = NULL;
+	unsigned int i, dup_v_cnt;
+	unsigned int* dup_v_indices = NULL;
+	unsigned int* dup_tri_indices = NULL;
+
+	if (v_cnt < 3 || tri_indices_cnt < 3) {
+		goto err_0;
+	}
+	dup_v_cnt = mathVerticesDistinctCount(v, v_cnt);
+	if (dup_v_cnt < 3) {
+		goto err_0;
+	}
+	dup_v = (float(*)[3])malloc(dup_v_cnt * sizeof(dup_v[0]));
+	if (!dup_v) {
+		goto err_0;
+	}
+	dup_v_indices = (unsigned int*)malloc(sizeof(dup_v_indices[0]) * dup_v_cnt);
+	if (!dup_v_indices) {
+		goto err_0;
+	}
+	dup_tri_indices = (unsigned int*)malloc(sizeof(tri_indices[0]) * tri_indices_cnt);
+	if (!dup_tri_indices) {
+		goto err_0;
+	}
+	for (i = 0; i < tri_indices_cnt; ++i) {
+		dup_tri_indices[i] = tri_indices[i];
+	}
+	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
+
+	if (!Mesh_Cooking_Polygen_InternalProc(dup_v, dup_tri_indices, tri_indices_cnt, mesh)) {
+		goto err_0;
+	}
+	if (!Mesh_Cooking_Edge_InternalProc(dup_v, mesh)) {
+		goto err_1;
+	}
+	free(dup_tri_indices);
+	for (i = 0; i < dup_v_cnt; ++i) {
+		dup_v_indices[i] = i;
+	}
+	mesh->v = dup_v;
+	mesh->v_indices = dup_v_indices;
+	mesh->v_indices_cnt = dup_v_cnt;
+	return mesh;
+err_1:
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
-		unsigned int j;
-		GeometryPolygon_t* polygon = mesh->polygons + i;
-		for (j = 0; j < polygon->v_indices_cnt; ++j) {
-			unsigned int vi = polygon->v_indices[j];
-			unsigned int* new_p;
-			unsigned int k;
-			for (k = 0; k < tmp_indices_cnt; ++k) {
-				if (vi == tmp_indices[k] || mathVec3Equal(v[vi], v[tmp_indices[k]])) {
-					break;
-				}
-			}
-			if (k != tmp_indices_cnt) {
-				continue;
-			}
-			tmp_indices_cnt++;
-			new_p = (unsigned int*)realloc(tmp_indices, sizeof(tmp_indices[0]) * tmp_indices_cnt);
-			if (!new_p) {
-				free(tmp_indices);
-				return 0;
-			}
-			tmp_indices = new_p;
-			tmp_indices[tmp_indices_cnt - 1] = vi;
-		}
+		mesh->polygons[i].v = NULL;
+		mathPolygonFreeCookingData(mesh->polygons + i);
 	}
-
-	mesh->v_indices = tmp_indices;
-	mesh->v_indices_cnt = tmp_indices_cnt;
-	return 1;
-}
-
-int mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
-	unsigned int i;
-	float (*vbuf)[3];
-	if (!mathMeshCookingPolygen(v, tri_indices, tri_indices_cnt, mesh)) {
-		return 0;
-	}
-	if (!mathMeshCookingEdge(v, mesh)) {
-		return 0;
-	}
-	if (!mathMeshCookingMergeVertices(v, mesh)) {
-		return 0;
-	}
-	vbuf = (float(*)[3])malloc(v_cnt * sizeof(v[0]));
-	if (!vbuf) {
-		return 0;
-	}
-	for (i = 0; i < v_cnt; ++i) {
-		mathVec3Copy(vbuf[i], v[i]);
-	}
-	mesh->v = vbuf;
-	return 1;
+err_0:
+	free(dup_v);
+	free(dup_v_indices);
+	free(dup_tri_indices);
+	return NULL;
 }
 
 void mathMeshFreeCookingData(GeometryMesh_t* mesh) {
 	unsigned int i;
+	if (!mesh) {
+		return;
+	}
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		mesh->polygons[i].v = NULL;
 		mathPolygonFreeCookingData(mesh->polygons + i);
 	}
-	free(mesh->polygons);
-	mesh->polygons_cnt = 0;
-	free((void*)mesh->edge_indices);
-	mesh->edge_indices_cnt = 0;
-	free((void*)mesh->v_indices);
-	mesh->v_indices_cnt = 0;
-	free(mesh->v);
-	mesh->v = NULL;
+	if (mesh->polygons) {
+		free(mesh->polygons);
+		mesh->polygons_cnt = 0;
+	}
+	if (mesh->edge_indices) {
+		free((void*)mesh->edge_indices);
+		mesh->edge_indices_cnt = 0;
+	}
+	if (mesh->v_indices) {
+		free((void*)mesh->v_indices);
+		mesh->v_indices_cnt = 0;
+	}
+	if (mesh->v) {
+		free(mesh->v);
+		mesh->v = NULL;
+	}
 }
 
 int mathMeshIsClosed(const GeometryMesh_t* mesh) {
