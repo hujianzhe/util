@@ -273,7 +273,6 @@ static GeometryPolygon_t* PolygonCooking_InternalProc(const float (*v)[3], const
 	if (mathVec3IsZero(N)) {
 		return NULL;
 	}
-	polygon->v = (float(*)[3])v;
 	mathVec3Copy(polygon->normal, N);
 	if (tri_indices_cnt == 3) {
 		ret_v_indices = (unsigned int*)malloc(3 * sizeof(ret_v_indices[0]));
@@ -474,7 +473,9 @@ GeometryPolygon_t* mathPolygonCooking(const float (*v)[3], unsigned int v_cnt, c
 	if (!PolygonCooking_InternalProc(dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
 		goto err;
 	}
-	free(dup_tri_indices);
+	polygon->v = dup_v;
+	polygon->tri_indices = dup_tri_indices;
+	polygon->tri_indices_cnt = tri_indices_cnt;
 	return polygon;
 err:
 	free(dup_v);
