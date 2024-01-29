@@ -449,7 +449,7 @@ static GeometryPolygon_t* PolygonCooking_InternalProc(const float (*v)[3], const
 GeometryPolygon_t* mathPolygonCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	float(*dup_v)[3] = NULL;
 	unsigned int i, dup_v_cnt;
-	unsigned int* dup_tri_indices;
+	unsigned int* dup_tri_indices = NULL;
 
 	if (v_cnt < 3 || tri_indices_cnt < 3) {
 		return NULL;
