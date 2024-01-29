@@ -64,7 +64,7 @@ typedef struct GeometryMesh_t {
 
 /*********************************************************************/
 
-enum GeometryBodyType {
+enum {
 	GEOMETRY_BODY_POINT = 1,
 	GEOMETRY_BODY_SEGMENT = 2,
 	GEOMETRY_BODY_PLANE = 3,
@@ -73,7 +73,6 @@ enum GeometryBodyType {
 	GEOMETRY_BODY_POLYGON = 7,
 	GEOMETRY_BODY_OBB = 8,
 	GEOMETRY_BODY_MESH = 9,
-	GEOMETRY_BODY_CONVEX_POLYHEDRON = 10,
 };
 
 typedef struct GeometryBody_t {
