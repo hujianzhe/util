@@ -24,6 +24,7 @@ __declspec_dll void mathAABBVertices(const float o[3], const float half[3], floa
 __declspec_dll void mathAABBMinVertice(const float o[3], const float half[3], float v[3]);
 __declspec_dll void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]);
 __declspec_dll int mathAABBFromVertexSet(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]);
+__declspec_dll int mathAABBFromVertices(const float(*v)[3], unsigned int v_cnt, float o[3], float half[3]);
 
 __declspec_dll int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]);
 __declspec_dll void mathAABBClosestPointTo(const float o[3], const float half[3], const float p[3], float closest_p[3]);

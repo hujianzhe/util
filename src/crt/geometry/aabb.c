@@ -177,21 +177,46 @@ void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]) {
 }
 
 int mathAABBFromVertexSet(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]) {
-	unsigned int i, set_;
+	unsigned int i;
 	float v_min[3], v_max[3];
 	if (v_indices_cnt <= 0) {
 		return 0;
 	}
-	set_ = 0;
-	for (i = 0; i < v_indices_cnt; ++i) {
+	mathVec3Copy(v_min, v[v_indices[0]]);
+	mathVec3Copy(v_max, v[v_indices[0]]);
+	for (i = 1; i < v_indices_cnt; ++i) {
 		unsigned int j;
 		const float* cur_v = v[v_indices[i]];
-		if (!set_) {
-			set_ = 1;
-			mathVec3Copy(v_min, cur_v);
-			mathVec3Copy(v_max, cur_v);
-			continue;
+		for (j = 0; j < 3; ++j) {
+			if (cur_v[j] < v_min[j]) {
+				v_min[j] = cur_v[j];
+			}
+			else if (cur_v[j] > v_max[j]) {
+				v_max[j] = cur_v[j];
+			}
 		}
+	}
+	for (i = 0; i < 3; ++i) {
+		half[i] = (v_max[i] - v_min[i]) * 0.5f;
+		if (half[i] < 1e-5f + 1e-5f) {
+			half[i] = 1e-5f + 1e-5f;
+		}
+		o[i] = (v_min[i] + v_max[i]) * 0.5f;
+	}
+	return 1;
+}
+
+int mathAABBFromVertices(const float(*v)[3], unsigned int v_cnt, float o[3], float half[3]) {
+	unsigned int i;
+	float v_min[3], v_max[3];
+	if (v_cnt <= 0) {
+		return 0;
+	}
+	mathVec3Copy(v_min, v[0]);
+	mathVec3Copy(v_max, v[0]);
+	for (i = 1; i < v_cnt; ++i) {
+		unsigned int j;
+		const float* cur_v = v[i];
 		for (j = 0; j < 3; ++j) {
 			if (cur_v[j] < v_min[j]) {
 				v_min[j] = cur_v[j];
