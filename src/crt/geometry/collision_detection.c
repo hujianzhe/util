@@ -10,7 +10,6 @@
 #include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/obb.h"
 #include "../../../inc/crt/geometry/triangle.h"
-#include "../../../inc/crt/geometry/collision_intersect.h"
 #include "../../../inc/crt/geometry/collision_detection.h"
 #include <stddef.h>
 
