@@ -21,7 +21,7 @@ float* mathQuatSet(float q[4], float x, float y, float z, float w) {
 
 float* mathQuatNormalized(float r[4], const float q[4]) {
 	float m = q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3];
-	if (m > CCT_EPSILON) {
+	if (m > 0.0f) {
 		m = 1.0f / sqrtf(m);
 		r[0] = q[0] * m;
 		r[1] = q[1] * m;
@@ -133,6 +133,20 @@ void mathQuatToAxisRadian(const float q[4], float axis[3], float* radian) {
 	axis[1] = qy * s;
 	axis[2] = qz * s;
 	*radian = atan2f(s2*s, qw) * 2.0f;
+}
+
+int mathQuatIsZero(const float q[4]) {
+	return	fcmpf(q[0], 0.0f, CCT_EPSILON) == 0 &&
+			fcmpf(q[1], 0.0f, CCT_EPSILON) == 0 &&
+			fcmpf(q[2], 0.0f, CCT_EPSILON) == 0 &&
+			fcmpf(q[3], 0.0f, CCT_EPSILON) == 0;
+}
+
+int mathQuatEqual(const float q1[4], const float q2[4]) {
+	return	fcmpf(q1[0], q2[0], CCT_EPSILON) == 0 &&
+			fcmpf(q1[1], q2[1], CCT_EPSILON) == 0 &&
+			fcmpf(q1[2], q2[2], CCT_EPSILON) == 0 &&
+			fcmpf(q1[3], q2[3], CCT_EPSILON);
 }
 
 float* mathQuatIdentity(float q[4]) {

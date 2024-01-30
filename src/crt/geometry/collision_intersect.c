@@ -528,6 +528,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathPolygonHasPoint(two->polygon, one->point);
 			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathConvexMeshHasPoint(two->mesh, one->point);
+			}
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
@@ -759,6 +763,10 @@ int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef
 				GeometryOBB_t one_obb;
 				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
 				return mathOBBContainSphere(&one_obb, two->sphere->o, two->sphere->radius);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathAABBContainAABB(one->aabb->o, one->aabb->half, two->mesh->bound_box.o, two->mesh->bound_box.half);
 			}
 		}
 	}

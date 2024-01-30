@@ -28,14 +28,14 @@ float* mathVec3Set(float r[3], float x, float y, float z) {
 
 int mathVec3IsZero(const float v[3]) {
 	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&
-		fcmpf(v[1], 0.0f, CCT_EPSILON) == 0 &&
-		fcmpf(v[2], 0.0f, CCT_EPSILON) == 0;
+			fcmpf(v[1], 0.0f, CCT_EPSILON) == 0 &&
+			fcmpf(v[2], 0.0f, CCT_EPSILON) == 0;
 }
 
 int mathVec3Equal(const float v1[3], const float v2[3]) {
 	return	fcmpf(v1[0], v2[0], CCT_EPSILON) == 0 &&
-		fcmpf(v1[1], v2[1], CCT_EPSILON) == 0 &&
-		fcmpf(v1[2], v2[2], CCT_EPSILON) == 0;
+			fcmpf(v1[1], v2[1], CCT_EPSILON) == 0 &&
+			fcmpf(v1[2], v2[2], CCT_EPSILON) == 0;
 }
 
 float mathVec3MinElement(const float v[3]) {
