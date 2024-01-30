@@ -98,7 +98,7 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 	else {
 		float lsdir[3], p[3], op[3];
 		dot = mathVec3Dot(N, dir);
-		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+		if (dot < CCT_EPSILON_NEGATE || dot > CCT_EPSILON) {
 			return NULL;
 		}
 		mathVec3Sub(lsdir, ls[1], ls[0]);
@@ -154,7 +154,7 @@ static CCTResult_t* mathRaycastPolygon(const float o[3], const float dir[3], con
 		return mathPolygonHasPoint(polygon, result->hit_point) ? result : NULL;
 	}
 	dot = mathVec3Dot(dir, polygon->normal);
-	if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+	if (dot < CCT_EPSILON_NEGATE || dot > CCT_EPSILON) {
 		return NULL;
 	}
 	p_result = NULL;
@@ -234,6 +234,37 @@ static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], cons
 	mathVec3Sub(result->hit_normal, result->hit_point, sp_o);
 	mathVec3MultiplyScalar(result->hit_normal, result->hit_normal, 1.0f / sp_radius);
 	return result;
+}
+
+static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+	unsigned int i;
+	CCTResult_t* p_result = NULL;
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		CCTResult_t result_temp;
+		if (!mathRaycastPolygon(o, dir, mesh->polygons + i, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			copy_result(result, &result_temp);
+			p_result = result;
+			if (CCT_EPSILON_NEGATE <= result->distance && result->distance <= CCT_EPSILON) {
+				return p_result;
+			}
+		}
+	}
+	if (p_result) {
+		float neg_dir[3];
+		mathVec3Negate(neg_dir, dir);
+		for (i = 0; i < mesh->polygons_cnt; ++i) {
+			CCTResult_t result_temp;
+			if (mathRaycastPolygon(o, neg_dir, mesh->polygons + i, &result_temp)) {
+				set_result(result, 0.0f, dir);
+				add_result_hit_point(result, o);
+				break;
+			}
+		}
+	}
+	return p_result;
 }
 
 static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
@@ -654,7 +685,7 @@ static CCTResult_t* mathPolygoncastPlane(const GeometryPolygon_t* polygon, const
 		}
 	}
 	dot = mathVec3Dot(dir, plane_n);
-	if (dot <= CCT_EPSILON && dot >= -CCT_EPSILON) {
+	if (dot <= CCT_EPSILON && dot >= CCT_EPSILON_NEGATE) {
 		return NULL;
 	}
 	min_d /= dot;
@@ -933,7 +964,7 @@ static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const fl
 	}
 	else {
 		float dn_abs, cos_theta = mathVec3Dot(plane_n, dir);
-		if (cos_theta <= CCT_EPSILON && cos_theta >= -CCT_EPSILON) {
+		if (cos_theta <= CCT_EPSILON && cos_theta >= CCT_EPSILON_NEGATE) {
 			return NULL;
 		}
 		d = dn / cos_theta;
@@ -1121,6 +1152,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathRaycastPolygon(one->point, dir, two->polygon, result);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathRaycastConvexMesh(one->point, dir, two->mesh, result);
 			}
 		}
 	}

@@ -54,6 +54,7 @@ typedef struct GeometryPolygon_t {
 
 typedef struct GeometryMesh_t {
 	float (*v)[3]; /* vertices vec3 */
+	GeometryAABB_t bound_box; /* AABB bound box */
 	unsigned int polygons_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */
 	unsigned int v_indices_cnt; /* number of vertices index */
@@ -70,9 +71,9 @@ enum {
 	GEOMETRY_BODY_PLANE = 3,
 	GEOMETRY_BODY_SPHERE = 4,
 	GEOMETRY_BODY_AABB = 5,
-	GEOMETRY_BODY_POLYGON = 7,
-	GEOMETRY_BODY_OBB = 8,
-	GEOMETRY_BODY_MESH = 9,
+	GEOMETRY_BODY_POLYGON = 6,
+	GEOMETRY_BODY_OBB = 7,
+	GEOMETRY_BODY_CONVEX_MESH = 8,
 };
 
 typedef struct GeometryBody_t {
@@ -85,7 +86,6 @@ typedef struct GeometryBody_t {
 		GeometryPolygon_t polygon;
 		GeometryOBB_t obb;
 		GeometryMesh_t mesh;
-		GeometryMesh_t convex;
 	};
 	int type;
 } GeometryBody_t;
@@ -101,7 +101,6 @@ typedef struct GeometryBodyRef_t {
 		const GeometryPolygon_t* polygon;
 		const GeometryOBB_t* obb;
 		const GeometryMesh_t* mesh;
-		const GeometryMesh_t* convex;
 	};
 	int type;
 } GeometryBodyRef_t;

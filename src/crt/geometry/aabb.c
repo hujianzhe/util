@@ -153,6 +153,21 @@ GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigne
 	return rect;
 }
 
+void mathAABBFixHalf(float half[3], float min_half_value) {
+	if (min_half_value < 0.0f) {
+		return;
+	}
+	if (half[0] < min_half_value) {
+		half[0] = min_half_value;
+	}
+	if (half[1] < min_half_value) {
+		half[1] = min_half_value;
+	}
+	if (half[2] < min_half_value) {
+		half[2] = min_half_value;
+	}
+}
+
 void mathAABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
 	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];

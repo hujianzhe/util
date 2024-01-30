@@ -4,8 +4,8 @@
 
 #include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/plane.h"
-#include "../../../inc/crt/geometry/line_segment.h"
 #include "../../../inc/crt/geometry/triangle.h"
 #include <stddef.h>
 #include <stdlib.h>
@@ -194,17 +194,17 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		float ls_vec[3], v[3], dot;
 		mathVec3Sub(v, p, polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(polygon->normal, v);
-		if (dot < -CCT_EPSILON || dot > CCT_EPSILON) {
+		if (dot < CCT_EPSILON_NEGATE || dot > CCT_EPSILON) {
 			return 0;
 		}
 		mathVec3Sub(ls_vec, polygon->v[polygon->v_indices[1]], polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
-		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
+		if (dot < CCT_EPSILON_NEGATE || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
 		}
 		mathVec3Sub(ls_vec, polygon->v[polygon->v_indices[3]], polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(ls_vec, v);
-		if (dot < -CCT_EPSILON || dot > mathVec3LenSq(ls_vec)) {
+		if (dot < CCT_EPSILON_NEGATE || dot > mathVec3LenSq(ls_vec)) {
 			return 0;
 		}
 		return 1;
@@ -229,7 +229,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		float vp[3], eg[3];
 		mathVec3Sub(v, polygon->v[polygon->v_indices[0]], p);
 		dot = mathVec3Dot(polygon->normal, v);
-		if (dot > CCT_EPSILON || dot < -CCT_EPSILON) {
+		if (dot > CCT_EPSILON || dot < CCT_EPSILON_NEGATE) {
 			return 0;
 		}
 		mathVec3Sub(vp, p, polygon->v[polygon->v_indices[0]]);
@@ -715,6 +715,7 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	for (i = 0; i < dup_v_cnt; ++i) {
 		dup_v_indices[i] = i;
 	}
+	mathAABBFromVertices(dup_v, dup_v_cnt, mesh->bound_box.o, mesh->bound_box.half);
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;
@@ -802,7 +803,7 @@ int mathMeshIsConvex(const GeometryMesh_t* mesh) {
 			float vj[3], dot;
 			mathVec3Sub(vj, mesh->v[mesh->v_indices[j]], *P);
 			dot = mathVec3Dot(*N, vj);
-			if (dot <= CCT_EPSILON && dot >= -CCT_EPSILON) {
+			if (dot <= CCT_EPSILON && dot >= CCT_EPSILON_NEGATE) {
 				continue;
 			}
 			if (!has_test_dot) {

@@ -474,7 +474,7 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 			}
 			break;
 		}
-		case GEOMETRY_BODY_MESH:
+		case GEOMETRY_BODY_CONVEX_MESH:
 		{
 			const GeometryMesh_t* mesh = b->mesh;
 			if (!mathAABBFromVertexSet((const float(*)[3])mesh->v, mesh->v_indices, mesh->v_indices_cnt, aabb->o, aabb->half)) {
