@@ -245,14 +245,16 @@ static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], 
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
+			if (CCT_EPSILON_NEGATE <= result_temp.distance && result_temp.distance <= CCT_EPSILON) {
+				set_result(result, 0.0f, dir);
+				add_result_hit_point(result, o);
+				return result;
+			}
 			copy_result(result, &result_temp);
 			p_result = result;
-			if (CCT_EPSILON_NEGATE <= result->distance && result->distance <= CCT_EPSILON) {
-				return p_result;
-			}
 		}
 	}
-	if (p_result) {
+	if (p_result && mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, o)) {
 		float neg_dir[3];
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < mesh->polygons_cnt; ++i) {
@@ -260,7 +262,7 @@ static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], 
 			if (mathRaycastPolygon(o, neg_dir, mesh->polygons + i, &result_temp)) {
 				set_result(result, 0.0f, dir);
 				add_result_hit_point(result, o);
-				break;
+				return result;
 			}
 		}
 	}

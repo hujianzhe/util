@@ -520,13 +520,13 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathSphereHasPoint(two->sphere->o, two->sphere->radius, one->point);
 			}
-			case GEOMETRY_BODY_POLYGON:
-			{
-				return mathPolygonHasPoint(two->polygon, one->point);
-			}
 			case GEOMETRY_BODY_OBB:
 			{
 				return mathOBBHasPoint(two->obb, one->point);
+			}
+			case GEOMETRY_BODY_POLYGON:
+			{
+				return mathPolygonHasPoint(two->polygon, one->point);
 			}
 		}
 	}

@@ -179,18 +179,50 @@ int mathPolygonIsConvex(const GeometryPolygon_t* polygon) {
 	return 1;
 }
 
+static int Polygon_Convex_HasPoint_InternalProc(const GeometryPolygon_t* polygon, const float p[3]) {
+	unsigned int i;
+	float v[3], dot;
+	float vp[3], eg[3];
+
+	mathVec3Sub(v, polygon->v[polygon->v_indices[0]], p);
+	dot = mathVec3Dot(polygon->normal, v);
+	if (dot > CCT_EPSILON || dot < CCT_EPSILON_NEGATE) {
+		return 0;
+	}
+	mathVec3Sub(vp, p, polygon->v[polygon->v_indices[0]]);
+	mathVec3Sub(eg, polygon->v[polygon->v_indices[0]], polygon->v[polygon->v_indices[polygon->v_indices_cnt - 1]]);
+	mathVec3Cross(v, vp, eg);
+	if (mathVec3IsZero(v) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
+		return 1;
+	}
+	for (i = 1; i < polygon->v_indices_cnt; ++i) {
+		float vi[3];
+		mathVec3Sub(vp, p, polygon->v[polygon->v_indices[i]]);
+		mathVec3Sub(eg, polygon->v[polygon->v_indices[i]], polygon->v[polygon->v_indices[i - 1]]);
+		mathVec3Cross(vi, vp, eg);
+		if (mathVec3IsZero(vi) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
+			return 1;
+		}
+		dot = mathVec3Dot(v, vi);
+		if (dot <= 0.0f) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 	if (polygon->v_indices_cnt < 3) {
 		return 0;
 	}
-	else if (3 == polygon->v_indices_cnt) {
+	if (3 == polygon->v_indices_cnt) {
 		float tri[3][3];
 		mathVec3Copy(tri[0], polygon->v[polygon->v_indices[0]]);
 		mathVec3Copy(tri[1], polygon->v[polygon->v_indices[1]]);
 		mathVec3Copy(tri[2], polygon->v[polygon->v_indices[2]]);
 		return mathTrianglePointUV((const float(*)[3])tri, p, NULL, NULL);
 	}
-	else if (polygon->v_indices == DEFAULT_RECT_VERTICE_INDICES) {
+	if (polygon->v_indices == DEFAULT_RECT_VERTICE_INDICES) {
 		float ls_vec[3], v[3], dot;
 		mathVec3Sub(v, p, polygon->v[polygon->v_indices[0]]);
 		dot = mathVec3Dot(polygon->normal, v);
@@ -209,7 +241,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		}
 		return 1;
 	}
-	else if (polygon->tri_indices && polygon->tri_indices_cnt >= 3) {
+	if (polygon->tri_indices && polygon->tri_indices_cnt >= 3) {
 		unsigned int i;
 		for (i = 0; i < polygon->tri_indices_cnt; ) {
 			float tri[3][3];
@@ -222,38 +254,7 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 		}
 		return 0;
 	}
-	else {
-		/* only convex polygon */
-		unsigned int i;
-		float v[3], dot;
-		float vp[3], eg[3];
-		mathVec3Sub(v, polygon->v[polygon->v_indices[0]], p);
-		dot = mathVec3Dot(polygon->normal, v);
-		if (dot > CCT_EPSILON || dot < CCT_EPSILON_NEGATE) {
-			return 0;
-		}
-		mathVec3Sub(vp, p, polygon->v[polygon->v_indices[0]]);
-		mathVec3Sub(eg, polygon->v[polygon->v_indices[0]], polygon->v[polygon->v_indices[polygon->v_indices_cnt - 1]]);
-		mathVec3Cross(v, vp, eg);
-		if (mathVec3IsZero(v) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
-			return 1;
-		}
-		for (i = 1; i < polygon->v_indices_cnt; ++i) {
-			float vi[3];
-			mathVec3Sub(vp, p, polygon->v[polygon->v_indices[i]]);
-			mathVec3Sub(eg, polygon->v[polygon->v_indices[i]], polygon->v[polygon->v_indices[i - 1]]);
-			mathVec3Cross(vi, vp, eg);
-			if (mathVec3IsZero(vi) && mathVec3LenSq(vp) <= mathVec3LenSq(eg)) {
-				return 1;
-			}
-			dot = mathVec3Dot(v, vi);
-			if (dot <= 0.0f) {
-				return 0;
-			}
-		}
-		return 1;
-	}
-	return 0;
+	return Polygon_Convex_HasPoint_InternalProc(polygon, p);
 }
 
 static GeometryPolygon_t* PolygonCooking_InternalProc(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
@@ -818,6 +819,49 @@ int mathMeshIsConvex(const GeometryMesh_t* mesh) {
 				return 0;
 			}
 		}
+	}
+	return 1;
+}
+
+int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
+	float dir[3];
+	unsigned int i, again_flag = 0;
+	if (!mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, p)) {
+		return 0;
+	}
+	dir[0] = 1.0f; dir[1] = dir[2] = 0.0f;
+again:
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
+		float d, cos_theta, cast_p[3];
+		mathPointProjectionPlane(p, polygon->v[polygon->v_indices[0]], polygon->normal, NULL, &d);
+		if (CCT_EPSILON_NEGATE <= d && d <= CCT_EPSILON) {
+			if (Polygon_Convex_HasPoint_InternalProc(polygon, p)) {
+				return 1;
+			}
+			continue;
+		}
+		cos_theta = mathVec3Dot(dir, polygon->normal);
+		if (CCT_EPSILON_NEGATE <= cos_theta && cos_theta <= CCT_EPSILON) {
+			continue;
+		}
+		d /= cos_theta;
+		if (d < 0.0f) {
+			continue;
+		}
+		mathVec3Copy(cast_p, p);
+		mathVec3AddScalar(cast_p, dir, d);
+		if (Polygon_Convex_HasPoint_InternalProc(polygon, cast_p)) {
+			break;
+		}
+	}
+	if (i >= mesh->polygons_cnt) {
+		return 0;
+	}
+	if (!again_flag) {
+		dir[0] = -1.0f;
+		again_flag = 1;
+		goto again;
 	}
 	return 1;
 }

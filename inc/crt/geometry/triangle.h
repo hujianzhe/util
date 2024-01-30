@@ -32,6 +32,7 @@ __declspec_dll GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int
 __declspec_dll void mathMeshFreeCookingData(GeometryMesh_t* mesh);
 __declspec_dll int mathMeshIsClosed(const GeometryMesh_t* mesh);
 __declspec_dll int mathMeshIsConvex(const GeometryMesh_t* mesh);
+__declspec_dll int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]);
 
 #ifdef	__cplusplus
 }
