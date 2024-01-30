@@ -24,13 +24,15 @@ void mathOBBToAABB(const GeometryOBB_t* obb, float o[3], float half[3]) {
 	int i;
 	float v[8][3], min_v[3], max_v[3];
 	mathOBBVertices(obb, v);
-	for (i = 0; i < 8; ++i) {
+	mathVec3Copy(min_v, v[0]);
+	mathVec3Copy(max_v, v[0]);
+	for (i = 1; i < 8; ++i) {
 		int j;
 		for (j = 0; j < 3; ++j) {
-			if (!i || min_v[j] > v[i][j]) {
+			if (min_v[j] > v[i][j]) {
 				min_v[j] = v[i][j];
 			}
-			if (!i || max_v[j] < v[i][j]) {
+			else if (max_v[j] < v[i][j]) {
 				max_v[j] = v[i][j];
 			}
 		}
