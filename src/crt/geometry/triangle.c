@@ -470,7 +470,7 @@ GeometryPolygon_t* mathPolygonCooking(const float (*v)[3], unsigned int v_cnt, c
 		dup_tri_indices[i] = tri_indices[i];
 	}
 	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
-	if (!PolygonCooking_InternalProc(dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
+	if (!PolygonCooking_InternalProc((const float(*)[3])dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
 		goto err;
 	}
 	polygon->v = dup_v;
@@ -705,17 +705,17 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	}
 	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
 
-	if (!Mesh_Cooking_Polygen_InternalProc(dup_v, dup_tri_indices, tri_indices_cnt, mesh)) {
+	if (!Mesh_Cooking_Polygen_InternalProc((const float(*)[3])dup_v, dup_tri_indices, tri_indices_cnt, mesh)) {
 		goto err_0;
 	}
-	if (!Mesh_Cooking_Edge_InternalProc(dup_v, mesh)) {
+	if (!Mesh_Cooking_Edge_InternalProc((const float(*)[3])dup_v, mesh)) {
 		goto err_1;
 	}
 	free(dup_tri_indices);
 	for (i = 0; i < dup_v_cnt; ++i) {
 		dup_v_indices[i] = i;
 	}
-	mathAABBFromVertices(dup_v, dup_v_cnt, mesh->bound_box.o, mesh->bound_box.half);
+	mathAABBFromVertices((const float(*)[3])dup_v, dup_v_cnt, mesh->bound_box.o, mesh->bound_box.half);
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;
