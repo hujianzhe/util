@@ -933,11 +933,11 @@ static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3]
 	for (i = 0; i < 6; ++i)	{
 		float p[4][3];
 		CCTResult_t result_temp;
-		GeometryRect_t rect;
-		GeometryPolygon_t polygon;
-		mathOBBPlaneRect(obb1, i, &rect);
-		mathRectToPolygon(&rect, &polygon, p);
-		if (!mathPolygoncastOBB(&polygon, dir, obb2, &result_temp)) {
+		GeometryRect_t rect2;
+		GeometryPolygon_t polygon2;
+		mathOBBPlaneRect(obb2, i, &rect2);
+		mathRectToPolygon(&rect2, &polygon2, p);
+		if (!mathOBBcastPolygon(obb1, dir, &polygon2, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
