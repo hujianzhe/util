@@ -15,6 +15,8 @@
 
 extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 
+extern int mathSegmentIntersectConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh);
+
 extern int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]);
 
 extern int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
@@ -559,9 +561,14 @@ static CCTResult_t* mathPolygoncastSegment(const GeometryPolygon_t* polygon, con
 	return result;
 }
 
-static CCTResult_t* mathSegmentCastMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
-	CCTResult_t* p_result = NULL;
+	CCTResult_t* p_result;
+	if (mathSegmentIntersectConvexMesh(ls, mesh)) {
+		set_result(result, 0.0f, dir);
+		return result;
+	}
+	p_result = NULL;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		CCTResult_t result_temp;
 		const GeometryPolygon_t* polygon = mesh->polygons + i;
@@ -1205,7 +1212,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathSegmentCastMesh(one->segment->v, dir, two->mesh, result);
+				return mathSegmentCastConvexMesh(one->segment->v, dir, two->mesh, result);
 			}
 		}
 	}

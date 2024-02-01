@@ -78,7 +78,7 @@ static int mathSegmentIntersectPolygon(const float ls[2][3], const GeometryPolyg
 	}
 }
 
-static int mathSegmentIntersectConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh) {
+int mathSegmentIntersectConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh) {
 	int ret[2];
 	ret[0] = mathConvexMeshHasPoint(mesh, ls[0]);
 	ret[1] = mathConvexMeshHasPoint(mesh, ls[1]);
