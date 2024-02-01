@@ -796,14 +796,12 @@ int mathMeshIsConvex(const GeometryMesh_t* mesh) {
 	}
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		const GeometryPolygon_t* polygon = mesh->polygons + i;
-		const float(*N)[3] = (const float(*)[3])polygon->normal;
-		const float(*P)[3] = (const float(*)[3])polygon->v[polygon->v_indices[0]];
 		unsigned int j, has_test_dot = 0;
 		float test_dot;
 		for (j = 0; j < mesh->v_indices_cnt; ++j) {
 			float vj[3], dot;
-			mathVec3Sub(vj, mesh->v[mesh->v_indices[j]], *P);
-			dot = mathVec3Dot(*N, vj);
+			mathVec3Sub(vj, mesh->v[mesh->v_indices[j]], polygon->v[polygon->v_indices[0]]);
+			dot = mathVec3Dot(polygon->normal, vj);
 			if (dot <= CCT_EPSILON && dot >= CCT_EPSILON_NEGATE) {
 				continue;
 			}
@@ -821,6 +819,30 @@ int mathMeshIsConvex(const GeometryMesh_t* mesh) {
 		}
 	}
 	return 1;
+}
+
+void mathConvexMeshMakeFacesOut(GeometryMesh_t* mesh) {
+	float p[2][3], po[3];
+	unsigned int i;
+	for (i = 0; i < 2; ++i) {
+		float tri[3][3];
+		GeometryPolygon_t* polygon = mesh->polygons + i;
+		mathVec3Copy(tri[0], polygon->v[polygon->v_indices[0]]);
+		mathVec3Copy(tri[1], polygon->v[polygon->v_indices[1]]);
+		mathVec3Copy(tri[2], polygon->v[polygon->v_indices[2]]);
+		mathTriangleGetPoint((const float(*)[3])tri, 0.5f, 0.5f, p[i]);
+	}
+	mathVec3Add(po, p[0], p[1]);
+	mathVec3MultiplyScalar(po, po, 0.5f);
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		float v[3], dot;
+		GeometryPolygon_t* polygon = mesh->polygons + i;
+		mathVec3Sub(v, po, polygon->v[polygon->v_indices[0]]);
+		dot = mathVec3Dot(v, polygon->normal);
+		if (dot > 0.0f) {
+			mathVec3Negate(polygon->normal, polygon->normal);
+		}
+	}
 }
 
 int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
