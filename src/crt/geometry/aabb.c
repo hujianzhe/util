@@ -21,13 +21,13 @@ extern "C" {
 	  |/     |/      |/		6 = +++
 	 0+------+1      *---x	7 = -++
 */
-const int Box_Edge_Indices[24] = {
+const unsigned int Box_Edge_Indices[24] = {
 	0, 1,	1, 2,	2, 3,	3, 0,
 	7, 6,	6, 5,	5, 4,	4, 7,
 	1, 5,	6, 2,
 	3, 7,	4, 0
 };
-const int Box_Vertice_Adjacent_Indices[8][3] = {
+const unsigned int Box_Vertice_Adjacent_Indices[8][3] = {
 	{ 1, 3, 4 },
 	{ 0, 2, 5 },
 	{ 1, 3, 6 },
@@ -37,7 +37,7 @@ const int Box_Vertice_Adjacent_Indices[8][3] = {
 	{ 2, 5, 7 },
 	{ 3, 4, 6 }
 };
-const int Box_Triangle_Vertices_Indices[36] = {
+const unsigned int Box_Triangle_Vertices_Indices[36] = {
 	0, 1, 2,	2, 3, 0,
 	7, 6, 5,	5, 4, 7,
 	1, 5, 6,	6, 2, 1,
