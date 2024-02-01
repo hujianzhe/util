@@ -559,6 +559,23 @@ static CCTResult_t* mathPolygoncastSegment(const GeometryPolygon_t* polygon, con
 	return result;
 }
 
+static CCTResult_t* mathSegmentCastMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+	unsigned int i;
+	CCTResult_t* p_result = NULL;
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		CCTResult_t result_temp;
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
+		if (!mathSegmentcastPolygon(ls, dir, polygon, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			copy_result(result, &result_temp);
+			p_result = result;
+		}
+	}
+	return p_result;
+}
+
 static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
 	float p[3];
 	int c = mathSphereIntersectSegment(center, radius, ls, p);
@@ -1185,6 +1202,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathSegmentcastPolygon(one->segment->v, dir, two->polygon, result);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathSegmentCastMesh(one->segment->v, dir, two->mesh, result);
 			}
 		}
 	}

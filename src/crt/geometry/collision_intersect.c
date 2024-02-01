@@ -78,6 +78,13 @@ static int mathSegmentIntersectPolygon(const float ls[2][3], const GeometryPolyg
 	}
 }
 
+static int mathSegmentIntersectConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh) {
+	int ret[2];
+	ret[0] = mathConvexMeshHasPoint(mesh, ls[0]);
+	ret[1] = mathConvexMeshHasPoint(mesh, ls[1]);
+	return ret[0] || ret[1];
+}
+
 static int mathPolygonIntersectPolygon(const GeometryPolygon_t* polygon1, const GeometryPolygon_t* polygon2) {
 	int i;
 	if (!mathPlaneIntersectPlane(polygon1->v[polygon1->v_indices[0]], polygon1->normal, polygon2->v[polygon2->v_indices[0]], polygon2->normal)) {
@@ -563,6 +570,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathSegmentIntersectPolygon(one->segment->v, two->polygon, NULL);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathSegmentIntersectConvexMesh(one->segment->v, two->mesh);
 			}
 		}
 	}
