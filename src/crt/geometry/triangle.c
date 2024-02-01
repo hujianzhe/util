@@ -846,11 +846,34 @@ void mathConvexMeshMakeFacesOut(GeometryMesh_t* mesh) {
 }
 
 int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
-	float dir[3];
-	unsigned int i, again_flag = 0;
+	unsigned int i;
 	if (!mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, p)) {
 		return 0;
 	}
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		float v[3], dot;
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
+		mathVec3Sub(v, p, polygon->v[polygon->v_indices[0]]);
+		dot = mathVec3Dot(v, polygon->normal);
+		if (dot < CCT_EPSILON_NEGATE) {
+			continue;
+		}
+		if (dot > CCT_EPSILON) {
+			return 0;
+		}
+		return Polygon_Convex_HasPoint_InternalProc(polygon, p);
+	}
+	return 1;
+}
+
+/*
+int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
+	float dir[3];
+	unsigned int i, again_flag;
+	if (!mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, p)) {
+		return 0;
+	}
+	again_flag = 0;
 	dir[0] = 1.0f; dir[1] = dir[2] = 0.0f;
 again:
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
@@ -887,6 +910,7 @@ again:
 	}
 	return 1;
 }
+*/
 
 #ifdef __cplusplus
 }
