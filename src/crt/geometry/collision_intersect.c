@@ -463,6 +463,10 @@ static int mathOBBIntersectPolygon(const GeometryOBB_t* obb, const GeometryPolyg
 	return 0;
 }
 
+static int mathConvexMeshIntersectConvexMesh(const GeometryMesh_t* mesh1, const GeometryMesh_t* mesh2) {
+	return 0;
+}
+
 /*
 static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float lsdir[3], const float cp[3], const float axis[3], float radius, float distance[2]) {
 	float new_o[3], new_dir[3], radius_sq = radius * radius;
@@ -658,6 +662,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
 				return mathOBBIntersectOBB(&one_obb, two->obb);
 			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				break;
+			}
 		}
 	}
 	else if (GEOMETRY_BODY_SPHERE == one->type) {
@@ -799,6 +807,46 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathOBBIntersectPolygon(one->obb, two->polygon, NULL);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				break;
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_CONVEX_MESH == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathConvexMeshHasPoint(one->mesh, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return mathSegmentIntersectConvexMesh(two->segment->v, one->mesh);
+			}
+			case GEOMETRY_BODY_PLANE:
+			{
+				return mathMeshIntersectPlane(one->mesh, two->plane->v, two->plane->normal, NULL);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathSphereIntersectConvexMesh(two->sphere->o, two->sphere->radius, one->mesh, NULL);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				break;
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				break;
+			}
+			case GEOMETRY_BODY_POLYGON:
+			{
+				return mathPolygonIntersectConvexMesh(two->polygon, one->mesh);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathConvexMeshIntersectConvexMesh(one->mesh, two->mesh);
 			}
 		}
 	}
