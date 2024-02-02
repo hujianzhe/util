@@ -720,6 +720,7 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;
+	mathConvexMeshMakeFacesOut(mesh);
 	return mesh;
 err_1:
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
@@ -826,7 +827,7 @@ void mathConvexMeshMakeFacesOut(GeometryMesh_t* mesh) {
 	unsigned int i;
 	for (i = 0; i < 2; ++i) {
 		float tri[3][3];
-		GeometryPolygon_t* polygon = mesh->polygons + i;
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
 		mathVec3Copy(tri[0], polygon->v[polygon->v_indices[0]]);
 		mathVec3Copy(tri[1], polygon->v[polygon->v_indices[1]]);
 		mathVec3Copy(tri[2], polygon->v[polygon->v_indices[2]]);

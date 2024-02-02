@@ -102,43 +102,67 @@ static int mathPolygonIntersectPolygon(const GeometryPolygon_t* polygon1, const 
 }
 
 static int mathPolygonIntersectPlane(const GeometryPolygon_t* polygon, const float plane_v[3], const float plane_n[3], float p[3]) {
-	int i, has_gt0, has_le0, idx_0;
+	unsigned int i, has_gt0, has_le0, idx_0;
 	if (!mathPlaneIntersectPlane(polygon->v[polygon->v_indices[0]], polygon->normal, plane_v, plane_n)) {
 		return 0;
 	}
-	idx_0 = -1;
-	has_gt0 = has_le0 = 0;
+	idx_0 = has_gt0 = has_le0 = 0;
 	for (i = 0; i < polygon->v_indices_cnt; ++i) {
-		int cmp;
 		float d;
 		mathPointProjectionPlane(polygon->v[polygon->v_indices[i]], plane_v, plane_n, NULL, &d);
-		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
-		if (cmp > 0) {
+		if (d > CCT_EPSILON) {
 			if (has_le0) {
 				return 2;
 			}
 			has_gt0 = 1;
 		}
-		else if (cmp < 0) {
+		else if (d < CCT_EPSILON_NEGATE) {
 			if (has_gt0) {
 				return 2;
 			}
 			has_le0 = 1;
 		}
-		else if (idx_0 >= 0) {
+		else if (idx_0) {
 			return 2;
 		}
 		else {
-			idx_0 = i;
+			if (p) {
+				mathVec3Copy(p, polygon->v[polygon->v_indices[i]]);
+			}
+			idx_0 = 1;
 		}
 	}
-	if (idx_0 < 0) {
-		return 0;
+	return idx_0;
+}
+
+static int mathMeshIntersectPlane(const GeometryMesh_t* mesh, const float plane_v[3], const float plane_n[3], float p[3]) {
+	unsigned int i, has_gt0 = 0, has_le0 = 0, idx_0 = 0;
+	for (i = 0; i < mesh->v_indices_cnt; ++i) {
+		float d;
+		mathPointProjectionPlane(mesh->v[mesh->v_indices[i]], plane_v, plane_n, NULL, &d);
+		if (d > CCT_EPSILON) {
+			if (has_le0) {
+				return 2;
+			}
+			has_gt0 = 1;
+		}
+		else if (d < CCT_EPSILON_NEGATE) {
+			if (has_gt0) {
+				return 2;
+			}
+			has_le0 = 1;
+		}
+		else if (idx_0) {
+			return 2;
+		}
+		else {
+			if (p) {
+				mathVec3Copy(p, mesh->v[mesh->v_indices[i]]);
+			}
+			idx_0 = 1;
+		}
 	}
-	if (p) {
-		mathVec3Copy(p, polygon->v[polygon->v_indices[idx_0]]);
-	}
-	return 1;
+	return idx_0;
 }
 
 /*
@@ -235,6 +259,20 @@ static int mathSphereIntersectPolygon(const float o[3], float radius, const Geom
 	return 0;
 }
 
+static int mathSphereIntersectConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]) {
+	unsigned int i;
+	if (mathConvexMeshHasPoint(mesh, o)) {
+		return 1;
+	}
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		int ret = mathSphereIntersectPolygon(o, radius, mesh->polygons + i, p);
+		if (ret) {
+			return ret;
+		}
+	}
+	return 0;
+}
+
 int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb) {
 	int i;
 	float v[3];
@@ -268,38 +306,33 @@ static int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], floa
 }
 
 static int mathBoxIntersectPlane(const float vertices[8][3], const float plane_v[3], const float plane_n[3], float p[3]) {
-	int i, has_gt0 = 0, has_le0 = 0, idx_0 = -1;
+	int i, has_gt0 = 0, has_le0 = 0, idx_0 = 0;
 	for (i = 0; i < 8; ++i) {
-		int cmp;
 		float d;
 		mathPointProjectionPlane(vertices[i], plane_v, plane_n, NULL, &d);
-		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
-		if (cmp > 0) {
+		if (d > CCT_EPSILON) {
 			if (has_le0) {
 				return 2;
 			}
 			has_gt0 = 1;
 		}
-		else if (cmp < 0) {
+		else if (d < CCT_EPSILON_NEGATE) {
 			if (has_gt0) {
 				return 2;
 			}
 			has_le0 = 1;
 		}
-		else if (idx_0 >= 0) {
+		else if (idx_0) {
 			return 2;
 		}
 		else {
-			idx_0 = i;
+			if (p) {
+				mathVec3Copy(p, vertices[i]);
+			}
+			idx_0 = 1;
 		}
 	}
-	if (idx_0 < 0) {
-		return 0;
-	}
-	if (p) {
-		mathVec3Copy(p, vertices[idx_0]);
-	}
-	return 1;
+	return idx_0;
 }
 
 static int mathOBBIntersectPlane(const GeometryOBB_t* obb, const float plane_v[3], const float plane_n[3], float p[3]) {
@@ -621,6 +654,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathAABBIntersectSphere(two->aabb->o, two->aabb->half, one->sphere->o, one->sphere->radius);
 			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathSphereIntersectOBB(one->sphere->o, one->sphere->radius, two->obb);
+			}
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathSphereIntersectSphere(one->sphere->o, one->sphere->radius, two->sphere->o, two->sphere->radius, NULL);
@@ -637,9 +674,9 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			{
 				return mathSphereIntersectPolygon(one->sphere->o, one->sphere->radius, two->polygon, NULL);
 			}
-			case GEOMETRY_BODY_OBB:
+			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathSphereIntersectOBB(one->sphere->o, one->sphere->radius, two->obb);
+				return mathSphereIntersectConvexMesh(one->sphere->o, one->sphere->radius, two->mesh, NULL);
 			}
 		}
 	}
@@ -672,6 +709,10 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathPolygonIntersectPlane(two->polygon, one->plane->v, one->plane->normal, NULL);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathMeshIntersectPlane(two->mesh, one->plane->v, one->plane->normal, NULL);
 			}
 		}
 	}
