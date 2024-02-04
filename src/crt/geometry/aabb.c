@@ -2,7 +2,6 @@
 // Created by hujianzhe
 //
 
-#include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/aabb.h"
 #include <stddef.h>
@@ -85,14 +84,6 @@ void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3])
 }
 
 void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
-	/*
-	float half_w[] = {
-		aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[0], aabb_half[2], aabb_half[2]
-	};
-	float half_h[] = {
-		aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[1], aabb_half[0], aabb_half[0]
-	};
-	*/
 	half_w[0] = aabb_half[0];
 	half_h[0] = aabb_half[1];
 

@@ -2,10 +2,8 @@
 // Created by hujianzhe
 //
 
-#include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
-#include "../../../inc/crt/geometry/aabb.h"
-#include <stddef.h>
+#include "../../../inc/crt/geometry/plane.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,9 +30,10 @@ float mathPlaneNormalByVertices3(const float v0[3], const float v1[3], const flo
 }
 
 int mathPlaneHasPoint(const float plane_v[3], const float plane_normal[3], const float p[3]) {
-	float v[3];
+	float v[3], dot;
 	mathVec3Sub(v, plane_v, p);
-	return fcmpf(mathVec3Dot(plane_normal, v), 0.0f, CCT_EPSILON) == 0;
+	dot = mathVec3Dot(plane_normal, v);
+	return CCT_EPSILON_NEGATE <= dot && dot <= CCT_EPSILON;
 }
 
 int mathPlaneIntersectPlane(const float v1[3], const float n1[3], const float v2[3], const float n2[3]) {

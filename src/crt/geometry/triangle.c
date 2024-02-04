@@ -2,12 +2,10 @@
 // Created by hujianzhe
 //
 
-#include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/plane.h"
 #include "../../../inc/crt/geometry/triangle.h"
-#include <stddef.h>
 #include <stdlib.h>
 
 static const unsigned int DEFAULT_TRIANGLE_VERTICE_INDICES[3] = { 0, 1, 2 };
@@ -26,12 +24,13 @@ void mathTriangleGetPoint(const float tri[3][3], float u, float v, float p[3]) {
 }
 
 int mathTrianglePointUV(const float tri[3][3], const float p[3], float* p_u, float* p_v) {
-	float ap[3], ab[3], ac[3], N[3];
+	float ap[3], ab[3], ac[3], N[3], dot;
 	mathVec3Sub(ap, p, tri[0]);
 	mathVec3Sub(ab, tri[1], tri[0]);
 	mathVec3Sub(ac, tri[2], tri[0]);
 	mathVec3Cross(N, ab, ac);
-	if (fcmpf(mathVec3Dot(N, ap), 0.0f, CCT_EPSILON)) {
+	dot = mathVec3Dot(N, ap);
+	if (dot > CCT_EPSILON || dot < CCT_EPSILON_NEGATE) {
 		return 0;
 	}
 	else {
@@ -43,11 +42,11 @@ int mathTrianglePointUV(const float tri[3][3], const float p[3], float* p_u, flo
 		float dot_ab_ap = mathVec3Dot(ab, ap);
 		float tmp = 1.0f / (dot_ac_ac * dot_ab_ab - dot_ac_ab * dot_ac_ab);
 		u = (dot_ab_ab * dot_ac_ap - dot_ac_ab * dot_ab_ap) * tmp;
-		if (fcmpf(u, 0.0f, CCT_EPSILON) < 0 || fcmpf(u, 1.0f, CCT_EPSILON) > 0) {
+		if (u < 0.0f || u > 1.0f) {
 			return 0;
 		}
 		v = (dot_ac_ac * dot_ab_ap - dot_ac_ab * dot_ac_ap) * tmp;
-		if (fcmpf(v, 0.0f, CCT_EPSILON) < 0 || fcmpf(v + u, 1.0f, CCT_EPSILON) > 0) {
+		if (v < 0.0f || v + u > 1.0f) {
 			return 0;
 		}
 		if (p_u) {
@@ -75,7 +74,7 @@ int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
 	float v[3], dot;
 	mathVec3Sub(v, p, rect->o);
 	dot = mathVec3Dot(rect->normal, v);
-	if (fcmpf(dot, 0.0f, CCT_EPSILON)) {
+	if (dot > CCT_EPSILON || dot < CCT_EPSILON_NEGATE) {
 		return 0;
 	}
 	dot = mathVec3Dot(rect->h_axis, v);

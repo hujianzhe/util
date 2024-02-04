@@ -2,9 +2,9 @@
 // Created by hujianzhe
 //
 
-#include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/line_segment.h"
+#include <math.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -59,7 +59,10 @@ int mathLineClosestLine(const float lsv1[3], const float lsdir1[3], const float 
 		if (min_d) {
 			*min_d = sqrtf(nlen - dot);
 		}
-		return fcmpf(nlen, dot, CCT_EPSILON) ? GEOMETRY_LINE_PARALLEL : GEOMETRY_LINE_OVERLAP;
+		if (nlen > dot + CCT_EPSILON || nlen < dot - CCT_EPSILON) {
+			return GEOMETRY_LINE_PARALLEL;
+		}
+		return GEOMETRY_LINE_OVERLAP;
 	}
 	nlen = mathVec3Normalized(N, n);
 	dot = mathVec3Dot(v, N);
@@ -83,7 +86,12 @@ int mathLineIntersectLine(const float ls1v[3], const float ls1dir[3], const floa
 	mathVec3Cross(N, ls1dir, ls2dir);
 	if (mathVec3IsZero(N)) {
 		float dot = mathVec3Dot(v, ls2dir);
-		return fcmpf(dot * dot, mathVec3LenSq(v), CCT_EPSILON) ? GEOMETRY_LINE_PARALLEL: GEOMETRY_LINE_OVERLAP;
+		float dot_sq = dot * dot;
+		float v_lensq = mathVec3LenSq(v);
+		if (dot_sq > v_lensq + CCT_EPSILON || dot_sq < v_lensq - CCT_EPSILON) {
+			return GEOMETRY_LINE_PARALLEL;
+		}
+		return GEOMETRY_LINE_OVERLAP;
 	}
 	else if (mathVec3IsZero(v)) {
 		distance[0] = distance[1] = 0.0f;
