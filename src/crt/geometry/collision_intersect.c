@@ -463,7 +463,53 @@ static int mathOBBIntersectPolygon(const GeometryOBB_t* obb, const GeometryPolyg
 	return 0;
 }
 
+static int ConvexMesh_HasAny_OBBVertices(const GeometryMesh_t* mesh, const GeometryOBB_t* obb) {
+	float v[8][3];
+	unsigned int i;
+	mathOBBVertices(obb, v);
+	for (i = 0; i < 8; ++i) {
+		if (mathConvexMeshHasPoint(mesh, v[i])) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int mathOBBIntersectConvexMesh(const GeometryOBB_t* obb, const GeometryMesh_t* mesh) {
+	unsigned int i;
+	if (ConvexMesh_HasAny_OBBVertices(mesh, obb)) {
+		return 1;
+	}
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		if (mathOBBIntersectPolygon(obb, mesh->polygons + i, NULL)) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static int mathConvexMeshIntersectConvexMesh(const GeometryMesh_t* mesh1, const GeometryMesh_t* mesh2) {
+	unsigned int i;
+	for (i = 0; i < mesh1->v_indices_cnt; ++i) {
+		const float* p = mesh1->v[mesh1->v_indices[i]];
+		if (mathConvexMeshHasPoint(mesh2, p)) {
+			return 1;
+		}
+	}
+	for (i = 0; i < mesh2->v_indices_cnt; ++i) {
+		const float* p = mesh2->v[mesh2->v_indices[i]];
+		if (mathConvexMeshHasPoint(mesh1, p)) {
+			return 1;
+		}
+	}
+	for (i = 0; i < mesh1->polygons_cnt; ++i) {
+		unsigned int j;
+		for (j = 0; j < mesh2->polygons_cnt; ++j) {
+			if (mathPolygonIntersectPolygon(mesh1->polygons + i, mesh2->polygons + j)) {
+				return 1;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -664,7 +710,9 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				break;
+				GeometryOBB_t one_obb;
+				mathOBBFromAABB(&one_obb, one->aabb->o, one->aabb->half);
+				return mathOBBIntersectConvexMesh(&one_obb, two->mesh);
 			}
 		}
 	}
@@ -810,7 +858,7 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				break;
+				return mathOBBIntersectConvexMesh(one->obb, two->mesh);
 			}
 		}
 	}
@@ -834,11 +882,13 @@ int mathCollisionBodyIntersect(const GeometryBodyRef_t* one, const GeometryBodyR
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				break;
+				GeometryOBB_t two_obb;
+				mathOBBFromAABB(&two_obb, two->aabb->o, two->aabb->half);
+				return mathOBBIntersectConvexMesh(&two_obb, one->mesh);
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				break;
+				return mathOBBIntersectConvexMesh(two->obb, one->mesh);
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
