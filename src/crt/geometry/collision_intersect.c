@@ -305,22 +305,6 @@ int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* 
 	return 1;
 }
 
-static int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], float radius) {
-	int i;
-	float v[3];
-	mathVec3Sub(v, o, obb->o);
-	for (i = 0; i < 3; ++i) {
-		float dot = mathVec3Dot(v, obb->axis[i]);
-		if (dot < 0.0f) {
-			dot = -dot;
-		}
-		if (dot > obb->half[i] - radius) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
 static int mathBoxIntersectPlane(const float vertices[8][3], const float plane_v[3], const float plane_n[3], float p[3]) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_0 = 0;
 	for (i = 0; i < 8; ++i) {
@@ -545,6 +529,76 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 	return rcnt;
 }
 */
+
+static int mathOBBContainSphere(const GeometryOBB_t* obb, const float o[3], float radius) {
+	int i;
+	float v[3];
+	mathVec3Sub(v, o, obb->o);
+	for (i = 0; i < 3; ++i) {
+		float dot = mathVec3Dot(v, obb->axis[i]);
+		if (dot < 0.0f) {
+			dot = -dot;
+		}
+		if (dot > obb->half[i] - radius) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int mathAABBContainMesh(const float o[3], const float half[3], const GeometryMesh_t* mesh) {
+	unsigned int i;
+	if (mathAABBContainAABB(o, half, mesh->bound_box.o, mesh->bound_box.half)) {
+		return 1;
+	}
+	for (i = 0; i < mesh->v_indices_cnt; ++i) {
+		const float* p = mesh->v[mesh->v_indices[i]];
+		if (!mathAABBHasPoint(o, half, p)) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int mathSphereContainMesh(const float o[3], float radius, const GeometryMesh_t* mesh) {
+	float v[3];
+	unsigned int i;
+	mathAABBMinVertice(mesh->bound_box.o, mesh->bound_box.half, v);
+	if (mathSphereHasPoint(o, radius, v)) {
+		mathAABBMaxVertice(mesh->bound_box.o, mesh->bound_box.half, v);
+		if (mathSphereHasPoint(o, radius, v)) {
+			return 1;
+		}
+	}
+	for (i = 0; i < mesh->v_indices_cnt; ++i) {
+		const float* p = mesh->v[mesh->v_indices[i]];
+		if (!mathSphereHasPoint(o, radius, p)) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int mathOBBContainMesh(const GeometryOBB_t* obb, const GeometryMesh_t* mesh) {
+	float p[8][3];
+	unsigned int i;
+	mathAABBVertices(mesh->bound_box.o, mesh->bound_box.half, p);
+	for (i = 0; i < 8; ++i) {
+		if (!mathOBBHasPoint(obb, p[i])) {
+			break;
+		}
+	}
+	if (i >= 8) {
+		return 1;
+	}
+	for (i = 0; i < mesh->v_indices_cnt; ++i) {
+		const float* p = mesh->v[mesh->v_indices[i]];
+		if (!mathOBBHasPoint(obb, p)) {
+			return 0;
+		}
+	}
+	return 1;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -929,7 +983,7 @@ int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathAABBContainAABB(one->aabb->o, one->aabb->half, two->mesh->bound_box.o, two->mesh->bound_box.half);
+				return mathAABBContainMesh(one->aabb->o, one->aabb->half, two->mesh);
 			}
 		}
 	}
@@ -957,6 +1011,10 @@ int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathOBBContainSphere(one->obb, two->sphere->o, two->sphere->radius);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathOBBContainMesh(one->obb, two->mesh);
 			}
 		}
 	}
@@ -994,6 +1052,10 @@ int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef
 			case GEOMETRY_BODY_SPHERE:
 			{
 				return mathSphereContainSphere(one->sphere->o, one->sphere->radius, two->sphere->o, two->sphere->radius);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathSphereContainMesh(one->sphere->o, one->sphere->radius, two->mesh);
 			}
 		}
 	}
