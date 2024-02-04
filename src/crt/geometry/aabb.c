@@ -90,10 +90,10 @@ void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float hal
 	half_w[1] = aabb_half[0];
 	half_h[1] = aabb_half[1];
 
-	half_w[2] = aabb_half[0];
+	half_w[2] = aabb_half[2];
 	half_h[2] = aabb_half[1];
 
-	half_w[3] = aabb_half[0];
+	half_w[3] = aabb_half[2];
 	half_h[3] = aabb_half[1];
 
 	half_w[4] = aabb_half[2];
@@ -120,12 +120,12 @@ GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigne
 	}
 	else if (2 == idx) {
 		rect->o[0] += half[0];
-		rect->half_w = half[0];
+		rect->half_w = half[2];
 		rect->half_h = half[1];
 	}
 	else if (3 == idx) {
 		rect->o[0] -= half[0];
-		rect->half_w = half[0];
+		rect->half_w = half[2];
 		rect->half_h = half[1];
 	}
 	else if (4 == idx) {
