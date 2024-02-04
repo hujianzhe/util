@@ -2,10 +2,8 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/crt/math.h"
 #include "../../inc/crt/math_vec3.h"
 #include "../../inc/crt/math_matrix3.h"
-#include <stddef.h>
 
 #ifdef	__cplusplus
 extern "C" {
