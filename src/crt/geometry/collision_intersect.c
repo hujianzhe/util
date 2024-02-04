@@ -554,7 +554,7 @@ static int mathLineIntersectCylinderInfinite(const float ls_v[3], const float ls
 extern "C" {
 #endif
 
-GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const float delta_half_v[3], GeometryAABB_t* aabb) {
+GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, GeometryAABB_t* aabb) {
 	switch (b->type) {
 		case GEOMETRY_BODY_AABB:
 		{
@@ -588,13 +588,6 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, const f
 		default:
 		{
 			return NULL;
-		}
-	}
-	if (delta_half_v) {
-		int i;
-		mathVec3Add(aabb->o, aabb->o, delta_half_v);
-		for (i = 0; i < 3; ++i) {
-			aabb->half[i] += (delta_half_v[i] > 0.0f ? delta_half_v[i] : -delta_half_v[i]);
 		}
 	}
 	return aabb;
