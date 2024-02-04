@@ -2,9 +2,8 @@
 // Created by hujianzhe
 //
 
-#include "../../inc/crt/math.h"
 #include "../../inc/crt/math_vec3.h"
-#include <stddef.h>
+#include <math.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -27,15 +26,26 @@ float* mathVec3Set(float r[3], float x, float y, float z) {
 }
 
 int mathVec3IsZero(const float v[3]) {
-	return	fcmpf(v[0], 0.0f, CCT_EPSILON) == 0 &&
-			fcmpf(v[1], 0.0f, CCT_EPSILON) == 0 &&
-			fcmpf(v[2], 0.0f, CCT_EPSILON) == 0;
+	return	v[0] <= CCT_EPSILON && v[1] <= CCT_EPSILON && v[2] <= CCT_EPSILON &&
+			v[0] >= CCT_EPSILON_NEGATE && v[1] >= CCT_EPSILON_NEGATE && v[2] >= CCT_EPSILON_NEGATE;
 }
 
 int mathVec3Equal(const float v1[3], const float v2[3]) {
-	return	fcmpf(v1[0], v2[0], CCT_EPSILON) == 0 &&
-			fcmpf(v1[1], v2[1], CCT_EPSILON) == 0 &&
-			fcmpf(v1[2], v2[2], CCT_EPSILON) == 0;
+	float delta;
+
+	delta = v1[0] - v2[0];
+	if (delta > CCT_EPSILON || delta < CCT_EPSILON_NEGATE) {
+		return 0;
+	}
+	delta = v1[1] - v2[1];
+	if (delta > CCT_EPSILON || delta < CCT_EPSILON_NEGATE) {
+		return 0;
+	}
+	delta = v1[2] - v2[2];
+	if (delta > CCT_EPSILON || delta < CCT_EPSILON_NEGATE) {
+		return 0;
+	}
+	return 1;
 }
 
 float mathVec3MinElement(const float v[3]) {
