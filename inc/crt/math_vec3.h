@@ -31,6 +31,7 @@ __declspec_dll float mathVec3Direction(const float end[3], const float start[3],
 __declspec_dll float* mathVec3Negate(float r[3], const float v[3]);
 __declspec_dll float* mathVec3Add(float r[3], const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3AddScalar(float r[3], const float v[3], float n);
+__declspec_dll float* mathVec3SubScalar(float r[3], const float v[3], float n);
 __declspec_dll float* mathVec3Sub(float r[3], const float v1[3], const float v2[3]);
 __declspec_dll float* mathVec3MultiplyScalar(float r[3], const float v[3], float n);
 __declspec_dll float* mathVec3DivisionScalar(float r[3], const float v[3], float n);

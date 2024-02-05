@@ -17,8 +17,7 @@ __declspec_dll int mathTriangleHasPoint(const float tri[3][3], const float p[3])
 __declspec_dll void mathTriangleToPolygon(const float tri[3][3], GeometryPolygon_t* polygon);
 
 __declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]);
-__declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
-__declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float p[4][3]);
+__declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float buf_points[4][3]);
 
 __declspec_dll unsigned int mathVerticesDistinctCount(const float(*src_v)[3], unsigned int src_v_cnt);
 __declspec_dll unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt);

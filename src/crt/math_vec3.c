@@ -127,6 +127,14 @@ float* mathVec3AddScalar(float r[3], const float v[3], float n) {
 	return r;
 }
 
+/* r -= v * n */
+float* mathVec3SubScalar(float r[3], const float v[3], float n) {
+	r[0] -= v[0] * n;
+	r[1] -= v[1] * n;
+	r[2] -= v[2] * n;
+	return r;
+}
+
 /* r = v1 - v2 */
 float* mathVec3Sub(float r[3], const float v1[3], const float v2[3]) {
 	r[0] = v1[0] - v2[0];

@@ -84,7 +84,7 @@ int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
 	return mathVec3LenSq(v) - dot * dot <= rect->half_w * rect->half_w + CCT_EPSILON;
 }
 
-void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
+static void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 	mathVec3Copy(p[0], rect->o);
 	mathVec3AddScalar(p[0], rect->h_axis, rect->half_h);
 	mathVec3AddScalar(p[0], rect->w_axis, rect->half_w);
@@ -99,11 +99,11 @@ void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 	mathVec3AddScalar(p[3], rect->w_axis, rect->half_w);
 }
 
-void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float p[4][3]) {
-	mathRectVertices(rect, p);
+void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float buf_points[4][3]) {
+	mathRectVertices(rect, buf_points);
 	polygon->v_indices = DEFAULT_RECT_VERTICE_INDICES;
 	polygon->v_indices_cnt = 4;
-	polygon->v = p;
+	polygon->v = buf_points;
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
