@@ -11,6 +11,7 @@
 #include "../../../inc/crt/geometry/obb.h"
 #include "../../../inc/crt/geometry/triangle.h"
 #include "../../../inc/crt/geometry/collision_detection.h"
+#include <math.h>
 #include <stddef.h>
 
 extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
@@ -127,13 +128,13 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float d, cos_theta;
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &d);
-	if (fcmpf(d, 0.0f, CCT_EPSILON) == 0) {
+	if (d <= CCT_EPSILON && d >= CCT_EPSILON_NEGATE) {
 		set_result(result, 0.0f, dir);
 		add_result_hit_point(result, o);
 		return result;
 	}
 	cos_theta = mathVec3Dot(dir, plane_n);
-	if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
+	if (cos_theta <= CCT_EPSILON && cos_theta >= CCT_EPSILON_NEGATE) {
 		return NULL;
 	}
 	d /= cos_theta;
@@ -287,12 +288,12 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 	else {
 		float d[2], min_d;
 		float cos_theta = mathVec3Dot(normal, dir);
-		if (fcmpf(cos_theta, 0.0f, CCT_EPSILON) == 0) {
+		if (cos_theta <= CCT_EPSILON && cos_theta >= CCT_EPSILON_NEGATE) {
 			return NULL;
 		}
 		mathPointProjectionPlane(ls[0], vertice, normal, NULL, &d[0]);
 		mathPointProjectionPlane(ls[1], vertice, normal, NULL, &d[1]);
-		if (fcmpf(d[0], d[1], CCT_EPSILON) == 0) {
+		if (d[0] <= d[1] + CCT_EPSILON && d[0] >= d[1] - CCT_EPSILON) {
 			min_d = d[0];
 			min_d /= cos_theta;
 			if (min_d < 0.0f) {
@@ -620,13 +621,15 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 			res = mathSphereIntersectPlane(center, radius, ls[0], N, circle_o, &circle_radius);
 			if (res) {
 				float plo[3], p[3];
+				float plo_lensq, circle_radius_sq;
 				mathVec3Normalized(lsdir, lsdir);
 				mathPointProjectionLine(circle_o, ls[0], lsdir, p);
 				mathVec3Sub(plo, circle_o, p);
-				res = fcmpf(mathVec3LenSq(plo), circle_radius * circle_radius, 0.0f);
-				if (res >= 0) {
+				plo_lensq = mathVec3LenSq(plo);
+				circle_radius_sq = circle_radius * circle_radius;
+				if (plo_lensq >= circle_radius_sq) {
 					float new_ls[2][3], d;
-					if (res > 0) {
+					if (plo_lensq > circle_radius_sq + CCT_EPSILON) {
 						float cos_theta = mathVec3Dot(plo, dir);
 						if (cos_theta <= CCT_EPSILON) {
 							return NULL;
@@ -685,24 +688,23 @@ static CCTResult_t* mathPolygoncastPlane(const GeometryPolygon_t* polygon, const
 	int i, has_gt0 = 0, has_le0 = 0, idx_min = -1;
 	float min_d, dot;
 	for (i = 0; i < polygon->v_indices_cnt; ++i) {
-		int cmp;
 		float d;
 		mathPointProjectionPlane(polygon->v[polygon->v_indices[i]], plane_v, plane_n, NULL, &d);
-		cmp = fcmpf(d, 0.0f, CCT_EPSILON);
-		if (cmp > 0) {
+		if (d > CCT_EPSILON) {
 			if (has_le0) {
 				set_result(result, 0.0f, dir);
 				return result;
 			}
 			has_gt0 = 1;
 		}
-		else if (cmp < 0) {
+		else if (d < CCT_EPSILON_NEGATE) {
 			if (has_gt0) {
 				set_result(result, 0.0f, dir);
 				return result;
 			}
 			has_le0 = 1;
 		}
+
 		if (!i || fabsf(min_d) > fabsf(d)) {
 			min_d = d;
 			idx_min = i;
@@ -736,7 +738,7 @@ static CCTResult_t* mathPolygoncastPolygon(const GeometryPolygon_t* polygon1, co
 		float d, dot;
 		mathPointProjectionPlane(polygon1->v[polygon1->v_indices[0]], polygon2->v[polygon2->v_indices[0]], polygon2->normal, NULL, &d);
 		dot = mathVec3Dot(dir, polygon2->normal);
-		if (fcmpf(dot, 0.0f, CCT_EPSILON) == 0) {
+		if (dot <= CCT_EPSILON && dot >= CCT_EPSILON_NEGATE) {
 			return NULL;
 		}
 		d /= dot;
@@ -788,7 +790,6 @@ static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], co
 	CCTResult_t* p_result = NULL;
 	int i, unhit = 0;
 	for (i = 0; i < 8; ++i) {
-		int cmp;
 		CCTResult_t result_temp;
 		if (!mathRaycastPlane(v[i], dir, plane_v, plane_n, &result_temp)) {
 			if (p_result) {
@@ -807,11 +808,10 @@ static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], co
 			p_result = result;
 			continue;
 		}
-		cmp = fcmpf(p_result->distance, result_temp.distance, CCT_EPSILON);
-		if (cmp < 0) {
+		if (p_result->distance < result_temp.distance - CCT_EPSILON) {
 			continue;
 		}
-		if (0 == cmp) {
+		if (p_result->distance <= result_temp.distance + CCT_EPSILON) {
 			p_result->hit_point_cnt = -1;
 			continue;
 		}
@@ -975,22 +975,22 @@ static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3]
 }
 
 static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
-	int res;
-	float dn, d;
+	float dn, dn_sq, radius_sq;
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &dn);
-	res = fcmpf(dn * dn, radius * radius, 0.0f);
-	if (res < 0) {
+	dn_sq = dn * dn;
+	radius_sq = radius * radius;
+	if (dn_sq < radius_sq - CCT_EPSILON) {
 		set_result(result, 0.0f, dir);
 		return result;
 	}
-	else if (0 == res) {
+	else if (dn_sq <= radius_sq + CCT_EPSILON) {
 		set_result(result, 0.0f, dir);
 		add_result_hit_point(result, o);
 		mathVec3AddScalar(result->hit_point, plane_n, dn);
 		return result;
 	}
 	else {
-		float dn_abs, cos_theta = mathVec3Dot(plane_n, dir);
+		float d, dn_abs, cos_theta = mathVec3Dot(plane_n, dir);
 		if (cos_theta <= CCT_EPSILON && cos_theta >= CCT_EPSILON_NEGATE) {
 			return NULL;
 		}
@@ -1034,7 +1034,7 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 			if (!mathSpherecastPlane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
-			if (fcmpf(result_temp.distance, 0.0f, CCT_EPSILON) == 0) {
+			if (result_temp.distance <= CCT_EPSILON && result_temp.distance >= CCT_EPSILON_NEGATE) {
 				continue;
 			}
 			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
