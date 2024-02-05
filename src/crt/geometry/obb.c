@@ -131,10 +131,7 @@ void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]) {
 
 GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect) {
 	float extend[3];
-	if (idx >= 6) {
-		return NULL;
-	}
-	if (0 == idx || 1 == idx) {
+	if (idx < 2) {
 		mathVec3MultiplyScalar(extend, obb->axis[2], obb->half[2]);
 		if (0 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
@@ -147,8 +144,9 @@ GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, Geo
 		mathVec3Copy(rect->w_axis, obb->axis[0]);
 		mathVec3Copy(rect->h_axis, obb->axis[1]);
 		mathVec3Copy(rect->normal, obb->axis[2]);
+		return rect;
 	}
-	else if (2 == idx || 3 == idx) {
+	else if (idx < 4) {
 		mathVec3MultiplyScalar(extend, obb->axis[0], obb->half[0]);
 		if (2 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
@@ -161,8 +159,9 @@ GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, Geo
 		mathVec3Copy(rect->w_axis, obb->axis[2]);
 		mathVec3Copy(rect->h_axis, obb->axis[1]);
 		mathVec3Copy(rect->normal, obb->axis[0]);
+		return rect;
 	}
-	else {
+	else if (idx < 6) {
 		mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
 		if (4 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
@@ -175,8 +174,9 @@ GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, Geo
 		mathVec3Copy(rect->w_axis, obb->axis[0]);
 		mathVec3Copy(rect->h_axis, obb->axis[2]);
 		mathVec3Copy(rect->normal, obb->axis[1]);
+		return rect;
 	}
-	return rect;
+	return NULL;
 }
 
 int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]) {
