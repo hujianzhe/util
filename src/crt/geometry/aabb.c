@@ -261,6 +261,20 @@ void mathAABBClosestPointTo(const float o[3], const float half[3], const float p
 	}
 }
 
+void mathAABBStretch(float o[3], float half[3], const float delta[3]) {
+	unsigned int i;
+	for (i = 0; i < 3; ++i) {
+		float d = delta[i] * 0.5f;
+		if (d > 0.0f) {
+			half[i] += d;
+		}
+		else {
+			half[i] -= d;
+		}
+		o[i] += d;
+	}
+}
+
 void mathAABBSplit(const float o[3], const float half[3], float new_o[8][3], float new_half[3]) {
 	mathVec3MultiplyScalar(new_half, half, 0.5f);
 	mathAABBVertices(o, new_half, new_o);
