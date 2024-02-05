@@ -275,7 +275,7 @@ static int mathSphereIntersectPolygon(const float o[3], float radius, const Geom
 	return 0;
 }
 
-static int mathSphereIntersectConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]) {
+int mathSphereIntersectConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]) {
 	unsigned int i;
 	if (mathConvexMeshHasPoint(mesh, o)) {
 		return 1;

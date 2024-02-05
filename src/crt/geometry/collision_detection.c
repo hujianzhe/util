@@ -25,6 +25,8 @@ extern int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3
 
 extern int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb);
 
+extern int mathSphereIntersectConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]);
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1140,6 +1142,27 @@ static CCTResult_t* mathPolygoncastSphere(const GeometryPolygon_t* polygon, cons
 	return result;
 }
 
+static CCTResult_t* mathSphereCastConvexMesh(const float o[3], float radius, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+	unsigned int i;
+	CCTResult_t* p_result;
+	if (mathSphereIntersectConvexMesh(o, radius, mesh, NULL)) {
+		set_result(result, 0.0f, dir);
+		return result;
+	}
+	p_result = NULL;
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		CCTResult_t result_temp;
+		if (!mathSpherecastPolygon(o, radius, dir, mesh->polygons + i, &result_temp)) {
+			continue;
+		}
+		if (!p_result || p_result->distance > result_temp.distance) {
+			p_result = result;
+			copy_result(p_result, &result_temp);
+		}
+	}
+	return p_result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1271,6 +1294,10 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			case GEOMETRY_BODY_POLYGON:
 			{
 				return mathSpherecastPolygon(one->sphere->o, one->sphere->radius, dir, two->polygon, result);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathSphereCastConvexMesh(one->sphere->o, one->sphere->radius, dir, two->mesh, result);
 			}
 		}
 	}
