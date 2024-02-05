@@ -185,10 +185,10 @@ GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, Geo
 			rect->normal[1] = -obb->axis[1][1];
 			rect->normal[2] = -obb->axis[1][2];
 		}
-		rect->half_w = obb->half[0];
-		rect->half_h = obb->half[2];
-		mathVec3Copy(rect->w_axis, obb->axis[0]);
-		mathVec3Copy(rect->h_axis, obb->axis[2]);
+		rect->half_w = obb->half[2];
+		rect->half_h = obb->half[0];
+		mathVec3Copy(rect->w_axis, obb->axis[2]);
+		mathVec3Copy(rect->h_axis, obb->axis[0]);
 		return rect;
 	}
 	return NULL;
