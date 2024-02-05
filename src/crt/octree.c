@@ -2,7 +2,6 @@
 // Created by hujianzhe on 21-12-29
 //
 
-#include "../../inc/crt/math_vec3.h"
 #include "../../inc/crt/geometry/aabb.h"
 #include "../../inc/crt/octree.h"
 #include <stdlib.h>
@@ -33,8 +32,12 @@ static size_t octree_total_nodes_cnt(unsigned int max_deep_num) {
 }
 
 static void octree_node_init(OctreeNode_t* root, const float pos[3], const float half[3]) {
-	mathVec3Copy(root->pos, pos);
-	mathVec3Copy(root->half, half);
+	root->pos[0] = pos[0];
+	root->pos[1] = pos[1];
+	root->pos[2] = pos[2];
+	root->half[0] = half[0];
+	root->half[1] = half[1];
+	root->half[2] = half[2];
 	listInit(&root->obj_list);
 	root->obj_cnt = 0;
 	root->deep_num = 0;

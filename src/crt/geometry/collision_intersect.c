@@ -669,7 +669,7 @@ GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, Geometr
 		case GEOMETRY_BODY_POLYGON:
 		{
 			const GeometryPolygon_t* polygon = b->polygon;
-			if (!mathAABBFromVertexSet((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, aabb->o, aabb->half)) {
+			if (!mathAABBFromVertexIndices((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, aabb->o, aabb->half)) {
 				return NULL;
 			}
 			break;

@@ -182,7 +182,7 @@ void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]) {
 	v[2] = o[2] + half[2];
 }
 
-int mathAABBFromVertexSet(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]) {
+int mathAABBFromVertexIndices(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]) {
 	unsigned int i;
 	float v_min[3], v_max[3];
 	if (v_indices_cnt <= 0) {
