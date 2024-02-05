@@ -84,7 +84,7 @@ int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]) {
 	return mathVec3LenSq(v) - dot * dot <= rect->half_w * rect->half_w + CCT_EPSILON;
 }
 
-static void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
+void mathRectVertices(const GeometryRect_t* rect, float p[4][3]) {
 	mathVec3Copy(p[0], rect->o);
 	mathVec3AddScalar(p[0], rect->h_axis, rect->half_h);
 	mathVec3AddScalar(p[0], rect->w_axis, rect->half_w);
