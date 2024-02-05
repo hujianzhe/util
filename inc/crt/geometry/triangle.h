@@ -25,6 +25,7 @@ __declspec_dll unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned i
 
 __declspec_dll int mathPolygonIsConvex(const GeometryPolygon_t* polygon);
 __declspec_dll int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]);
+__declspec_dll int mathPolygonContainPolygon(const GeometryPolygon_t* polygon1, const GeometryPolygon_t* polygon2);
 __declspec_dll GeometryPolygon_t* mathPolygonCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon);
 __declspec_dll void mathPolygonFreeCookingData(GeometryPolygon_t* polygon);
 
@@ -34,6 +35,7 @@ __declspec_dll int mathMeshIsClosed(const GeometryMesh_t* mesh);
 __declspec_dll int mathMeshIsConvex(const GeometryMesh_t* mesh);
 __declspec_dll void mathConvexMeshMakeFacesOut(GeometryMesh_t* mesh);
 __declspec_dll int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]);
+__declspec_dll int mathConvexMeshContainConvexMesh(const GeometryMesh_t* mesh1, const GeometryMesh_t* mesh2);
 
 #ifdef	__cplusplus
 }

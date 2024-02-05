@@ -256,6 +256,21 @@ int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]) {
 	return Polygon_Convex_HasPoint_InternalProc(polygon, p);
 }
 
+int mathPolygonContainPolygon(const GeometryPolygon_t* polygon1, const GeometryPolygon_t* polygon2) {
+	int ret = mathPlaneIntersectPlane(polygon1->v[polygon1->v_indices[0]], polygon1->normal, polygon2->v[polygon2->v_indices[0]], polygon2->normal);
+	if (2 == ret) {
+		unsigned int i;
+		for (i = 0; i < polygon2->v_indices_cnt; ++i) {
+			const float* p = polygon2->v[polygon2->v_indices[i]];
+			if (!mathPolygonHasPoint(polygon1, p)) {
+				return 0;
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+
 static GeometryPolygon_t* PolygonCooking_InternalProc(const float (*v)[3], const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	unsigned int i, s, n, p, last_s, first_s;
 	unsigned int* tmp_edge_pair_indices = NULL;
@@ -845,11 +860,8 @@ void mathConvexMeshMakeFacesOut(GeometryMesh_t* mesh) {
 	}
 }
 
-int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
+static int ConvexMesh_HasPoint_InternalProc(const GeometryMesh_t* mesh, const float p[3]) {
 	unsigned int i;
-	if (!mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, p)) {
-		return 0;
-	}
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		float v[3], dot;
 		const GeometryPolygon_t* polygon = mesh->polygons + i;
@@ -862,6 +874,27 @@ int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
 			return 0;
 		}
 		return Polygon_Convex_HasPoint_InternalProc(polygon, p);
+	}
+	return 1;
+}
+
+int mathConvexMeshHasPoint(const GeometryMesh_t* mesh, const float p[3]) {
+	if (!mathAABBHasPoint(mesh->bound_box.o, mesh->bound_box.half, p)) {
+		return 0;
+	}
+	return ConvexMesh_HasPoint_InternalProc(mesh, p);
+}
+
+int mathConvexMeshContainConvexMesh(const GeometryMesh_t* mesh1, const GeometryMesh_t* mesh2) {
+	unsigned int i;
+	if (!mathAABBIntersectAABB(mesh1->bound_box.o, mesh1->bound_box.half, mesh2->bound_box.o, mesh2->bound_box.half)) {
+		return 0;
+	}
+	for (i = 0; i < mesh2->v_indices_cnt; ++i) {
+		const float* p = mesh2->v[mesh2->v_indices[i]];
+		if (!ConvexMesh_HasPoint_InternalProc(mesh1, p)) {
+			return 0;
+		}
 	}
 	return 1;
 }

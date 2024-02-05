@@ -600,6 +600,46 @@ static int mathOBBContainMesh(const GeometryOBB_t* obb, const GeometryMesh_t* me
 	return 1;
 }
 
+static int mathConvexMeshContainAABB(const GeometryMesh_t* mesh, const float o[3], const float half[3]) {
+	float p[8][3];
+	unsigned int i;
+	if (!mathAABBContainAABB(mesh->bound_box.o, mesh->bound_box.half, o, half)) {
+		return 0;
+	}
+	mathAABBVertices(o, half, p);
+	for (i = 0; i < 8; ++i) {
+		if (!mathConvexMeshHasPoint(mesh, p[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int mathConvexMeshContainOBB(const GeometryMesh_t* mesh, const GeometryOBB_t* obb) {
+	float p[8][3];
+	unsigned int i;
+	mathOBBVertices(obb, p);
+	for (i = 0; i < 8; ++i) {
+		if (!mathConvexMeshHasPoint(mesh, p[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int mathConvexMeshContainSphere(const GeometryMesh_t* mesh, const float o[3], float radius) {
+	unsigned int i;
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		float d;
+		const GeometryPolygon_t* polygon = mesh->polygons + i;
+		mathPointProjectionPlane(o, polygon->v[polygon->v_indices[0]], polygon->normal, NULL, &d);
+		if (d < radius) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1056,6 +1096,52 @@ int mathCollisionBodyContain(const GeometryBodyRef_t* one, const GeometryBodyRef
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
 				return mathSphereContainMesh(one->sphere->o, one->sphere->radius, two->mesh);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_CONVEX_MESH == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathConvexMeshHasPoint(one->mesh, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathConvexMeshHasPoint(one->mesh, two->segment->v[0]) &&
+						mathConvexMeshHasPoint(one->mesh, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_AABB:
+			{
+				return mathConvexMeshContainAABB(one->mesh, two->aabb->o, two->aabb->half);
+			}
+			case GEOMETRY_BODY_OBB:
+			{
+				return mathConvexMeshContainOBB(one->mesh, two->obb);
+			}
+			case GEOMETRY_BODY_SPHERE:
+			{
+				return mathConvexMeshContainSphere(one->mesh, two->sphere->o, two->sphere->radius);
+			}
+			case GEOMETRY_BODY_CONVEX_MESH:
+			{
+				return mathConvexMeshContainConvexMesh(one->mesh, two->mesh);
+			}
+		}
+	}
+	else if (GEOMETRY_BODY_POLYGON == one->type) {
+		switch (two->type) {
+			case GEOMETRY_BODY_POINT:
+			{
+				return mathPolygonHasPoint(one->polygon, two->point);
+			}
+			case GEOMETRY_BODY_SEGMENT:
+			{
+				return	mathPolygonHasPoint(one->polygon, two->segment->v[0]) &&
+						mathPolygonHasPoint(one->polygon, two->segment->v[1]);
+			}
+			case GEOMETRY_BODY_POLYGON:
+			{
+				return mathPolygonContainPolygon(one->polygon, two->polygon);
 			}
 		}
 	}
