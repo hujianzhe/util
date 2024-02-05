@@ -2,7 +2,6 @@
 // Created by hujianzhe
 //
 
-#include "../../../inc/crt/math.h"
 #include "../../../inc/crt/math_vec3.h"
 #include "../../../inc/crt/geometry/line_segment.h"
 #include "../../../inc/crt/geometry/plane.h"
