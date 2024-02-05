@@ -135,45 +135,60 @@ GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, Geo
 		mathVec3MultiplyScalar(extend, obb->axis[2], obb->half[2]);
 		if (0 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[2][0];
+			rect->normal[1] = obb->axis[2][1];
+			rect->normal[2] = obb->axis[2][2];
 		}
 		else {
 			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[2][0];
+			rect->normal[1] = -obb->axis[2][1];
+			rect->normal[2] = -obb->axis[2][2];
 		}
 		rect->half_w = obb->half[0];
 		rect->half_h = obb->half[1];
 		mathVec3Copy(rect->w_axis, obb->axis[0]);
 		mathVec3Copy(rect->h_axis, obb->axis[1]);
-		mathVec3Copy(rect->normal, obb->axis[2]);
 		return rect;
 	}
 	else if (idx < 4) {
 		mathVec3MultiplyScalar(extend, obb->axis[0], obb->half[0]);
 		if (2 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[0][0];
+			rect->normal[1] = obb->axis[0][1];
+			rect->normal[2] = obb->axis[0][2];
 		}
 		else {
 			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[0][0];
+			rect->normal[1] = -obb->axis[0][1];
+			rect->normal[2] = -obb->axis[0][2];
 		}
 		rect->half_w = obb->half[2];
 		rect->half_h = obb->half[1];
 		mathVec3Copy(rect->w_axis, obb->axis[2]);
 		mathVec3Copy(rect->h_axis, obb->axis[1]);
-		mathVec3Copy(rect->normal, obb->axis[0]);
 		return rect;
 	}
 	else if (idx < 6) {
 		mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
 		if (4 == idx) {
 			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[1][0];
+			rect->normal[1] = obb->axis[1][1];
+			rect->normal[2] = obb->axis[1][2];
 		}
 		else {
 			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[1][0];
+			rect->normal[1] = -obb->axis[1][1];
+			rect->normal[2] = -obb->axis[1][2];
 		}
 		rect->half_w = obb->half[0];
 		rect->half_h = obb->half[2];
 		mathVec3Copy(rect->w_axis, obb->axis[0]);
 		mathVec3Copy(rect->h_axis, obb->axis[2]);
-		mathVec3Copy(rect->normal, obb->axis[1]);
 		return rect;
 	}
 	return NULL;
