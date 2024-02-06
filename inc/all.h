@@ -41,6 +41,7 @@
 #include "crt/geometry/mesh.h"
 #include "crt/geometry/obb.h"
 #include "crt/geometry/plane.h"
+#include "crt/geometry/polygon.h"
 #include "crt/geometry/sphere.h"
 #include "crt/protocol/hiredis_cli_protocol.h"
 #include "crt/protocol/httpframe.h"
