@@ -8,7 +8,8 @@
 #include "../../../inc/crt/geometry/sphere.h"
 #include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/obb.h"
-#include "../../../inc/crt/geometry/triangle.h"
+#include "../../../inc/crt/geometry/polygon.h"
+#include "../../../inc/crt/geometry/mesh.h"
 #include "../../../inc/crt/geometry/collision.h"
 #include <math.h>
 #include <stddef.h>
