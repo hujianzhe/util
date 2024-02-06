@@ -9,23 +9,23 @@
 #include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/obb.h"
 #include "../../../inc/crt/geometry/triangle.h"
-#include "../../../inc/crt/geometry/collision_detection.h"
+#include "../../../inc/crt/geometry/collision.h"
 #include <math.h>
 #include <stddef.h>
 
-extern int mathSegmentIntersectPlane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
+extern int Segment_Intersect_Plane(const float ls[2][3], const float plane_v[3], const float plane_normal[3], float p[3]);
 
-extern int mathSegmentIntersectConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh);
+extern int Segment_Intersect_ConvexMesh(const float ls[2][3], const GeometryMesh_t* mesh);
 
-extern int mathSphereIntersectSegment(const float o[3], float radius, const float ls[2][3], float p[3]);
+extern int Sphere_Intersect_Segment(const float o[3], float radius, const float ls[2][3], float p[3]);
 
-extern int mathSphereIntersectPlane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
+extern int Sphere_Intersect_Plane(const float o[3], float radius, const float plane_v[3], const float plane_normal[3], float new_o[3], float* new_r);
 
-extern int mathOBBIntersectSegment(const GeometryOBB_t* obb, const float ls[2][3]);
+extern int OBB_Intersect_Segment(const GeometryOBB_t* obb, const float ls[2][3]);
 
-extern int mathSphereIntersectOBB(const float o[3], float radius, const GeometryOBB_t* obb);
+extern int Sphere_Intersect_OBB(const float o[3], float radius, const GeometryOBB_t* obb);
 
-extern int mathSphereIntersectConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]);
+extern int Sphere_Intersect_ConvexMesh(const float o[3], float radius, const GeometryMesh_t* mesh, float p[3]);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ static CCTResult_t* add_result_hit_point(CCTResult_t* result, const float p[3]) 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_Segment(const float o[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
 	float v0[3], v1[3], N[3], dot, d;
 	mathVec3Sub(v0, ls[0], o);
 	mathVec3Sub(v1, ls[1], o);
@@ -124,7 +124,7 @@ static CCTResult_t* mathRaycastSegment(const float o[3], const float dir[3], con
 	}
 }
 
-static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_Plane(const float o[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float d, cos_theta;
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &d);
 	if (d <= CCT_EPSILON && d >= CCT_EPSILON_NEGATE) {
@@ -146,11 +146,11 @@ static CCTResult_t* mathRaycastPlane(const float o[3], const float dir[3], const
 	return result;
 }
 
-static CCTResult_t* mathRaycastPolygon(const float o[3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_Polygon(const float o[3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	CCTResult_t* p_result;
 	int i;
 	float dot;
-	if (!mathRaycastPlane(o, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
+	if (!Ray_Sweep_Plane(o, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
 		return NULL;
 	}
 	if (result->distance > 0.0f) {
@@ -166,7 +166,7 @@ static CCTResult_t* mathRaycastPolygon(const float o[3], const float dir[3], con
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon->v[polygon->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon->v[polygon->v_indices[i >= polygon->v_indices_cnt ? 0 : i]]);
-		if (!mathRaycastSegment(o, dir, (const float(*)[3])edge, &result_temp)) {
+		if (!Ray_Sweep_Segment(o, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -177,7 +177,7 @@ static CCTResult_t* mathRaycastPolygon(const float o[3], const float dir[3], con
 	return p_result;
 }
 
-static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_OBB(const float o[3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
 	if (mathOBBHasPoint(obb, o)) {
 		set_result(result, 0.0f, dir);
 		add_result_hit_point(result, o);
@@ -190,7 +190,7 @@ static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const G
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
 			mathOBBPlaneRect(obb, i, &rect);
-			if (!mathRaycastPlane(o, dir, rect.o, rect.normal, &result_temp)) {
+			if (!Ray_Sweep_Plane(o, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
 			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
@@ -205,7 +205,7 @@ static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const G
 	}
 }
 
-static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_Sphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
 	float dr2, oc2, dir_d;
 	float oc[3];
 	float radius2 = sp_radius * sp_radius;
@@ -233,12 +233,12 @@ static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], cons
 	return result;
 }
 
-static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* Ray_Sweep_ConvexMesh(const float o[3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result = NULL;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		CCTResult_t result_temp;
-		if (!mathRaycastPolygon(o, dir, mesh->polygons + i, &result_temp)) {
+		if (!Ray_Sweep_Polygon(o, dir, mesh->polygons + i, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -256,7 +256,7 @@ static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], 
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < mesh->polygons_cnt; ++i) {
 			CCTResult_t result_temp;
-			if (mathRaycastPolygon(o, neg_dir, mesh->polygons + i, &result_temp)) {
+			if (Ray_Sweep_Polygon(o, neg_dir, mesh->polygons + i, &result_temp)) {
 				set_result(result, 0.0f, dir);
 				add_result_hit_point(result, o);
 				return result;
@@ -266,9 +266,9 @@ static CCTResult_t* mathRaycastConvexMesh(const float o[3], const float dir[3], 
 	return p_result;
 }
 
-static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
+static CCTResult_t* Segment_Sweep_Plane(const float ls[2][3], const float dir[3], const float vertice[3], const float normal[3], CCTResult_t* result) {
 	float p[3];
-	int res = mathSegmentIntersectPlane(ls, vertice, normal, p);
+	int res = Segment_Intersect_Plane(ls, vertice, normal, p);
 	if (2 == res) {
 		set_result(result, 0.0f, dir);
 		return result;
@@ -328,7 +328,7 @@ static CCTResult_t* mathSegmentcastPlane(const float ls[2][3], const float dir[3
 	}
 }
 
-static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float dir[3], const float ls2[2][3], CCTResult_t* result) {
+static CCTResult_t* Segment_Sweep_Segment(const float ls1[2][3], const float dir[3], const float ls2[2][3], CCTResult_t* result) {
 	int line_mask;
 	float p[3];
 	int res = mathSegmentIntersectSegment(ls1, ls2, p, &line_mask);
@@ -347,7 +347,7 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		int i;
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastSegment(ls1[i], dir, ls2, &result_temp)) {
+			if (!Ray_Sweep_Segment(ls1[i], dir, ls2, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -362,7 +362,7 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastSegment(ls2[i], neg_dir, ls1, &result_temp)) {
+			if (!Ray_Sweep_Segment(ls2[i], neg_dir, ls1, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -381,7 +381,7 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		int i;
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastSegment(ls1[i], dir, ls2, &result_temp)) {
+			if (!Ray_Sweep_Segment(ls1[i], dir, ls2, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -392,7 +392,7 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 		mathVec3Negate(neg_dir, dir);
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastSegment(ls2[i], neg_dir, ls1, &result_temp)) {
+			if (!Ray_Sweep_Segment(ls2[i], neg_dir, ls1, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -428,11 +428,11 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 			return NULL;
 		}
 		mathVec3Normalized(N, N);
-		if (!mathSegmentIntersectPlane(ls2, ls1[0], N, v)) {
+		if (!Segment_Intersect_Plane(ls2, ls1[0], N, v)) {
 			return NULL;
 		}
 		mathVec3Negate(neg_dir, dir);
-		if (!mathRaycastSegment(v, neg_dir, ls1, result)) {
+		if (!Ray_Sweep_Segment(v, neg_dir, ls1, result)) {
 			return NULL;
 		}
 		mathVec3Copy(result->hit_point, v);
@@ -440,8 +440,8 @@ static CCTResult_t* mathSegmentcastSegment(const float ls1[2][3], const float di
 	}
 }
 
-static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
-	if (mathOBBIntersectSegment(obb, ls)) {
+static CCTResult_t* Segment_Sweep_OBB(const float ls[2][3], const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	if (OBB_Intersect_Segment(obb, ls)) {
 		set_result(result, 0.0f, dir);
 		return result;
 	}
@@ -455,7 +455,7 @@ static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3],
 			CCTResult_t result_temp;
 			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
 			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
-			if (!mathSegmentcastSegment(ls, dir, (const float(*)[3])edge, &result_temp)) {
+			if (!Segment_Sweep_Segment(ls, dir, (const float(*)[3])edge, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -465,7 +465,7 @@ static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3],
 		}
 		for (i = 0; i < 2; ++i) {
 			CCTResult_t result_temp;
-			if (!mathRaycastOBB(ls[i], dir, obb, &result_temp)) {
+			if (!Ray_Sweep_OBB(ls[i], dir, obb, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -477,10 +477,10 @@ static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3],
 	}
 }
 
-static CCTResult_t* mathSegmentcastPolygon(const float ls[2][3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
+static CCTResult_t* Segment_Sweep_Polygon(const float ls[2][3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	CCTResult_t *p_result;
 	int i;
-	if (!mathSegmentcastPlane(ls, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
+	if (!Segment_Sweep_Plane(ls, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -504,7 +504,7 @@ static CCTResult_t* mathSegmentcastPolygon(const float ls[2][3], const float dir
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon->v[polygon->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon->v[polygon->v_indices[i >= polygon->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastSegment(ls, dir, (const float(*)[3])edge, &result_temp)) {
+		if (!Segment_Sweep_Segment(ls, dir, (const float(*)[3])edge, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -515,10 +515,10 @@ static CCTResult_t* mathSegmentcastPolygon(const float ls[2][3], const float dir
 	return p_result;
 }
 
-static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* Segment_Sweep_ConvexMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result;
-	if (mathSegmentIntersectConvexMesh(ls, mesh)) {
+	if (Segment_Intersect_ConvexMesh(ls, mesh)) {
 		set_result(result, 0.0f, dir);
 		return result;
 	}
@@ -526,7 +526,7 @@ static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float 
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		CCTResult_t result_temp;
 		const GeometryPolygon_t* polygon = mesh->polygons + i;
-		if (!mathSegmentcastPolygon(ls, dir, polygon, &result_temp)) {
+		if (!Segment_Sweep_Polygon(ls, dir, polygon, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -537,9 +537,9 @@ static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float 
 	return p_result;
 }
 
-static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
+static CCTResult_t* Segment_Sweep_Sphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
 	float p[3];
-	int c = mathSphereIntersectSegment(center, radius, ls, p);
+	int c = Sphere_Intersect_Segment(center, radius, ls, p);
 	if (1 == c) {
 		set_result(result, 0.0f, dir);
 		add_result_hit_point(result, p);
@@ -555,10 +555,10 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 		mathVec3Sub(lsdir, ls[1], ls[0]);
 		mathVec3Cross(N, lsdir, dir);
 		if (mathVec3IsZero(N)) {
-			if (!mathRaycastSphere(ls[0], dir, center, radius, &results[0])) {
+			if (!Ray_Sweep_Sphere(ls[0], dir, center, radius, &results[0])) {
 				return NULL;
 			}
-			if (!mathRaycastSphere(ls[1], dir, center, radius, &results[1])) {
+			if (!Ray_Sweep_Sphere(ls[1], dir, center, radius, &results[1])) {
 				return NULL;
 			}
 			copy_result(result, results[0].distance < results[1].distance ? &results[0] : &results[1]);
@@ -569,7 +569,7 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 			int i, res;
 			float circle_o[3], circle_radius;
 			mathVec3Normalized(N, N);
-			res = mathSphereIntersectPlane(center, radius, ls[0], N, circle_o, &circle_radius);
+			res = Sphere_Intersect_Plane(center, radius, ls[0], N, circle_o, &circle_radius);
 			if (res) {
 				float plo[3], p[3];
 				float plo_lensq, circle_radius_sq;
@@ -606,7 +606,7 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 				}
 				p_result = NULL;
 				for (i = 0; i < 2; ++i) {
-					if (!mathRaycastSphere(ls[i], dir, center, radius, &results[i])) {
+					if (!Ray_Sweep_Sphere(ls[i], dir, center, radius, &results[i])) {
 						continue;
 					}
 					if (!p_result || p_result->distance > results[i].distance) {
@@ -623,7 +623,7 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 	}
 }
 
-static CCTResult_t* mathPolygoncastPlane(const GeometryPolygon_t* polygon, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* Polygon_Sweep_Plane(const GeometryPolygon_t* polygon, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	int i, has_gt0 = 0, has_le0 = 0, idx_min = -1;
 	float min_d, dot;
 	for (i = 0; i < polygon->v_indices_cnt; ++i) {
@@ -668,7 +668,7 @@ static CCTResult_t* mathPolygoncastPlane(const GeometryPolygon_t* polygon, const
 	return result;
 }
 
-static CCTResult_t* mathPolygoncastPolygon(const GeometryPolygon_t* polygon1, const float dir[3], const GeometryPolygon_t* polygon2, CCTResult_t* result) {
+static CCTResult_t* Polygon_Sweep_Polygon(const GeometryPolygon_t* polygon1, const float dir[3], const GeometryPolygon_t* polygon2, CCTResult_t* result) {
 	CCTResult_t* p_result;
 	int i, flag;
 	float neg_dir[3];
@@ -691,7 +691,7 @@ static CCTResult_t* mathPolygoncastPolygon(const GeometryPolygon_t* polygon1, co
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon1->v[polygon1->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon1->v[polygon1->v_indices[i >= polygon1->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastPolygon((const float(*)[3])edge, dir, polygon2, &result_temp)) {
+		if (!Segment_Sweep_Polygon((const float(*)[3])edge, dir, polygon2, &result_temp)) {
 			continue;
 		}
 		if (result_temp.distance <= 0.0f) {
@@ -708,7 +708,7 @@ static CCTResult_t* mathPolygoncastPolygon(const GeometryPolygon_t* polygon1, co
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon2->v[polygon2->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon2->v[polygon2->v_indices[i >= polygon2->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastPolygon((const float(*)[3])edge, neg_dir, polygon1, &result_temp)) {
+		if (!Segment_Sweep_Polygon((const float(*)[3])edge, neg_dir, polygon1, &result_temp)) {
 			continue;
 		}
 		if (result_temp.distance <= 0.0f) {
@@ -725,12 +725,12 @@ static CCTResult_t* mathPolygoncastPolygon(const GeometryPolygon_t* polygon1, co
 	return p_result;
 }
 
-static CCTResult_t* mathPolygonCastConvexMesh(const GeometryPolygon_t* polygon, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* Polygon_Sweep_ConvexMesh(const GeometryPolygon_t* polygon, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result = NULL;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		CCTResult_t result_temp;
-		if (!mathPolygoncastPolygon(polygon, dir, mesh->polygons + i, &result_temp)) {
+		if (!Polygon_Sweep_Polygon(polygon, dir, mesh->polygons + i, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -741,12 +741,12 @@ static CCTResult_t* mathPolygonCastConvexMesh(const GeometryPolygon_t* polygon, 
 	return p_result;
 }
 
-static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* Box_Sweep_Plane(const float v[8][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	CCTResult_t* p_result = NULL;
 	int i, unhit = 0;
 	for (i = 0; i < 8; ++i) {
 		CCTResult_t result_temp;
-		if (!mathRaycastPlane(v[i], dir, plane_v, plane_n, &result_temp)) {
+		if (!Ray_Sweep_Plane(v[i], dir, plane_v, plane_n, &result_temp)) {
 			if (p_result) {
 				set_result(result, 0.0f, plane_n);
 				return result;
@@ -775,25 +775,25 @@ static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], co
 	return p_result;
 }
 
-static CCTResult_t* mathOBBcastPlane(const GeometryOBB_t* obb, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* OBB_Sweep_Plane(const GeometryOBB_t* obb, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float v[8][3];
 	mathOBBVertices(obb, v);
-	return mathBoxCastPlane((const float(*)[3])v, dir, plane_v, plane_n, result);
+	return Box_Sweep_Plane((const float(*)[3])v, dir, plane_v, plane_n, result);
 }
 
-static CCTResult_t* mathAABBcastPlane(const float o[3], const float half[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* AABB_Sweep_Plane(const float o[3], const float half[3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float v[8][3];
 	mathAABBVertices(o, half, v);
-	return mathBoxCastPlane((const float(*)[3])v, dir, plane_v, plane_n, result);
+	return Box_Sweep_Plane((const float(*)[3])v, dir, plane_v, plane_n, result);
 }
 
-static CCTResult_t* mathMeshCastPlane(const GeometryMesh_t* mesh, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* Mesh_Sweep_Plane(const GeometryMesh_t* mesh, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	CCTResult_t* p_result = NULL;
 	int i, unhit = 0;
 	for (i = 0; i < mesh->v_indices_cnt; ++i) {
 		CCTResult_t result_temp;
 		const float* v = mesh->v[mesh->v_indices[i]];
-		if (!mathRaycastPlane(v, dir, plane_v, plane_n, &result_temp)) {
+		if (!Ray_Sweep_Plane(v, dir, plane_v, plane_n, &result_temp)) {
 			if (p_result) {
 				set_result(result, 0.0f, plane_n);
 				return result;
@@ -822,7 +822,7 @@ static CCTResult_t* mathMeshCastPlane(const GeometryMesh_t* mesh, const float di
 	return p_result;
 }
 
-static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], const float dir[3], const float o2[3], const float half2[3], CCTResult_t* result) {
+static CCTResult_t* AABB_Sweep_AABB(const float o1[3], const float half1[3], const float dir[3], const float o2[3], const float half2[3], CCTResult_t* result) {
 	if (mathAABBIntersectAABB(o1, half1, o2, half2)) {
 		set_result(result, 0.0f, dir);
 		return result;
@@ -837,12 +837,12 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 			float new_o1[3];
 			CCTResult_t result_temp;
 			if (i & 1) {
-				if (!mathRaycastPlane(v1[i], dir, v2[i-1], AABB_Plane_Normal[i], &result_temp)) {
+				if (!Ray_Sweep_Plane(v1[i], dir, v2[i-1], AABB_Plane_Normal[i], &result_temp)) {
 					continue;
 				}
 			}
 			else {
-				if (!mathRaycastPlane(v1[i], dir, v2[i+1], AABB_Plane_Normal[i], &result_temp)) {
+				if (!Ray_Sweep_Plane(v1[i], dir, v2[i+1], AABB_Plane_Normal[i], &result_temp)) {
 					continue;
 				}
 			}
@@ -863,13 +863,13 @@ static CCTResult_t* mathAABBcastAABB(const float o1[3], const float half1[3], co
 	}
 }
 
-static CCTResult_t* mathOBBcastPolygon(const GeometryOBB_t* obb, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
+static CCTResult_t* OBB_Sweep_Polygon(const GeometryOBB_t* obb, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	int i;
 	float v[8][3], neg_dir[3];
 	CCTResult_t *p_result;
 
 	mathOBBVertices(obb, v);
-	if (!mathBoxCastPlane((const float(*)[3])v, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
+	if (!Box_Sweep_Plane((const float(*)[3])v, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -894,7 +894,7 @@ static CCTResult_t* mathOBBcastPolygon(const GeometryOBB_t* obb, const float dir
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon->v[polygon->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon->v[polygon->v_indices[i >= polygon->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastOBB((const float(*)[3])edge, neg_dir, obb, &result_temp)) {
+		if (!Segment_Sweep_OBB((const float(*)[3])edge, neg_dir, obb, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -908,7 +908,7 @@ static CCTResult_t* mathOBBcastPolygon(const GeometryOBB_t* obb, const float dir
 	return p_result;
 }
 
-static CCTResult_t* mathOBBcastConvexMesh(const GeometryOBB_t* obb, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* OBB_Sweep_ConvexMesh(const GeometryOBB_t* obb, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result = NULL;
 	for (i = 0; i < 6; ++i) {
@@ -919,7 +919,7 @@ static CCTResult_t* mathOBBcastConvexMesh(const GeometryOBB_t* obb, const float 
 
 		mathOBBPlaneRect(obb, i, &rect);
 		mathRectToPolygon(&rect, &polygon, p);
-		if (!mathPolygonCastConvexMesh(&polygon, dir, mesh, &result_temp)) {
+		if (!Polygon_Sweep_ConvexMesh(&polygon, dir, mesh, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -930,7 +930,7 @@ static CCTResult_t* mathOBBcastConvexMesh(const GeometryOBB_t* obb, const float 
 	return p_result;
 }
 
-static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3], const GeometryOBB_t* obb2, CCTResult_t* result) {
+static CCTResult_t* OBB_Sweep_OBB(const GeometryOBB_t* obb1, const float dir[3], const GeometryOBB_t* obb2, CCTResult_t* result) {
 	int i;
 	CCTResult_t* p_result;
 	if (mathOBBIntersectOBB(obb1, obb2)) {
@@ -945,7 +945,7 @@ static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3]
 		GeometryPolygon_t polygon2;
 		mathOBBPlaneRect(obb2, i, &rect2);
 		mathRectToPolygon(&rect2, &polygon2, p);
-		if (!mathOBBcastPolygon(obb1, dir, &polygon2, &result_temp)) {
+		if (!OBB_Sweep_Polygon(obb1, dir, &polygon2, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -956,7 +956,7 @@ static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3]
 	return p_result;
 }
 
-static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
+static CCTResult_t* Sphere_Sweep_Plane(const float o[3], float radius, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
 	float dn, dn_sq, radius_sq;
 	mathPointProjectionPlane(o, plane_v, plane_n, NULL, &dn);
 	dn_sq = dn * dn;
@@ -990,8 +990,8 @@ static CCTResult_t* mathSpherecastPlane(const float o[3], float radius, const fl
 	}
 }
 
-static CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const float dir[3], const float o2[3], float r2, CCTResult_t* result) {
-	if (!mathRaycastSphere(o1, dir, o2, r1 + r2, result)) {
+static CCTResult_t* Sphere_Sweep_Sphere(const float o1[3], float r1, const float dir[3], const float o2[3], float r2, CCTResult_t* result) {
+	if (!Ray_Sweep_Sphere(o1, dir, o2, r1 + r2, result)) {
 		return NULL;
 	}
 	mathVec3Sub(result->hit_normal, result->hit_point, o2);
@@ -1000,8 +1000,8 @@ static CCTResult_t* mathSpherecastSphere(const float o1[3], float r1, const floa
 	return result;
 }
 
-static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
-	if (mathSphereIntersectOBB(o, radius, obb)) {
+static CCTResult_t* Sphere_Sweep_OBB(const float o[3], float radius, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
+	if (Sphere_Intersect_OBB(o, radius, obb)) {
 		set_result(result, 0.0f, dir);
 		return result;
 	}
@@ -1013,7 +1013,7 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
 			mathOBBPlaneRect(obb, i, &rect);
-			if (!mathSpherecastPlane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
+			if (!Sphere_Sweep_Plane(o, radius, dir, rect.o, rect.normal, &result_temp)) {
 				continue;
 			}
 			if (result_temp.distance <= CCT_EPSILON && result_temp.distance >= CCT_EPSILON_NEGATE) {
@@ -1037,7 +1037,7 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 			CCTResult_t result_temp;
 			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
 			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
-			if (!mathSegmentcastSphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
+			if (!Segment_Sweep_Sphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
 				continue;
 			}
 			if (!p_result || p_result->distance > result_temp.distance) {
@@ -1049,11 +1049,11 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 	}
 }
 
-static CCTResult_t* mathSpherecastPolygon(const float o[3], float radius, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
+static CCTResult_t* Sphere_Sweep_Polygon(const float o[3], float radius, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	int i;
 	CCTResult_t *p_result = NULL;
 	float neg_dir[3];
-	if (!mathSpherecastPlane(o, radius, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
+	if (!Sphere_Sweep_Plane(o, radius, dir, polygon->v[polygon->v_indices[0]], polygon->normal, result)) {
 		return NULL;
 	}
 	if (result->hit_point_cnt > 0) {
@@ -1068,7 +1068,7 @@ static CCTResult_t* mathSpherecastPolygon(const float o[3], float radius, const 
 		float edge[2][3];
 		mathVec3Copy(edge[0], polygon->v[polygon->v_indices[i++]]);
 		mathVec3Copy(edge[1], polygon->v[polygon->v_indices[i >= polygon->v_indices_cnt ? 0 : i]]);
-		if (!mathSegmentcastSphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
+		if (!Segment_Sweep_Sphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -1082,17 +1082,17 @@ static CCTResult_t* mathSpherecastPolygon(const float o[3], float radius, const 
 	return p_result;
 }
 
-static CCTResult_t* mathSphereCastConvexMesh(const float o[3], float radius, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
+static CCTResult_t* Sphere_Sweep_ConvexMesh(const float o[3], float radius, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result;
-	if (mathSphereIntersectConvexMesh(o, radius, mesh, NULL)) {
+	if (Sphere_Intersect_ConvexMesh(o, radius, mesh, NULL)) {
 		set_result(result, 0.0f, dir);
 		return result;
 	}
 	p_result = NULL;
 	for (i = 0; i < mesh->polygons_cnt; ++i) {
 		CCTResult_t result_temp;
-		if (!mathSpherecastPolygon(o, radius, dir, mesh->polygons + i, &result_temp)) {
+		if (!Sphere_Sweep_Polygon(o, radius, dir, mesh->polygons + i, &result_temp)) {
 			continue;
 		}
 		if (!p_result || p_result->distance > result_temp.distance) {
@@ -1111,7 +1111,7 @@ static CCTResult_t* mathSphereCastConvexMesh(const float o[3], float radius, con
 extern "C" {
 #endif
 
-CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
+CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
 	int flag_neg_dir;
 	if (one->data == two->data || mathVec3IsZero(dir)) {
 		return NULL;
@@ -1123,37 +1123,37 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathRaycastOBB(one->point, dir, &obb2, result);
+				result = Ray_Sweep_OBB(one->point, dir, &obb2, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				result = mathRaycastOBB(one->point, dir, two->obb, result);
+				result = Ray_Sweep_OBB(one->point, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				result = mathRaycastSphere(one->point, dir, two->sphere->o, two->sphere->radius, result);
+				result = Ray_Sweep_Sphere(one->point, dir, two->sphere->o, two->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathRaycastPlane(one->point, dir, two->plane->v, two->plane->normal, result);
+				result = Ray_Sweep_Plane(one->point, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				result = mathRaycastSegment(one->point, dir, two->segment->v, result);
+				result = Ray_Sweep_Segment(one->point, dir, two->segment->v, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = mathRaycastPolygon(one->point, dir, two->polygon, result);
+				result = Ray_Sweep_Polygon(one->point, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = mathRaycastConvexMesh(one->point, dir, two->mesh, result);
+				result = Ray_Sweep_ConvexMesh(one->point, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1162,39 +1162,39 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				result = mathSegmentcastSegment(one->segment->v, dir, two->segment->v, result);
+				result = Segment_Sweep_Segment(one->segment->v, dir, two->segment->v, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathSegmentcastPlane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
+				result = Segment_Sweep_Plane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				result = mathSegmentcastOBB(one->segment->v, dir, two->obb, result);
+				result = Segment_Sweep_OBB(one->segment->v, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathSegmentcastOBB(one->segment->v, dir, &obb2, result);
+				result = Segment_Sweep_OBB(one->segment->v, dir, &obb2, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				result = mathSegmentcastSphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
+				result = Segment_Sweep_Sphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = mathSegmentcastPolygon(one->segment->v, dir, two->polygon, result);
+				result = Segment_Sweep_Polygon(one->segment->v, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = mathSegmentCastConvexMesh(one->segment->v, dir, two->mesh, result);
+				result = Segment_Sweep_ConvexMesh(one->segment->v, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1203,14 +1203,14 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_AABB:
 			{
-				result = mathAABBcastAABB(one->aabb->o, one->aabb->half, dir, two->aabb->o, two->aabb->half, result);
+				result = AABB_Sweep_AABB(one->aabb->o, one->aabb->half, dir, two->aabb->o, two->aabb->half, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
 				GeometryOBB_t obb1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = mathOBBcastOBB(&obb1, dir, two->obb, result);
+				result = OBB_Sweep_OBB(&obb1, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
@@ -1220,12 +1220,12 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = mathSpherecastOBB(two->sphere->o, two->sphere->radius, neg_dir, &obb1, result);
+				result = Sphere_Sweep_OBB(two->sphere->o, two->sphere->radius, neg_dir, &obb1, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathAABBcastPlane(one->aabb->o, one->aabb->half, dir, two->plane->v, two->plane->normal, result);
+				result = AABB_Sweep_Plane(one->aabb->o, one->aabb->half, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
@@ -1235,21 +1235,21 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = mathSegmentcastOBB(two->segment->v, neg_dir, &obb1, result);
+				result = Segment_Sweep_OBB(two->segment->v, neg_dir, &obb1, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
 				GeometryOBB_t obb1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = mathOBBcastPolygon(&obb1, dir, two->polygon, result);
+				result = OBB_Sweep_Polygon(&obb1, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
 				GeometryOBB_t obb1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = mathOBBcastConvexMesh(&obb1, dir, two->mesh, result);
+				result = OBB_Sweep_ConvexMesh(&obb1, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1261,12 +1261,12 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSegmentcastOBB(two->segment->v, neg_dir, one->obb, result);
+				result = Segment_Sweep_OBB(two->segment->v, neg_dir, one->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathOBBcastPlane(one->obb, dir, two->plane->v, two->plane->normal, result);
+				result = OBB_Sweep_Plane(one->obb, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
@@ -1274,29 +1274,29 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSpherecastOBB(two->sphere->o, two->sphere->radius, neg_dir, one->obb, result);
+				result = Sphere_Sweep_OBB(two->sphere->o, two->sphere->radius, neg_dir, one->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				result = mathOBBcastOBB(one->obb, dir, two->obb, result);
+				result = OBB_Sweep_OBB(one->obb, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathOBBcastOBB(one->obb, dir, &obb2, result);
+				result = OBB_Sweep_OBB(one->obb, dir, &obb2, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = mathOBBcastPolygon(one->obb, dir, two->polygon, result);
+				result = OBB_Sweep_Polygon(one->obb, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = mathOBBcastConvexMesh(one->obb, dir, two->mesh, result);
+				result = OBB_Sweep_ConvexMesh(one->obb, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1305,24 +1305,24 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_OBB:
 			{
-				result = mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, two->obb, result);
+				result = Sphere_Sweep_OBB(one->sphere->o, one->sphere->radius, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, &obb2, result);
+				result = Sphere_Sweep_OBB(one->sphere->o, one->sphere->radius, dir, &obb2, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				result = mathSpherecastSphere(one->sphere->o, one->sphere->radius, dir, two->sphere->o, two->sphere->radius, result);
+				result = Sphere_Sweep_Sphere(one->sphere->o, one->sphere->radius, dir, two->sphere->o, two->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathSpherecastPlane(one->sphere->o, one->sphere->radius, dir, two->plane->v, two->plane->normal, result);
+				result = Sphere_Sweep_Plane(one->sphere->o, one->sphere->radius, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
@@ -1330,17 +1330,17 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSegmentcastSphere(two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result);
+				result = Segment_Sweep_Sphere(two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = mathSpherecastPolygon(one->sphere->o, one->sphere->radius, dir, two->polygon, result);
+				result = Sphere_Sweep_Polygon(one->sphere->o, one->sphere->radius, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = mathSphereCastConvexMesh(one->sphere->o, one->sphere->radius, dir, two->mesh, result);
+				result = Sphere_Sweep_ConvexMesh(one->sphere->o, one->sphere->radius, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1352,12 +1352,12 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSegmentcastPolygon(two->segment->v, neg_dir, one->polygon, result);
+				result = Segment_Sweep_Polygon(two->segment->v, neg_dir, one->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathPolygoncastPlane(one->polygon, dir, two->plane->v, two->plane->normal, result);
+				result = Polygon_Sweep_Plane(one->polygon, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
@@ -1365,7 +1365,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSpherecastPolygon(two->sphere->o, two->sphere->radius, neg_dir, one->polygon, result);
+				result = Sphere_Sweep_Polygon(two->sphere->o, two->sphere->radius, neg_dir, one->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
@@ -1373,7 +1373,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathOBBcastPolygon(two->obb, neg_dir, one->polygon, result);
+				result = OBB_Sweep_Polygon(two->obb, neg_dir, one->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
@@ -1383,17 +1383,17 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathOBBcastPolygon(&obb2, neg_dir, one->polygon, result);
+				result = OBB_Sweep_Polygon(&obb2, neg_dir, one->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = mathPolygoncastPolygon(one->polygon, dir, two->polygon, result);
+				result = Polygon_Sweep_Polygon(one->polygon, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = mathPolygonCastConvexMesh(one->polygon, dir, two->mesh, result);
+				result = Polygon_Sweep_ConvexMesh(one->polygon, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1405,12 +1405,12 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSegmentCastConvexMesh(two->segment->v, neg_dir, one->mesh, result);
+				result = Segment_Sweep_ConvexMesh(two->segment->v, neg_dir, one->mesh, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = mathMeshCastPlane(one->mesh, dir, two->plane->v, two->plane->normal, result);
+				result = Mesh_Sweep_Plane(one->mesh, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
@@ -1418,7 +1418,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathSphereCastConvexMesh(two->sphere->o, two->sphere->radius, neg_dir, one->mesh, result);
+				result = Sphere_Sweep_ConvexMesh(two->sphere->o, two->sphere->radius, neg_dir, one->mesh, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
@@ -1426,7 +1426,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathOBBcastConvexMesh(two->obb, neg_dir, one->mesh, result);
+				result = OBB_Sweep_ConvexMesh(two->obb, neg_dir, one->mesh, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
@@ -1436,7 +1436,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = mathOBBcastConvexMesh(&obb2, neg_dir, one->mesh, result);
+				result = OBB_Sweep_ConvexMesh(&obb2, neg_dir, one->mesh, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
@@ -1444,7 +1444,7 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = mathPolygonCastConvexMesh(two->polygon, neg_dir, one->mesh, result);
+				result = Polygon_Sweep_ConvexMesh(two->polygon, neg_dir, one->mesh, result);
 				break;
 			}
 		}

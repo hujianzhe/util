@@ -36,7 +36,7 @@
 #include "crt/octree.h"
 #include "crt/string.h"
 #include "crt/geometry/aabb.h"
-#include "crt/geometry/collision_detection.h"
+#include "crt/geometry/collision.h"
 #include "crt/geometry/line_segment.h"
 #include "crt/geometry/obb.h"
 #include "crt/geometry/plane.h"
