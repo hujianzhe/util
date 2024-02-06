@@ -205,12 +205,6 @@ static CCTResult_t* mathRaycastOBB(const float o[3], const float dir[3], const G
 	}
 }
 
-static CCTResult_t* mathRaycastAABB(const float o[3], const float dir[3], const float aabb_o[3], const float aabb_half[3], CCTResult_t* result) {
-	GeometryOBB_t obb;
-	mathOBBFromAABB(&obb, aabb_o, aabb_half);
-	return mathRaycastOBB(o, dir, &obb, result);
-}
-
 static CCTResult_t* mathRaycastSphere(const float o[3], const float dir[3], const float sp_o[3], float sp_radius, CCTResult_t* result) {
 	float dr2, oc2, dir_d;
 	float oc[3];
@@ -483,36 +477,6 @@ static CCTResult_t* mathSegmentcastOBB(const float ls[2][3], const float dir[3],
 	}
 }
 
-static CCTResult_t* mathOBBcastSegment(const GeometryOBB_t* obb, const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastOBB(ls, neg_dir, obb, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathSegmentcastAABB(const float ls[2][3], const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
-	GeometryOBB_t obb;
-	mathOBBFromAABB(&obb, o, half);
-	return mathSegmentcastOBB(ls, dir, &obb, result);
-}
-
-static CCTResult_t* mathAABBcastSegment(const float o[3], const float half[3], const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastAABB(ls, neg_dir, o, half, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 static CCTResult_t* mathSegmentcastPolygon(const float ls[2][3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	CCTResult_t *p_result;
 	int i;
@@ -551,18 +515,6 @@ static CCTResult_t* mathSegmentcastPolygon(const float ls[2][3], const float dir
 	return p_result;
 }
 
-static CCTResult_t* mathPolygoncastSegment(const GeometryPolygon_t* polygon, const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastPolygon(ls, neg_dir, polygon, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result;
@@ -583,18 +535,6 @@ static CCTResult_t* mathSegmentCastConvexMesh(const float ls[2][3], const float 
 		}
 	}
 	return p_result;
-}
-
-static CCTResult_t* mathConvexMeshCastSegment(const GeometryMesh_t* mesh, const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentCastConvexMesh(ls, neg_dir, mesh, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
 }
 
 static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[3], const float center[3], float radius, CCTResult_t* result) {
@@ -681,18 +621,6 @@ static CCTResult_t* mathSegmentcastSphere(const float ls[2][3], const float dir[
 			return NULL;
 		}
 	}
-}
-
-static CCTResult_t* mathSpherecastSegment(const float o[3], const float radius, const float dir[3], const float ls[2][3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSegmentcastSphere(ls, neg_dir, o, radius, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
 }
 
 static CCTResult_t* mathPolygoncastPlane(const GeometryPolygon_t* polygon, const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
@@ -811,18 +739,6 @@ static CCTResult_t* mathPolygonCastConvexMesh(const GeometryPolygon_t* polygon, 
 		}
 	}
 	return p_result;
-}
-
-static CCTResult_t* mathConvexMeshCastPolygon(const GeometryMesh_t* mesh, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathPolygonCastConvexMesh(polygon, neg_dir, mesh, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
 }
 
 static CCTResult_t* mathBoxCastPlane(const float v[8][3], const float dir[3], const float plane_v[3], const float plane_n[3], CCTResult_t* result) {
@@ -992,18 +908,6 @@ static CCTResult_t* mathOBBcastPolygon(const GeometryOBB_t* obb, const float dir
 	return p_result;
 }
 
-static CCTResult_t* mathPolygoncastOBB(const GeometryPolygon_t* polygon, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathOBBcastPolygon(obb, neg_dir, polygon, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 static CCTResult_t* mathOBBcastConvexMesh(const GeometryOBB_t* obb, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result = NULL;
@@ -1024,36 +928,6 @@ static CCTResult_t* mathOBBcastConvexMesh(const GeometryOBB_t* obb, const float 
 		}
 	}
 	return p_result;
-}
-
-static CCTResult_t* mathConvexMeshCastOBB(const GeometryMesh_t* mesh, const float dir[3], const GeometryOBB_t* obb, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathOBBcastConvexMesh(obb, neg_dir, mesh, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathAABBcastPolygon(const float o[3], const float half[3], const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
-	GeometryOBB_t obb;
-	mathOBBFromAABB(&obb, o, half);
-	return mathOBBcastPolygon(&obb, dir, polygon, result);
-}
-
-static CCTResult_t* mathPolygoncastAABB(const GeometryPolygon_t* polygon, const float dir[3], const float o[3], const float half[3], CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathAABBcastPolygon(o, half, neg_dir, polygon, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
 }
 
 static CCTResult_t* mathOBBcastOBB(const GeometryOBB_t* obb1, const float dir[3], const GeometryOBB_t* obb2, CCTResult_t* result) {
@@ -1175,36 +1049,6 @@ static CCTResult_t* mathSpherecastOBB(const float o[3], float radius, const floa
 	}
 }
 
-static CCTResult_t* mathOBBcastSphere(const GeometryOBB_t* obb, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastOBB(o, radius, neg_dir, obb, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
-static CCTResult_t* mathSpherecastAABB(const float o[3], float radius, const float dir[3], const float center[3], const float half[3], CCTResult_t* result) {
-	GeometryOBB_t obb;
-	mathOBBFromAABB(&obb, center, half);
-	return mathSpherecastOBB(o, radius, dir, &obb, result);
-}
-
-static CCTResult_t* mathAABBcastSphere(const float center[3], const float half[3], const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastAABB(o, radius, neg_dir, center, half, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 static CCTResult_t* mathSpherecastPolygon(const float o[3], float radius, const float dir[3], const GeometryPolygon_t* polygon, CCTResult_t* result) {
 	int i;
 	CCTResult_t *p_result = NULL;
@@ -1238,18 +1082,6 @@ static CCTResult_t* mathSpherecastPolygon(const float o[3], float radius, const 
 	return p_result;
 }
 
-static CCTResult_t* mathPolygoncastSphere(const GeometryPolygon_t* polygon, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSpherecastPolygon(o, radius, dir, polygon, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 static CCTResult_t* mathSphereCastConvexMesh(const float o[3], float radius, const float dir[3], const GeometryMesh_t* mesh, CCTResult_t* result) {
 	unsigned int i;
 	CCTResult_t* p_result;
@@ -1271,18 +1103,6 @@ static CCTResult_t* mathSphereCastConvexMesh(const float o[3], float radius, con
 	return p_result;
 }
 
-static CCTResult_t* mathConvexMeshCastSphere(const GeometryMesh_t* mesh, const float dir[3], const float o[3], float radius, CCTResult_t* result) {
-	float neg_dir[3];
-	mathVec3Negate(neg_dir, dir);
-	if (!mathSphereCastConvexMesh(o, radius, neg_dir, mesh, result)) {
-		return NULL;
-	}
-	if (result->hit_point_cnt > 0) {
-		mathVec3AddScalar(result->hit_point, dir, result->distance);
-	}
-	return result;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -1292,38 +1112,49 @@ extern "C" {
 #endif
 
 CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result) {
+	int flag_neg_dir;
 	if (one->data == two->data || mathVec3IsZero(dir)) {
 		return NULL;
 	}
+	flag_neg_dir = 0;
 	if (GEOMETRY_BODY_POINT == one->type) {
 		switch (two->type) {
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathRaycastAABB(one->point, dir, two->aabb->o, two->aabb->half, result);
+				GeometryOBB_t obb2;
+				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
+				result = mathRaycastOBB(one->point, dir, &obb2, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathRaycastOBB(one->point, dir, two->obb, result);
+				result = mathRaycastOBB(one->point, dir, two->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathRaycastSphere(one->point, dir, two->sphere->o, two->sphere->radius, result);
+				result = mathRaycastSphere(one->point, dir, two->sphere->o, two->sphere->radius, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathRaycastPlane(one->point, dir, two->plane->v, two->plane->normal, result);
+				result = mathRaycastPlane(one->point, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathRaycastSegment(one->point, dir, two->segment->v, result);
+				result = mathRaycastSegment(one->point, dir, two->segment->v, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathRaycastPolygon(one->point, dir, two->polygon, result);
+				result = mathRaycastPolygon(one->point, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathRaycastConvexMesh(one->point, dir, two->mesh, result);
+				result = mathRaycastConvexMesh(one->point, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1331,31 +1162,40 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathSegmentcastSegment(one->segment->v, dir, two->segment->v, result);
+				result = mathSegmentcastSegment(one->segment->v, dir, two->segment->v, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathSegmentcastPlane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
+				result = mathSegmentcastPlane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathSegmentcastOBB(one->segment->v, dir, two->obb, result);
+				result = mathSegmentcastOBB(one->segment->v, dir, two->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathSegmentcastAABB(one->segment->v, dir, two->aabb->o, two->aabb->half, result);
+				GeometryOBB_t obb2;
+				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
+				result = mathSegmentcastOBB(one->segment->v, dir, &obb2, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathSegmentcastSphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
+				result = mathSegmentcastSphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathSegmentcastPolygon(one->segment->v, dir, two->polygon, result);
+				result = mathSegmentcastPolygon(one->segment->v, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathSegmentCastConvexMesh(one->segment->v, dir, two->mesh, result);
+				result = mathSegmentCastConvexMesh(one->segment->v, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1363,35 +1203,54 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathAABBcastAABB(one->aabb->o, one->aabb->half, dir, two->aabb->o, two->aabb->half, result);
+				result = mathAABBcastAABB(one->aabb->o, one->aabb->half, dir, two->aabb->o, two->aabb->half, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
 				GeometryOBB_t obb1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				return mathOBBcastOBB(&obb1, dir, two->obb, result);
+				result = mathOBBcastOBB(&obb1, dir, two->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathAABBcastSphere(one->aabb->o, one->aabb->half, dir, two->sphere->o, two->sphere->radius, result);
+				GeometryOBB_t obb1;
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
+				result = mathSpherecastOBB(two->sphere->o, two->sphere->radius, neg_dir, &obb1, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathAABBcastPlane(one->aabb->o, one->aabb->half, dir, two->plane->v, two->plane->normal, result);
+				result = mathAABBcastPlane(one->aabb->o, one->aabb->half, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathAABBcastSegment(one->aabb->o, one->aabb->half, dir, two->segment->v, result);
+				GeometryOBB_t obb1;
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
+				result = mathSegmentcastOBB(two->segment->v, neg_dir, &obb1, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathAABBcastPolygon(one->aabb->o, one->aabb->half, dir, two->polygon, result);
+				GeometryOBB_t obb1;
+				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
+				result = mathOBBcastPolygon(&obb1, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
 				GeometryOBB_t obb1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				return mathOBBcastConvexMesh(&obb1, dir, two->mesh, result);
+				result = mathOBBcastConvexMesh(&obb1, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1399,33 +1258,46 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathOBBcastSegment(one->obb, dir, two->segment->v, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSegmentcastOBB(two->segment->v, neg_dir, one->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathOBBcastPlane(one->obb, dir, two->plane->v, two->plane->normal, result);
+				result = mathOBBcastPlane(one->obb, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathOBBcastSphere(one->obb, dir, two->sphere->o, two->sphere->radius, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSpherecastOBB(two->sphere->o, two->sphere->radius, neg_dir, one->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathOBBcastOBB(one->obb, dir, two->obb, result);
+				result = mathOBBcastOBB(one->obb, dir, two->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				return mathOBBcastOBB(one->obb, dir, &obb2, result);
+				result = mathOBBcastOBB(one->obb, dir, &obb2, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathOBBcastPolygon(one->obb, dir, two->polygon, result);
+				result = mathOBBcastPolygon(one->obb, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathOBBcastConvexMesh(one->obb, dir, two->mesh, result);
+				result = mathOBBcastConvexMesh(one->obb, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1433,31 +1305,43 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, two->obb, result);
+				result = mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, two->obb, result);
+				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathSpherecastAABB(one->sphere->o, one->sphere->radius, dir, two->aabb->o, two->aabb->half, result);
+				GeometryOBB_t obb2;
+				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
+				result = mathSpherecastOBB(one->sphere->o, one->sphere->radius, dir, &obb2, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathSpherecastSphere(one->sphere->o, one->sphere->radius, dir, two->sphere->o, two->sphere->radius, result);
+				result = mathSpherecastSphere(one->sphere->o, one->sphere->radius, dir, two->sphere->o, two->sphere->radius, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathSpherecastPlane(one->sphere->o, one->sphere->radius, dir, two->plane->v, two->plane->normal, result);
+				result = mathSpherecastPlane(one->sphere->o, one->sphere->radius, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathSpherecastSegment(one->sphere->o, one->sphere->radius, dir, two->segment->v, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSegmentcastSphere(two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathSpherecastPolygon(one->sphere->o, one->sphere->radius, dir, two->polygon, result);
+				result = mathSpherecastPolygon(one->sphere->o, one->sphere->radius, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathSphereCastConvexMesh(one->sphere->o, one->sphere->radius, dir, two->mesh, result);
+				result = mathSphereCastConvexMesh(one->sphere->o, one->sphere->radius, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1465,31 +1349,52 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathPolygoncastSegment(one->polygon, dir, two->segment->v, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSegmentcastPolygon(two->segment->v, neg_dir, one->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathPolygoncastPlane(one->polygon, dir, two->plane->v, two->plane->normal, result);
+				result = mathPolygoncastPlane(one->polygon, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathPolygoncastSphere(one->polygon, dir, two->sphere->o, two->sphere->radius, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSpherecastPolygon(two->sphere->o, two->sphere->radius, neg_dir, one->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathPolygoncastOBB(one->polygon, dir, two->obb, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathOBBcastPolygon(two->obb, neg_dir, one->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				return mathPolygoncastAABB(one->polygon, dir, two->aabb->o, two->aabb->half, result);
+				GeometryOBB_t obb2;
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
+				result = mathOBBcastPolygon(&obb2, neg_dir, one->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathPolygoncastPolygon(one->polygon, dir, two->polygon, result);
+				result = mathPolygoncastPolygon(one->polygon, dir, two->polygon, result);
+				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return mathPolygonCastConvexMesh(one->polygon, dir, two->mesh, result);
+				result = mathPolygonCastConvexMesh(one->polygon, dir, two->mesh, result);
+				break;
 			}
 		}
 	}
@@ -1497,33 +1402,62 @@ CCTResult_t* mathCollisionBodyCast(const GeometryBodyRef_t* one, const float dir
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathConvexMeshCastSegment(one->mesh, dir, two->segment->v, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSegmentCastConvexMesh(two->segment->v, neg_dir, one->mesh, result);
+				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return mathMeshCastPlane(one->mesh, dir, two->plane->v, two->plane->normal, result);
+				result = mathMeshCastPlane(one->mesh, dir, two->plane->v, two->plane->normal, result);
+				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return mathConvexMeshCastSphere(one->mesh, dir, two->sphere->o, two->sphere->radius, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathSphereCastConvexMesh(two->sphere->o, two->sphere->radius, neg_dir, one->mesh, result);
+				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return mathConvexMeshCastOBB(one->mesh, dir, two->obb, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathOBBcastConvexMesh(two->obb, neg_dir, one->mesh, result);
+				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				return mathConvexMeshCastOBB(one->mesh, dir, &obb2, result);
+				result = mathOBBcastConvexMesh(&obb2, neg_dir, one->mesh, result);
+				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return mathConvexMeshCastPolygon(one->mesh, dir, two->polygon, result);
+				float neg_dir[3];
+				mathVec3Negate(neg_dir, dir);
+				flag_neg_dir = 1;
+				result = mathPolygonCastConvexMesh(two->polygon, neg_dir, one->mesh, result);
+				break;
 			}
 		}
 	}
-	return NULL;
+	if (!result) {
+		return NULL;
+	}
+	if (flag_neg_dir) {
+		if (result->hit_point_cnt > 0) {
+			mathVec3AddScalar(result->hit_point, dir, result->distance);
+		}
+	}
+	return result;
 }
 
 #ifdef __cplusplus
