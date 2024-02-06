@@ -87,58 +87,6 @@ void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float hal
 	half_h[5] = aabb_half[0];
 }
 
-GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigned int idx, GeometryRect_t* rect) {
-	if (idx < 2) {
-		mathVec3Copy(rect->o, o);
-		if (0 == idx) {
-			rect->o[2] += half[2];
-			mathVec3Set(rect->normal, 0.0f, 0.0f, 1.0f);
-		}
-		else {
-			rect->o[2] -= half[2];
-			mathVec3Set(rect->normal, 0.0f, 0.0f, -1.0f);
-		}
-		rect->half_w = half[0];
-		rect->half_h = half[1];
-		mathVec3Set(rect->w_axis, 1.0f, 0.0f, 0.0f);
-		mathVec3Set(rect->h_axis, 0.0f, 1.0f, 0.0f);
-		return rect;
-	}
-	else if (idx < 4) {
-		mathVec3Copy(rect->o, o);
-		if (2 == idx) {
-			rect->o[0] += half[0];
-			mathVec3Set(rect->normal, 1.0f, 0.0f, 0.0f);
-		}
-		else {
-			rect->o[0] -= half[0];
-			mathVec3Set(rect->normal, -1.0f, 0.0f, 0.0f);
-		}
-		rect->half_w = half[2];
-		rect->half_h = half[1];
-		mathVec3Set(rect->w_axis, 0.0f, 0.0f, 1.0f);
-		mathVec3Set(rect->h_axis, 0.0f, 1.0f, 0.0f);
-		return rect;
-	}
-	else if (idx < 6) {
-		mathVec3Copy(rect->o, o);
-		if (4 == idx) {
-			rect->o[1] += half[1];
-			mathVec3Set(rect->normal, 0.0f, 1.0f, 0.0f);
-		}
-		else {
-			rect->o[1] -= half[1];
-			mathVec3Set(rect->normal, 0.0f, -1.0f, 0.0f);
-		}
-		rect->half_w = half[2];
-		rect->half_h = half[0];
-		mathVec3Set(rect->w_axis, 0.0f, 0.0f, 1.0f);
-		mathVec3Set(rect->h_axis, 1.0f, 0.0f, 0.0f);
-		return rect;
-	}
-	return NULL;
-}
-
 void mathAABBFixHalf(float half[3], float min_half_value) {
 	if (min_half_value < 0.0f) {
 		return;

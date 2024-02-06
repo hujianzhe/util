@@ -34,15 +34,6 @@ typedef struct GeometryOBB_t {
 	float axis[3][3];
 } GeometryOBB_t;
 
-typedef struct GeometryRect_t {
-	float o[3];
-	float w_axis[3];
-	float h_axis[3];
-	float normal[3];
-	float half_w;
-	float half_h;
-} GeometryRect_t;
-
 typedef struct GeometryPolygon_t {
 	float (*v)[3]; /* vertices vec3 */
 	float normal[3];

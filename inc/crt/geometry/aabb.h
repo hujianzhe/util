@@ -18,7 +18,6 @@ extern const float AABB_Plane_Normal[6][3];
 
 __declspec_dll void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3]);
 __declspec_dll void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]);
-__declspec_dll GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigned int idx, GeometryRect_t* rect);
 
 __declspec_dll void mathAABBFixHalf(float half[3], float min_half_value);
 __declspec_dll void mathAABBVertices(const float o[3], const float half[3], float v[8][3]);

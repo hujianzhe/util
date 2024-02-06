@@ -19,7 +19,6 @@ __declspec_dll void mathOBBMinVertice(const GeometryOBB_t* obb, float v[3]);
 __declspec_dll void mathOBBMaxVertice(const GeometryOBB_t* obb, float v[3]);
 
 __declspec_dll void mathOBBPlaneVertices(const GeometryOBB_t* obb, float v[6][3]);
-__declspec_dll GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect);
 
 __declspec_dll int mathOBBHasPoint(const GeometryOBB_t* obb, const float p[3]);
 __declspec_dll int mathOBBIntersectOBB(const GeometryOBB_t* obb0, const GeometryOBB_t* obb1);

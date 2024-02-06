@@ -332,6 +332,123 @@ void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, f
 	mathVec3Copy(polygon->normal, rect->normal);
 }
 
+GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigned int idx, GeometryRect_t* rect) {
+	if (idx < 2) {
+		mathVec3Copy(rect->o, o);
+		if (0 == idx) {
+			rect->o[2] += half[2];
+			mathVec3Set(rect->normal, 0.0f, 0.0f, 1.0f);
+		}
+		else {
+			rect->o[2] -= half[2];
+			mathVec3Set(rect->normal, 0.0f, 0.0f, -1.0f);
+		}
+		rect->half_w = half[0];
+		rect->half_h = half[1];
+		mathVec3Set(rect->w_axis, 1.0f, 0.0f, 0.0f);
+		mathVec3Set(rect->h_axis, 0.0f, 1.0f, 0.0f);
+		return rect;
+	}
+	else if (idx < 4) {
+		mathVec3Copy(rect->o, o);
+		if (2 == idx) {
+			rect->o[0] += half[0];
+			mathVec3Set(rect->normal, 1.0f, 0.0f, 0.0f);
+		}
+		else {
+			rect->o[0] -= half[0];
+			mathVec3Set(rect->normal, -1.0f, 0.0f, 0.0f);
+		}
+		rect->half_w = half[2];
+		rect->half_h = half[1];
+		mathVec3Set(rect->w_axis, 0.0f, 0.0f, 1.0f);
+		mathVec3Set(rect->h_axis, 0.0f, 1.0f, 0.0f);
+		return rect;
+	}
+	else if (idx < 6) {
+		mathVec3Copy(rect->o, o);
+		if (4 == idx) {
+			rect->o[1] += half[1];
+			mathVec3Set(rect->normal, 0.0f, 1.0f, 0.0f);
+		}
+		else {
+			rect->o[1] -= half[1];
+			mathVec3Set(rect->normal, 0.0f, -1.0f, 0.0f);
+		}
+		rect->half_w = half[2];
+		rect->half_h = half[0];
+		mathVec3Set(rect->w_axis, 0.0f, 0.0f, 1.0f);
+		mathVec3Set(rect->h_axis, 1.0f, 0.0f, 0.0f);
+		return rect;
+	}
+	return NULL;
+}
+
+GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect) {
+	float extend[3];
+	if (idx < 2) {
+		mathVec3MultiplyScalar(extend, obb->axis[2], obb->half[2]);
+		if (0 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[2][0];
+			rect->normal[1] = obb->axis[2][1];
+			rect->normal[2] = obb->axis[2][2];
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[2][0];
+			rect->normal[1] = -obb->axis[2][1];
+			rect->normal[2] = -obb->axis[2][2];
+		}
+		rect->half_w = obb->half[0];
+		rect->half_h = obb->half[1];
+		mathVec3Copy(rect->w_axis, obb->axis[0]);
+		mathVec3Copy(rect->h_axis, obb->axis[1]);
+		return rect;
+	}
+	else if (idx < 4) {
+		mathVec3MultiplyScalar(extend, obb->axis[0], obb->half[0]);
+		if (2 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[0][0];
+			rect->normal[1] = obb->axis[0][1];
+			rect->normal[2] = obb->axis[0][2];
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[0][0];
+			rect->normal[1] = -obb->axis[0][1];
+			rect->normal[2] = -obb->axis[0][2];
+		}
+		rect->half_w = obb->half[2];
+		rect->half_h = obb->half[1];
+		mathVec3Copy(rect->w_axis, obb->axis[2]);
+		mathVec3Copy(rect->h_axis, obb->axis[1]);
+		return rect;
+	}
+	else if (idx < 6) {
+		mathVec3MultiplyScalar(extend, obb->axis[1], obb->half[1]);
+		if (4 == idx) {
+			mathVec3Add(rect->o, obb->o, extend);
+			rect->normal[0] = obb->axis[1][0];
+			rect->normal[1] = obb->axis[1][1];
+			rect->normal[2] = obb->axis[1][2];
+		}
+		else {
+			mathVec3Sub(rect->o, obb->o, extend);
+			rect->normal[0] = -obb->axis[1][0];
+			rect->normal[1] = -obb->axis[1][1];
+			rect->normal[2] = -obb->axis[1][2];
+		}
+		rect->half_w = obb->half[2];
+		rect->half_h = obb->half[0];
+		mathVec3Copy(rect->w_axis, obb->axis[2]);
+		mathVec3Copy(rect->h_axis, obb->axis[0]);
+		return rect;
+	}
+	return NULL;
+}
+
 unsigned int mathVerticesDistinctCount(const float(*src_v)[3], unsigned int src_v_cnt) {
 	unsigned int i, len = src_v_cnt;
 	for (i = 0; i < src_v_cnt; ++i) {

@@ -7,6 +7,15 @@
 
 #include "geometry_def.h"
 
+typedef struct GeometryRect_t {
+	float o[3];
+	float w_axis[3];
+	float h_axis[3];
+	float normal[3];
+	float half_w;
+	float half_h;
+} GeometryRect_t;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -19,6 +28,8 @@ __declspec_dll void mathTriangleToPolygon(const float tri[3][3], GeometryPolygon
 __declspec_dll int mathRectHasPoint(const GeometryRect_t* rect, const float p[3]);
 __declspec_dll void mathRectVertices(const GeometryRect_t* rect, float p[4][3]);
 __declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygon_t* polygon, float buf_points[4][3]);
+__declspec_dll GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigned int idx, GeometryRect_t* rect);
+__declspec_dll GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect);
 
 __declspec_dll unsigned int mathVerticesDistinctCount(const float(*src_v)[3], unsigned int src_v_cnt);
 __declspec_dll unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt);
