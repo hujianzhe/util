@@ -67,26 +67,6 @@ void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3])
 	v[5][1] -= half[1];
 }
 
-void mathAABBPlaneRectSizes(const float aabb_half[3], float half_w[6], float half_h[6]) {
-	half_w[0] = aabb_half[0];
-	half_h[0] = aabb_half[1];
-
-	half_w[1] = aabb_half[0];
-	half_h[1] = aabb_half[1];
-
-	half_w[2] = aabb_half[2];
-	half_h[2] = aabb_half[1];
-
-	half_w[3] = aabb_half[2];
-	half_h[3] = aabb_half[1];
-
-	half_w[4] = aabb_half[2];
-	half_h[4] = aabb_half[0];
-
-	half_w[5] = aabb_half[2];
-	half_h[5] = aabb_half[0];
-}
-
 void mathAABBFixHalf(float half[3], float min_half_value) {
 	if (min_half_value < 0.0f) {
 		return;
