@@ -25,7 +25,10 @@ sighandler_t signalRegHandler(int signo, sighandler_t func) {
 	act.sa_handler = func;
 	sigfillset(&act.sa_mask);
 	act.sa_flags = SA_RESTART;
-	return sigaction(signo, &act, &oact) < 0 ? SIG_ERR : oact.sa_handler;
+	if (sigaction(signo, &act, &oact) < 0) {
+		return SIG_ERR;
+	}
+	return oact.sa_handler;
 #endif
 }
 
