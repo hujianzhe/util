@@ -249,13 +249,7 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 		dup_v_indices[i] = i;
 	}
 	mathVerticesFindMaxMinXYZ((const float(*)[3])dup_v, dup_v_cnt, min_v, max_v);
-	for (i = 0; i < 3; ++i) {
-		mesh->bound_box.o[i] = (min_v[i] + max_v[i]) * 0.5f;
-		mesh->bound_box.half[i] = max_v[i] - min_v[i];
-		if (mesh->bound_box.half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
-			mesh->bound_box.half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
-		}
-	}
+	mathAABBFromTwoVertice(min_v, max_v, mesh->bound_box.o, mesh->bound_box.half);
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;

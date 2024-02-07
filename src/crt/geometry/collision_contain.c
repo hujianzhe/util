@@ -152,19 +152,12 @@ GeometryAABB_t* mathCollisionBoundingBox(const GeometryBodyRef_t* b, GeometryAAB
 		}
 		case GEOMETRY_BODY_POLYGON:
 		{
-			unsigned int i;
-			const GeometryPolygon_t* polygon = b->polygon;
 			float min_v[3], max_v[3];
+			const GeometryPolygon_t* polygon = b->polygon;
 			if (!mathVertexIndicesFindMaxMinXYZ((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, min_v, max_v)) {
 				return NULL;
 			}
-			for (i = 0; i < 3; ++i) {
-				aabb->o[i] = (min_v[i] + max_v[i]) * 0.5f;
-				aabb->half[i] = max_v[i] - min_v[i];
-				if (aabb->half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
-					aabb->half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
-				}
-			}
+			mathAABBFromTwoVertice(min_v, max_v, aabb->o, aabb->half);
 			break;
 		}
 		case GEOMETRY_BODY_CONVEX_MESH:

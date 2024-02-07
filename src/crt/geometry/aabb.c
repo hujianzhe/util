@@ -67,18 +67,6 @@ void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3])
 	v[5][1] -= half[1];
 }
 
-void mathAABBFixHalf(float half[3]) {
-	if (half[0] < GEOMETRY_BODY_BOX_MIN_HALF) {
-		half[0] = GEOMETRY_BODY_BOX_MIN_HALF;
-	}
-	if (half[1] < GEOMETRY_BODY_BOX_MIN_HALF) {
-		half[1] = GEOMETRY_BODY_BOX_MIN_HALF;
-	}
-	if (half[2] < GEOMETRY_BODY_BOX_MIN_HALF) {
-		half[2] = GEOMETRY_BODY_BOX_MIN_HALF;
-	}
-}
-
 void mathAABBVertices(const float o[3], const float half[3], float v[8][3]) {
 	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
 	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
@@ -100,6 +88,22 @@ void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]) {
 	v[0] = o[0] + half[0];
 	v[1] = o[1] + half[1];
 	v[2] = o[2] + half[2];
+}
+
+void mathAABBFromTwoVertice(const float a[3], const float b[3], float o[3], float half[3]) {
+	unsigned int i;
+	for (i = 0; i < 3; ++i) {
+		o[i] = (a[i] + b[i]) * 0.5f;
+		if (a[i] > b[i]) {
+			half[i] = a[i] - b[i];
+		}
+		else {
+			half[i] = b[i] - a[i];
+		}
+		if (half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
+			half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
+		}
+	}
 }
 
 int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
