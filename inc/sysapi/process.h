@@ -29,7 +29,6 @@
 		HANDLE handle;
 		unsigned int id;
 	} Thread_t;
-	#define	THREAD_CALL				__stdcall
 	typedef	DWORD					Tls_t;
 	#define	__declspec_tls			__declspec(thread)
 	#pragma comment(lib, "Dbghelp.lib")
@@ -52,7 +51,6 @@
 	typedef struct {
 		pthread_t id;
 	} Thread_t;
-	#define	THREAD_CALL
 	typedef	pthread_key_t			Tls_t;
 	#define	__declspec_tls			__thread
 #endif
@@ -79,7 +77,7 @@ __declspec_dll size_t processId(void);
 __declspec_dll BOOL processWait(Process_t process, unsigned char* retcode);
 __declspec_dll BOOL processTryWait(Process_t process, unsigned char* retcode);
 /* thread operator */
-__declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg);
+__declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int(*entry)(void*), void* arg);
 __declspec_dll BOOL threadDetach(Thread_t thread);
 __declspec_dll BOOL threadJoin(Thread_t thread, unsigned int* retcode);
 __declspec_dll void threadExit(unsigned int retcode);

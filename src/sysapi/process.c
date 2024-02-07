@@ -163,17 +163,50 @@ BOOL processTryWait(Process_t process, unsigned char* retcode) {
 }
 
 /* thread operator */
-BOOL threadCreate(Thread_t* p_thread, unsigned int (THREAD_CALL *entry)(void*), void* arg) {
+#ifdef	_WIN32
+static unsigned int __stdcall thread_entry_(void* arg)
+#else
+static void* thread_entry_(void* arg)
+#endif
+{
+	void** boot_arg = (void**)arg;
+	unsigned int(*f)(void*) = (unsigned int(*)(void*))boot_arg[0];
+	void* param = boot_arg[1];
+	free(arg);
+#ifdef	_WIN32
+	return f(param);
+#else
+	return (void*)(size_t)(f(param));
+#endif
+}
+
+BOOL threadCreate(Thread_t* p_thread, unsigned int(*entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = (HANDLE)_beginthreadex(NULL, 0, entry, arg, 0, &p_thread->id);
+	HANDLE handle;
+	void** boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
+	if (!boot_arg) {
+		return FALSE;
+	}
+	boot_arg[0] = (void*)entry;
+	boot_arg[1] = arg;
+	handle = (HANDLE)_beginthreadex(NULL, 0, thread_entry_, boot_arg, 0, &p_thread->id);
 	if ((HANDLE)-1 == handle) {
+		free(boot_arg);
 		return FALSE;
 	}
 	p_thread->handle = handle;
 	return TRUE;
 #else
-	int res = pthread_create(&p_thread->id, NULL, (void*(*)(void*))entry, arg);
+	int res;
+	void** boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
+	if (!boot_arg) {
+		return FALSE;
+	}
+	boot_arg[0] = (void*)entry;
+	boot_arg[1] = arg;
+	res = pthread_create(&p_thread->id, NULL, thread_entry_, boot_arg);
 	if (res) {
+		free(boot_arg);
 		errno = res;
 		return FALSE;
 	}
