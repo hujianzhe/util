@@ -34,10 +34,10 @@
 				stack_co_sche		基于系统平台API实现的有栈协程调度器  
 				switch_co_sche		基于switch case语法的无栈协程调度器  
 			crt/  
-				geometry/			包含常用2D/3D几何体定义,射线/线段/AABB/OBB/球/平面/矩形/多边形  
-					collision_intersect	3D碰撞静态相交检测接口  
-					collision_detection	3D碰撞方向投射检测接口  
-				protocol/			通用协议解析  
+				geometry/  
+					geometry_def	3D几何体定义(点,线段,平面,立方盒,球,多边形,多面体)  
+					collision		3D几何体包围盒计算/相交检测/包含检测/扫掠检测接口  
+				protocol/  
 					hiredis_cli_protocol	基于hiredis代码的裁剪,只保留了客户端对RESP协议解析和构造部分  
 					httpframe			用于解析与组装HTTP协议报文  
 					websocketframe		用于解析与组装WebSocket协议报文(13版本)  
