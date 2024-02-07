@@ -164,11 +164,11 @@ BOOL processTryWait(Process_t process, unsigned char* retcode) {
 
 /* thread operator */
 #ifdef	_WIN32
-static unsigned int __stdcall thread_entry_(void* arg)
+static unsigned int __stdcall thread_entry_(void* arg) {
 #else
-static void* thread_entry_(void* arg)
+static void* thread_entry_(void* arg) {
+	sigset_t ss;
 #endif
-{
 	void** boot_arg = (void**)arg;
 	unsigned int(*f)(void*) = (unsigned int(*)(void*))boot_arg[0];
 	void* param = boot_arg[1];
@@ -176,6 +176,8 @@ static void* thread_entry_(void* arg)
 #ifdef	_WIN32
 	return f(param);
 #else
+	sigfillset(&ss);
+	pthread_sigmask(SIG_SETMASK, &ss, NULL);
 	return (void*)(size_t)(f(param));
 #endif
 }
