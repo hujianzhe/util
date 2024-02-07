@@ -3,6 +3,7 @@
 //
 
 #include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/vertex.h"
 #include "../../../inc/crt/geometry/line_segment.h"
 #include "../../../inc/crt/geometry/plane.h"
 #include "../../../inc/crt/geometry/sphere.h"
@@ -151,9 +152,18 @@ GeometryAABB_t* mathCollisionBoundingBox(const GeometryBodyRef_t* b, GeometryAAB
 		}
 		case GEOMETRY_BODY_POLYGON:
 		{
+			unsigned int i;
 			const GeometryPolygon_t* polygon = b->polygon;
-			if (!mathAABBFromVertexIndices((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, aabb->o, aabb->half)) {
+			float min_v[3], max_v[3];
+			if (!mathVertexIndicesFindMaxMinXYZ((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, min_v, max_v)) {
 				return NULL;
+			}
+			for (i = 0; i < 3; ++i) {
+				aabb->o[i] = (min_v[i] + max_v[i]) * 0.5f;
+				aabb->half[i] = max_v[i] - min_v[i];
+				if (aabb->half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
+					aabb->half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
+				}
 			}
 			break;
 		}

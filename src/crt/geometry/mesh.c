@@ -3,6 +3,7 @@
 //
 
 #include "../../../inc/crt/math_vec3.h"
+#include "../../../inc/crt/geometry/vertex.h"
 #include "../../../inc/crt/geometry/aabb.h"
 #include "../../../inc/crt/geometry/plane.h"
 #include "../../../inc/crt/geometry/polygon.h"
@@ -208,6 +209,7 @@ extern "C" {
 
 GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryMesh_t* mesh) {
 	float(*dup_v)[3] = NULL;
+	float min_v[3], max_v[3];
 	unsigned int i, dup_v_cnt;
 	unsigned int* dup_v_indices = NULL;
 	unsigned int* dup_tri_indices = NULL;
@@ -246,7 +248,14 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	for (i = 0; i < dup_v_cnt; ++i) {
 		dup_v_indices[i] = i;
 	}
-	mathAABBFromVertices((const float(*)[3])dup_v, dup_v_cnt, mesh->bound_box.o, mesh->bound_box.half);
+	mathVerticesFindMaxMinXYZ((const float(*)[3])dup_v, dup_v_cnt, min_v, max_v);
+	for (i = 0; i < 3; ++i) {
+		mesh->bound_box.o[i] = (min_v[i] + max_v[i]) * 0.5f;
+		mesh->bound_box.half[i] = max_v[i] - min_v[i];
+		if (mesh->bound_box.half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
+			mesh->bound_box.half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
+		}
+	}
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;

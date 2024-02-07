@@ -43,6 +43,7 @@
 #include "crt/geometry/plane.h"
 #include "crt/geometry/polygon.h"
 #include "crt/geometry/sphere.h"
+#include "crt/geometry/vertex.h"
 #include "crt/protocol/hiredis_cli_protocol.h"
 #include "crt/protocol/httpframe.h"
 #include "crt/protocol/websocketframe.h"

@@ -31,9 +31,6 @@ __declspec_dll void mathRectToPolygon(const GeometryRect_t* rect, GeometryPolygo
 __declspec_dll GeometryRect_t* mathAABBPlaneRect(const float o[3], const float half[3], unsigned int idx, GeometryRect_t* rect);
 __declspec_dll GeometryRect_t* mathOBBPlaneRect(const GeometryOBB_t* obb, unsigned int idx, GeometryRect_t* rect);
 
-__declspec_dll unsigned int mathVerticesDistinctCount(const float(*src_v)[3], unsigned int src_v_cnt);
-__declspec_dll unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int src_v_cnt, float(*dst_v)[3], unsigned int* indices, unsigned int indices_cnt);
-
 __declspec_dll int mathPolygonIsConvex(const GeometryPolygon_t* polygon);
 __declspec_dll int mathPolygonHasPoint(const GeometryPolygon_t* polygon, const float p[3]);
 __declspec_dll int mathPolygonContainPolygon(const GeometryPolygon_t* polygon1, const GeometryPolygon_t* polygon2);

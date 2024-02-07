@@ -67,18 +67,15 @@ void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3])
 	v[5][1] -= half[1];
 }
 
-void mathAABBFixHalf(float half[3], float min_half_value) {
-	if (min_half_value < 0.0f) {
-		return;
+void mathAABBFixHalf(float half[3]) {
+	if (half[0] < GEOMETRY_BODY_BOX_MIN_HALF) {
+		half[0] = GEOMETRY_BODY_BOX_MIN_HALF;
 	}
-	if (half[0] < min_half_value) {
-		half[0] = min_half_value;
+	if (half[1] < GEOMETRY_BODY_BOX_MIN_HALF) {
+		half[1] = GEOMETRY_BODY_BOX_MIN_HALF;
 	}
-	if (half[1] < min_half_value) {
-		half[1] = min_half_value;
-	}
-	if (half[2] < min_half_value) {
-		half[2] = min_half_value;
+	if (half[2] < GEOMETRY_BODY_BOX_MIN_HALF) {
+		half[2] = GEOMETRY_BODY_BOX_MIN_HALF;
 	}
 }
 
@@ -103,66 +100,6 @@ void mathAABBMaxVertice(const float o[3], const float half[3], float v[3]) {
 	v[0] = o[0] + half[0];
 	v[1] = o[1] + half[1];
 	v[2] = o[2] + half[2];
-}
-
-int mathAABBFromVertexIndices(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float o[3], float half[3]) {
-	unsigned int i;
-	float v_min[3], v_max[3];
-	if (v_indices_cnt <= 0) {
-		return 0;
-	}
-	mathVec3Copy(v_min, v[v_indices[0]]);
-	mathVec3Copy(v_max, v[v_indices[0]]);
-	for (i = 1; i < v_indices_cnt; ++i) {
-		unsigned int j;
-		const float* cur_v = v[v_indices[i]];
-		for (j = 0; j < 3; ++j) {
-			if (cur_v[j] < v_min[j]) {
-				v_min[j] = cur_v[j];
-			}
-			else if (cur_v[j] > v_max[j]) {
-				v_max[j] = cur_v[j];
-			}
-		}
-	}
-	for (i = 0; i < 3; ++i) {
-		half[i] = (v_max[i] - v_min[i]) * 0.5f;
-		if (half[i] < 1e-5f + 1e-5f) {
-			half[i] = 1e-5f + 1e-5f;
-		}
-		o[i] = (v_min[i] + v_max[i]) * 0.5f;
-	}
-	return 1;
-}
-
-int mathAABBFromVertices(const float(*v)[3], unsigned int v_cnt, float o[3], float half[3]) {
-	unsigned int i;
-	float v_min[3], v_max[3];
-	if (v_cnt <= 0) {
-		return 0;
-	}
-	mathVec3Copy(v_min, v[0]);
-	mathVec3Copy(v_max, v[0]);
-	for (i = 1; i < v_cnt; ++i) {
-		unsigned int j;
-		const float* cur_v = v[i];
-		for (j = 0; j < 3; ++j) {
-			if (cur_v[j] < v_min[j]) {
-				v_min[j] = cur_v[j];
-			}
-			else if (cur_v[j] > v_max[j]) {
-				v_max[j] = cur_v[j];
-			}
-		}
-	}
-	for (i = 0; i < 3; ++i) {
-		half[i] = (v_max[i] - v_min[i]) * 0.5f;
-		if (half[i] < 1e-5f + 1e-5f) {
-			half[i] = 1e-5f + 1e-5f;
-		}
-		o[i] = (v_min[i] + v_max[i]) * 0.5f;
-	}
-	return 1;
 }
 
 int mathAABBHasPoint(const float o[3], const float half[3], const float p[3]) {
