@@ -95,10 +95,10 @@ void mathAABBFromTwoVertice(const float a[3], const float b[3], float o[3], floa
 	for (i = 0; i < 3; ++i) {
 		o[i] = (a[i] + b[i]) * 0.5f;
 		if (a[i] > b[i]) {
-			half[i] = a[i] - b[i];
+			half[i] = (a[i] - b[i]) * 0.5f;
 		}
 		else {
-			half[i] = b[i] - a[i];
+			half[i] = (b[i] - a[i]) * 0.5f;
 		}
 		if (half[i] < GEOMETRY_BODY_BOX_MIN_HALF) {
 			half[i] = GEOMETRY_BODY_BOX_MIN_HALF;
