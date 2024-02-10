@@ -602,9 +602,6 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 	ULONG n;
 	nio_handle_free_list(nio);
 	if (GetQueuedCompletionStatusEx((HANDLE)(nio->__hNio), e, count, &n, msec, FALSE)) {
-		if (n > 0) {
-			_xchg16(&nio->__wakeup, 0);
-		}
 		return n;
 	}
 	if (GetLastError() == WAIT_TIMEOUT) {
@@ -617,9 +614,6 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 	do {
 		res = epoll_wait(nio->__hNio, e, count, msec);
 	} while (res < 0 && EINTR == errno);
-	if (res > 0) {
-		_xchg16(&nio->__wakeup, 0);
-	}
 	return res;
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 	int res;
@@ -634,9 +628,6 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 	do {
 		res = kevent(nio->__hNio, NULL, 0, e, count, t);
 	} while (res < 0 && EINTR == errno);
-	if (res > 0) {
-		_xchg16(&nio->__wakeup, 0);
-	}
 	return res;
 #endif
 }
@@ -657,6 +648,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	NioFD_t* niofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)(e->lpOverlapped);
 	if (!ol) {
+		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	iocp_nio_unlink_ol(nio, ol);
@@ -693,6 +685,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (e->data.ptr == (void*)&nio->__socketpair[0]) {
 		char c[256];
 		read(nio->__socketpair[0], c, sizeof(c));
+		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	niofd = (NioFD_t*)e->data.ptr;
@@ -732,6 +725,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (e->udata == (void*)&nio->__socketpair[0]) {
 		char c[256];
 		read(nio->__socketpair[0], c, sizeof(c));
+		_xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	niofd = (NioFD_t*)e->udata;
