@@ -45,6 +45,16 @@ void signalReg(int signo) {
 #endif
 }
 
+BOOL signalThreadMaskNotify(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	return TRUE;
+#else
+	sigset_t ss;
+	sigfillset(&ss);
+	return pthread_sigmask(SIG_SETMASK, &ss, NULL) == 0;
+#endif
+}
+
 int signalWait(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	int signo = win32_signal_desc.last_signo + 1;

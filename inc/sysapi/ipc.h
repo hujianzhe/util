@@ -43,6 +43,7 @@ extern "C" {
 
 /* signal */
 __declspec_dll void signalReg(int signo);
+__declspec_dll BOOL signalThreadMaskNotify(void);
 __declspec_dll int signalWait(void);
 /* pipe */
 __declspec_dll BOOL pipeCreate(FD_t* r, FD_t* w);
