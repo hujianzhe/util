@@ -63,7 +63,9 @@ int signalWait(void) {
 	int sig;
 	sigset_t ss;
 	sigfillset(&ss);
-	pthread_sigmask(SIG_SETMASK, &ss, NULL);
+	if (pthread_sigmask(SIG_SETMASK, &ss, NULL)) {
+		return -1;
+	}
 	if (sigwait(&ss, &sig)) {
 		return -1;
 	}
