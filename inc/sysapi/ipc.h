@@ -36,19 +36,14 @@
 	#define INIT_ONCE_STATIC_INIT	PTHREAD_ONCE_INIT
 #endif
 #include <signal.h>
-typedef	void(*sighandler_t)(int);
-/*
-#if defined(__FreeBSD__) || defined(__APPLE__)
-	typedef sig_t					sighandler_t;
-#endif
-*/
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 /* signal */
-__declspec_dll sighandler_t signalRegHandler(int signo, sighandler_t func);
+__declspec_dll void signalReg(int signo);
+__declspec_dll int signalWait(void);
 /* pipe */
 __declspec_dll BOOL pipeCreate(FD_t* r, FD_t* w);
 __declspec_dll BOOL pipeNonBlock(FD_t pipefd, BOOL bool_val);

@@ -11,24 +11,63 @@ extern "C" {
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
+struct {
+	volatile char emit_flags[NSIG];
+	int last_signo;
+} win32_signal_desc;
+static void win32_signal_set_emit_flags_(int signo) {
+	win32_signal_desc.emit_flags[signo] = 1;
+}
 #else
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #endif
 
 /* signal */
-sighandler_t signalRegHandler(int signo, sighandler_t func) {
+void signalReg(int signo) {
 #if defined(_WIN32) || defined(_WIN64)
-	return signal(signo, func);
-#else
-	struct sigaction act, oact;
-	act.sa_handler = func;
-	sigfillset(&act.sa_mask);
-	act.sa_flags = SA_RESTART;
-	if (sigaction(signo, &act, &oact) < 0) {
-		return SIG_ERR;
+	if (signo >= NSIG) {
+		return;
 	}
-	return oact.sa_handler;
+	signal(signo, win32_signal_set_emit_flags_);
+#else
+	struct sigaction st_sa;
+	if (signo >= NSIG) {
+		return;
+	}
+	if (SIGKILL == signo || SIGSTOP == signo) {
+		return;
+	}
+	st_sa.sa_handler = SIG_IGN;
+	sigfillset(&st_sa.sa_mask);
+	st_sa.sa_flags = SA_RESTART;
+	sigaction(signo, &st_sa, NULL);
+#endif
+}
+
+int signalWait(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	int signo = win32_signal_desc.last_signo + 1;
+	while (1) {
+		while (signo < NSIG && !win32_signal_desc.emit_flags[signo++]);
+		if (signo >= NSIG) {
+			SleepEx(100, FALSE);
+			signo = 0;
+			break;
+		}
+	}
+	win32_signal_desc.emit_flags[signo] = 0;
+	win32_signal_desc.last_signo = signo;
+	return signo;
+#else
+	int sig;
+	sigset_t ss;
+	sigfillset(&ss);
+	pthread_sigmask(SIG_SETMASK, &ss, NULL);
+	if (sigwait(&ss, &sig)) {
+		return -1;
+	}
+	return sig;
 #endif
 }
 
