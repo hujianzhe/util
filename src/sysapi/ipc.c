@@ -59,12 +59,14 @@ int signalWait(void) {
 #if defined(_WIN32) || defined(_WIN64)
 	int signo = win32_signal_desc.last_signo + 1;
 	while (1) {
-		while (signo < NSIG && !win32_signal_desc.emit_flags[signo++]);
-		if (signo >= NSIG) {
-			SleepEx(100, FALSE);
-			signo = 0;
+		while (signo < NSIG && !win32_signal_desc.emit_flags[signo]) {
+			++signo;
+		}
+		if (signo < NSIG) {
 			break;
 		}
+		SleepEx(100, FALSE);
+		signo = 1;
 	}
 	win32_signal_desc.emit_flags[signo] = 0;
 	win32_signal_desc.last_signo = signo;
