@@ -28,6 +28,8 @@ template <typename T>
 void delete_arr_fn(T* p) { delete [] p; }
 template <typename T>
 void delete_arr_fn(void* p) { delete [] (T*)p; }
+template <typename T>
+void free_fn(T* p) { free((void*)p); }
 }
 
 #endif
