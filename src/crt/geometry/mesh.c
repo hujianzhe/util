@@ -265,6 +265,116 @@ err_0:
 	return NULL;
 }
 
+GeometryMesh_t* mathMeshDeepCopy(GeometryMesh_t* dst, const GeometryMesh_t* src) {
+	unsigned int i, dup_v_cnt = 0;
+	float(*dup_v)[3] = NULL;
+	unsigned int* dup_v_indices = NULL;
+	unsigned int* dup_edge_indices = NULL;
+	GeometryPolygon_t* dup_polygons = NULL;
+	/* find max vertex index, dup_v_cnt */
+	for (i = 0; i < src->v_indices_cnt; ++i) {
+		if (src->v_indices[i] >= dup_v_cnt) {
+			dup_v_cnt = src->v_indices[i] + 1;
+		}
+	}
+	for (i = 0; i < src->edge_indices_cnt; ++i) {
+		if (src->edge_indices[i] >= dup_v_cnt) {
+			dup_v_cnt = src->edge_indices[i] + 1;
+		}
+	}
+	for (i = 0; i < src->polygons_cnt; ++i) {
+		const GeometryPolygon_t* src_polygon = src->polygons + i;
+		unsigned int j;
+		for (j = 0; j < src_polygon->v_indices_cnt; ++j) {
+			if (src_polygon->v_indices[j] >= dup_v_cnt) {
+				dup_v_cnt = src_polygon->v_indices[j] + 1;
+			}
+		}
+		for (j = 0; j < src_polygon->tri_indices_cnt; ++j) {
+			if (src_polygon->tri_indices[j] >= dup_v_cnt) {
+				dup_v_cnt = src_polygon->tri_indices[j] + 1;
+			}
+		}
+	}
+	if (dup_v_cnt < 3) {
+		return NULL;
+	}
+	/* deep copy */
+	dup_v = (float(*)[3])malloc(sizeof(dup_v[0]) * dup_v_cnt);
+	if (!dup_v) {
+		goto err_0;
+	}
+	dup_v_indices = (unsigned int*)malloc(sizeof(dup_v_indices[0]) * dup_v_cnt);
+	if (!dup_v_indices) {
+		goto err_0;
+	}
+	dup_edge_indices = (unsigned int*)malloc(sizeof(dup_edge_indices[0]) * src->edge_indices_cnt);
+	if (!dup_edge_indices) {
+		goto err_0;
+	}
+	dup_polygons = (GeometryPolygon_t*)malloc(sizeof(dup_polygons[0]) * src->polygons_cnt);
+	if (!dup_polygons) {
+		goto err_0;
+	}
+	for (i = 0; i < src->polygons_cnt; ++i) {
+		unsigned int j;
+		const GeometryPolygon_t* src_polygon = src->polygons + i;
+		unsigned int* dup_v_indices = NULL, *dup_tri_indices = NULL;
+		dup_v_indices = (unsigned int*)malloc(sizeof(dup_v_indices[0]) * src_polygon->v_indices_cnt);
+		if (!dup_v_indices) {
+			goto err_1;
+		}
+		dup_tri_indices = (unsigned int*)malloc(sizeof(dup_tri_indices[0]) * src_polygon->tri_indices_cnt);
+		if (!dup_tri_indices) {
+			goto err_1;
+		}
+		for (j = 0; j < src_polygon->v_indices_cnt; ++j) {
+			dup_v_indices[j] = src_polygon->v_indices[j];
+		}
+		for (j = 0; j < src_polygon->tri_indices_cnt; ++j) {
+			dup_tri_indices[j] = src_polygon->tri_indices[j];
+		}
+		dup_polygons[i].v = dup_v;
+		mathVec3Copy(dup_polygons[i].normal, src_polygon->normal);
+		dup_polygons[i].v_indices_cnt = src_polygon->v_indices_cnt;
+		dup_polygons[i].tri_indices_cnt = src_polygon->tri_indices_cnt;
+		dup_polygons[i].v_indices = dup_v_indices;
+		dup_polygons[i].tri_indices = dup_tri_indices;
+		continue;
+	err_1:
+		free(dup_v_indices);
+		free(dup_tri_indices);
+		for (j = 0; j < i; ++j) {
+			free((void*)dup_polygons[j].v_indices);
+			free((void*)dup_polygons[j].tri_indices);
+		}
+		goto err_0;
+	}
+	for (i = 0; i < src->v_indices_cnt; ++i) {
+		unsigned int idx = src->v_indices[i];
+		dup_v_indices[i] = idx;
+		mathVec3Copy(dup_v[idx], src->v[idx]);
+	}
+	for (i = 0; i < src->edge_indices_cnt; ++i) {
+		dup_edge_indices[i] = src->edge_indices[i];
+	}
+	dst->v = dup_v;
+	dst->bound_box = src->bound_box;
+	dst->polygons_cnt = src->polygons_cnt;
+	dst->edge_indices_cnt = src->edge_indices_cnt;
+	dst->v_indices_cnt = src->v_indices_cnt;
+	dst->polygons = dup_polygons;
+	dst->edge_indices = dup_edge_indices;
+	dst->v_indices = dup_v_indices;
+	return dst;
+err_0:
+	free(dup_v);
+	free(dup_v_indices);
+	free(dup_edge_indices);
+	free(dup_polygons);
+	return NULL;
+}
+
 void mathMeshFreeCookingData(GeometryMesh_t* mesh) {
 	unsigned int i;
 	if (!mesh) {
