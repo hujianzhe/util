@@ -233,10 +233,7 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	if (!dup_tri_indices) {
 		goto err_0;
 	}
-	for (i = 0; i < tri_indices_cnt; ++i) {
-		dup_tri_indices[i] = tri_indices[i];
-	}
-	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
+	mathVerticesMerge(v, v_cnt, tri_indices, tri_indices_cnt, dup_v, dup_tri_indices);
 
 	if (!Mesh_Cooking_Polygen_InternalProc((const float(*)[3])dup_v, dup_tri_indices, tri_indices_cnt, mesh)) {
 		goto err_0;
@@ -260,6 +257,7 @@ err_1:
 		mesh->polygons[i].v = NULL;
 		mathPolygonFreeCookingData(mesh->polygons + i);
 	}
+	free(mesh->polygons);
 err_0:
 	free(dup_v);
 	free(dup_v_indices);

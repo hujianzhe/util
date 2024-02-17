@@ -548,7 +548,7 @@ int mathPolygonContainPolygon(const GeometryPolygon_t* polygon1, const GeometryP
 
 GeometryPolygon_t* mathPolygonCooking(const float(*v)[3], unsigned int v_cnt, const unsigned int* tri_indices, unsigned int tri_indices_cnt, GeometryPolygon_t* polygon) {
 	float(*dup_v)[3] = NULL;
-	unsigned int i, dup_v_cnt;
+	unsigned int dup_v_cnt;
 	unsigned int* dup_tri_indices = NULL;
 
 	if (v_cnt < 3 || tri_indices_cnt < 3) {
@@ -558,7 +558,7 @@ GeometryPolygon_t* mathPolygonCooking(const float(*v)[3], unsigned int v_cnt, co
 	if (dup_v_cnt < 3) {
 		return NULL;
 	}
-	dup_v = (float(*)[3])malloc(dup_v_cnt * sizeof(dup_v[0]));
+	dup_v = (float(*)[3])malloc(sizeof(dup_v[0]) * dup_v_cnt);
 	if (!dup_v) {
 		goto err;
 	}
@@ -566,10 +566,7 @@ GeometryPolygon_t* mathPolygonCooking(const float(*v)[3], unsigned int v_cnt, co
 	if (!dup_tri_indices) {
 		goto err;
 	}
-	for (i = 0; i < tri_indices_cnt; ++i) {
-		dup_tri_indices[i] = tri_indices[i];
-	}
-	mathVerticesMerge(v, v_cnt, dup_v, dup_tri_indices, tri_indices_cnt);
+	mathVerticesMerge(v, v_cnt, tri_indices, tri_indices_cnt, dup_v, dup_tri_indices);
 	if (!PolygonCooking_InternalProc((const float(*)[3])dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
 		goto err;
 	}
