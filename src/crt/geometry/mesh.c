@@ -386,14 +386,17 @@ void mathMeshFreeCookingData(GeometryMesh_t* mesh) {
 	}
 	if (mesh->polygons) {
 		free(mesh->polygons);
+		mesh->polygons = NULL;
 		mesh->polygons_cnt = 0;
 	}
 	if (mesh->edge_indices) {
 		free((void*)mesh->edge_indices);
+		mesh->edge_indices = NULL;
 		mesh->edge_indices_cnt = 0;
 	}
 	if (mesh->v_indices) {
 		free((void*)mesh->v_indices);
+		mesh->v_indices = NULL;
 		mesh->v_indices_cnt = 0;
 	}
 	if (mesh->v) {
