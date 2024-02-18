@@ -84,14 +84,14 @@ typedef struct GeometryBody_t {
 typedef struct GeometryBodyRef_t {
 	union {
 		void* data;
-		const float* point; /* float[3] */
-		const GeometrySegment_t* segment;
-		const GeometryPlane_t* plane;
-		const GeometrySphere_t* sphere;
-		const GeometryAABB_t* aabb;
-		const GeometryPolygon_t* polygon;
-		const GeometryOBB_t* obb;
-		const GeometryMesh_t* mesh;
+		float* point; /* float[3] */
+		GeometrySegment_t* segment;
+		GeometryPlane_t* plane;
+		GeometrySphere_t* sphere;
+		GeometryAABB_t* aabb;
+		GeometryPolygon_t* polygon;
+		GeometryOBB_t* obb;
+		GeometryMesh_t* mesh;
 	};
 	int type;
 } GeometryBodyRef_t;
