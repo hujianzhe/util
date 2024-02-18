@@ -1144,7 +1144,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				result = Ray_Sweep_Segment(one->point, dir, two->segment->v, result);
+				result = Ray_Sweep_Segment(one->point, dir, (const float(*)[3])two->segment->v, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
@@ -1160,42 +1160,43 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
+		const float(*one_segment_v)[3] = (const float(*)[3])one->segment->v;
 		switch (two->type) {
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				result = Segment_Sweep_Segment(one->segment->v, dir, two->segment->v, result);
+				result = Segment_Sweep_Segment(one_segment_v, dir, (const float(*)[3])two->segment->v, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				result = Segment_Sweep_Plane(one->segment->v, dir, two->plane->v, two->plane->normal, result);
+				result = Segment_Sweep_Plane(one_segment_v, dir, two->plane->v, two->plane->normal, result);
 				break;
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				result = Segment_Sweep_OBB(one->segment->v, dir, two->obb, result);
+				result = Segment_Sweep_OBB(one_segment_v, dir, two->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_AABB:
 			{
 				GeometryOBB_t obb2;
 				mathOBBFromAABB(&obb2, two->aabb->o, two->aabb->half);
-				result = Segment_Sweep_OBB(one->segment->v, dir, &obb2, result);
+				result = Segment_Sweep_OBB(one_segment_v, dir, &obb2, result);
 				break;
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				result = Segment_Sweep_Sphere(one->segment->v, dir, two->sphere->o, two->sphere->radius, result);
+				result = Segment_Sweep_Sphere(one_segment_v, dir, two->sphere->o, two->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				result = Segment_Sweep_Polygon(one->segment->v, dir, two->polygon, result);
+				result = Segment_Sweep_Polygon(one_segment_v, dir, two->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				result = Segment_Sweep_ConvexMesh(one->segment->v, dir, two->mesh, result);
+				result = Segment_Sweep_ConvexMesh(one_segment_v, dir, two->mesh, result);
 				break;
 			}
 		}
@@ -1236,7 +1237,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
 				mathOBBFromAABB(&obb1, one->aabb->o, one->aabb->half);
-				result = Segment_Sweep_OBB(two->segment->v, neg_dir, &obb1, result);
+				result = Segment_Sweep_OBB((const float(*)[3])two->segment->v, neg_dir, &obb1, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
@@ -1262,7 +1263,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = Segment_Sweep_OBB(two->segment->v, neg_dir, one->obb, result);
+				result = Segment_Sweep_OBB((const float(*)[3])two->segment->v, neg_dir, one->obb, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
@@ -1331,7 +1332,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = Segment_Sweep_Sphere(two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result);
+				result = Segment_Sweep_Sphere((const float(*)[3])two->segment->v, neg_dir, one->sphere->o, one->sphere->radius, result);
 				break;
 			}
 			case GEOMETRY_BODY_POLYGON:
@@ -1353,7 +1354,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = Segment_Sweep_Polygon(two->segment->v, neg_dir, one->polygon, result);
+				result = Segment_Sweep_Polygon((const float(*)[3])two->segment->v, neg_dir, one->polygon, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:
@@ -1406,7 +1407,7 @@ CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3]
 				float neg_dir[3];
 				mathVec3Negate(neg_dir, dir);
 				flag_neg_dir = 1;
-				result = Segment_Sweep_ConvexMesh(two->segment->v, neg_dir, one->mesh, result);
+				result = Segment_Sweep_ConvexMesh((const float(*)[3])two->segment->v, neg_dir, one->mesh, result);
 				break;
 			}
 			case GEOMETRY_BODY_PLANE:

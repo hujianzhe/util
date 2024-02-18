@@ -492,7 +492,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathSegmentHasPoint(two->segment->v, one->point);
+				return mathSegmentHasPoint((const float(*)[3])two->segment->v, one->point);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
@@ -521,38 +521,39 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 		}
 	}
 	else if (GEOMETRY_BODY_SEGMENT == one->type) {
+		const float(*one_segment_v)[3] = (const float(*)[3])one->segment->v;
 		switch (two->type) {
 			case GEOMETRY_BODY_POINT:
 			{
-				return mathSegmentHasPoint(one->segment->v, two->point);
+				return mathSegmentHasPoint(one_segment_v, two->point);
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return mathSegmentIntersectSegment(one->segment->v, two->segment->v, NULL, NULL);
+				return mathSegmentIntersectSegment(one_segment_v, (const float(*)[3])two->segment->v, NULL, NULL);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
-				return Segment_Intersect_Plane(one->segment->v, two->plane->v, two->plane->normal, NULL);
+				return Segment_Intersect_Plane(one_segment_v, two->plane->v, two->plane->normal, NULL);
 			}
 			case GEOMETRY_BODY_AABB:
 			{
-				return AABB_Intersect_Segment(two->aabb->o, two->aabb->half, one->segment->v);
+				return AABB_Intersect_Segment(two->aabb->o, two->aabb->half, one_segment_v);
 			}
 			case GEOMETRY_BODY_OBB:
 			{
-				return OBB_Intersect_Segment(two->obb, one->segment->v);
+				return OBB_Intersect_Segment(two->obb, one_segment_v);
 			}
 			case GEOMETRY_BODY_SPHERE:
 			{
-				return Sphere_Intersect_Segment(two->sphere->o, two->sphere->radius, one->segment->v, NULL);
+				return Sphere_Intersect_Segment(two->sphere->o, two->sphere->radius, one_segment_v, NULL);
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
-				return Segment_Intersect_Polygon(one->segment->v, two->polygon, NULL);
+				return Segment_Intersect_Polygon(one_segment_v, two->polygon, NULL);
 			}
 			case GEOMETRY_BODY_CONVEX_MESH:
 			{
-				return Segment_Intersect_ConvexMesh(one->segment->v, two->mesh);
+				return Segment_Intersect_ConvexMesh(one_segment_v, two->mesh);
 			}
 		}
 	}
@@ -576,7 +577,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return AABB_Intersect_Segment(one->aabb->o, one->aabb->half, two->segment->v);
+				return AABB_Intersect_Segment(one->aabb->o, one->aabb->half, (const float(*)[3])two->segment->v);
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
@@ -620,7 +621,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return Sphere_Intersect_Segment(one->sphere->o, one->sphere->radius, two->segment->v, NULL);
+				return Sphere_Intersect_Segment(one->sphere->o, one->sphere->radius, (const float(*)[3])two->segment->v, NULL);
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
@@ -656,7 +657,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return Segment_Intersect_Plane(two->segment->v, one->plane->v, one->plane->normal, NULL);
+				return Segment_Intersect_Plane((const float(*)[3])two->segment->v, one->plane->v, one->plane->normal, NULL);
 			}
 			case GEOMETRY_BODY_POLYGON:
 			{
@@ -676,7 +677,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return Segment_Intersect_Polygon(two->segment->v, one->polygon, NULL);
+				return Segment_Intersect_Polygon((const float(*)[3])two->segment->v, one->polygon, NULL);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
@@ -712,7 +713,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return OBB_Intersect_Segment(one->obb, two->segment->v);
+				return OBB_Intersect_Segment(one->obb, (const float(*)[3])two->segment->v);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{
@@ -750,7 +751,7 @@ int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t
 			}
 			case GEOMETRY_BODY_SEGMENT:
 			{
-				return Segment_Intersect_ConvexMesh(two->segment->v, one->mesh);
+				return Segment_Intersect_ConvexMesh((const float(*)[3])two->segment->v, one->mesh);
 			}
 			case GEOMETRY_BODY_PLANE:
 			{

@@ -354,11 +354,11 @@ int mathCollisionContain(const GeometryBodyRef_t* one, const GeometryBodyRef_t* 
 		switch (two->type) {
 		case GEOMETRY_BODY_POINT:
 		{
-			return mathSegmentHasPoint(one->segment->v, two->point);
+			return mathSegmentHasPoint((const float(*)[3])one->segment->v, two->point);
 		}
 		case GEOMETRY_BODY_SEGMENT:
 		{
-			return mathSegmentContainSegment(one->segment->v, two->segment->v);
+			return mathSegmentContainSegment((const float(*)[3])one->segment->v, (const float(*)[3])two->segment->v);
 		}
 		}
 	}
