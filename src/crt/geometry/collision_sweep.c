@@ -1011,7 +1011,6 @@ static CCTResult_t* Sphere_Sweep_OBB(const float o[3], float radius, const float
 		float v[8][3], neg_dir[3];
 		int i;
 		for (i = 0; i < 6; ++i) {
-			unsigned int j;
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
 			mathOBBPlaneRect(obb, i, &rect);
