@@ -1009,8 +1009,9 @@ static CCTResult_t* Sphere_Sweep_OBB(const float o[3], float radius, const float
 	else {
 		CCTResult_t* p_result = NULL;
 		float v[8][3], neg_dir[3];
-		int i;
+		int i, once_test_segment = 0;
 		for (i = 0; i < 6; ++i) {
+			unsigned int j;
 			CCTResult_t result_temp;
 			GeometryRect_t rect;
 			mathOBBPlaneRect(obb, i, &rect);
@@ -1020,30 +1021,30 @@ static CCTResult_t* Sphere_Sweep_OBB(const float o[3], float radius, const float
 			if (result_temp.distance <= CCT_EPSILON && result_temp.distance >= CCT_EPSILON_NEGATE) {
 				continue;
 			}
-			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
-				continue;
-			}
 			if (!p_result || p_result->distance > result_temp.distance) {
 				p_result = result;
 				copy_result(p_result, &result_temp);
 			}
-		}
-		if (p_result) {
-			return p_result;
-		}
-		mathOBBVertices(obb, v);
-		mathVec3Negate(neg_dir, dir);
-		for (i = 0; i < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); i += 2) {
-			float edge[2][3];
-			CCTResult_t result_temp;
-			mathVec3Copy(edge[0], v[Box_Edge_Indices[i]]);
-			mathVec3Copy(edge[1], v[Box_Edge_Indices[i+1]]);
-			if (!Segment_Sweep_Sphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
+			if (mathRectHasPoint(&rect, result_temp.hit_point)) {
 				continue;
 			}
-			if (!p_result || p_result->distance > result_temp.distance) {
-				p_result = result;
-				copy_result(p_result, &result_temp);
+			if (!once_test_segment) {
+				once_test_segment = 1;
+				mathOBBVertices(obb, v);
+				mathVec3Negate(neg_dir, dir);
+			}
+			for (j = 0; j < sizeof(Box_Edge_Indices) / sizeof(Box_Edge_Indices[0]); j += 2) {
+				float edge[2][3];
+				CCTResult_t result_temp;
+				mathVec3Copy(edge[0], v[Box_Edge_Indices[j]]);
+				mathVec3Copy(edge[1], v[Box_Edge_Indices[j+1]]);
+				if (!Segment_Sweep_Sphere((const float(*)[3])edge, neg_dir, o, radius, &result_temp)) {
+					continue;
+				}
+				if (!p_result || p_result->distance > result_temp.distance) {
+					p_result = result;
+					copy_result(p_result, &result_temp);
+				}
 			}
 		}
 		return p_result;
