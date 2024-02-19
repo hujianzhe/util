@@ -1021,6 +1021,9 @@ static CCTResult_t* Sphere_Sweep_OBB(const float o[3], float radius, const float
 			if (result_temp.distance <= CCT_EPSILON && result_temp.distance >= CCT_EPSILON_NEGATE) {
 				continue;
 			}
+			if (!mathRectHasPoint(&rect, result_temp.hit_point)) {
+				continue;
+			}
 			if (!p_result || p_result->distance > result_temp.distance) {
 				p_result = result;
 				copy_result(p_result, &result_temp);
