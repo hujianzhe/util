@@ -69,6 +69,7 @@ enum {
 
 typedef struct GeometryBody_t {
 	union {
+		char data;
 		float point[3];
 		GeometrySegment_t segment;
 		GeometryPlane_t plane;
