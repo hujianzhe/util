@@ -580,6 +580,60 @@ err:
 	return NULL;
 }
 
+GeometryPolygon_t* mathPolygonDeepCopy(GeometryPolygon_t* dst, const GeometryPolygon_t* src) {
+	unsigned int i, dup_v_cnt = 0;
+	float(*dup_v)[3] = NULL;
+	unsigned int* dup_v_indices = NULL;
+	unsigned int* dup_tri_indices = NULL;
+	/* find max vertex index, dup_v_cnt */
+	for (i = 0; i < src->v_indices_cnt; ++i) {
+		if (src->v_indices[i] >= dup_v_cnt) {
+			dup_v_cnt = src->v_indices[i] + 1;
+		}
+	}
+	for (i = 0; i < src->tri_indices_cnt; ++i) {
+		if (src->tri_indices[i] >= dup_v_cnt) {
+			dup_v_cnt = src->tri_indices[i] + 1;
+		}
+	}
+	if (dup_v_cnt < 3) {
+		return NULL;
+	}
+	/* deep copy */
+	dup_v = (float(*)[3])malloc(sizeof(dup_v[0]) * dup_v_cnt);
+	if (!dup_v) {
+		goto err_0;
+	}
+	dup_v_indices = (unsigned int*)malloc(sizeof(dup_v_indices[0]) * dup_v_cnt);
+	if (!dup_v_indices) {
+		goto err_0;
+	}
+	dup_tri_indices = (unsigned int*)malloc(sizeof(dup_tri_indices[0]) * src->tri_indices_cnt);
+	if (!dup_tri_indices) {
+		goto err_0;
+	}
+	for (i = 0; i < src->v_indices_cnt; ++i) {
+		unsigned int idx = src->v_indices[i];
+		dup_v_indices[i] = idx;
+		mathVec3Copy(dup_v[idx], src->v[idx]);
+	}
+	for (i = 0; i < src->tri_indices_cnt; ++i) {
+		dup_tri_indices[i] = src->tri_indices[i];
+	}
+	mathVec3Copy(dst->normal, src->normal);
+	dst->tri_indices_cnt = src->tri_indices_cnt;
+	dst->v_indices_cnt = src->v_indices_cnt;
+	dst->v = dup_v;
+	dst->v_indices = dup_v_indices;
+	dst->tri_indices = dup_tri_indices;
+	return dst;
+err_0:
+	free(dup_v);
+	free(dup_v_indices);
+	free(dup_tri_indices);
+	return NULL;
+}
+
 void mathPolygonFreeCookingData(GeometryPolygon_t* polygon) {
 	if (!polygon) {
 		return;
