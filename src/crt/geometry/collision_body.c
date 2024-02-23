@@ -121,6 +121,7 @@ int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const
 						dot = aabb->half[1];
 						aabb->half[1] = aabb->half[2];
 						aabb->half[2] = dot;
+						break;
 					}
 					else if (dot <= 1.0 + CCT_EPSILON && dot >= 1.0f - CCT_EPSILON) { /* rotate PI */
 						break;
@@ -139,6 +140,7 @@ int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const
 						dot = aabb->half[0];
 						aabb->half[0] = aabb->half[2];
 						aabb->half[2] = dot;
+						break;
 					}
 					else if (dot <= 1.0 + CCT_EPSILON && dot >= 1.0f - CCT_EPSILON) { /* rotate PI */
 						break;
@@ -157,6 +159,7 @@ int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const
 						dot = aabb->half[1];
 						aabb->half[1] = aabb->half[0];
 						aabb->half[0] = dot;
+						break;
 					}
 					else if (dot <= 1.0 + CCT_EPSILON && dot >= 1.0f - CCT_EPSILON) { /* rotate PI */
 						break;
