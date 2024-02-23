@@ -570,6 +570,7 @@ GeometryPolygon_t* mathPolygonCooking(const float(*v)[3], unsigned int v_cnt, co
 	if (!PolygonCooking_InternalProc((const float(*)[3])dup_v, dup_tri_indices, tri_indices_cnt, polygon)) {
 		goto err;
 	}
+	mathVec3Set(polygon->o, 0.0f, 0.0f, 0.0f);
 	polygon->v = dup_v;
 	polygon->tri_indices = dup_tri_indices;
 	polygon->tri_indices_cnt = tri_indices_cnt;
@@ -620,6 +621,7 @@ GeometryPolygon_t* mathPolygonDeepCopy(GeometryPolygon_t* dst, const GeometryPol
 	for (i = 0; i < src->tri_indices_cnt; ++i) {
 		dup_tri_indices[i] = src->tri_indices[i];
 	}
+	mathVec3Copy(dst->o, src->o);
 	mathVec3Copy(dst->normal, src->normal);
 	dst->tri_indices_cnt = src->tri_indices_cnt;
 	dst->v_indices_cnt = src->v_indices_cnt;

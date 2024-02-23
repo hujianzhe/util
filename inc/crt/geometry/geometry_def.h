@@ -36,7 +36,8 @@ typedef struct GeometryOBB_t {
 
 typedef struct GeometryPolygon_t {
 	float (*v)[3]; /* vertices vec3 */
-	float normal[3];
+	float o[3]; /* origin point */
+	float normal[3]; /* plane normal */
 	unsigned int v_indices_cnt; /* number of edge vertices index */
 	unsigned int tri_indices_cnt;  /* number of triangle vertices index */
 	const unsigned int* v_indices; /* edge vertices index, must be ordered(clockwise or counterclockwise) */
@@ -45,6 +46,7 @@ typedef struct GeometryPolygon_t {
 
 typedef struct GeometryMesh_t {
 	float (*v)[3]; /* vertices vec3 */
+	float o[3]; /* origin point */
 	GeometryAABB_t bound_box; /* AABB bound box */
 	unsigned int polygons_cnt; /* number of polygen plane */
 	unsigned int edge_indices_cnt; /* number of edge vertices index */

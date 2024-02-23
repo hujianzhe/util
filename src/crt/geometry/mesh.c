@@ -247,6 +247,10 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	}
 	mathVerticesFindMaxMinXYZ((const float(*)[3])dup_v, dup_v_cnt, min_v, max_v);
 	mathAABBFromTwoVertice(min_v, max_v, mesh->bound_box.o, mesh->bound_box.half);
+	mathVec3Set(mesh->o, 0.0f, 0.0f, 0.0f);
+	for (i = 0; i < mesh->polygons_cnt; ++i) {
+		mathVec3Set(mesh->polygons[i].o, 0.0f, 0.0f, 0.0f);
+	}
 	mesh->v = dup_v;
 	mesh->v_indices = dup_v_indices;
 	mesh->v_indices_cnt = dup_v_cnt;
@@ -334,8 +338,9 @@ GeometryMesh_t* mathMeshDeepCopy(GeometryMesh_t* dst, const GeometryMesh_t* src)
 		for (j = 0; j < src_polygon->tri_indices_cnt; ++j) {
 			dup_tri_indices[j] = src_polygon->tri_indices[j];
 		}
-		dup_polygons[i].v = dup_v;
+		mathVec3Copy(dup_polygons[i].o, src_polygon->o);
 		mathVec3Copy(dup_polygons[i].normal, src_polygon->normal);
+		dup_polygons[i].v = dup_v;
 		dup_polygons[i].v_indices_cnt = src_polygon->v_indices_cnt;
 		dup_polygons[i].tri_indices_cnt = src_polygon->tri_indices_cnt;
 		dup_polygons[i].v_indices = dup_v_indices;
@@ -358,6 +363,7 @@ GeometryMesh_t* mathMeshDeepCopy(GeometryMesh_t* dst, const GeometryMesh_t* src)
 	for (i = 0; i < src->edge_indices_cnt; ++i) {
 		dup_edge_indices[i] = src->edge_indices[i];
 	}
+	mathVec3Copy(dst->o, src->o);
 	dst->v = dup_v;
 	dst->bound_box = src->bound_box;
 	dst->polygons_cnt = src->polygons_cnt;
