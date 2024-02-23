@@ -26,6 +26,10 @@ __declspec_dll float* mathMat44Transpose(float r[16], const float m[16]);
 __declspec_dll float* mathMat44Inverse(float r[16], const float m[16]);
 __declspec_dll float* mathMat44TransformVec3(float r[3], const float m[16], const float v[3]);
 __declspec_dll float* mathMat44RotateVec3(float r[3], const float m[16], const float v[3]);
+__declspec_dll float* mathMat44FromQuat(float m[16], const float q[4]);
+__declspec_dll float* mathMat44ToQuat(const float m[16], float q[4]);
+__declspec_dll float* mathMat33ToQuat(const float m[9], float q[4]);
+__declspec_dll float* mathMat33FromQuat(float m[9], const float q[4]);
 
 #ifdef	__cplusplus
 }

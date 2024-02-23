@@ -4,6 +4,7 @@
 
 #include "../../inc/crt/math_vec3.h"
 #include "../../inc/crt/math_matrix3.h"
+#include <math.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -207,6 +208,103 @@ float* mathMat44RotateVec3(float r[3], const float m[16], const float v[3]) {
 	r[1] = m[1]*x + m[5]*y + m[9]*z;
 	r[2] = m[2]*x + m[6]*y + m[10]*z;
 	return r;
+}
+
+float* mathMat44FromQuat(float m[16], const float q[4]) {
+	float x = q[0];
+	float y = q[1];
+	float z = q[2];
+	float w = q[3];
+
+	float x2 = x + x;
+	float y2 = y + y;
+	float z2 = z + z;
+
+	float xx = x2 * x;
+	float yy = y2 * y;
+	float zz = z2 * z;
+
+	float xy = x2 * y;
+	float xz = x2 * z;
+	float xw = x2 * w;
+
+	float yz = y2 * z;
+	float yw = y2 * w;
+	float zw = z2 * w;
+
+	/* column 0 */
+	m[0] = 1.0f - yy - zz;
+	m[1] = xy + zw;
+	m[2] = xz - yw;
+	m[3] = 0.0f;
+	/* column 1 */
+	m[4] = xy - zw;
+	m[5] = 1.0f - xx - zz;
+	m[6] = yz + xw;
+	m[7] = 0.0f;
+	/* column 2 */
+	m[8] = xz + yw;
+	m[9] = yz - xw;
+	m[10] = 1.0f - xx - yy;
+	m[11] = 0.0f;
+	/* column 3 */
+	m[12] = 0.0f;
+	m[13] = 0.0f;
+	m[14] = 0.0f;
+	m[15] = 1.0f;
+	return m;
+}
+
+float* mathMat44ToQuat(const float m[16], float q[4]) {
+	float m33[9];
+	return mathMat33ToQuat(mathMat44ToMat33(m, m33), q);
+}
+
+float* mathMat33ToQuat(const float m[9], float q[4]) {
+	float t, s;
+	if (m[8] < 0.0f) {
+		if (m[0] > m[4]) {
+			t = 1 + m[0] - m[4] - m[8];
+			q[0] = t;
+			q[1] = m[1] + m[3];
+			q[2] = m[6] + m[2];
+			q[3] = m[5] - m[7];
+		}
+		else {
+			t = 1 - m[0] + m[4] - m[8];
+			q[0] = m[1] + m[3];
+			q[1] = t;
+			q[2] = m[5] + m[7];
+			q[3] = m[6] - m[2];
+		}
+	}
+	else {
+		if (m[0] < -m[4]) {
+			t = 1 - m[0] - m[4] + m[8];
+			q[0] = m[6] + m[2];
+			q[1] = m[5] + m[7];
+			q[2] = t;
+			q[3] = m[1] - m[3];
+		}
+		else {
+			t = 1 + m[0] + m[4] + m[8];
+			q[0] = m[5] - m[7];
+			q[1] = m[6] - m[2];
+			q[2] = m[1] - m[3];
+			q[4] = t;
+		}
+	}
+	s = 0.5f / sqrtf(t);
+	q[0] *= s;
+	q[1] *= s;
+	q[2] *= s;
+	q[3] *= s;
+	return q;
+}
+
+float* mathMat33FromQuat(float m[9], const float q[4]) {
+	float m44[16];
+	return mathMat44ToMat33(mathMat44FromQuat(m44, q), m);
 }
 
 #ifdef	__cplusplus

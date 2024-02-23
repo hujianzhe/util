@@ -20,8 +20,6 @@ __declspec_dll void mathQuatToAxisRadian(const float q[4], float axis[3], float*
 __declspec_dll int mathQuatIsZero(const float q[4]);
 __declspec_dll int mathQuatEqual(const float q1[4], const float q2[4]);
 __declspec_dll float* mathQuatIdentity(float q[4]);
-__declspec_dll float* mathQuatToMat44(const float q[4], float m[16]);
-__declspec_dll float* mathQuatFromMat33(float q[4], const float m[9]);
 __declspec_dll float mathQuatDot(const float q1[4], const float q2[4]);
 __declspec_dll float* mathQuatConjugate(float r[4], const float q[4]);
 __declspec_dll float* mathQuatMultiplyScalar(float r[4], const float q[4], float n);
