@@ -210,7 +210,7 @@ int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const
 				mathQuatMulVec3(polygon->normal, q, polygon->normal);
 				mathVec3Copy(polygon->o, mesh->o);
 			}
-			mathVertexIndicesFindMinMaxXYZ(mesh->v, mesh->v_indices, mesh->v_indices_cnt, min_xyz, max_xyz);
+			mathVertexIndicesFindMinMaxXYZ((const float(*)[3])mesh->v, mesh->v_indices, mesh->v_indices_cnt, min_xyz, max_xyz);
 			mathAABBFromTwoVertice(min_xyz, max_xyz, mesh->bound_box.o, mesh->bound_box.half);
 			break;
 		}
