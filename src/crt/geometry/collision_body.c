@@ -217,6 +217,12 @@ int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const
 	return 1;
 }
 
+int mathCollisionBodyRotateAxisRadian(GeometryBodyRef_t* b, const float mark_pos[3], const float axis[3], float radian) {
+	float q[4];
+	mathQuatFromAxisRadian(q, axis, radian);
+	return mathCollisionBodyRotate(b, mark_pos, q);
+}
+
 #ifdef __cplusplus
 }
 #endif
