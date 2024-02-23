@@ -18,7 +18,9 @@ typedef struct CCTResult_t {
 extern "C" {
 #endif
 
-__declspec_dll GeometryAABB_t* mathCollisionBoundingBox(const GeometryBodyRef_t* b, GeometryAABB_t* aabb);
+__declspec_dll GeometryAABB_t* mathCollisionBodyBoundingBox(const GeometryBodyRef_t* b, GeometryAABB_t* aabb);
+__declspec_dll int mathCollisionBodyRotate(GeometryBodyRef_t* b, const float mark_pos[3], const float q[4]);
+
 __declspec_dll int mathCollisionContain(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two);
 __declspec_dll int mathCollisionIntersect(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two);
 __declspec_dll CCTResult_t* mathCollisionSweep(const GeometryBodyRef_t* one, const float dir[3], const GeometryBodyRef_t* two, CCTResult_t* result);

@@ -245,7 +245,7 @@ GeometryMesh_t* mathMeshCooking(const float (*v)[3], unsigned int v_cnt, const u
 	for (i = 0; i < dup_v_cnt; ++i) {
 		dup_v_indices[i] = i;
 	}
-	mathVerticesFindMaxMinXYZ((const float(*)[3])dup_v, dup_v_cnt, min_v, max_v);
+	mathVerticesFindMinMaxXYZ((const float(*)[3])dup_v, dup_v_cnt, min_v, max_v);
 	mathAABBFromTwoVertice(min_v, max_v, mesh->bound_box.o, mesh->bound_box.half);
 	mathVec3Set(mesh->o, 0.0f, 0.0f, 0.0f);
 	for (i = 0; i < mesh->polygons_cnt; ++i) {

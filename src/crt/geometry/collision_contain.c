@@ -132,47 +132,6 @@ static int ConvexMesh_Contain_Sphere(const GeometryMesh_t* mesh, const float o[3
 extern "C" {
 #endif
 
-GeometryAABB_t* mathCollisionBoundingBox(const GeometryBodyRef_t* b, GeometryAABB_t* aabb) {
-	switch (b->type) {
-		case GEOMETRY_BODY_AABB:
-		{
-			*aabb = *(b->aabb);
-			break;
-		}
-		case GEOMETRY_BODY_SPHERE:
-		{
-			mathVec3Copy(aabb->o, b->sphere->o);
-			mathVec3Set(aabb->half, b->sphere->radius, b->sphere->radius, b->sphere->radius);
-			break;
-		}
-		case GEOMETRY_BODY_OBB:
-		{
-			mathOBBToAABB(b->obb, aabb->o, aabb->half);
-			break;
-		}
-		case GEOMETRY_BODY_POLYGON:
-		{
-			float min_v[3], max_v[3];
-			const GeometryPolygon_t* polygon = b->polygon;
-			if (!mathVertexIndicesFindMaxMinXYZ((const float(*)[3])polygon->v, polygon->v_indices, polygon->v_indices_cnt, min_v, max_v)) {
-				return NULL;
-			}
-			mathAABBFromTwoVertice(min_v, max_v, aabb->o, aabb->half);
-			break;
-		}
-		case GEOMETRY_BODY_CONVEX_MESH:
-		{
-			*aabb = b->mesh->bound_box;
-			break;
-		}
-		default:
-		{
-			return NULL;
-		}
-	}
-	return aabb;
-}
-
 int mathCollisionContain(const GeometryBodyRef_t* one, const GeometryBodyRef_t* two) {
 	if (one->data == two->data) {
 		return 1;

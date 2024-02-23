@@ -68,14 +68,14 @@ void mathAABBPlaneVertices(const float o[3], const float half[3], float v[6][3])
 }
 
 void mathAABBVertices(const float o[3], const float half[3], float v[8][3]) {
-	v[0][0] = o[0] - half[0], v[0][1] = o[1] - half[1], v[0][2] = o[2] - half[2];
-	v[1][0] = o[0] + half[0], v[1][1] = o[1] - half[1], v[1][2] = o[2] - half[2];
-	v[2][0] = o[0] + half[0], v[2][1] = o[1] + half[1], v[2][2] = o[2] - half[2];
-	v[3][0] = o[0] - half[0], v[3][1] = o[1] + half[1], v[3][2] = o[2] - half[2];
-	v[4][0] = o[0] - half[0], v[4][1] = o[1] - half[1], v[4][2] = o[2] + half[2];
-	v[5][0] = o[0] + half[0], v[5][1] = o[1] - half[1], v[5][2] = o[2] + half[2];
-	v[6][0] = o[0] + half[0], v[6][1] = o[1] + half[1], v[6][2] = o[2] + half[2];
-	v[7][0] = o[0] - half[0], v[7][1] = o[1] + half[1], v[7][2] = o[2] + half[2];
+	v[0][0] = o[0] - half[0]; v[0][1] = o[1] - half[1]; v[0][2] = o[2] - half[2];
+	v[1][0] = o[0] + half[0]; v[1][1] = o[1] - half[1]; v[1][2] = o[2] - half[2];
+	v[2][0] = o[0] + half[0]; v[2][1] = o[1] + half[1]; v[2][2] = o[2] - half[2];
+	v[3][0] = o[0] - half[0]; v[3][1] = o[1] + half[1]; v[3][2] = o[2] - half[2];
+	v[4][0] = o[0] - half[0]; v[4][1] = o[1] - half[1]; v[4][2] = o[2] + half[2];
+	v[5][0] = o[0] + half[0]; v[5][1] = o[1] - half[1]; v[5][2] = o[2] + half[2];
+	v[6][0] = o[0] + half[0]; v[6][1] = o[1] + half[1]; v[6][2] = o[2] + half[2];
+	v[7][0] = o[0] - half[0]; v[7][1] = o[1] + half[1]; v[7][2] = o[2] + half[2];
 }
 
 void mathAABBMinVertice(const float o[3], const float half[3], float v[3]) {

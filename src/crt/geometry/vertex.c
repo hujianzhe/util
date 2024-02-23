@@ -46,7 +46,7 @@ unsigned int mathVerticesMerge(const float(*src_v)[3], unsigned int v_cnt, const
 	return dst_v_cnt;
 }
 
-int mathVertexIndicesFindMaxMinXYZ(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float v_minXYZ[3], float v_maxXYZ[3]) {
+int mathVertexIndicesFindMinMaxXYZ(const float(*v)[3], const unsigned int* v_indices, unsigned int v_indices_cnt, float v_minXYZ[3], float v_maxXYZ[3]) {
 	unsigned int i;
 	if (v_indices_cnt <= 0) {
 		return 0;
@@ -68,7 +68,7 @@ int mathVertexIndicesFindMaxMinXYZ(const float(*v)[3], const unsigned int* v_ind
 	return 1;
 }
 
-int mathVerticesFindMaxMinXYZ(const float(*v)[3], unsigned int v_cnt, float v_minXYZ[3], float v_maxXYZ[3]) {
+int mathVerticesFindMinMaxXYZ(const float(*v)[3], unsigned int v_cnt, float v_minXYZ[3], float v_maxXYZ[3]) {
 	unsigned int i;
 	if (v_cnt <= 0) {
 		return 0;
