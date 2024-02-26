@@ -283,7 +283,7 @@ private:
                 e.func(e.param);
             }
 			else if (e.sleep_co_node) {
-				doResume(e.sleep_co_node, e.param);
+				doResumeNormal(e.sleep_co_node, e.param);
 			}
 			else if (e.resume_id != CoroutineAwaiter::INVALID_AWAITER_ID) {
 				auto it = m_block_points.find(e.resume_id);
@@ -294,7 +294,7 @@ private:
 					}
 					CoroutineNode* co_node = data.co_node;
 					m_block_points.erase(it);
-					doResume(co_node, e.param);
+					doResumeNormal(co_node, e.param);
 				}
             }
             e.reset();
@@ -317,14 +317,14 @@ private:
                     e.func(e.param);
                 }
                 else if (e.sleep_co_node) {
-                    doResume(e.sleep_co_node, e.param);
+                    doResumeNormal(e.sleep_co_node, e.param);
                 }
                 else if (e.resume_id != CoroutineAwaiter::INVALID_AWAITER_ID) {
 					auto it = m_block_points.find(e.resume_id);
 					if (it != m_block_points.end()) {
 						CoroutineNode* co_node = it->second.co_node;
 						m_block_points.erase(it);
-						doResume(co_node, e.param);
+						doResumeCancel(co_node);
 					}
                 }
                 evlist.pop_front();

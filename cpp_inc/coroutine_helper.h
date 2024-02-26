@@ -163,10 +163,12 @@ public:
     CoroutineAwaiter& operator=(const CoroutineAwaiter&) = delete;
     CoroutineAwaiter()
         :m_id(INVALID_AWAITER_ID)
+		,m_canceled(false)
         ,m_await_ready(false)
     {}
 	CoroutineAwaiter(int32_t id)
 		:m_id(id)
+		,m_canceled(false)
 		,m_await_ready(false)
 	{}
 
@@ -182,6 +184,7 @@ public:
     }
 
     int32_t id() const { return m_id; };
+	bool canceled() const { return m_canceled; }
     const std::any& getAny() const { return m_value; }
 
 	void invalid() {
@@ -202,6 +205,7 @@ public:
 
 private:
     int32_t m_id;
+	bool m_canceled;
     bool m_await_ready;
     std::any m_value;
 };
@@ -437,9 +441,16 @@ private:
 
 protected:
 	template <typename T = std::any>
-	void doResume(CoroutineNode* co_node, const T& v) {
+	void doResumeNormal(CoroutineNode* co_node, const T& v) {
 		if (co_node->m_awaiter) {
 			co_node->m_awaiter->m_value = v;
+		}
+		doResumeImpl(co_node);
+	}
+
+	void doResumeCancel(CoroutineNode* co_node) {
+		if (co_node->m_awaiter) {
+			co_node->m_awaiter->m_canceled = true;
 		}
 		doResumeImpl(co_node);
 	}
@@ -473,7 +484,7 @@ protected:
 		m_unhandle_exception_cnt = 0;
 
 		for (auto it = m_ready_resumes.begin(); it != m_ready_resumes.end() && peak_cnt; ) {
-			doResume(it->first, it->second);
+			doResumeNormal(it->first, it->second);
 			it = m_ready_resumes.erase(it);
 			--peak_cnt;
 		}
