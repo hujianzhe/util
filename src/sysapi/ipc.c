@@ -21,7 +21,6 @@ static void win32_signal_set_emit_flags_(int signo) {
 #else
 #include <fcntl.h>
 #include <sys/ioctl.h>
-static void unix_signal_ignore_(int signo) {}
 #endif
 
 /* signal */
@@ -39,7 +38,7 @@ void signalReg(int signo) {
 	if (SIGKILL == signo || SIGSTOP == signo) {
 		return;
 	}
-	st_sa.sa_handler = unix_signal_ignore_;
+	st_sa.sa_handler = signalIdleHandler; /* MacOS X must set a idle function */
 	sigfillset(&st_sa.sa_mask);
 	st_sa.sa_flags = SA_RESTART;
 	sigaction(signo, &st_sa, NULL);
@@ -84,6 +83,10 @@ int signalWait(void) {
 	}
 	return sig;
 #endif
+}
+
+void signalIdleHandler(int signo) {
+	/* for signal ignore or GDB broken point */
 }
 
 /* pipe */
