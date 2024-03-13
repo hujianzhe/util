@@ -108,13 +108,13 @@ __declspec_dll if_nameindex_t* if_nameindex(void);
 __declspec_dll void if_freenameindex(if_nameindex_t* ptr);
 #else
 #if	__linux__
-unsigned long long ntohll(unsigned long long val);
-unsigned long long htonll(unsigned long long val);
+__declspec_dll unsigned long long ntohll(unsigned long long val);
+__declspec_dll unsigned long long htonll(unsigned long long val);
 #endif
-unsigned int htonf(float val);
-float ntohf(unsigned int val);
-unsigned long long htond(double val);
-double ntohd(unsigned long long val);
+__declspec_dll unsigned int htonf(float val);
+__declspec_dll float ntohf(unsigned int val);
+__declspec_dll unsigned long long htond(double val);
+__declspec_dll double ntohd(unsigned long long val);
 #endif
 __declspec_dll BOOL networkSetupEnv(void);
 __declspec_dll BOOL networkCleanEnv(void);
