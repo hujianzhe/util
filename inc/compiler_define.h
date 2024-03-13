@@ -40,6 +40,7 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#pragma warning(disable:26451)
 
 	#define	__declspec_align(alignment)				__declspec(align(alignment))
+
 	#define	__declspec_code_seg(name)				__declspec(code_seg(name))
 	#define	__declspec_data_seg(name)				__pragma(data_seg(name))
 	#define	__declspec_bss_seg(name)				__pragma(bss_seg(name))
@@ -78,14 +79,23 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#endif
 
 	#define	__declspec_align(alignment)				__attribute__ ((aligned(alignment)))
+
 	#define	__declspec_code_seg(name)				__attribute__((section(name)))
 	#define	__declspec_data_seg(name)				__attribute__((section(name)))
 	#define	__declspec_bss_seg(name)				__attribute__((section(name)))
 	#define	__declspec_const_seg(name)				__attribute__((section(name)))
 
-	#define	__declspec_dllexport
+	#define	__declspec_dllexport					__attribute__((visibility("default")))
 	#define	__declspec_dllimport
-	#define	__declspec_dll
+
+	#ifdef	DECLSPEC_DLL_EXPORT
+		#define	__declspec_dll						__declspec_dllexport
+	#elif	DECLSPEC_DLL_IMPORT
+		#define	__declspec_dll						__declspec_dllimport
+	#else
+		#define	__declspec_dll
+	#endif
+
 	#define	__declspec_noinline						__attribute__ ((noinline))
 
 	STATIC_ASSERT(sizeof(long) == sizeof(void*), "");
@@ -95,13 +105,12 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#ifdef	__clang__
 		#if	__has_feature(address_sanitizer)
 			#ifndef	__SANITIZE_ADDRESS__
-			#define	__SANITIZE_ADDRESS__
+				#define	__SANITIZE_ADDRESS__
 			#endif
 		#endif
 	#endif
 
 #else
-	#define	__declspec_noinline
 	#error "Unknown Compiler"
 #endif
 
