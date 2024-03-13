@@ -3,8 +3,8 @@
   
 	util/  
 		.gitignore					用于git忽略一些无用文件  
+		makefile					unix系统编译动态链接库  
 		lib_compile.sh				unix系统编译静态链接库脚本  
-		so_compile.sh				unix系统编译动态链接库脚本  
 
 		CPP部分  
 		cpp_inc/  
