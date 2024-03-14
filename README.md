@@ -34,9 +34,6 @@
 				stack_co_sche		基于系统平台API实现的有栈协程调度器  
 				switch_co_sche		基于switch case语法的无栈协程调度器  
 			crt/  
-				geometry/  
-					geometry_def	3D几何体定义(点,线段,平面,立方盒,球,多边形,多面体)  
-					collision		3D几何体包围盒计算/相交检测/包含检测/扫掠检测接口  
 				protocol/  
 					hiredis_cli_protocol	基于hiredis代码的裁剪,只保留了客户端对RESP协议解析和构造部分  
 					httpframe			用于解析与组装HTTP协议报文  
@@ -45,10 +42,6 @@
 				dynarr				模拟泛型的动态数组  
 				json				用于解析JSON,沿用cJSON的命名风格,内部采用和cJSON不同的实现方式  
 				math				一些实用的数学运算接口  
-				math_matrix3		一些3d矩阵运算  
-				math_vec3			一些3d向量运算  
-				math_quat			一些3d四元数运算  
-				octree				八叉树  
 			datastruct/  
 				arrheap				最小堆,最大堆  
 				base64				提供base64编解码接口  
