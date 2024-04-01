@@ -272,7 +272,6 @@ URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 
 #define char_isdigit(c)		((unsigned int)(((int)(c)) - '0') < 10u)
 #define	char_isalpha(c)		((unsigned int)((((int)(c)) | 0x20) - 'a') < 26u)
-#define char_alphadelta(c)	((((int)(c)) | 0x20) - 'a')
 
 unsigned int urlEncode(const char* src, unsigned int srclen, char* dst) {
 	static const char hex2char[] = "0123456789ABCDEF";
@@ -318,10 +317,10 @@ unsigned int urlDecode(const char* src, unsigned int srclen, char* dst) {
 		}
 		else if (c == '%') {
 			if (dst) {
-				char ch = src[i + 1];
-				char cl = src[i + 2];
-				dst[dstlen] = (char)((char_isdigit(ch) ? ch - '0' : char_alphadelta(ch) - 'A' + 10) << 4);
-				dst[dstlen] |= (char)(char_isdigit(cl) ? cl - '0' : char_alphadelta(cl) - 'A' + 10);
+				int ch = src[i + 1];
+				int cl = src[i + 2];
+				dst[dstlen] = (char)((char_isdigit(ch) ? ch - '0' : (ch | 0x20) - 'a' + 10) << 4);
+				dst[dstlen] |= (char)(char_isdigit(cl) ? cl - '0' : (cl | 0x20) - 'a' + 10);
 			}
 			i += 2;
 			++dstlen;
