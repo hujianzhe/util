@@ -20,7 +20,7 @@ public:
 	typedef std::function<void(sptr)> fn_callback;
 
 	HeapTimerEvent(const fn_callback& f) :
-		m_regTimer(false),
+		m_sched(false),
 		m_timestamp(0),
 		m_timer(nullptr),
 		m_callback(f)
@@ -34,10 +34,12 @@ public:
 		}
 	}
 
+	bool sched() const { return m_sched; }
+
 	int64_t timestamp() const { return m_timestamp; }
 
 private:
-	bool m_regTimer;
+	bool m_sched;
 	int64_t m_timestamp;
 	HeapTimer* m_timer;
 	fn_callback m_callback;
@@ -50,9 +52,7 @@ public:
 	HeapTimer() {}
 	HeapTimer(const HeapTimer&) = delete;
 	HeapTimer& operator=(const HeapTimer&) = delete;
-	virtual ~HeapTimer() {
-		doReset();
-	}
+	virtual ~HeapTimer() { doReset(); }
 
 	HeapTimerEvent::sptr addTimerEvent(const HeapTimerEvent::fn_callback& f, int64_t timestamp) {
 		HeapTimerEvent::sptr e(new HeapTimerEvent(f));
@@ -81,7 +81,7 @@ public:
 			m_eventHeap.push_back(e);
 			std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 		}
-		e->m_regTimer = true;
+		e->m_sched = true;
 		return true;
 	}
 
@@ -89,13 +89,13 @@ public:
 		if (e->m_timer != this) {
 			return;
 		}
-		e->m_regTimer = false;
+		e->m_sched = false;
 	}
 
 	void doReset() {
 		for (HeapTimerEvent::sptr& e : m_eventHeap) {
 			e->m_timer = nullptr;
-			e->m_regTimer = false;
+			e->m_sched = false;
 		}
 		m_eventHeap.clear();
 	}
@@ -103,16 +103,16 @@ public:
 	HeapTimerEvent::sptr popTimerEvent(int64_t timestamp) {
 		while (!m_eventHeap.empty()) {
 			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_timestamp > timestamp && e->m_regTimer) {
+			if (e->m_timestamp > timestamp && e->m_sched) {
 				break;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 			m_eventHeap.pop_back();
 			e->m_timer = nullptr;
-			if (!e->m_regTimer) {
+			if (!e->m_sched) {
 				continue;
 			}
-			e->m_regTimer = false;
+			e->m_sched = false;
 			return e;
 		}
 		return HeapTimerEvent::sptr();
@@ -121,7 +121,7 @@ public:
 	int64_t getNextTimestamp() {
 		while (!m_eventHeap.empty()) {
 			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_regTimer) {
+			if (e->m_sched) {
 				return e->m_timestamp;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
