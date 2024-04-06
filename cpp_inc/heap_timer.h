@@ -39,6 +39,10 @@ public:
 	int64_t timestamp() const { return m_timestamp; }
 
 private:
+	HeapTimerEvent(const HeapTimerEvent&) {}
+	HeapTimerEvent& operator=(const HeapTimerEvent&) { return *this; }
+
+private:
 	bool m_sched;
 	int64_t m_timestamp;
 	HeapTimer* m_timer;
@@ -50,11 +54,13 @@ public:
 	typedef std::shared_ptr<HeapTimer> sptr;
 
 	HeapTimer() {}
-	HeapTimer(const HeapTimer&) = delete;
-	HeapTimer& operator=(const HeapTimer&) = delete;
+
 	virtual ~HeapTimer() { clearEvents(); }
 
 	HeapTimerEvent::sptr setEvent(const HeapTimerEvent::fn_callback& f, int64_t timestamp) {
+		if (timestamp < 0) {
+			return HeapTimerEvent::sptr();
+		}
 		HeapTimerEvent::sptr e(new HeapTimerEvent(f));
 		if (!setEvent(e, timestamp)) {
 			return HeapTimerEvent::sptr();
@@ -131,6 +137,9 @@ public:
 	}
 
 private:
+	HeapTimer(const HeapTimer&) {}
+	HeapTimer& operator=(const HeapTimer&) { return *this; }
+
 	static bool heapCompare(const HeapTimerEvent::sptr& a, const HeapTimerEvent::sptr& b) {
 		return a->m_timestamp > b->m_timestamp;
 	}
