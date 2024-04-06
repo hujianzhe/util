@@ -9,7 +9,6 @@
 #include <vector>
 #include <algorithm>
 #include <functional>
-#include <unordered_map>
 
 namespace util {
 class HeapTimer;
@@ -21,8 +20,7 @@ public:
 	typedef std::function<void(sptr)> fn_callback;
 
 	HeapTimerEvent(const fn_callback& f) :
-		m_id(0),
-		m_valid(true),
+		m_regTimer(false),
 		m_timestamp(0),
 		m_timer(nullptr),
 		m_callback(f)
@@ -39,8 +37,7 @@ public:
 	int64_t timestamp() const { return m_timestamp; }
 
 private:
-	int m_id;
-	bool m_valid;
+	bool m_regTimer;
 	int64_t m_timestamp;
 	HeapTimer* m_timer;
 	fn_callback m_callback;
@@ -50,10 +47,9 @@ class HeapTimer {
 public:
 	typedef std::shared_ptr<HeapTimer> sptr;
 
-	HeapTimer():
-		m_idseq(0)
-	{}
-
+	HeapTimer() {}
+	HeapTimer(const HeapTimer&) = delete;
+	HeapTimer& operator=(const HeapTimer&) = delete;
 	virtual ~HeapTimer() {
 		doReset();
 	}
@@ -67,13 +63,9 @@ public:
 	}
 
 	bool addTimerEvent(HeapTimerEvent::sptr e, int64_t timestamp) {
-		if (!e->m_valid) {
-			return false;
-		}
 		if (timestamp < 0) {
 			return false;
 		}
-
 		if (e->m_timer) {
 			if (e->m_timer != this) {
 				return false;
@@ -82,17 +74,14 @@ public:
 				e->m_timestamp = timestamp;
 				std::make_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 			}
-			return true;
 		}
-		while ((++m_idseq) == 0);
-		if (!m_events.insert(std::make_pair(m_idseq, e)).second) {
-			return false;
+		else {
+			e->m_timer = this;
+			e->m_timestamp = timestamp;
+			m_eventHeap.push_back(e);
+			std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 		}
-		e->m_id = m_idseq;
-		e->m_timer = this;
-		e->m_timestamp = timestamp;
-		m_eventHeap.push_back(e);
-		std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
+		e->m_regTimer = true;
 		return true;
 	}
 
@@ -100,35 +89,30 @@ public:
 		if (e->m_timer != this) {
 			return;
 		}
-		m_events.erase(e->m_id);
-		e->m_id = 0;
-		e->m_timer = nullptr;
-		e->m_valid = false;
+		e->m_regTimer = false;
 	}
 
 	void doReset() {
-		for (auto iter = m_events.begin(); iter != m_events.end(); ) {
-			iter->second->m_timer = nullptr;
-			iter = m_events.erase(iter);
+		for (HeapTimerEvent::sptr& e : m_eventHeap) {
+			e->m_timer = nullptr;
+			e->m_regTimer = false;
 		}
 		m_eventHeap.clear();
-		m_idseq = 0;
 	}
 
-	HeapTimerEvent::sptr popTimeEvent(int64_t timestamp) {
+	HeapTimerEvent::sptr popTimerEvent(int64_t timestamp) {
 		while (!m_eventHeap.empty()) {
 			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_timestamp > timestamp && e->m_timer) {
+			if (e->m_timestamp > timestamp && e->m_regTimer) {
 				break;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 			m_eventHeap.pop_back();
-			if (!e->m_timer) {
+			e->m_timer = nullptr;
+			if (!e->m_regTimer) {
 				continue;
 			}
-			m_events.erase(e->m_id);
-			e->m_id = 0;
-			e->m_timer = nullptr;
+			e->m_regTimer = false;
 			return e;
 		}
 		return HeapTimerEvent::sptr();
@@ -137,7 +121,7 @@ public:
 	int64_t getNextTimestamp() {
 		while (!m_eventHeap.empty()) {
 			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_timer) {
+			if (e->m_regTimer) {
 				return e->m_timestamp;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
@@ -147,12 +131,12 @@ public:
 	}
 
 private:
-	static bool heapCompare(HeapTimerEvent::sptr a, HeapTimerEvent::sptr b) { return a->m_timestamp > b->m_timestamp; }
+	static bool heapCompare(const HeapTimerEvent::sptr& a, const HeapTimerEvent::sptr& b) {
+		return a->m_timestamp > b->m_timestamp;
+	}
 
 private:
-	int m_idseq;
 	std::vector<HeapTimerEvent::sptr> m_eventHeap;
-	std::unordered_map<int, HeapTimerEvent::sptr> m_events;
 };
 }
 
