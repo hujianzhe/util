@@ -35,6 +35,7 @@ public:
 	}
 
 	bool sched() const { return m_sched; }
+	void detach() { m_sched = false; }
 
 	int64_t timestamp() const { return m_timestamp; }
 
@@ -89,13 +90,6 @@ public:
 		}
 		e->m_sched = true;
 		return true;
-	}
-
-	void removeEvent(HeapTimerEvent::sptr e) {
-		if (e->m_timer != this) {
-			return;
-		}
-		e->m_sched = false;
 	}
 
 	void clearEvents() {
