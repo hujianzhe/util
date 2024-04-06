@@ -52,17 +52,17 @@ public:
 	HeapTimer() {}
 	HeapTimer(const HeapTimer&) = delete;
 	HeapTimer& operator=(const HeapTimer&) = delete;
-	virtual ~HeapTimer() { doReset(); }
+	virtual ~HeapTimer() { clearEvents(); }
 
-	HeapTimerEvent::sptr addTimerEvent(const HeapTimerEvent::fn_callback& f, int64_t timestamp) {
+	HeapTimerEvent::sptr setEvent(const HeapTimerEvent::fn_callback& f, int64_t timestamp) {
 		HeapTimerEvent::sptr e(new HeapTimerEvent(f));
-		if (!addTimerEvent(e, timestamp)) {
+		if (!setEvent(e, timestamp)) {
 			return HeapTimerEvent::sptr();
 		}
 		return e;
 	}
 
-	bool addTimerEvent(HeapTimerEvent::sptr e, int64_t timestamp) {
+	bool setEvent(HeapTimerEvent::sptr e, int64_t timestamp) {
 		if (timestamp < 0) {
 			return false;
 		}
@@ -85,14 +85,14 @@ public:
 		return true;
 	}
 
-	void delTimerEvent(HeapTimerEvent::sptr e) {
+	void removeEvent(HeapTimerEvent::sptr e) {
 		if (e->m_timer != this) {
 			return;
 		}
 		e->m_sched = false;
 	}
 
-	void doReset() {
+	void clearEvents() {
 		for (HeapTimerEvent::sptr& e : m_eventHeap) {
 			e->m_timer = nullptr;
 			e->m_sched = false;
@@ -100,7 +100,7 @@ public:
 		m_eventHeap.clear();
 	}
 
-	HeapTimerEvent::sptr popTimerEvent(int64_t timestamp) {
+	HeapTimerEvent::sptr popTimeoutEvent(int64_t timestamp) {
 		while (!m_eventHeap.empty()) {
 			HeapTimerEvent::sptr e = m_eventHeap.front();
 			if (e->m_timestamp > timestamp && e->m_sched) {
