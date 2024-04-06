@@ -5,37 +5,41 @@
 #ifndef	UTIL_CPP_HEAP_TIMER_H
 #define	UTIL_CPP_HEAP_TIMER_H
 
-#include <memory>
 #include <vector>
 #include <algorithm>
 #include <functional>
 
 namespace util {
 class HeapTimer;
+class HeapTimerEvent;
+typedef std::function<void(HeapTimer*, HeapTimerEvent*)> HeapTimerFunction;
 
-class HeapTimerEvent : public std::enable_shared_from_this<HeapTimerEvent> {
+class HeapTimerEvent {
 friend class HeapTimer;
 public:
-	typedef std::shared_ptr<HeapTimerEvent> sptr;
-	typedef std::function<void(sptr)> fn_callback;
-
-	HeapTimerEvent(const fn_callback& f) :
-		m_sched(false),
-		m_timestamp(0),
+	HeapTimerEvent(const HeapTimerFunction& f) :
+		m_ptrSched(nullptr),
 		m_timer(nullptr),
+		m_timestamp(0),
 		m_callback(f)
 	{}
 
-	virtual ~HeapTimerEvent() {}
+	virtual ~HeapTimerEvent() { detach(); }
 
-	void doCallback() {
-		if (m_callback) {
-			m_callback(shared_from_this());
+	static void callback(HeapTimer* t, HeapTimerEvent* e) {
+		if (e->m_callback) {
+			e->m_callback(t, e);
 		}
 	}
 
-	bool sched() const { return m_sched; }
-	void detach() { m_sched = false; }
+	bool sched() const { return m_ptrSched != nullptr; }
+	void detach() {
+		if (m_ptrSched) {
+			*m_ptrSched = nullptr;
+			m_ptrSched = nullptr; 
+			m_timer = nullptr;
+		}
+	}
 
 	int64_t timestamp() const { return m_timestamp; }
 
@@ -44,36 +48,41 @@ private:
 	HeapTimerEvent& operator=(const HeapTimerEvent&) { return *this; }
 
 private:
-	bool m_sched;
-	int64_t m_timestamp;
+	HeapTimerEvent** m_ptrSched;
 	HeapTimer* m_timer;
-	fn_callback m_callback;
+	int64_t m_timestamp;
+	HeapTimerFunction m_callback;
 };
 
 class HeapTimer {
 public:
-	typedef std::shared_ptr<HeapTimer> sptr;
-
 	HeapTimer() {}
 
 	virtual ~HeapTimer() { clearEvents(); }
 
-	HeapTimerEvent::sptr setEvent(const HeapTimerEvent::fn_callback& f, int64_t timestamp) {
+	HeapTimerEvent* setEvent(const HeapTimerFunction& f, int64_t timestamp) {
 		if (timestamp < 0) {
-			return HeapTimerEvent::sptr();
+			return nullptr;
 		}
-		HeapTimerEvent::sptr e(new HeapTimerEvent(f));
-		if (!setEvent(e, timestamp)) {
-			return HeapTimerEvent::sptr();
+		HeapTimerEvent* e = new HeapTimerEvent(f);
+		try {
+			if (!setEvent(e, timestamp)) {
+				delete e;
+				return nullptr;
+			}
+			return e;
 		}
-		return e;
+		catch (...) {
+			delete e;
+			return nullptr;
+		}
 	}
 
-	bool setEvent(HeapTimerEvent::sptr e, int64_t timestamp) {
+	bool setEvent(HeapTimerEvent* e, int64_t timestamp) {
 		if (timestamp < 0) {
 			return false;
 		}
-		if (e->m_timer) {
+		if (e->m_ptrSched) {
 			if (e->m_timer != this) {
 				return false;
 			}
@@ -83,49 +92,65 @@ public:
 			}
 		}
 		else {
-			e->m_timer = this;
 			e->m_timestamp = timestamp;
-			m_eventHeap.push_back(e);
-			std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
+			HeapTimerEvent** ep = new HeapTimerEvent*(e);
+			try {
+				m_eventHeap.push_back(ep);
+				std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
+			}
+			catch (...) {
+				delete ep;
+				return false;
+			}
+			e->m_timer = this;
+			e->m_ptrSched = ep;
 		}
-		e->m_sched = true;
 		return true;
 	}
 
 	void clearEvents() {
-		for (HeapTimerEvent::sptr& e : m_eventHeap) {
-			e->m_timer = nullptr;
-			e->m_sched = false;
+		for (size_t i = 0; i < m_eventHeap.size(); ++i) {
+			HeapTimerEvent** ep = m_eventHeap[i];
+			HeapTimerEvent* e = *ep;
+			if (e) {
+				e->m_timer = nullptr;
+				e->m_ptrSched = nullptr;
+			}
+			delete ep;
 		}
 		m_eventHeap.clear();
 	}
 
-	HeapTimerEvent::sptr popTimeoutEvent(int64_t timestamp) {
+	HeapTimerEvent* popTimeoutEvent(int64_t timestamp) {
 		while (!m_eventHeap.empty()) {
-			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_timestamp > timestamp && e->m_sched) {
+			HeapTimerEvent** ep = m_eventHeap.front();
+			HeapTimerEvent* e = *ep;
+			if (e && e->m_timestamp > timestamp) {
 				break;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 			m_eventHeap.pop_back();
-			e->m_timer = nullptr;
-			if (!e->m_sched) {
+			delete ep;
+			if (!e) {
 				continue;
 			}
-			e->m_sched = false;
+			e->m_timer = nullptr;
+			e->m_ptrSched = nullptr;
 			return e;
 		}
-		return HeapTimerEvent::sptr();
+		return nullptr;
 	}
 
 	int64_t getNextTimestamp() {
 		while (!m_eventHeap.empty()) {
-			HeapTimerEvent::sptr e = m_eventHeap.front();
-			if (e->m_sched) {
+			HeapTimerEvent** ep = m_eventHeap.front();
+			HeapTimerEvent* e = *ep;
+			if (e) {
 				return e->m_timestamp;
 			}
 			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
 			m_eventHeap.pop_back();
+			delete ep;
 		}
 		return -1;
 	}
@@ -134,12 +159,12 @@ private:
 	HeapTimer(const HeapTimer&) {}
 	HeapTimer& operator=(const HeapTimer&) { return *this; }
 
-	static bool heapCompare(const HeapTimerEvent::sptr& a, const HeapTimerEvent::sptr& b) {
-		return a->m_timestamp > b->m_timestamp;
+	static bool heapCompare(HeapTimerEvent** ap, HeapTimerEvent** bp) {
+		return (*ap ? (*ap)->m_timestamp : 0) > ( *bp ? (*bp)->m_timestamp : 0);
 	}
 
 private:
-	std::vector<HeapTimerEvent::sptr> m_eventHeap;
+	std::vector<HeapTimerEvent**> m_eventHeap;
 };
 }
 
