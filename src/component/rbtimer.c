@@ -11,15 +11,18 @@ typedef struct RBTimerEvList {
 	List_t m_list;
 } RBTimerEvList;
 
-static void rbtimer_update_first_evlist(RBTimer_t* timer) {
-	RBTreeNode_t* exist_node = rbtreeFirstNode(&timer->m_rbtree);
-	if (exist_node) {
-		RBTimerEvList* evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
-		timer->m_first_evlist = evlist;
+static void rbtimer_remove_evlist(RBTimer_t* timer, RBTimerEvList* evlist) {
+	if (timer->m_first_evlist == evlist) {
+		RBTreeNode_t* rb_next = rbtreeNextNode(&evlist->m_rbtreenode);
+		if (rb_next) {
+			RBTimerEvList* evlist_next = pod_container_of(rb_next, RBTimerEvList, m_rbtreenode);
+			timer->m_first_evlist = evlist_next;
+		}
+		else {
+			timer->m_first_evlist = NULL;
+		}
 	}
-	else {
-		timer->m_first_evlist = NULL;
-	}
+	rbtreeRemoveNode(&timer->m_rbtree, &evlist->m_rbtreenode);
 }
 
 #ifdef __cplusplus
@@ -82,11 +85,8 @@ RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long t
 		if (detach_old_evlist) {
 			listRemoveNode(&detach_old_evlist->m_list, &e->m_listnode);
 			if (listIsEmpty(&detach_old_evlist->m_list)) {
-				rbtreeRemoveNode(&timer->m_rbtree, &detach_old_evlist->m_rbtreenode);
+				rbtimer_remove_evlist(timer, detach_old_evlist);
 				free(detach_old_evlist);
-				if (detach_old_evlist == timer->m_first_evlist) {
-					rbtimer_update_first_evlist(timer);
-				}
 			}
 		}
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
@@ -104,10 +104,7 @@ RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long t
 		else if (&e->m_listnode == detach_old_evlist->m_list.head &&
 				 &e->m_listnode == detach_old_evlist->m_list.tail)
 		{
-			rbtreeRemoveNode(&timer->m_rbtree, &detach_old_evlist->m_rbtreenode);
-			if (timer->m_first_evlist == detach_old_evlist) {
-				rbtimer_update_first_evlist(timer);
-			}
+			rbtimer_remove_evlist(timer, detach_old_evlist);
 			evlist = detach_old_evlist;
 		}
 		else {
@@ -152,11 +149,8 @@ void rbtimerDetachEvent(RBTimerEvent_t* e) {
 	if (!listIsEmpty(&evlist->m_list)) {
 		return;
 	}
-	rbtreeRemoveNode(&timer->m_rbtree, &evlist->m_rbtreenode);
+	rbtimer_remove_evlist(timer, evlist);
 	free(evlist);
-	if (evlist == timer->m_first_evlist) {
-		rbtimer_update_first_evlist(timer);
-	}
 }
 
 RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
@@ -170,9 +164,8 @@ RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
 	}
 	lnode = listPopNodeFront(&evlist->m_list);
 	if (listIsEmpty(&evlist->m_list)) {
-		rbtreeRemoveNode(&timer->m_rbtree, &evlist->m_rbtreenode);
+		rbtimer_remove_evlist(timer, evlist);
 		free(evlist);
-		rbtimer_update_first_evlist(timer);
 	}
 	if (!lnode) {
 		return NULL;
