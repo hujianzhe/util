@@ -10,13 +10,17 @@
 #include "../datastruct/rbtree.h"
 
 typedef struct RBTimer_t {
+	/* private */
 	RBTree_t m_rbtree;
 	long long m_min_timestamp;
 } RBTimer_t;
 
 typedef struct RBTimerEvent_t {
+	/* private */
 	ListNode_t m_listnode;
 	struct RBTimer_t* m_timer;
+	void* m_internal_evlist;
+	/* public */
 	long long timestamp;
 	long long interval;
 	void(*callback)(RBTimer_t*, struct RBTimerEvent_t*);

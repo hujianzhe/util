@@ -76,6 +76,7 @@ RBTimerEvent_t* rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 		timer->m_min_timestamp = e->timestamp;
 	}
 	e->m_timer = timer;
+	e->m_internal_evlist = evlist;
 	return e;
 }
 
@@ -84,7 +85,6 @@ BOOL rbtimerCheckEventScheduled(RBTimerEvent_t* e) { return e->m_timer != NULL; 
 void rbtimerDetachEvent(RBTimerEvent_t* e) {
 	RBTimerEvList* evlist;
 	RBTreeNode_t* exist_node;
-	RBTreeNodeKey_t key;
 	RBTimer_t* timer;
 
 	timer = e->m_timer;
@@ -92,17 +92,16 @@ void rbtimerDetachEvent(RBTimerEvent_t* e) {
 		return;
 	}
 	e->m_timer = NULL;
-	key.i64 = e->timestamp;
-	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
-	if (!exist_node) {
+	evlist = (RBTimerEvList*)e->m_internal_evlist;
+	if (!evlist) {
 		return;
 	}
-	evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
+	e->m_internal_evlist = NULL;
 	listRemoveNode(&evlist->m_list, &e->m_listnode);
 	if (!listIsEmpty(&evlist->m_list)) {
 		return;
 	}
-	rbtreeRemoveNode(&timer->m_rbtree, exist_node);
+	rbtreeRemoveNode(&timer->m_rbtree, &evlist->m_rbtreenode);
 	free(evlist);
 
 	exist_node = rbtreeFirstNode(&timer->m_rbtree);
@@ -116,7 +115,7 @@ void rbtimerDetachEvent(RBTimerEvent_t* e) {
 }
 
 RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
-	RBTreeNode_t *rbcur, *rbnext;
+	RBTreeNode_t *rbcur;
 	ListNode_t* lnode;
 	RBTimerEvList* evlist;
 	RBTimerEvent_t* e;
@@ -131,7 +130,7 @@ RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
 	evlist = pod_container_of(rbcur, RBTimerEvList, m_rbtreenode);
 	lnode = listPopNodeFront(&evlist->m_list);
 	if (listIsEmpty(&evlist->m_list)) {
-		rbnext = rbtreeNextNode(rbcur);
+		RBTreeNode_t* rbnext = rbtreeNextNode(rbcur);
 		rbtreeRemoveNode(&timer->m_rbtree, rbcur);
 		free(evlist);
 		if (rbnext) {
@@ -147,6 +146,7 @@ RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
 	}
 	e = pod_container_of(lnode, RBTimerEvent_t, m_listnode);
 	e->m_timer = NULL;
+	e->m_internal_evlist = NULL;
 	return e;
 }
 
@@ -161,6 +161,7 @@ void rbtimerDestroy(RBTimer_t* timer) {
 			RBTimerEvent_t* e = pod_container_of(lcur, RBTimerEvent_t, m_listnode);
 			lnext = lcur->next;
 			e->m_timer = NULL;
+			e->m_internal_evlist = NULL;
 		}
 		free(evlist);
 	}
