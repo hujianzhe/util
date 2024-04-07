@@ -21,16 +21,19 @@ public:
 		m_ptrSched(nullptr),
 		m_timer(nullptr),
 		m_timestamp(0),
-		m_callback(f)
+		m_func(f)
 	{}
 
 	virtual ~HeapTimerEvent() { detach(); }
 
 	int64_t timestamp() const { return m_timestamp; }
 
+	const HeapTimerFunction& func() const { return m_func; }
+	void set_func(const HeapTimerFunction& f) { m_func = f; }
+
 	void callback() {
-		if (m_callback) {
-			m_callback(m_timer, this);
+		if (m_func) {
+			m_func(m_timer, this);
 		}
 	}
 
@@ -52,7 +55,7 @@ private:
 	HeapTimerEvent** m_ptrSched;
 	HeapTimer* m_timer;
 	int64_t m_timestamp;
-	HeapTimerFunction m_callback;
+	HeapTimerFunction m_func;
 };
 
 class HeapTimer {
