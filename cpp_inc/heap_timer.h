@@ -17,7 +17,7 @@ typedef std::function<void(HeapTimer*, HeapTimerEvent*)> HeapTimerFunction;
 class HeapTimerEvent {
 friend class HeapTimer;
 public:
-	HeapTimerEvent(const HeapTimerFunction& f) :
+	HeapTimerEvent(const HeapTimerFunction& f = nullptr) :
 		m_ptrSched(nullptr),
 		m_timer(nullptr),
 		m_timestamp(0),
