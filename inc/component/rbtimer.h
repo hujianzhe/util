@@ -12,7 +12,7 @@
 typedef struct RBTimer_t {
 	/* private */
 	RBTree_t m_rbtree;
-	long long m_min_timestamp;
+	void* m_first_evlist;
 } RBTimer_t;
 
 typedef struct RBTimerEvent_t {
