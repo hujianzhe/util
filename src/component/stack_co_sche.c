@@ -565,10 +565,9 @@ StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_m
 	block_node->exec_co_node = exec_co_node;
 
 	if (e) {
-		e->timestamp = tm_msec;
 		e->callback = timer_block_callback;
 		e->arg = block_node;
-		rbtimerAddEvent(&sche->timer, e);
+		rbtimerSetEvent(&sche->timer, e, tm_msec);
 	}
 
 	if (group) {
@@ -633,10 +632,9 @@ StackCoBlock_t* StackCoSche_sleep_util(StackCoSche_t* sche, long long tm_msec, S
 	block_node->exec_co_node = exec_co_node;
 
 	if (e) {
-		e->timestamp = tm_msec;
 		e->callback = timer_sleep_callback;
 		e->arg = block_node;
-		rbtimerAddEvent(&sche->timer, e);
+		rbtimerSetEvent(&sche->timer, e, tm_msec);
 	}
 
 	if (group) {
@@ -953,8 +951,9 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 
 		if (STACK_CO_HDR_PROC == hdr->type) {
 			StackCoNode_t* co_node = pod_container_of(hdr, StackCoNode_t, hdr);
-			if (co_node->timeout_event) {
-				rbtimerAddEvent(&sche->timer, co_node->timeout_event);
+			RBTimerEvent_t* timeout_event = co_node->timeout_event;
+			if (timeout_event) {
+				rbtimerSetEvent(&sche->timer, timeout_event, timeout_event->timestamp);
 				continue;
 			}
 			co_node->fiber = sche->proc_fiber;

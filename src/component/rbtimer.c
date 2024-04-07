@@ -45,18 +45,26 @@ RBTimer_t* rbtimerDueFirst(RBTimer_t* timers[], size_t timer_cnt, long long* min
 	return timer_result;
 }
 
-RBTimerEvent_t* rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
-	RBTimerEvList* evlist;
+RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long timestamp) {
+	RBTimerEvList* evlist, *detach_old_evlist;
 	RBTreeNode_t* exist_node;
 	RBTreeNodeKey_t key;
 
-	if (e->timestamp < 0 || e->interval < 0 || !e->callback) {
+	if (timestamp < 0) {
 		return NULL;
 	}
-	if (e->m_timer) {
-		return e->m_timer != timer ? NULL : e;
+	detach_old_evlist = NULL;
+	evlist = (RBTimerEvList*)e->m_internal_evlist;
+	if (evlist) {
+		if (e->m_timer != timer) {
+			return NULL;
+		}
+		if (timestamp == evlist->timestamp) {
+			return e;
+		}
+		detach_old_evlist = evlist;
 	}
-	key.i64 = e->timestamp;
+	key.i64 = timestamp;
 	exist_node = rbtreeSearchKey(&timer->m_rbtree, key);
 	if (exist_node) {
 		evlist = pod_container_of(exist_node, RBTimerEvList, m_rbtreenode);
@@ -66,15 +74,23 @@ RBTimerEvent_t* rbtimerAddEvent(RBTimer_t* timer, RBTimerEvent_t* e) {
 		if (!evlist) {
 			return NULL;
 		}
-		evlist->m_rbtreenode.key.i64 = e->timestamp;
-		evlist->timestamp = e->timestamp;
+		evlist->m_rbtreenode.key.i64 = timestamp;
+		evlist->timestamp = timestamp;
 		listInit(&evlist->m_list);
 		rbtreeInsertNode(&timer->m_rbtree, &evlist->m_rbtreenode);
 	}
-	listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
-	if (timer->m_min_timestamp > e->timestamp || timer->m_min_timestamp < 0) {
-		timer->m_min_timestamp = e->timestamp;
+	if (detach_old_evlist) {
+		listRemoveNode(&detach_old_evlist->m_list, &e->m_listnode);
+		if (listIsEmpty(&detach_old_evlist->m_list)) {
+			rbtreeRemoveNode(&timer->m_rbtree, &detach_old_evlist->m_rbtreenode);
+			free(detach_old_evlist);
+		}
 	}
+	listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
+	if (timer->m_min_timestamp > timestamp || timer->m_min_timestamp < 0) {
+		timer->m_min_timestamp = timestamp;
+	}
+	e->timestamp = timestamp;
 	e->m_timer = timer;
 	e->m_internal_evlist = evlist;
 	return e;
@@ -165,6 +181,7 @@ void rbtimerDestroy(RBTimer_t* timer) {
 		}
 		free(evlist);
 	}
+	timer->m_min_timestamp = -1;
 }
 
 #ifdef __cplusplus

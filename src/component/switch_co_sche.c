@@ -358,10 +358,9 @@ SwitchCo_t* SwitchCoSche_sleep_util(SwitchCoSche_t* sche, SwitchCo_t* parent_co,
 	co_node->root = sche->exec_root_co;
 
 	if (e) {
-		e->timestamp = tm_msec;
 		e->callback = timer_sleep_callback;
 		e->arg = co_node;
-		rbtimerAddEvent(&sche->timer, e);
+		rbtimerSetEvent(&sche->timer, e, tm_msec);
 	}
 
 	listPushNodeBack(&parent_co_node->childs_list, &co_node->hdr.listnode);
@@ -420,10 +419,9 @@ SwitchCo_t* SwitchCoSche_block_point_util(SwitchCoSche_t* sche, SwitchCo_t* pare
 	co_node->root = sche->exec_root_co;
 
 	if (e) {
-		e->timestamp = tm_msec;
 		e->callback = timer_block_callback;
 		e->arg = co_node;
-		rbtimerAddEvent(&sche->timer, e);
+		rbtimerSetEvent(&sche->timer, e, tm_msec);
 	}
 
 	listPushNodeBack(&parent_co_node->childs_list, &co_node->hdr.listnode);
@@ -549,9 +547,9 @@ int SwitchCoSche_sche(SwitchCoSche_t* sche, int idle_msec) {
 
 		if (SWITCH_CO_HDR_PROC == hdr->type) {
 			SwitchCoNode_t* co_node = pod_container_of(hdr, SwitchCoNode_t, hdr);
-
-			if (co_node->timeout_event) {
-				rbtimerAddEvent(&sche->timer, co_node->timeout_event);
+			RBTimerEvent_t* timeout_event = co_node->timeout_event;
+			if (timeout_event) {
+				rbtimerSetEvent(&sche->timer, timeout_event, timeout_event->timestamp);
 				continue;
 			}
 			co_node->ready = 1;
