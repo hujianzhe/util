@@ -26,13 +26,16 @@ public:
 
 	virtual ~HeapTimerEvent() { detach(); }
 
-	static void callback(HeapTimer* t, HeapTimerEvent* e) {
-		if (e->m_callback) {
-			e->m_callback(t, e);
+	int64_t timestamp() const { return m_timestamp; }
+
+	void callback() {
+		if (m_callback) {
+			m_callback(m_timer, this);
 		}
 	}
 
 	bool sched() const { return m_ptrSched != nullptr; }
+
 	void detach() {
 		if (m_ptrSched) {
 			*m_ptrSched = nullptr;
@@ -40,8 +43,6 @@ public:
 			m_timer = nullptr;
 		}
 	}
-
-	int64_t timestamp() const { return m_timestamp; }
 
 private:
 	HeapTimerEvent(const HeapTimerEvent&) {}
@@ -134,7 +135,6 @@ public:
 			if (!e) {
 				continue;
 			}
-			e->m_timer = nullptr;
 			e->m_ptrSched = nullptr;
 			return e;
 		}
