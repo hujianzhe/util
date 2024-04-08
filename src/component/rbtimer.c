@@ -6,7 +6,6 @@
 #include <stdlib.h>
 
 typedef struct RBTimerEvList {
-	long long timestamp;
 	RBTreeNode_t m_rbtreenode;
 	List_t m_list;
 } RBTimerEvList;
@@ -37,7 +36,7 @@ RBTimer_t* rbtimerInit(RBTimer_t* timer) {
 
 long long rbtimerMiniumTimestamp(RBTimer_t* timer) {
 	RBTimerEvList* first_evlist = (RBTimerEvList*)timer->m_first_evlist;
-	return first_evlist ? first_evlist->timestamp : -1;
+	return first_evlist ? first_evlist->m_rbtreenode.key.i64 : -1;
 }
 
 RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long timestamp) {
@@ -54,7 +53,7 @@ RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long t
 		if (e->m_timer != timer) {
 			return NULL;
 		}
-		if (timestamp == evlist->timestamp) {
+		if (timestamp == evlist->m_rbtreenode.key.i64) {
 			return e;
 		}
 		detach_old_evlist = evlist;
@@ -97,9 +96,8 @@ RBTimerEvent_t* rbtimerSetEvent(RBTimer_t* timer, RBTimerEvent_t* e, long long t
 			listInsertNodeBack(&evlist->m_list, evlist->m_list.tail, &e->m_listnode);
 		}
 		evlist->m_rbtreenode.key.i64 = timestamp;
-		evlist->timestamp = timestamp;
 		rbtreeInsertNode(&timer->m_rbtree, &evlist->m_rbtreenode);
-		if (!timer->m_first_evlist || ((RBTimerEvList*)timer->m_first_evlist)->timestamp > timestamp) {
+		if (!timer->m_first_evlist || ((RBTimerEvList*)timer->m_first_evlist)->m_rbtreenode.key.i64 > timestamp) {
 			timer->m_first_evlist = evlist;
 		}
 	}
@@ -139,7 +137,7 @@ RBTimerEvent_t* rbtimerTimeoutPopup(RBTimer_t* timer, long long timestamp) {
 	RBTimerEvent_t* e;
 
 	evlist = (RBTimerEvList*)timer->m_first_evlist;
-	if (!evlist || evlist->timestamp > timestamp) {
+	if (!evlist || evlist->m_rbtreenode.key.i64 > timestamp) {
 		return NULL;
 	}
 	lnode = listPopNodeFront(&evlist->m_list);
