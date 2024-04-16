@@ -225,7 +225,7 @@ static size_t cJSON_IntegerStrlen(long long v) {
 
 static size_t cJSON_DoubleStrlen(double v) {
 	char test_buf;
-	int len = snprintf(&test_buf, 0, "%lf", v);
+	int len = snprintf(&test_buf, 0, "%f", v);
 	return len < 0 ? 0 : len;
 }
 
@@ -875,7 +875,7 @@ static char* cJSON_LeafNodeToString(cJSON* node, char* buf) {
 		off += node->value_strlen;
 	}
 	else if (cJSON_ValueType_Double == node->value_type) {
-		sprintf(buf + off, "%lf", node->value_double);
+		sprintf(buf + off, "%f", node->value_double);
 		off += node->value_strlen;
 	}
 	else if (cJSON_ValueType_String == node->value_type) {
