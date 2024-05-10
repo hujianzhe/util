@@ -8,6 +8,11 @@
 extern "C" {
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+#else
+static void empty() {}
+#endif
+
 void* moduleGetAddress(const void* symbol_addr) {
 #if defined(_WIN32) || defined(_WIN64)
 	HMODULE m;
@@ -20,6 +25,9 @@ void* moduleGetAddress(const void* symbol_addr) {
 	return NULL;
 #else
 	Dl_info dl_info;
+	if (!symbol_addr) {
+		symbol_addr = (const void*)empty;
+	}
 	if (dladdr((void*)symbol_addr, &dl_info)) {
 		return dlopen(dl_info.dli_fname, RTLD_NOW);
 	}
