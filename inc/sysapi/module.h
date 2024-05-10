@@ -15,8 +15,8 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 	#define	moduleLoad(path)							((void*)LoadLibraryA(path))
-	#define	moduleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
-	#define	moduleUnload(module)						(module ? FreeLibrary(module) : TRUE)
+	#define	moduleSymbolAddress(module, symbol_name)	((void*)GetProcAddress((HMODULE)module, symbol_name))
+	#define	moduleUnload(module)						(module ? FreeLibrary((HMODULE)module) : TRUE)
 #else
 	#define	moduleLoad(path)							dlopen(path, RTLD_NOW)
 	#define	moduleSymbolAddress(module, symbol_name)	dlsym(module, symbol_name)
