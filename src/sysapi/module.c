@@ -8,16 +8,13 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32) || defined(_WIN64)
-#else
 static void empty() {}
-#endif
 
 void* moduleGetAddress(const void* symbol_addr) {
 #if defined(_WIN32) || defined(_WIN64)
 	HMODULE m;
 	if (!symbol_addr) {
-		symbol_addr = (const void*)moduleGetAddress;
+		symbol_addr = (const void*)empty;
 	}
 	if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (PTCHAR)symbol_addr, &m)) {
 		return (void*)m;
