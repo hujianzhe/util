@@ -10,6 +10,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#include <libloaderapi.h>
 #else
+	#include <link.h>
 	#include <dlfcn.h>
 #endif
 
@@ -28,6 +29,8 @@ extern "C" {
 #endif
 
 __declspec_dll void* moduleAddress(const void* symbol_addr);
+__declspec_dll size_t modulePathLength(void* md);
+__declspec_dll size_t moduleFillPath(void* md, char* buf, size_t n);
 
 #ifdef	__cplusplus
 }
