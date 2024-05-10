@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-__declspec_dll void* moduleGetAddress(const void* symbol_addr);
+__declspec_dll void* moduleAddress(const void* symbol_addr);
 
 #ifdef	__cplusplus
 }

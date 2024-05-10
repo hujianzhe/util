@@ -10,7 +10,7 @@ extern "C" {
 
 static void empty() {}
 
-void* moduleGetAddress(const void* symbol_addr) {
+void* moduleAddress(const void* symbol_addr) {
 #if defined(_WIN32) || defined(_WIN64)
 	HMODULE m;
 	if (!symbol_addr) {
