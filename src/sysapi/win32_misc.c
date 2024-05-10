@@ -11,6 +11,18 @@
 extern "C" {
 #endif
 
+char* win32_Path_Win32Style(const char* path) {
+	char* p = strdup(path);
+	if (p) {
+		char* pa;
+		for (pa = p; *pa; ++pa) {
+			if ('/' == *pa)
+				*pa = '\\';
+		}
+	}
+	return p;
+}
+
 BOOL win32_Iocp_PrepareRegUdp(SOCKET fd, int domain) {
 	struct sockaddr_storage local_saddr;
 	socklen_t slen;

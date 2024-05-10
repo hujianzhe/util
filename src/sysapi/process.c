@@ -19,35 +19,35 @@
 extern "C" {
 #endif
 
-#if	defined(_WIN32) || defined(_WIN64)
-static const char* __win32_path(char* path) {
-	char* p;
-	for (p = path; *p; ++p) {
-		if ('/' == *p)
-			*p = '\\';
-	}
-	return path;
-}
+#if	_WIN32
+extern char* win32_Path_Win32Style(const char* path);
 #endif
 
 /* process operator */
 BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg) {
 	char* _cmdarg = NULL;
 #if defined(_WIN32) || defined(_WIN64)
-	char szFullPath[MAX_PATH];
+	char* szFullPath;
 	PROCESS_INFORMATION pi;
-	STARTUPINFOA si = {0};
+	STARTUPINFOA si;
+	szFullPath = win32_Path_Win32Style(path);
+	if (!szFullPath) {
+		return FALSE;
+	}
+	memset(&si, 0, sizeof(si));
 	si.cb = sizeof(si);
 	si.wShowWindow = TRUE;
 	si.dwFlags = STARTF_USESHOWWINDOW;
 	if (cmdarg && *cmdarg) {
 		_cmdarg = (char*)malloc(strlen(cmdarg) + 1);
 		if (!_cmdarg) {
+			free(szFullPath);
 			return FALSE;
 		}
 		strcpy(_cmdarg, cmdarg);
 	}
-	if (CreateProcessA(__win32_path(strcpy(szFullPath, path)), _cmdarg, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+	if (CreateProcessA(szFullPath, _cmdarg, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+		free(szFullPath);
 		free(_cmdarg);
 		CloseHandle(pi.hThread);
 		if (p_process) {
@@ -56,6 +56,7 @@ BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg) {
 		}
 		return TRUE;
 	}
+	free(szFullPath);
 	free(_cmdarg);
 	return FALSE;
 #else

@@ -11,18 +11,8 @@
 extern "C" {
 #endif
 
-#if	defined(_WIN32) || defined(_WIN64)
-static char* __win32_path(const char* path) {
-	char* p = strdup(path);
-	if (p) {
-		char* pa;
-		for (pa = p; *pa; ++pa) {
-			if ('/' == *pa)
-				*pa = '\\';
-		}
-	}
-	return p;
-}
+#if	_WIN32
+extern char* win32_Path_Win32Style(const char* path);
 #endif
 
 /* FD_t generate operator */
@@ -187,7 +177,7 @@ FD_t fdOpen(const char* path, int obit) {
 			dwFlagsAndAttributes |= FILE_FLAG_OVERLAPPED;
 	}
 	//
-	szFullPath = __win32_path(path);
+	szFullPath = win32_Path_Win32Style(path);
 	if (!szFullPath)
 		return (FD_t)INVALID_HANDLE_VALUE;
 	fd = CreateFileA(szFullPath, dwDesiredAccess,
@@ -402,7 +392,7 @@ BOOL fileIsExist(const char* path) {
 	HANDLE hFind;
 	BOOL exist;
 
-	szFullPath = __win32_path(path);
+	szFullPath = win32_Path_Win32Style(path);
 	if (!szFullPath)
 		return FALSE;
 	hFind = FindFirstFileA(szFullPath, &find_data);
@@ -494,7 +484,7 @@ BOOL fileCreateSymlink(const char* actualpath, const char* sympath) {
 	DWORD dwAttr, dwFlag;
 	BOOLEAN ret;
 
-	szActualPath = __win32_path(actualpath);
+	szActualPath = win32_Path_Win32Style(actualpath);
 	if (!szActualPath)
 		return FALSE;
 	dwAttr = GetFileAttributesA(szActualPath);
@@ -503,7 +493,7 @@ BOOL fileCreateSymlink(const char* actualpath, const char* sympath) {
 		return FALSE;
 	}
 	dwFlag = (dwAttr & FILE_ATTRIBUTE_DIRECTORY) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-	szSymPath = __win32_path(sympath);
+	szSymPath = win32_Path_Win32Style(sympath);
 	if (!szSymPath)
 		return FALSE;
 	ret = CreateSymbolicLinkA(szSymPath, szActualPath, dwFlag);
@@ -519,10 +509,10 @@ BOOL fileCreateHardLink(const char* existpath, const char* newpath) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL ret;
 	char *szExistPath, *szNewPath;
-	szNewPath = __win32_path(newpath);
+	szNewPath = win32_Path_Win32Style(newpath);
 	if (!szNewPath)
 		return FALSE;
-	szExistPath = __win32_path(existpath);
+	szExistPath = win32_Path_Win32Style(existpath);
 	if (!szExistPath) {
 		free(szNewPath);
 		return FALSE;
@@ -540,7 +530,7 @@ BOOL fileDeleteHardLink(const char* existpath) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL ret;
 	char *szExistPath;
-	szExistPath = __win32_path(existpath);
+	szExistPath = win32_Path_Win32Style(existpath);
 	if (!szExistPath)
 		return FALSE;
 	ret = DeleteFileA(szExistPath);
@@ -630,7 +620,7 @@ BOOL dirCreate(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL ret;
 	char *szFullPath;
-	szFullPath = __win32_path(path);
+	szFullPath = win32_Path_Win32Style(path);
 	if (!szFullPath)
 		return FALSE;
 	ret = CreateDirectoryA(szFullPath, NULL);
@@ -653,7 +643,7 @@ BOOL dirSheftPath(const char* path) {
 #if defined(_WIN32) || defined(_WIN64)
 	BOOL ret;
 	char *szFullPath;
-	szFullPath = __win32_path(path);
+	szFullPath = win32_Path_Win32Style(path);
 	if (!szFullPath)
 		return FALSE;
 	ret = SetCurrentDirectoryA(szFullPath);
