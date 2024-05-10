@@ -43,6 +43,7 @@
 #include "sysapi/ipc.h"
 #include "sysapi/misc.h"
 #include "sysapi/mmap.h"
+#include "sysapi/module.h"
 #include "sysapi/nio.h"
 #include "sysapi/process.h"
 #include "sysapi/socket.h"

@@ -33,7 +33,6 @@
 	#define	__declspec_tls			__declspec(thread)
 	#pragma comment(lib, "Dbghelp.lib")
 #else
-	#include <dlfcn.h>
 	#include <pthread.h>
 	#include <sys/select.h>
 	#include <sys/time.h>
@@ -60,16 +59,6 @@ struct Fiber_t;
 extern "C" {
 #endif
 
-/* module oerator */
-#if defined(_WIN32) || defined(_WIN64)
-#define	moduleLoad(path)							(path ? (void*)LoadLibraryA(path) : (void*)GetModuleHandleA(NULL))
-#define	moduleSymbolAddress(module, symbol_name)	GetProcAddress(module, symbol_name)
-#define	moduleUnload(module)						(module ? FreeLibrary(module) : TRUE)
-#else
-#define	moduleLoad(path)							dlopen(path, RTLD_NOW)
-#define	moduleSymbolAddress(module, symbol_name)	dlsym(module, symbol_name)
-#define	moduleUnload(module)						(module ? (dlclose(module) == 0) : 1)
-#endif
 /* process operator */
 __declspec_dll BOOL processCreate(Process_t* p_process, const char* path, const char* cmdarg);
 __declspec_dll BOOL processCancel(Process_t* process);
