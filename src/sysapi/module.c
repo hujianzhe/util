@@ -57,12 +57,14 @@ size_t modulePathLength(void* md) {
 	} while (1);
 	free(buf);
 	return 0;
-#else
+#elif	__linux__
 	struct link_map *lm;
 	if (dlinfo(md, RTLD_DI_LINKMAP, &lm)) {
 		return 0;
 	}
 	return strlen(lm->l_name);
+#else
+	return 0;
 #endif
 }
 
@@ -80,7 +82,7 @@ size_t moduleFillPath(void* md, char* buf, size_t n) {
 		buf[n - 1] = 0;
 		return n - 1;
 	}
-#else
+#elif	__linux__
 	struct link_map *lm;
 	if (dlinfo(md, RTLD_DI_LINKMAP, &lm)) {
 		return 0;
@@ -88,6 +90,8 @@ size_t moduleFillPath(void* md, char* buf, size_t n) {
 	strncpy(buf, lm->l_name, n);
 	buf[n - 1] = 0;
 	return n - 1;
+#else
+	return 0;
 #endif
 }
 

@@ -10,7 +10,9 @@
 #if defined(_WIN32) || defined(_WIN64)
 	#include <libloaderapi.h>
 #else
+	#if	__linux__
 	#include <link.h>
+	#endif
 	#include <dlfcn.h>
 #endif
 
