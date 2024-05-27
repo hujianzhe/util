@@ -1404,6 +1404,10 @@ void sessionReplaceChannel(Session_t* session, ChannelBase_t* channel) {
 		old_channel->session = NULL;
 	}
 	if (channel) {
+		Session_t* old_session = channel->session;
+		if (old_session) {
+			old_session->channel = NULL;
+		}
 		channel->session = session;
 	}
 	session->channel = channel;
