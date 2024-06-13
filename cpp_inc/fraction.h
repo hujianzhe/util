@@ -43,7 +43,7 @@ public:
         m_denominator /= v;
     }
 
-    Fraction(T numerator, T denominator = 1) {
+    Fraction(T numerator = 0, T denominator = 1) {
         if (denominator < 0) {
             m_numerator = -numerator;
             m_denominator = -denominator;
