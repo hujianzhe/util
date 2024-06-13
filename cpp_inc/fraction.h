@@ -99,12 +99,18 @@ public:
 
     template <typename U>
     Fraction& operator+=(const Fraction<U>& rs) {
-        T denominator = m_denominator * rs.m_denominator;
-        if (0 == denominator) {
-            throw std::logic_error("denominator == 0");
+        if (m_denominator == rs.m_denominator) {
+            m_numerator += rs.m_numerator;
         }
-        m_denominator = denominator;
-        m_numerator = m_numerator * rs.m_denominator + rs.m_numerator * m_denominator;
+        else {
+            T denominator = m_denominator * rs.m_denominator;
+            if (0 == denominator) {
+                throw std::logic_error("denominator == 0");
+            }
+            m_numerator = m_numerator * rs.m_denominator + rs.m_numerator * m_denominator;
+            m_denominator = denominator;
+        }
+        reduce();
         return *this;
     }
     Fraction operator+=(const Fraction& rs) {
@@ -113,12 +119,18 @@ public:
 
     template <typename U>
     Fraction operator-=(const Fraction<U>& rs) {
-        T denominator = m_denominator * rs.m_denominator;
-        if (0 == denominator) {
-            throw std::logic_error("denominator == 0");
+        if (m_denominator == rs.m_denominator) {
+            m_numerator -= rs.m_numerator;
         }
-        m_denominator = denominator;
-        m_numerator = m_numerator * rs.m_denominator - rs.m_numerator * m_denominator;
+        else {
+            T denominator = m_denominator * rs.m_denominator;
+            if (0 == denominator) {
+                throw std::logic_error("denominator == 0");
+            }
+            m_numerator = m_numerator * rs.m_denominator - rs.m_numerator * m_denominator;
+            m_denominator = denominator;
+        }
+        reduce();
         return *this;
     }
     Fraction operator-=(const Fraction& rs) {
@@ -140,6 +152,7 @@ public:
         }
         m_numerator = lsn * rsn;
         m_denominator = den;
+        reduce();
         return *this;
     }
     Fraction operator*=(const Fraction& rs) {
@@ -148,7 +161,7 @@ public:
 
     template <typename U>
     Fraction operator/=(const Fraction<U>& rs) {
-        return operator*=(rs.inv());
+        return operator*=<T>(rs.inv());
     }
     Fraction operator/=(const Fraction& rs) {
         return operator*=<T>(rs.inv());
