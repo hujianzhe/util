@@ -115,6 +115,10 @@ public:
         return Fraction(m_denominator, m_numerator);
     }
 
+    Fraction abs() const {
+        return Fraction(std::abs(m_numerator), std::abs(m_denominator));
+    }
+
     operator bool() const { return m_numerator != 0; }
 
     template <typename U>
