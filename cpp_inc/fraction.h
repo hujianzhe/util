@@ -25,8 +25,12 @@ public:
     friend bool operator>(T ls, const Fraction<U>& rs);
     template <typename T, typename U>
     friend bool operator==(T ls, const Fraction<U>& rs);
+    template <typename U>
+    friend bool operator==(bool ls, const Fraction<U>& rs);
     template <typename T, typename U>
     friend bool operator!=(T ls, const Fraction<U>& rs);
+    template <typename U>
+    friend bool operator!=(bool ls, const Fraction<U>& rs);
     template <typename T, typename U>
     friend bool operator<=(T ls, const Fraction<U>& rs);
     template <typename T, typename U>
@@ -45,12 +49,26 @@ public:
 
     Fraction(T numerator = 0, T denominator = 1) {
         if (denominator < 0) {
-            m_numerator = -numerator;
-            m_denominator = -denominator;
+            if (0 == numerator) {
+                m_numerator = 0;
+                m_denominator = 1;
+                return;
+            }
+            else {
+                m_numerator = -numerator;
+                m_denominator = -denominator;
+            }
         }
         else {
-            m_numerator = numerator;
-            m_denominator = denominator;
+            if (0 == numerator) {
+                m_numerator = 0;
+                m_denominator = 1;
+                return;
+            }
+            else {
+                m_numerator = numerator;
+                m_denominator = denominator;
+            }
         }
         if (0 == m_denominator) {
             throw std::logic_error("denominator == 0");
@@ -97,8 +115,13 @@ public:
         return Fraction(m_denominator, m_numerator);
     }
 
+    operator bool() const { return m_numerator != 0; }
+
     template <typename U>
     Fraction& operator+=(const Fraction<U>& rs) {
+        if (0 == rs.m_numerator) {
+            return *this;
+        }
         if (m_denominator == rs.m_denominator) {
             m_numerator += rs.m_numerator;
         }
@@ -119,6 +142,9 @@ public:
 
     template <typename U>
     Fraction operator-=(const Fraction<U>& rs) {
+        if (0 == rs.m_numerator) {
+            return *this;
+        }
         if (m_denominator == rs.m_denominator) {
             m_numerator -= rs.m_numerator;
         }
@@ -139,6 +165,11 @@ public:
 
     template <typename U>
     Fraction operator*=(const Fraction<U>& rs) {
+        if (0 == rs.m_numerator) {
+            m_numerator = 0;
+            m_denominator = 1;
+            return *this;
+        }
         T v;
         v = std::gcd(m_numerator, rs.m_denominator);
         T lsn = m_numerator / v;
@@ -193,6 +224,7 @@ public:
     template <typename U>
     bool operator>(U rs) const { return *this > Fraction<U>(rs); }
 
+    bool operator==(bool v) const { return v == (m_numerator != 0); }
     template <typename U>
     bool operator==(const Fraction<U>& rs) const {
         return m_numerator == rs.m_numerator && m_denominator == rs.m_denominator;
@@ -200,6 +232,7 @@ public:
     template <typename U>
     bool operator==(U rs) const { return *this == Fraction<U>(rs); }
 
+    bool operator!=(bool v) const { return v != (m_numerator != 0); }
     template <typename U>
     bool operator!=(const Fraction<U>& rs) const {
         return m_numerator != rs.m_numerator || m_denominator != rs.m_denominator;
@@ -223,8 +256,12 @@ template <typename T, typename U>
 bool operator>(T ls, const Fraction<U>& rs) { return Fraction<T>(ls) > rs; }
 template <typename T, typename U>
 bool operator==(T ls, const Fraction<U>& rs) { return Fraction<T>(ls) == rs; }
+template <typename U>
+bool operator==(bool ls, const Fraction<U>& rs) { return rs == ls; }
 template <typename T, typename U>
 bool operator!=(T ls, const Fraction<U>& rs) { return Fraction<T>(ls) != rs; }
+template <typename U>
+bool operator!=(bool ls, const Fraction<U>& rs) { return rs != ls; }
 template <typename T, typename U>
 bool operator<=(T ls, const Fraction<U>& rs) { return Fraction<T>(ls) <= rs; }
 template <typename T, typename U>
