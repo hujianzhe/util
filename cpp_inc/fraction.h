@@ -9,12 +9,30 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 
 namespace util {
 template <typename T>
+T sqrt_integer(T n) {
+    static_assert(std::is_integral_v<T>, "sqrt_integer should be integer");
+    T r = 0;
+    T shift_bit = sizeof(T) * 4;
+    while (shift_bit-- > 0) {
+        T v = ((T)1) << shift_bit;
+        T s = ((r << 1) + v) << shift_bit;
+        if (s <= n) {
+            r += v;
+            n -= s;
+        }
+    }
+    return r;
+}
+
+template <typename T>
 class Fraction {
-    template <typename U>
-    friend class Fraction;
+static_assert(std::is_integral_v<T>, "Fraction should be integer");
+template <typename U>
+friend class Fraction;
 
 public:
     typedef T type_t;
