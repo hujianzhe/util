@@ -101,7 +101,7 @@ public:
     template <typename NumberType>
     NumberType to_num() const { return (NumberType)m_numerator / (NumberType)m_denominator; }
 
-    std::string to_str() const {
+    std::string to_string() const {
         if (1 == m_denominator) {
             return std::to_string(m_numerator);
         }
