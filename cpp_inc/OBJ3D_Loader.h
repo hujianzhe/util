@@ -203,7 +203,7 @@ namespace obj3d
 			return (a.X * b.X) + (a.Y * b.Y) + (a.Z * b.Z);
 		}
 
-		float AngleBetweenV3(const Vector3f& a, const Vector3f& b)
+		float RadianBetweenV3(const Vector3f& a, const Vector3f& b)
 		{
 			float angle = DotV3(a, b);
 			angle /= (MagnitudeV3(a) * MagnitudeV3(b));
@@ -881,8 +881,8 @@ namespace obj3d
 					}
 
 					// If Vertex is not an interior vertex
-					float angle = math::AngleBetweenV3(pPrev.Position - pCur.Position, pNext.Position - pCur.Position) * (180 / 3.14159265359);
-					if (angle <= 0 && angle >= 180)
+					float angle = math::RadianBetweenV3(pPrev.Position - pCur.Position, pNext.Position - pCur.Position) * (float)(180.0 / 3.14159265359);
+					if (angle <= 0.0f && angle >= 180.0f)
 						continue;
 
 					// If any vertices are within this triangle
