@@ -2,8 +2,8 @@
 // Created by hujianzhe on 2019-7-11.
 //
 
-#include "../../inc/component/reactor.h"
-#include "../../inc/component/net_channel_rw.h"
+#include "../../inc/component/net_reactor.h"
+#include "../../inc/component/net_channel_ex.h"
 #include "../../inc/sysapi/error.h"
 #include <stdlib.h>
 #include <string.h>
@@ -16,8 +16,8 @@ typedef struct DgramHalfConn_t {
 	NetPacket_t pkg;
 } DgramHalfConn_t;
 
-extern ReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen, const struct sockaddr* addr, socklen_t addrlen);
-extern void reactorpacketFree(ReactorPacket_t* pkg);
+extern NetReactorPacket_t* reactorpacketMake(int pktype, unsigned int hdrlen, unsigned int bodylen, const struct sockaddr* addr, socklen_t addrlen);
+extern void reactorpacketFree(NetReactorPacket_t* pkg);
 
 /*******************************************************************************/
 
@@ -25,7 +25,7 @@ extern void reactorpacketFree(ReactorPacket_t* pkg);
 extern "C" {
 #endif
 
-static void channel_invalid(ChannelBase_t* base, short detach_error) {
+static void channel_invalid(NetChannel_t* base, short detach_error) {
 	base->valid = 0;
 	base->detach_error = detach_error;
 }
@@ -34,7 +34,7 @@ static void free_halfconn(DgramHalfConn_t* halfconn) {
 	free(halfconn);
 }
 
-static void channel_set_timestamp(ChannelBase_t* channel, long long timestamp_msec) {
+static void channel_set_timestamp(NetChannel_t* channel, long long timestamp_msec) {
 	if (channel->event_msec > 0 && channel->event_msec <= timestamp_msec) {
 		return;
 	}
@@ -53,12 +53,12 @@ static int check_cache_overflow(unsigned int already_cache_bytes, size_t add_byt
 
 static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	unsigned char* ptr;
-	ReactorPacket_t* packet;
+	NetReactorPacket_t* packet;
 	ListNode_t* cur, *next;
 	unsigned int off;
 	off = 0;
 	for (cur = list->head; cur; cur = next) {
-		packet = pod_container_of(cur, ReactorPacket_t, _.node);
+		packet = pod_container_of(cur, NetReactorPacket_t, _.node);
 		next = cur->next;
 		off += packet->_.bodylen;
 	}
@@ -67,7 +67,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 		*mergelen = off;
 		off = 0;
 		for (cur = list->head; cur; cur = next) {
-			packet = pod_container_of(cur, ReactorPacket_t, _.node);
+			packet = pod_container_of(cur, NetReactorPacket_t, _.node);
 			next = cur->next;
 			memmove(ptr + off, packet->_.buf + packet->_.hdrlen, packet->_.bodylen);
 			off += packet->_.bodylen;
@@ -77,17 +77,17 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	return ptr;
 }
 
-static int channel_merge_packet_handler(ChannelBase_t* channel, List_t* packetlist, const struct sockaddr* from_addr, socklen_t addrlen) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ReactorPacket_t* packet = pod_container_of(packetlist->tail, ReactorPacket_t, _.node);
+static int channel_merge_packet_handler(NetChannel_t* channel, List_t* packetlist, const struct sockaddr* from_addr, socklen_t addrlen) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetReactorPacket_t* packet = pod_container_of(packetlist->tail, NetReactorPacket_t, _.node);
 	if (NETPACKET_FIN == packet->_.type) {
 		ListNode_t* cur, *next;
 		for (cur = packetlist->head; cur; cur = next) {
 			next = cur->next;
-			reactorpacketFree(pod_container_of(cur, ReactorPacket_t, _.node));
+			reactorpacketFree(pod_container_of(cur, NetReactorPacket_t, _.node));
 		}
 		channel->has_recvfin = 1;
-		channelbaseSendFin(channel);
+		NetChannel_send_fin(channel);
 		return 1;
 	}
 	else if (packetlist->head == packetlist->tail) {
@@ -106,9 +106,9 @@ static int channel_merge_packet_handler(ChannelBase_t* channel, List_t* packetli
 	return 1;
 }
 
-static int on_read_stream(ChannelBase_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ChannelInbufDecodeResult_t decode_result = { 0 };
+static int on_read_stream(NetChannel_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetChannelInbufDecodeResult_t decode_result = { 0 };
 	unsigned char pktype;
 
 	rw->proc->on_decode(channel, buf, len, &decode_result);
@@ -127,9 +127,9 @@ static int on_read_stream(ChannelBase_t* channel, unsigned char* buf, unsigned i
 		StreamTransportCtx_t* ctx = &channel->stream_ctx;
 		if (ctx->recvlist.head || !decode_result.fragment_eof) {
 			List_t list;
-			ReactorPacket_t* packet;
+			NetReactorPacket_t* packet;
 			if (check_cache_overflow(ctx->cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
-				channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
+				channel->detach_error = NET_REACTOR_CACHE_READ_OVERFLOW_ERR;
 				return -1;
 			}
 			packet = reactorpacketMake(pktype, 0, decode_result.bodylen, NULL, 0);
@@ -155,10 +155,10 @@ static int on_read_stream(ChannelBase_t* channel, unsigned char* buf, unsigned i
 	return decode_result.decodelen;
 }
 
-static int on_read_dgram_listener(ChannelBase_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ChannelInbufDecodeResult_t decode_result = { 0 };
-	ReactorObject_t* o;
+static int on_read_dgram_listener(NetChannel_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetChannelInbufDecodeResult_t decode_result = { 0 };
+	NetReactorObject_t* o;
 	unsigned char pktype;
 	ListNode_t* cur;
 	DgramHalfConn_t* halfconn;
@@ -244,9 +244,9 @@ static int on_read_dgram_listener(ChannelBase_t* channel, unsigned char* buf, un
 	return decode_result.decodelen;
 }
 
-static void channel_reliable_dgram_continue_send(ChannelBase_t* channel, long long timestamp_msec) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ReactorObject_t* o = channel->o;
+static void channel_reliable_dgram_continue_send(NetChannel_t* channel, long long timestamp_msec) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetReactorObject_t* o = channel->o;
 	const struct sockaddr* addr;
 	int addrlen;
 	ListNode_t* cur;
@@ -277,11 +277,11 @@ static void channel_reliable_dgram_continue_send(ChannelBase_t* channel, long lo
 	}
 }
 
-static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static int on_read_reliable_dgram(NetChannel_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_saddr, socklen_t addrlen) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	unsigned char pktype;
 	unsigned int pkseq;
-	ChannelInbufDecodeResult_t decode_result = { 0 };
+	NetChannelInbufDecodeResult_t decode_result = { 0 };
 
 	rw->proc->on_decode(channel, buf, len, &decode_result);
 	if (decode_result.err) {
@@ -299,9 +299,9 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 		return decode_result.decodelen;
 	}
 	if (NETPACKET_SYN_ACK == pktype) {
-		if (CHANNEL_SIDE_CLIENT == channel->side) {
+		if (NET_CHANNEL_SIDE_CLIENT == channel->side) {
 			if (1 == rw->dgram.m_synpacket_status) {
-				ReactorObject_t* o;
+				NetReactorObject_t* o;
 				NetPacket_t* synpkg;
 				unsigned short port;
 				if (!sockaddrIsEqual(&channel->connect_addr.sa, from_saddr)) {
@@ -317,7 +317,7 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 				sockaddrSetPort(&channel->to_addr.sa, port);
 				o = channel->o;
 				if (connect(o->niofd.fd, &channel->to_addr.sa, channel->to_addrlen)) {
-					channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
+					channel_invalid(channel, NET_REACTOR_IO_CONNECT_ERR);
 					return decode_result.decodelen;
 				}
 				o->m_connected = 1;
@@ -335,9 +335,9 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 				channel_reliable_dgram_continue_send(channel, timestamp_msec);
 			}
 		}
-		else if (CHANNEL_SIDE_SERVER == channel->side) {
+		else if (NET_CHANNEL_SIDE_SERVER == channel->side) {
 			if (1 == rw->dgram.m_synpacket_status) {
-				ReactorObject_t* o = channel->o;
+				NetReactorObject_t* o = channel->o;
 				memmove(&channel->to_addr, from_saddr, addrlen);
 				channel->to_addrlen = addrlen;
 				if (!connect(o->niofd.fd, from_saddr, addrlen)) {
@@ -351,10 +351,10 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 	}
 	pkseq = decode_result.pkseq;
 	if (dgramtransportctxRecvCheck(&channel->dgram_ctx, pkseq, pktype)) {
-		ReactorPacket_t* packet;
+		NetReactorPacket_t* packet;
 		List_t list;
 		if (check_cache_overflow(channel->dgram_ctx.cache_recv_bytes, decode_result.bodylen, channel->readcache_max_size)) {
-			channel->detach_error = REACTOR_CACHE_READ_OVERFLOW_ERR;
+			channel->detach_error = NET_REACTOR_CACHE_READ_OVERFLOW_ERR;
 			return -1;
 		}
 		rw->proc->on_reply_ack(channel, pkseq, from_saddr, addrlen);
@@ -378,7 +378,7 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 		if (!ackpkg) {
 			return decode_result.decodelen;
 		}
-		reactorpacketFree(pod_container_of(ackpkg, ReactorPacket_t, _));
+		reactorpacketFree(pod_container_of(ackpkg, NetReactorPacket_t, _));
 		if (cwndskip) {
 			channel_reliable_dgram_continue_send(channel, timestamp_msec);
 		}
@@ -392,8 +392,8 @@ static int on_read_reliable_dgram(ChannelBase_t* channel, unsigned char* buf, un
 	return decode_result.decodelen;
 }
 
-static int on_pre_send_reliable_dgram(ChannelBase_t* channel, NetPacket_t* packet, long long timestamp_msec) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static int on_pre_send_reliable_dgram(NetChannel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	DgramTransportCtx_t* ctx = &channel->dgram_ctx;
 	packet->seq = dgramtransportctxNextSendSeq(ctx, packet->type);
 	if (rw->proc->on_encode) {
@@ -404,7 +404,7 @@ static int on_pre_send_reliable_dgram(ChannelBase_t* channel, NetPacket_t* packe
 	}
 	if (check_cache_overflow(ctx->cache_send_bytes, packet->hdrlen + packet->bodylen, channel->sendcache_max_size)) {
 		channel->valid = 0;
-		channel->detach_error = REACTOR_CACHE_WRITE_OVERFLOW_ERR;
+		channel->detach_error = NET_REACTOR_CACHE_WRITE_OVERFLOW_ERR;
 		return 0;
 	}
 	dgramtransportctxCacheSendPacket(ctx, packet);
@@ -423,8 +423,8 @@ static int on_pre_send_reliable_dgram(ChannelBase_t* channel, NetPacket_t* packe
 	return 1;
 }
 
-static void on_exec_dgram_listener(ChannelBase_t* channel, long long timestamp_msec) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static void on_exec_dgram_listener(NetChannel_t* channel, long long timestamp_msec) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	ListNode_t* cur, *next;
 	for (cur = channel->dgram_ctx.recvlist.head; cur; cur = next) {
 		DgramHalfConn_t* halfconn = pod_container_of(cur, DgramHalfConn_t, node);
@@ -439,7 +439,7 @@ static void on_exec_dgram_listener(ChannelBase_t* channel, long long timestamp_m
 	}
 }
 
-static NetPacket_t* new_reliable_dgram_syn_packet(ChannelBase_t* channel) {
+static NetPacket_t* new_reliable_dgram_syn_packet(NetChannel_t* channel) {
 	unsigned int hdrlen = channel->proc->on_hdrsize(channel, 0);
 	NetPacket_t* packet = (NetPacket_t*)calloc(1, sizeof(NetPacket_t) + hdrlen);
 	if (!packet) {
@@ -454,20 +454,20 @@ static NetPacket_t* new_reliable_dgram_syn_packet(ChannelBase_t* channel) {
 	return packet;
 }
 
-static void on_exec_reliable_dgram(ChannelBase_t* channel, long long timestamp_msec) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ReactorObject_t* o = channel->o;
+static void on_exec_reliable_dgram(NetChannel_t* channel, long long timestamp_msec) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetReactorObject_t* o = channel->o;
 	const struct sockaddr* addr;
 	int addrlen;
 	ListNode_t* cur;
 
-	if (CHANNEL_SIDE_CLIENT == channel->side) {
+	if (NET_CHANNEL_SIDE_CLIENT == channel->side) {
 		if (1 == rw->dgram.m_synpacket_status) {
 			NetPacket_t* packet = rw->dgram.m_synpacket;
 			if (!packet) {
 				packet = new_reliable_dgram_syn_packet(channel);
 				if (!packet) {
-					channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
+					channel_invalid(channel, NET_REACTOR_IO_CONNECT_ERR);
 					return;
 				}
 				if (rw->proc->on_encode) {
@@ -482,7 +482,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* channel, long long timestamp_m
 			if (packet->resend_times >= rw->dgram.resend_maxtimes) {
 				free(rw->dgram.m_synpacket);
 				rw->dgram.m_synpacket = NULL;
-				channel_invalid(channel, REACTOR_IO_CONNECT_ERR);
+				channel_invalid(channel, NET_REACTOR_IO_CONNECT_ERR);
 				return;
 			}
 			addr = &channel->connect_addr.sa;
@@ -530,7 +530,7 @@ static void on_exec_reliable_dgram(ChannelBase_t* channel, long long timestamp_m
 			continue;
 		}
 		if (packet->resend_times >= rw->dgram.resend_maxtimes) {
-			int err = (NETPACKET_FIN != packet->type ? REACTOR_ZOMBIE_ERR : 0);
+			int err = (NETPACKET_FIN != packet->type ? NET_REACTOR_ZOMBIE_ERR : 0);
 			channel_invalid(channel, err);
 			return;
 		}
@@ -541,8 +541,8 @@ static void on_exec_reliable_dgram(ChannelBase_t* channel, long long timestamp_m
 	}
 }
 
-static void on_free_dgram_listener(ChannelBase_t* channel) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static void on_free_dgram_listener(NetChannel_t* channel) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	ListNode_t* cur, *next;
 	for (cur = channel->dgram_ctx.recvlist.head; cur; cur = next) {
 		next = cur->next;
@@ -551,15 +551,15 @@ static void on_free_dgram_listener(ChannelBase_t* channel) {
 	listInit(&channel->dgram_ctx.recvlist);
 }
 
-static void on_free_reliable_dgram(ChannelBase_t* channel) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static void on_free_reliable_dgram(NetChannel_t* channel) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	free(rw->dgram.m_synpacket);
 	rw->dgram.m_synpacket = NULL;
 }
 
-static int on_read(ChannelBase_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
-	ChannelInbufDecodeResult_t decode_result = { 0 };
+static int on_read(NetChannel_t* channel, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
+	NetChannelInbufDecodeResult_t decode_result = { 0 };
 
 	rw->proc->on_decode(channel, buf, len, &decode_result);
 	if (decode_result.err) {
@@ -575,8 +575,8 @@ static int on_read(ChannelBase_t* channel, unsigned char* buf, unsigned int len,
 	return decode_result.decodelen;
 }
 
-static int on_pre_send(ChannelBase_t* channel, NetPacket_t* packet, long long timestamp_msec) {
-	ChannelRWData_t* rw = (ChannelRWData_t*)channel->m_ext_impl;
+static int on_pre_send(NetChannel_t* channel, NetPacket_t* packet, long long timestamp_msec) {
+	NetChannelExData_t* rw = (NetChannelExData_t*)channel->m_ext_impl;
 	if (rw->proc->on_encode) {
 		rw->proc->on_encode(channel, packet);
 	}
@@ -585,64 +585,64 @@ static int on_pre_send(ChannelBase_t* channel, NetPacket_t* packet, long long ti
 
 /*******************************************************************************/
 
-static ChannelRWHookProc_t hook_proc_dgram_listener = {
+static NetChannelExHookProc_t hook_proc_dgram_listener = {
 	on_read_dgram_listener,
 	NULL,
 	on_exec_dgram_listener,
 	on_free_dgram_listener
 };
 
-static ChannelRWHookProc_t hook_proc_reliable_dgram = {
+static NetChannelExHookProc_t hook_proc_reliable_dgram = {
 	on_read_reliable_dgram,
 	on_pre_send_reliable_dgram,
 	on_exec_reliable_dgram,
 	on_free_reliable_dgram
 };
 
-static ChannelRWHookProc_t hook_proc_stream = {
+static NetChannelExHookProc_t hook_proc_stream = {
 	on_read_stream,
 	on_pre_send,
 	NULL,
 	NULL
 };
 
-static ChannelRWHookProc_t hook_proc_normal = {
+static NetChannelExHookProc_t hook_proc_normal = {
 	on_read,
 	on_pre_send,
 	NULL,
 	NULL
 };
 
-const ChannelRWHookProc_t* channelrwGetHookProc(int channel_side, int socktype) {
+const NetChannelExHookProc_t* NetChannelEx_get_hook(int channel_side, int socktype) {
 	if (SOCK_STREAM == socktype) {
 		return &hook_proc_stream;
 	}
 	if (SOCK_DGRAM == socktype) {
-		if (CHANNEL_SIDE_LISTEN == channel_side) {
+		if (NET_CHANNEL_SIDE_LISTEN == channel_side) {
 			return &hook_proc_dgram_listener;
 		}
-		if (CHANNEL_SIDE_CLIENT == channel_side || CHANNEL_SIDE_SERVER == channel_side) {
+		if (NET_CHANNEL_SIDE_CLIENT == channel_side || NET_CHANNEL_SIDE_SERVER == channel_side) {
 			return &hook_proc_reliable_dgram;
 		}
 	}
 	return &hook_proc_normal;
 }
 
-void channelbaseUseRWData(ChannelBase_t* channel, ChannelRWData_t* rw, const ChannelRWDataProc_t* rw_proc) {
+void NetChannelEx_init(NetChannel_t* channel, NetChannelExData_t* rw, const NetChannelExProc_t* rw_proc) {
 	memset(rw, 0, sizeof(*rw));
 	rw->proc = rw_proc;
 	if (SOCK_DGRAM == channel->socktype) {
-		if (CHANNEL_SIDE_LISTEN == channel->side) {
+		if (NET_CHANNEL_SIDE_LISTEN == channel->side) {
 			rw->dgram.m_halfconn_curwaitcnt = 0;
 			rw->dgram.halfconn_maxwaitcnt = 200;
 			rw->dgram.rto = 200;
 		}
-		else if (CHANNEL_SIDE_SERVER == channel->side) {
+		else if (NET_CHANNEL_SIDE_SERVER == channel->side) {
 			rw->dgram.m_synpacket_status = 1;
 			rw->dgram.resend_maxtimes = 5;
 			rw->dgram.rto = 200;
 		}
-		else if (CHANNEL_SIDE_CLIENT == channel->side) {
+		else if (NET_CHANNEL_SIDE_CLIENT == channel->side) {
 			channel->event_msec = 1;
 			rw->dgram.m_synpacket_status = 1;
 			rw->dgram.resend_maxtimes = 5;
