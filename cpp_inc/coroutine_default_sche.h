@@ -107,7 +107,7 @@ public:
         return awaiter;
     }
 
-	void readyResume(int32_t id, const std::any& param) {
+	void readyResume(int32_t id, const std::any& param = std::any()) {
         if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
             return;
         }
