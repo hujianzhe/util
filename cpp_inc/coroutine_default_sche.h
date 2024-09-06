@@ -117,7 +117,7 @@ public:
         if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
             return;
         }
-		Event e(id, param, 0);
+		Event e(id, std::any(), 0);
 		e.cancel = true;
 		postEvent(e);
     }
