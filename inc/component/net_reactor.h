@@ -136,7 +136,10 @@ typedef struct NetSession_t {
 	char* ident;
 	void* userdata;
 	NetChannel_t*(*do_connect_handshake)(struct NetSession_t*, int socktype, const char* ip, unsigned short port); /* optional */
-	void(*on_disconnect)(struct NetSession_t*); /* optional */
+	union {
+		void(*on_disconnect)(struct NetSession_t*); /* optional */
+		void* on_disconnect_fn_ptr; /* optional, maybe c++ std::function or user self-define function */
+	};
 } NetSession_t;
 
 #ifdef	__cplusplus

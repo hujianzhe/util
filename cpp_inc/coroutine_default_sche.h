@@ -17,6 +17,7 @@ namespace util {
 class CoroutineDefaultSche : public CoroutineScheBaseImpl {
 public:
     typedef std::function<CoroutinePromise<void>(const std::any&)> EntryFunc;
+    typedef CoroutinePromise<void>(*EntryFuncPtr)(const std::any&);
 
     CoroutineDefaultSche()
         :CoroutineScheBaseImpl()
