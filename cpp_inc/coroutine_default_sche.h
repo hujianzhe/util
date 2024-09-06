@@ -113,6 +113,14 @@ public:
         }
 		postEvent(Event(id, param, 0));
     }
+	void readyResumeCancel(int32_t id) {
+        if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
+            return;
+        }
+		Event e(id, param, 0);
+		e.cancel = true;
+		postEvent(e);
+    }
 
     void doSche(int idle_msec) {
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
@@ -152,6 +160,7 @@ private:
 
     struct Event {
         int32_t resume_id;
+		bool cancel;
         long long ts;
         EntryFunc func;
         std::any param;
@@ -159,11 +168,13 @@ private:
 
         Event()
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
+			,cancel(false)
             ,ts(0)
             ,sleep_co_node(nullptr)
         {}
         Event(const EntryFunc& fn, const std::any& param, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
+			,cancel(false)
             ,ts(ts)
             ,func(fn)
             ,param(param)
@@ -171,12 +182,14 @@ private:
         {}
         Event(int32_t resume_id, const std::any& param, long long ts)
             :resume_id(resume_id)
+			,cancel(false)
             ,ts(ts)
             ,param(param)
             ,sleep_co_node(nullptr)
         {}
         Event(CoroutineNode* sleep_co_node, const std::any& param, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
+			,cancel(false)
             ,ts(ts)
 			,param(param)
             ,sleep_co_node(sleep_co_node)
@@ -185,6 +198,7 @@ private:
         void swap(Event& other) {
             std::swap(sleep_co_node, other.sleep_co_node);
             std::swap(resume_id, other.resume_id);
+			std::swap(cancel, other.cancel);
             std::swap(ts, other.ts);
             func.swap(other.func);
             param.swap(other.param);
@@ -294,7 +308,12 @@ private:
 					}
 					CoroutineNode* co_node = data.co_node;
 					m_block_points.erase(it);
-					doResumeNormal(co_node, e.param);
+					if (e.cancel) {
+						doResumeCancel(co_node);
+					}
+					else {
+						doResumeNormal(co_node, e.param);
+					}
 				}
             }
             e.reset();
