@@ -27,7 +27,7 @@ public:
 		uptr.reset(g.release());
 		return uptr;
 	}
-	static std::any to_any(T* v, const D& dt = D()) {
+	static std::any to_any(T* v, const D& dt) {
 		return std::any(StdAnyPointerGuard(v, dt));
 	}
 
