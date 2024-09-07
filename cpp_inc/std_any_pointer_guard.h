@@ -25,6 +25,7 @@ public:
 		auto& g = const_cast<StdAnyPointerGuard&>(std::any_cast<const StdAnyPointerGuard&>(a));
 		std::unique_ptr<T,D> uptr(nullptr, g.m_dt);
 		uptr.reset(g.release());
+		(const_cast<std::any&>(a)).reset();
 		return uptr;
 	}
 	static std::any to_any(T* v, const D& dt) {
