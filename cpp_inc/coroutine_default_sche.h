@@ -114,7 +114,7 @@ public:
         }
 		postEvent(Event(id, param, 0));
     }
-	void readyResumeCancel(int32_t id) {
+	void readyCancel(int32_t id) {
         if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
             return;
         }
