@@ -160,22 +160,25 @@ public:
         INVALID_AWAITER_ID = 0
     };
 
+	enum {
+		STATUS_CANCEL = -2,
+		STATUS_FINISH = -1,
+		STATUS_START = 0,
+	};
+
     CoroutineAwaiter& operator=(const CoroutineAwaiter&) = delete;
     CoroutineAwaiter()
         :m_id(INVALID_AWAITER_ID)
-		,m_canceled(false)
-        ,m_await_ready(false)
+		,m_status(STATUS_START)
     {}
 	CoroutineAwaiter(int32_t id)
 		:m_id(id)
-		,m_canceled(false)
-		,m_await_ready(false)
+		,m_status(STATUS_START)
 	{}
 
-    bool await_ready() const { return m_await_ready; }
+    bool await_ready() const { return STATUS_START != m_status; }
     std::any await_resume() {
 		CoroutineScheBase::p->m_current_co_node->m_awaiter = nullptr;
-        m_await_ready = true;
         return m_value;
     }
     void await_suspend(std::coroutine_handle<void> h) {
@@ -184,12 +187,12 @@ public:
     }
 
     int32_t id() const { return m_id; };
-	bool canceled() const { return m_canceled; }
+	int32_t status() const { return m_status; }
     const std::any& getAny() const { return m_value; }
 
 	void invalid() {
 		m_id = INVALID_AWAITER_ID;
-		m_await_ready = true;
+		m_status = STATUS_CANCEL;
 		m_value.reset();
 	}
 
@@ -205,8 +208,7 @@ public:
 
 private:
     int32_t m_id;
-	bool m_canceled;
-    bool m_await_ready;
+	int32_t m_status;
     std::any m_value;
 };
 
@@ -441,16 +443,10 @@ private:
 
 protected:
 	template <typename T = std::any>
-	void doResumeNormal(CoroutineNode* co_node, const T& v) {
+	void doResume(CoroutineNode* co_node, int32_t status, const T& v) {
 		if (co_node->m_awaiter) {
+			co_node->m_awaiter->m_status = status;
 			co_node->m_awaiter->m_value = v;
-		}
-		doResumeImpl(co_node);
-	}
-
-	void doResumeCancel(CoroutineNode* co_node) {
-		if (co_node->m_awaiter) {
-			co_node->m_awaiter->m_canceled = true;
 		}
 		doResumeImpl(co_node);
 	}
@@ -484,7 +480,7 @@ protected:
 		m_unhandle_exception_cnt = 0;
 
 		for (auto it = m_ready_resumes.begin(); it != m_ready_resumes.end() && peak_cnt; ) {
-			doResumeNormal(it->first, it->second);
+			doResume(it->first, CoroutineAwaiter::STATUS_FINISH, it->second);
 			it = m_ready_resumes.erase(it);
 			--peak_cnt;
 		}

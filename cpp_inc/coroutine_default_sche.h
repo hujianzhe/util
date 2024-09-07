@@ -119,7 +119,7 @@ public:
             return;
         }
 		Event e(id, std::any(), 0);
-		e.cancel = true;
+		e.status = CoroutineAwaiter::STATUS_CANCEL;
 		postEvent(e);
     }
 
@@ -161,7 +161,7 @@ private:
 
     struct Event {
         int32_t resume_id;
-		bool cancel;
+		int32_t status;
         long long ts;
         EntryFunc func;
         std::any param;
@@ -169,13 +169,13 @@ private:
 
         Event()
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
-			,cancel(false)
+			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(0)
             ,sleep_co_node(nullptr)
         {}
         Event(const EntryFunc& fn, const std::any& param, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
-			,cancel(false)
+			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(ts)
             ,func(fn)
             ,param(param)
@@ -183,14 +183,14 @@ private:
         {}
         Event(int32_t resume_id, const std::any& param, long long ts)
             :resume_id(resume_id)
-			,cancel(false)
+			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(ts)
             ,param(param)
             ,sleep_co_node(nullptr)
         {}
         Event(CoroutineNode* sleep_co_node, const std::any& param, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
-			,cancel(false)
+			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(ts)
 			,param(param)
             ,sleep_co_node(sleep_co_node)
@@ -199,7 +199,7 @@ private:
         void swap(Event& other) {
             std::swap(sleep_co_node, other.sleep_co_node);
             std::swap(resume_id, other.resume_id);
-			std::swap(cancel, other.cancel);
+			std::swap(status, other.status);
             std::swap(ts, other.ts);
             func.swap(other.func);
             param.swap(other.param);
@@ -298,7 +298,7 @@ private:
                 e.func(e.param);
             }
 			else if (e.sleep_co_node) {
-				doResumeNormal(e.sleep_co_node, e.param);
+				doResume(e.sleep_co_node, CoroutineAwaiter::STATUS_FINISH, e.param);
 			}
 			else if (e.resume_id != CoroutineAwaiter::INVALID_AWAITER_ID) {
 				auto it = m_block_points.find(e.resume_id);
@@ -309,12 +309,7 @@ private:
 					}
 					CoroutineNode* co_node = data.co_node;
 					m_block_points.erase(it);
-					if (e.cancel) {
-						doResumeCancel(co_node);
-					}
-					else {
-						doResumeNormal(co_node, e.param);
-					}
+					doResume(co_node, e.status, e.param);
 				}
             }
             e.reset();
@@ -337,14 +332,14 @@ private:
                     e.func(e.param);
                 }
                 else if (e.sleep_co_node) {
-                    doResumeNormal(e.sleep_co_node, e.param);
+                    doResume(e.sleep_co_node, CoroutineAwaiter::STATUS_FINISH, e.param);
                 }
                 else if (e.resume_id != CoroutineAwaiter::INVALID_AWAITER_ID) {
 					auto it = m_block_points.find(e.resume_id);
 					if (it != m_block_points.end()) {
 						CoroutineNode* co_node = it->second.co_node;
 						m_block_points.erase(it);
-						doResumeCancel(co_node);
+						doResume(co_node, CoroutineAwaiter::STATUS_CANCEL, std::any());
 					}
                 }
                 evlist.pop_front();
