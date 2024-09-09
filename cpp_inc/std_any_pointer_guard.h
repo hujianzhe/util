@@ -8,42 +8,39 @@
 #include <any>
 
 namespace util {
-template <typename T, typename D = void(*)(T*)>
 class StdAnyPointerGuard {
-public:
-	StdAnyPointerGuard(const StdAnyPointerGuard& other) : m_v(other.m_v), m_dt(other.m_dt)
-	{
-		(const_cast<StdAnyPointerGuard&>(other)).m_v = nullptr;
-	}
-	~StdAnyPointerGuard() {
-		if (m_v) {
-			m_dt(m_v);
+private:
+	template <typename T>
+	struct Impl {
+		Impl(T* v, void(*dt)(T*)) : m_v(v), m_dt(dt) {}
+		Impl(const Impl& other) : m_v(other.m_v), m_dt(other.m_dt)
+		{
+			(const_cast<Impl&>(other)).m_v = nullptr;
 		}
-	}
+		~Impl() {
+			if (m_v) {
+				m_dt(m_v);
+			}
+		}
 
-	static std::unique_ptr<T,D> transfer_unique_ptr(const std::any& a) {
-		auto& g = const_cast<StdAnyPointerGuard&>(std::any_cast<const StdAnyPointerGuard&>(a));
-		std::unique_ptr<T,D> uptr(nullptr, g.m_dt);
-		uptr.reset(g.release());
+		T* m_v;
+		void(*m_dt)(T*);
+	};
+
+public:
+	template <typename T>
+	static std::unique_ptr<T, void(*)(T*)> transfer_unique_ptr(const std::any& a) {
+		auto& g = const_cast<Impl<T>&>(std::any_cast<const Impl<T>&>(a));
+		std::unique_ptr<T, void(*)(T*)> p(g.m_v, g.m_dt);
+		g.m_v = nullptr;
 		(const_cast<std::any&>(a)).reset();
-		return uptr;
-	}
-	static std::any to_any(T* v, const D& dt) {
-		return std::any(StdAnyPointerGuard(v, dt));
+		return p;
 	}
 
-	T* release() {
-		T* v = m_v;
-		m_v = nullptr;
-		return v;
+	template <typename T>
+	static std::any to_any(T* v, void(*dt)(T*)) {
+		return std::any(Impl<T>(v, dt));
 	}
-
-private:
-	StdAnyPointerGuard(T* v, const D& dt) : m_v(v), m_dt(dt) {}
-
-private:
-	T* m_v;
-	D m_dt;
 };
 }
 
