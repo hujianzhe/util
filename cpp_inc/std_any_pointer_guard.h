@@ -22,6 +22,7 @@ private:
 				m_dt(m_v);
 			}
 		}
+		Impl& operator=(const Impl&) = delete;
 
 		T* m_v;
 		void(*m_dt)(T*);
