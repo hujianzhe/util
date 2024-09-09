@@ -6,6 +6,7 @@
 #define	UTIL_CPP_STD_ANY_POINTER_GUARD_H
 
 #include <any>
+#include <memory>
 
 namespace util {
 class StdAnyPointerGuard {
