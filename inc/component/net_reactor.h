@@ -31,6 +31,7 @@ struct NetReactor_t;
 struct NetChannel_t;
 
 typedef struct NetChannelSession_t {
+	int type;
 	struct NetChannel_t* channel;
 } NetChannelSession_t;
 
