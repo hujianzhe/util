@@ -1386,33 +1386,6 @@ void NetChannel_sendv(NetChannel_t* channel, const Iobuf_t iov[], unsigned int i
 	reactor_commit_cmdlist(channel->reactor, &pklist);
 }
 
-NetSession_t* NetSession_init(NetSession_t* session) {
-	session->channel = NULL;
-	session->ident = NULL;
-	session->userdata = NULL;
-	session->do_connect_handshake = NULL;
-	session->on_disconnect = NULL;
-	return session;
-}
-
-void NetSession_replace_channel(NetSession_t* session, NetChannel_t* channel) {
-	NetChannel_t* old_channel = session->channel;
-	if (old_channel == channel) {
-		return;
-	}
-	if (old_channel) {
-		old_channel->session = NULL;
-	}
-	if (channel) {
-		NetSession_t* old_session = channel->session;
-		if (old_session) {
-			old_session->channel = NULL;
-		}
-		channel->session = session;
-	}
-	session->channel = channel;
-}
-
 #ifdef	__cplusplus
 }
 #endif

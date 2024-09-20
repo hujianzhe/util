@@ -29,13 +29,33 @@ enum {
 
 struct NetReactor_t;
 struct NetChannel_t;
-struct NetChannelProc_t;
-struct NetSession_t;
+
+typedef struct NetChannelSession_t {
+	struct NetChannel_t* channel;
+} NetChannelSession_t;
+
+typedef struct NetChannelProc_t {
+	void(*on_exec)(struct NetChannel_t* self, long long timestamp_msec); /* optional */
+	int(*on_read)(struct NetChannel_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
+	unsigned int(*on_hdrsize)(struct NetChannel_t* self, unsigned int bodylen); /* optional */
+	int(*on_pre_send)(struct NetChannel_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
+	void(*on_heartbeat)(struct NetChannel_t* self, int heartbeat_times); /* client use, optional */
+	void(*on_detach)(struct NetChannel_t* self);
+	void(*on_free)(struct NetChannel_t* self); /* optional */
+} NetChannelProc_t;
 
 typedef struct NetReactorCmd_t {
 	ListNode_t _;
 	int type;
 } NetReactorCmd_t;
+
+typedef struct NetReactorPacket_t {
+	NetReactorCmd_t cmd;
+	struct NetChannel_t* channel;
+	struct sockaddr* addr;
+	socklen_t addrlen;
+	NetPacket_t _;
+} NetReactorPacket_t;
 
 typedef struct NetReactorObject_t {
 /* public */
@@ -78,7 +98,7 @@ typedef struct NetChannel_t {
 	unsigned int sendcache_max_size;
 	void* userdata; /* user use, library not use these field */
 	const struct NetChannelProc_t* proc; /* user use, set your IO callback */
-	struct NetSession_t* session; /* user use, set your logic session status */
+	NetChannelSession_t* session; /* user use, set your logic session status */
 	union {
 		struct { /* listener use */
 			void(*on_ack_halfconn)(struct NetChannel_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec);
@@ -113,35 +133,6 @@ typedef struct NetChannel_t {
 	NetReactorCmd_t m_freecmd;
 } NetChannel_t;
 
-typedef struct NetChannelProc_t {
-	void(*on_exec)(struct NetChannel_t* self, long long timestamp_msec); /* optional */
-	int(*on_read)(struct NetChannel_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
-	unsigned int(*on_hdrsize)(struct NetChannel_t* self, unsigned int bodylen); /* optional */
-	int(*on_pre_send)(struct NetChannel_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
-	void(*on_heartbeat)(struct NetChannel_t* self, int heartbeat_times); /* client use, optional */
-	void(*on_detach)(struct NetChannel_t* self);
-	void(*on_free)(struct NetChannel_t* self); /* optional */
-} NetChannelProc_t;
-
-typedef struct NetReactorPacket_t {
-	NetReactorCmd_t cmd;
-	NetChannel_t* channel;
-	struct sockaddr* addr;
-	socklen_t addrlen;
-	NetPacket_t _;
-} NetReactorPacket_t;
-
-typedef struct NetSession_t {
-	NetChannel_t* channel;
-	char* ident;
-	void* userdata;
-	NetChannel_t*(*do_connect_handshake)(struct NetSession_t*, int socktype, const char* ip, unsigned short port); /* optional */
-	union {
-		void(*on_disconnect)(struct NetSession_t*); /* optional */
-		void* on_disconnect_fn_ptr; /* optional, maybe c++ std::function or user self-define function */
-	};
-} NetSession_t;
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -161,9 +152,6 @@ __declspec_dll void NetChannel_close_ref(NetChannel_t* channel);
 __declspec_dll void NetChannel_send_fin(NetChannel_t* channel);
 __declspec_dll void NetChannel_send(NetChannel_t* channel, const void* data, size_t len, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen);
 __declspec_dll void NetChannel_sendv(NetChannel_t* channel, const Iobuf_t iov[], unsigned int iovcnt, int pktype, const struct sockaddr* to_addr, socklen_t to_addrlen);
-
-__declspec_dll NetSession_t* NetSession_init(NetSession_t* session);
-__declspec_dll void NetSession_replace_channel(NetSession_t* session, NetChannel_t* channel);
 
 #ifdef	__cplusplus
 }
