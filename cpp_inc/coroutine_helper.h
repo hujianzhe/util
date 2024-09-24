@@ -461,10 +461,6 @@ protected:
 		return false;
 	}
 
-	void readyResume(CoroutineNode* co_node, const std::any& param) {
-		m_ready_resumes.emplace_back(std::pair{co_node, param});
-	}
-
 	void doSche(size_t peak_cnt) {
 		for (size_t i = 0; i < m_unhandle_exception_cnt; ++i) {
 			if (!m_unhandle_exceptions[i]) {
@@ -599,7 +595,7 @@ protected:
 			m_owner.set_used(true);
 			m_wait_infos.pop_front();
 
-			sc->readyResume(co_node, std::any());
+			m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
 			for (auto it = m_wait_infos.begin(); it != m_wait_infos.end(); ) {
 				if (!m_owner.equal(it->owner)) {
 					return;
@@ -608,7 +604,7 @@ protected:
 				m_enter_times++;
 				it = m_wait_infos.erase(it);
 
-				sc->readyResume(co_node, std::any());
+				m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
 			}
 		}
 
