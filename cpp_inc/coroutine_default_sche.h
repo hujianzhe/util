@@ -136,6 +136,7 @@ public:
 
     void scheDestroy() {
         std::unordered_set<CoroutineNode*> top_set;
+        std::lock_guard<std::mutex> guard(m_mtx);
         for (auto it = m_timeout_events.begin(); it != m_timeout_events.end(); ) {
             std::list<Event>& evlist = it->second;
             for (auto it = evlist.begin(); it != evlist.end(); ) {
