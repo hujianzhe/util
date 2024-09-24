@@ -19,6 +19,11 @@ public:
     typedef std::function<CoroutinePromise<void>(const std::any&)> EntryFunc;
     typedef CoroutinePromise<void>(*EntryFuncPtr)(const std::any&);
 
+    enum {
+        ST_RUN = 0,
+        ST_EXIT
+    };
+
     CoroutineDefaultSche()
         :CoroutineScheBaseImpl()
 		,m_handle_cnt(100)
@@ -123,42 +128,24 @@ public:
 		postEvent(e);
     }
 
-    void doSche(int idle_msec) {
+    int doSche(int idle_msec) {
+        if (ST_RUN != m_status) {
+            scheDestroy();
+            return ST_EXIT;
+        }
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
         doPeakEvent(idle_msec);
         if (ST_RUN != m_status) {
-            return;
+            scheDestroy();
+            return ST_EXIT;
         }
 		CoroutineScheBaseImpl::doSche(m_handle_cnt);
         handlePeakEvent(get_current_ts_msec());
         handleTimeoutEvents(get_current_ts_msec());
-    }
-
-    void scheDestroy() {
-        std::unordered_set<CoroutineNode*> top_set;
-        for (auto it = m_timeout_events.begin(); it != m_timeout_events.end(); ) {
-            std::list<Event>& evlist = it->second;
-            for (auto it = evlist.begin(); it != evlist.end(); ) {
-                if (it->sleep_co_node) {
-                    top_set.insert(it->sleep_co_node);
-                }
-                it = evlist.erase(it);
-            }
-            it = m_timeout_events.erase(it);
-        }
-        for (auto it = m_block_points.begin(); it != m_block_points.end(); ) {
-			top_set.insert(it->second.co_node);
-            it = m_block_points.erase(it);
-        }
-		CoroutineScheBaseImpl::scheDestroy(top_set);
+        return ST_RUN;
     }
 
 private:
-	enum {
-        ST_RUN = 0,
-        ST_EXIT
-    };
-
     struct Event {
         int32_t resume_id;
 		int32_t status;
@@ -240,6 +227,25 @@ private:
             return tlen > INT_MAX ? INT_MAX : (int)tlen;
         }
         return tlen < idle_timelen ? (int)tlen : idle_timelen;
+    }
+
+    void scheDestroy() {
+        std::unordered_set<CoroutineNode*> top_set;
+        for (auto it = m_timeout_events.begin(); it != m_timeout_events.end(); ) {
+            std::list<Event>& evlist = it->second;
+            for (auto it = evlist.begin(); it != evlist.end(); ) {
+                if (it->sleep_co_node) {
+                    top_set.insert(it->sleep_co_node);
+                }
+                it = evlist.erase(it);
+            }
+            it = m_timeout_events.erase(it);
+        }
+        for (auto it = m_block_points.begin(); it != m_block_points.end(); ) {
+            top_set.insert(it->second.co_node);
+            it = m_block_points.erase(it);
+        }
+        CoroutineScheBaseImpl::scheDestroy(top_set);
     }
 
 	Event* addTimeoutEvent(Event& e) {
