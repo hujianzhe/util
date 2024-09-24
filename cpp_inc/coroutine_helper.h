@@ -595,7 +595,7 @@ protected:
 			m_owner.set_used(true);
 			m_wait_infos.pop_front();
 
-			m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
+			sc->m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
 			for (auto it = m_wait_infos.begin(); it != m_wait_infos.end(); ) {
 				if (!m_owner.equal(it->owner)) {
 					return;
@@ -604,7 +604,7 @@ protected:
 				m_enter_times++;
 				it = m_wait_infos.erase(it);
 
-				m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
+				sc->m_ready_resumes.emplace_back(std::pair{co_node, std::any()});
 			}
 		}
 
