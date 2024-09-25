@@ -177,9 +177,9 @@ public:
 	{}
 
     bool await_ready() const { return STATUS_START != m_status; }
-    std::any await_resume() {
+    void await_resume() {
 		CoroutineScheBase::p->m_current_co_node->m_awaiter = nullptr;
-        return m_value;
+		/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
     }
     void await_suspend(std::coroutine_handle<void> h) {
 		CoroutineScheBase::p->m_current_co_node->m_awaiter = this;
