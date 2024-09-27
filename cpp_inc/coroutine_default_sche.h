@@ -6,6 +6,7 @@
 #define UTIL_CPP_COROUTINE_DEFAULT_SCHE_H
 
 #include "coroutine_helper.h"
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <chrono>
