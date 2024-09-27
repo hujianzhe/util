@@ -64,7 +64,7 @@ typedef struct StackCoBlockNode_t {
 
 typedef struct StackCoResume_t {
 	StackCoHdr_t hdr;
-	int block_id;
+	int64_t block_id;
 	int status;
 	StackCoAsyncParam_t param;
 } StackCoResume_t;
@@ -97,10 +97,10 @@ typedef struct StackCoSche_t {
 extern "C" {
 #endif
 
-static int gen_co_id() {
-	static Atom32_t s_id = 0;
-	int id;
-	while (0 == (id = _xadd32(&s_id, 1) + 1));
+static int64_t gen_co_id() {
+	static Atom64_t s_id = 0;
+	int64_t id;
+	while (0 == (id = _xadd64(&s_id, 1) + 1));
 	return id;
 }
 
@@ -142,7 +142,7 @@ static void free_block_node(StackCoSche_t* sche, StackCoBlockNode_t* block_node)
 		rbtimerDetachEvent(block_node->timeout_event);
 		free(block_node->timeout_event);
 	}
-	if (block_node->htnode.key.i32) {
+	if (block_node->htnode.key.i64) {
 		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
 	}
 	StackCoSche_cleanup_async_param(&block_node->block.resume_param);
@@ -241,7 +241,7 @@ static void timer_block_callback(RBTimer_t* timer, struct RBTimerEvent_t* e) {
 	StackCoSche_t* sche = pod_container_of(timer, StackCoSche_t, timer);
 	StackCoBlockNode_t* block_node = (StackCoBlockNode_t*)e->arg;
 	hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
-	block_node->htnode.key.i32 = 0;
+	block_node->htnode.key.i64 = 0;
 	block_node->block.status = STACK_CO_STATUS_CANCEL;
 	stack_co_switch(sche, block_node->exec_co_node, block_node);
 }
@@ -422,7 +422,7 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	listInit(&sche->ready_resume_block_list);
 	hashtableInit(&sche->block_co_htbl,
 			sche->block_co_htbl_bulks, sizeof(sche->block_co_htbl_bulks) / sizeof(sche->block_co_htbl_bulks[0]),
-			hashtableDefaultKeyCmp32, hashtableDefaultKeyHash32);
+			hashtableDefaultKeyCmp64, hashtableDefaultKeyHash64);
 	hashtableInit(&sche->lock_htbl,
 			sche->lock_htbl_bulks, sizeof(sche->lock_htbl_bulks) / sizeof(sche->lock_htbl_bulks[0]),
 			hashtableDefaultKeyCmpStr, hashtableDefaultKeyHashStr);
@@ -554,7 +554,7 @@ StackCoBlock_t* StackCoSche_block_point_util(StackCoSche_t* sche, long long tm_m
 		}
 	}
 	block_node->block.id = gen_co_id();
-	block_node->htnode.key.i32 = block_node->block.id;
+	block_node->htnode.key.i64 = block_node->block.id;
 	if (hashtableInsertNode(&sche->block_co_htbl, &block_node->htnode) != &block_node->htnode) {
 		goto err;
 	}
@@ -826,9 +826,9 @@ void StackCoSche_reuse_block(StackCoSche_t* sche, StackCoBlock_t* block) {
 	if (block_node->timeout_event) {
 		rbtimerDetachEvent(block_node->timeout_event);
 	}
-	if (block_node->htnode.key.i32) {
+	if (block_node->htnode.key.i64) {
 		hashtableRemoveNode(&sche->block_co_htbl, &block_node->htnode);
-		block_node->htnode.key.i32 = 0;
+		block_node->htnode.key.i64 = 0;
 	}
 	StackCoSche_cleanup_async_param(&block->resume_param);
 
@@ -874,7 +874,7 @@ void StackCoSche_reuse_block_group(struct StackCoSche_t* sche, StackCoBlockGroup
 	listInit(&group->ready_block_list);
 }
 
-void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int block_id, int status, const StackCoAsyncParam_t* param) {
+void StackCoSche_resume_block_by_id(StackCoSche_t* sche, int64_t block_id, int status, const StackCoAsyncParam_t* param) {
 	StackCoResume_t* e;
 	if (status >= 0) {
 		return;
@@ -966,14 +966,14 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 			HashtableNode_t* htnode;
 			HashtableNodeKey_t key;
 
-			key.i32 = co_resume->block_id;
+			key.i64 = co_resume->block_id;
 			htnode = hashtableRemoveKey(&sche->block_co_htbl, key);
 			if (!htnode) {
 				StackCoSche_cleanup_async_param(&co_resume->param);
 				free(co_resume);
 				continue;
 			}
-			htnode->key.i32 = 0;
+			htnode->key.i64 = 0;
 			block_node = pod_container_of(htnode, StackCoBlockNode_t, htnode);
 			if (block_node->timeout_event) {
 				rbtimerDetachEvent(block_node->timeout_event);

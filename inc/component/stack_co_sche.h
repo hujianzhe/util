@@ -7,6 +7,7 @@
 
 #include "../compiler_define.h"
 #include "../datastruct/list.h"
+#include <stdint.h>
 
 enum {
 	STACK_CO_STATUS_CANCEL = -3,
@@ -21,7 +22,7 @@ typedef struct StackCoAsyncParam_t {
 } StackCoAsyncParam_t;
 
 typedef struct StackCoBlock_t {
-	int id; /* unique id, user read only */
+	int64_t id; /* unique id, user read only */
 	int status; /* switch status, user read only */
 	StackCoAsyncParam_t resume_param; /* resume param */
 } StackCoBlock_t;
@@ -55,7 +56,7 @@ __declspec_dll int StackCoSche_timeout_util(struct StackCoSche_t* sche, long lon
 
 __declspec_dll StackCoBlock_t* StackCoSche_block_point_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
 __declspec_dll StackCoBlock_t* StackCoSche_sleep_util(struct StackCoSche_t* sche, long long tm_msec, StackCoBlockGroup_t* group);
-__declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int block_id, int status, const StackCoAsyncParam_t* param);
+__declspec_dll void StackCoSche_resume_block_by_id(struct StackCoSche_t* sche, int64_t block_id, int status, const StackCoAsyncParam_t* param);
 
 __declspec_dll struct StackCoLockOwner_t* StackCoSche_new_lock_owner(const char* s, size_t slen);
 __declspec_dll struct StackCoLockOwner_t* StackCoSche_clone_lock_owner(const struct StackCoLockOwner_t* owner);

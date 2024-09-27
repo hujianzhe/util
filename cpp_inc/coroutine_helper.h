@@ -171,7 +171,7 @@ public:
         :m_id(INVALID_AWAITER_ID)
 		,m_status(STATUS_START)
     {}
-	CoroutineAwaiter(int32_t id)
+	CoroutineAwaiter(int64_t id)
 		:m_id(id)
 		,m_status(STATUS_START)
 	{}
@@ -186,8 +186,8 @@ public:
 		CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
     }
 
-    int32_t id() const { return m_id; };
-	int32_t status() const { return m_status; }
+    int64_t id() const { return m_id; };
+	int status() const { return m_status; }
     const std::any& getAny() const { return m_value; }
 
 	void invalid() {
@@ -197,9 +197,9 @@ public:
 	}
 
 public:
-    static int32_t gen_id() {
-        static std::atomic_int32_t SEQ;
-        int32_t v;
+    static int64_t gen_id() {
+        static std::atomic_int64_t SEQ;
+        int64_t v;
         do {
             v = ++SEQ;
         } while (INVALID_AWAITER_ID == v);
@@ -207,8 +207,8 @@ public:
     }
 
 private:
-    int32_t m_id;
-	int32_t m_status;
+    int64_t m_id;
+	int m_status;
     std::any m_value;
 };
 
@@ -443,7 +443,7 @@ private:
 
 protected:
 	template <typename T = std::any>
-	void doResume(CoroutineNode* co_node, int32_t status, const T& v) {
+	void doResume(CoroutineNode* co_node, int status, const T& v) {
 		if (co_node->m_awaiter) {
 			co_node->m_awaiter->m_status = status;
 			co_node->m_awaiter->m_value = v;

@@ -113,13 +113,13 @@ public:
         return awaiter;
     }
 
-	void readyResume(int32_t id, const std::any& param = std::any()) {
+	void readyResume(int64_t id, const std::any& param = std::any()) {
         if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
             return;
         }
 		postEvent(Event(id, param, 0));
     }
-	void readyCancel(int32_t id) {
+	void readyCancel(int64_t id) {
         if (CoroutineAwaiter::INVALID_AWAITER_ID == id) {
             return;
         }
@@ -147,7 +147,7 @@ public:
 
 private:
     struct Event {
-        int32_t resume_id;
+        int64_t resume_id;
 		int32_t status;
         long long ts;
         EntryFunc func;
@@ -168,7 +168,7 @@ private:
             ,param(param)
             ,sleep_co_node(nullptr)
         {}
-        Event(int32_t resume_id, const std::any& param, long long ts)
+        Event(int64_t resume_id, const std::any& param, long long ts)
             :resume_id(resume_id)
 			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(ts)
@@ -356,7 +356,7 @@ private:
         }
     }
 
-	BlockPointData* regAwaiter(int32_t awaiter_id) {
+	BlockPointData* regAwaiter(int64_t awaiter_id) {
 		BlockPointData data;
 		data.co_node = m_current_co_node;
 		data.timeout_event = nullptr;
@@ -375,7 +375,7 @@ private:
     std::list<Event> m_events;
     std::vector<Event> m_peak_events;
     std::map<long long, std::list<Event> > m_timeout_events;
-	std::unordered_map<int32_t, BlockPointData> m_block_points;
+	std::unordered_map<int64_t, BlockPointData> m_block_points;
 };
 }
 
