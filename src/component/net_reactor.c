@@ -218,10 +218,8 @@ static int reactor_reg_object_check(NetReactor_t* reactor, NetChannel_t* channel
 			if (!nioCommit(&reactor->m_nio, &o->niofd, NIO_OP_CONNECT, &channel->connect_addr.sa, channel->connect_addrlen)) {
 				return 0;
 			}
-			if (channel->connect_timeout_sec > 0) {
-				o->stream.m_connect_end_msec = channel->connect_timeout_sec;
-				o->stream.m_connect_end_msec *= 1000;
-				o->stream.m_connect_end_msec += timestamp_msec;
+			if (channel->connect_timeout_msec > 0) {
+				o->stream.m_connect_end_msec = timestamp_msec + channel->connect_timeout_msec;
 				listInsertNodeSorted(&reactor->m_connect_endlist, &o->stream.m_connect_endnode,
 					cmp_sorted_reactor_object_stream_connect_timeout);
 				reactor_set_event_timestamp(reactor, o->stream.m_connect_end_msec);
@@ -970,7 +968,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 		channel->on_syn_ack = NULL;
 		channel->connect_addr.sa.sa_family = AF_UNSPEC;
 		channel->connect_addrlen = 0;
-		channel->connect_timeout_sec = 0;
+		channel->connect_timeout_msec = 0;
 	}
 	else if (NET_CHANNEL_SIDE_LISTEN == side) {
 		channel->on_ack_halfconn = NULL;

@@ -110,7 +110,7 @@ typedef struct NetChannel_t {
 			void(*on_syn_ack)(struct NetChannel_t* self, long long timestamp_msec); /* optional */
 			Sockaddr_t connect_addr;
 			socklen_t connect_addrlen;
-			unsigned short connect_timeout_sec; /* optional */
+			int connect_timeout_msec; /* optional */
 		};
 	};
 /* private */
