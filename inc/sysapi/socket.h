@@ -159,7 +159,7 @@ __declspec_dll int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, i
 __declspec_dll int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen);
 __declspec_dll int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen);
 __declspec_dll int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes);
-__declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes);
+__declspec_dll int socketTcpWriteAll(FD_t sockfd, const void* buf, int nbytes);
 __declspec_dll BOOL socketTcpNoDelay(FD_t sockfd, int on);
 __declspec_dll int socketTcpCanRecvOOB(FD_t sockfd);
 __declspec_dll BOOL socketTcpSendOOB(FD_t sockfd, unsigned char oob);

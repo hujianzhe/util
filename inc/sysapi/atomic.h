@@ -25,16 +25,19 @@
 		#define	_xchgsize					_xchg64
 		#define	_cmpxchgsize				_cmpxchg64
 		#define	_xaddsize					_xadd64
+		typedef	Atom64_t					AtomSSize_t;
 	#else
 		#define	_xchgsize					_xchg32
 		#define	_cmpxchgsize				_cmpxchg32
 		#define	_xaddsize					_xadd32
+		typedef	Atom32_t					AtomSSize_t;
 	#endif
 #else
 	typedef signed char volatile			Atom8_t;
 	typedef	short volatile					Atom16_t;
 	typedef	int volatile					Atom32_t;
 	typedef long long volatile				Atom64_t;
+	typedef	ssize_t volatile				AtomSSize_t;
 	#define	_xchg8(addr, val8)				__sync_lock_test_and_set((signed char volatile*)(addr), (signed char)(val8))
 	#define	_xchg16(addr, val16)			__sync_lock_test_and_set((short volatile*)(addr), (short)(val16))
 	#define	_xchg32(addr, val32)			__sync_lock_test_and_set((int volatile*)(addr), (int)(val32))

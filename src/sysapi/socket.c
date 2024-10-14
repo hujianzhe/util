@@ -1035,10 +1035,10 @@ int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flag
 #endif
 }
 
-int socketTcpWriteAll(FD_t sockfd, const void* buf, unsigned int nbytes) {
+int socketTcpWriteAll(FD_t sockfd, const void* buf, int nbytes) {
 	int wn = 0;
 	int res;
-	while (wn < (int)nbytes) {
+	while (wn < nbytes) {
 		res = send(sockfd, ((char*)buf) + wn, nbytes - wn, 0);
 		if (res > 0)
 			wn += res;

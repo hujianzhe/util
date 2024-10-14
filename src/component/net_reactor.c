@@ -9,6 +9,7 @@
 #include "../../inc/sysapi/misc.h"
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 enum {
 	REACTOR_CHANNEL_REG_CMD = 1,
@@ -390,7 +391,7 @@ static void reactor_stream_writeev(NetReactor_t* reactor, NetChannel_t* channel,
 	Iobuf_t iov[8];
 	size_t iov_cnt = 0;
 	int res;
-	size_t iov_wnd_bytes = 4096;
+	size_t iov_wnd_bytes = channel->stream_writeev_wnd_bytes;
 
 	for (cur = ctxptr->sendlist.head; cur && iov_cnt < sizeof(iov)/sizeof(iov[0]); cur = next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -977,6 +978,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 	}
 	if (SOCK_STREAM == socktype) {
 		streamtransportctxInit(&channel->stream_ctx);
+		channel->stream_writeev_wnd_bytes = INT_MAX;
 		channel->m_stream_fincmd.type = REACTOR_STREAM_SENDFIN_CMD;
 		channel->m_stream_delay_send_fin = 0;
 		channel->write_fragment_size = ~0;

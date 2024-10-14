@@ -118,6 +118,7 @@ typedef struct NetChannel_t {
 	union {
 		struct {
 			StreamTransportCtx_t stream_ctx;
+			int stream_writeev_wnd_bytes;
 			NetReactorCmd_t m_stream_fincmd;
 			char m_stream_delay_send_fin;
 		};
