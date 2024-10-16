@@ -5,3 +5,6 @@
 build
 tags
 /*.dSYM
+/x64
+/Debug
+/Release

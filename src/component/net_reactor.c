@@ -92,12 +92,9 @@ static void channel_set_timestamp(NetChannel_t* channel, long long timestamp_mse
 }
 
 static void channel_next_heartbeat_timestamp(NetChannel_t* channel, long long timestamp_msec) {
-	if (channel->heartbeat_timeout_sec > 0) {
-		long long ts = channel->heartbeat_timeout_sec;
-		ts *= 1000;
-		ts += timestamp_msec;
-		channel->m_heartbeat_msec = ts;
-		channel_set_timestamp(channel, ts);
+	if (channel->heartbeat_timeout_msec > 0) {
+		channel->m_heartbeat_msec = timestamp_msec + channel->heartbeat_timeout_msec;
+		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 	}
 }
 
@@ -951,7 +948,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 	channel->protocol = protocol;
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	channel->to_addrlen = 0;
-	channel->heartbeat_timeout_sec = 0;
+	channel->heartbeat_timeout_msec = 0;
 	channel->heartbeat_maxtimes = 0;
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;

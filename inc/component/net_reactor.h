@@ -85,7 +85,7 @@ typedef struct NetChannel_t {
 	int protocol;
 	Sockaddr_t to_addr;
 	socklen_t to_addrlen;
-	unsigned short heartbeat_timeout_sec; /* optional */
+	int heartbeat_timeout_msec; /* optional */
 	unsigned short heartbeat_maxtimes; /* client use, optional */
 	char has_recvfin;
 	char has_sendfin;
