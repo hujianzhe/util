@@ -147,7 +147,6 @@ __declspec_dll BOOL socketBindAndReuse(FD_t sockfd, const struct sockaddr* saddr
 __declspec_dll BOOL socketGetType(FD_t sockfd, int* socktype);
 __declspec_dll int socketError(FD_t sockfd);
 __declspec_dll BOOL socketUdpDisconnect(FD_t sockfd);
-__declspec_dll BOOL socketUdpConnectReset(FD_t sockfd);
 __declspec_dll FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec);
 __declspec_dll FD_t socketTcpConnect2(const char* ip, unsigned short port, int msec);
 __declspec_dll BOOL socketIsConnected(FD_t fd, struct sockaddr* ret_peeraddr, socklen_t* ret_addrlen);

@@ -712,17 +712,6 @@ BOOL socketUdpDisconnect(FD_t sockfd) {
 	return (res == 0 || __GetErrorCode() == SOCKET_ERROR_VALUE(EAFNOSUPPORT));
 }
 
-BOOL socketUdpConnectReset(FD_t sockfd) {
-#if defined(_WIN32) || defined(_WIN64)
-	/* winsock2 BUG, udp recvfrom WSAECONNRESET(10054) error and post Overlapped IO error */
-	DWORD dwBytesReturned = 0;
-	BOOL bNewBehavior = FALSE;
-	return WSAIoctl(sockfd, SIO_UDP_CONNRESET, &bNewBehavior, sizeof(bNewBehavior), NULL, 0, &dwBytesReturned, NULL, NULL) == 0;
-#else
-	return TRUE;
-#endif
-}
-
 FD_t socketTcpConnect(const struct sockaddr* addr, socklen_t addrlen, int msec) {
 	int res, error;
 	/* create a TCP socket */
