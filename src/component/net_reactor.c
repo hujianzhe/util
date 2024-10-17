@@ -246,14 +246,6 @@ static int reactor_reg_object_check(NetReactor_t* reactor, NetChannel_t* channel
 	return 1;
 }
 
-static int reactor_reg_object(NetReactor_t* reactor, NetChannel_t* channel, long long timestamp_msec) {
-	NetReactorObject_t* o = channel->o;
-	if (reactor_reg_object_check(reactor, channel, o, timestamp_msec)) {
-		return 1;
-	}
-	return 0;
-}
-
 static void reactor_exec_object_reg_callback(NetReactor_t* reactor, NetChannel_t* channel, long long timestamp_msec) {
 	NetReactorObject_t* o;
 	channel->reactor = reactor;
@@ -307,6 +299,13 @@ static void stream_recvfin_handler(NetReactor_t* reactor, NetChannel_t* channel,
 	stream_sendfin_handler(reactor, channel);
 }
 
+static void channel_update_heartbeat_on_read(NetChannel_t* channel, long long timestamp_msec) {
+	channel->m_heartbeat_times = 0;
+	if (!channel->heartbeat_sender) {
+		channel_next_heartbeat_timestamp(channel, timestamp_msec);
+	}
+}
+
 static int channel_heartbeat_handler(NetChannel_t* channel, long long now_msec) {
 	if (channel->m_heartbeat_msec <= 0) {
 		return 1;
@@ -315,19 +314,16 @@ static int channel_heartbeat_handler(NetChannel_t* channel, long long now_msec) 
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return 1;
 	}
-	if (NET_CHANNEL_SIDE_SERVER == channel->side) {
+	if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 		return 0;
 	}
-	if (NET_CHANNEL_SIDE_CLIENT == channel->side) {
-		if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
-			return 0;
-		}
+	if (channel->heartbeat_sender) {
 		if (channel->proc->on_heartbeat) {
 			channel->proc->on_heartbeat(channel, channel->m_heartbeat_times);
 		}
-		channel->m_heartbeat_times++;
-		channel_next_heartbeat_timestamp(channel, now_msec);
 	}
+	channel->m_heartbeat_times++;
+	channel_next_heartbeat_timestamp(channel, now_msec);
 	return 1;
 }
 
@@ -518,10 +514,7 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 		}
 		o->m_inbufoff += res;
 	}
-	channel->m_heartbeat_times = 0;
-	if (NET_CHANNEL_SIDE_SERVER == channel->side) {
-		channel_next_heartbeat_timestamp(channel, timestamp_msec);
-	}
+	channel_update_heartbeat_on_read(channel, timestamp_msec);
 	if (o->m_inbufoff >= o->m_inbuflen) {
 		if (o->inbuf_saved) {
 			o->m_inbufoff = 0;
@@ -584,10 +577,7 @@ static void reactor_dgram_readev(NetReactor_t* reactor, NetChannel_t* channel, N
 		} while (off < len);
 	}
 	if (readtimes > 0) {
-		channel->m_heartbeat_times = 0;
-		if (NET_CHANNEL_SIDE_SERVER == channel->side) {
-			channel_next_heartbeat_timestamp(channel, timestamp_msec);
-		}
+		channel_update_heartbeat_on_read(channel, timestamp_msec);
 	}
 	if (!o->inbuf_saved) {
 		free_inbuf(o);
@@ -773,7 +763,7 @@ static void reactor_exec_cmdlist(NetReactor_t* reactor, long long timestamp_msec
 		}
 		else if (REACTOR_CHANNEL_REG_CMD == cmd->type) {
 			NetChannel_t* channel = pod_container_of(cmd, NetChannel_t, m_regcmd);
-			if (!reactor_reg_object(reactor, channel, timestamp_msec)) {
+			if (!reactor_reg_object_check(reactor, channel, channel->o, timestamp_msec)) {
 				channel->valid = 0;
 				channel->detach_error = NET_REACTOR_REG_ERR;
 				reactorobject_invalid_inner_handler(reactor, channel, timestamp_msec);
@@ -949,6 +939,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 	channel->to_addr.sa.sa_family = AF_UNSPEC;
 	channel->to_addrlen = 0;
 	channel->heartbeat_timeout_msec = 0;
+	channel->heartbeat_sender = (NET_CHANNEL_SIDE_CLIENT == side);
 	channel->heartbeat_maxtimes = 0;
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;
