@@ -317,12 +317,12 @@ static int channel_heartbeat_handler(NetChannel_t* channel, long long now_msec) 
 	if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
 		return 0;
 	}
+	channel->m_heartbeat_times++;
 	if (channel->heartbeat_sender) {
 		if (channel->proc->on_heartbeat) {
 			channel->proc->on_heartbeat(channel, channel->m_heartbeat_times);
 		}
 	}
-	channel->m_heartbeat_times++;
 	channel_next_heartbeat_timestamp(channel, now_msec);
 	return 1;
 }
