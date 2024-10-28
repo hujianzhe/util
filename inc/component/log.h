@@ -25,7 +25,7 @@ extern "C" {
 
 __declspec_dll struct Log_t* logOpen(const char* ident);
 __declspec_dll void logSetOutputPrefix(struct Log_t* log, int(*fn_prefix_length)(const LogItemInfo_t*), void(*fn_sprintf_prefix)(char*, const LogItemInfo_t*));
-__declspec_dll struct Log_t* logEnableFile(struct Log_t* log, int rotate_timelen_sec, char*(*fn_gen_path)(const char* ident, const struct tm* dt), void(*fn_free_path)(char*));
+__declspec_dll struct Log_t* logEnableFile(struct Log_t* log, int rotate_timelen_sec, const char*(*fn_gen_path)(const char* ident, const struct tm* dt), void(*fn_free_path)(char*));
 __declspec_dll void logSetStdioFile(struct Log_t* log, FILE* p_file);
 __declspec_dll void logDestroy(struct Log_t* log);
 

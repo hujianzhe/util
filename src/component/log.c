@@ -18,7 +18,7 @@
 typedef struct LogFile_t {
 	CriticalSection_t lock;
 	FD_t fd;
-	char*(*fn_gen_path)(const char* ident, const struct tm* dt);
+	const char*(*fn_gen_path)(const char* ident, const struct tm* dt);
 	void(*fn_free_path)(char*);
 	time_t rotate_timestamp;
 	int rotate_timelen;
@@ -40,7 +40,7 @@ typedef struct CacheBlock_t {
 } CacheBlock_t;
 
 static void log_rotate(LogFile_t* lf, const char* ident, const struct tm* dt, time_t cur_timestamp) {
-	char* new_path = NULL;
+	const char* new_path = NULL;
 	criticalsectionEnter(&lf->lock);
 
 	if (cur_timestamp >= lf->rotate_timestamp && lf->rotate_timelen > 0) {
@@ -70,7 +70,7 @@ static void log_rotate(LogFile_t* lf, const char* ident, const struct tm* dt, ti
 	}
 end:
 	criticalsectionLeave(&lf->lock);
-	lf->fn_free_path(new_path);
+	lf->fn_free_path((char*)new_path);
 	return;
 }
 
@@ -197,7 +197,7 @@ void logSetOutputPrefix(Log_t* log, int(*fn_prefix_length)(const LogItemInfo_t*)
 	log->fn_sprintf_prefix = fn_sprintf_prefix;
 }
 
-Log_t* logEnableFile(struct Log_t* log, int rotate_timelen_sec, char*(*fn_gen_path)(const char* ident, const struct tm* dt), void(*fn_free_path)(char*)) {
+Log_t* logEnableFile(struct Log_t* log, int rotate_timelen_sec, const char*(*fn_gen_path)(const char* ident, const struct tm* dt), void(*fn_free_path)(char*)) {
 	LogFile_t* lf;
 	if (log->file) {
 		return log;
