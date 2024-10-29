@@ -21,7 +21,8 @@ typedef struct LogFile_t {
 	const char* base_path;
 	CriticalSection_t lock;
 	time_t rotate_timestamp_sec;
-	LogFileOption_t opt;
+	LogFileOutputOption_t output_opt;
+	LogFileRotateOption_t rotate_opt;
 } LogFile_t;
 
 typedef struct Log_t {
@@ -62,7 +63,7 @@ static void free_log_file(LogFile_t* lf) {
 
 static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 	const char* new_path = NULL;
-	const LogFileOption_t* opt = &lf->opt;
+	const LogFileRotateOption_t* opt = &lf->rotate_opt;
 	criticalsectionEnter(&lf->lock);
 
 	if (cur_sec >= lf->rotate_timestamp_sec && opt->rotate_timelen_sec > 0) {
@@ -106,14 +107,10 @@ static void log_write(Log_t* log, CacheBlock_t* cache, LogFile_t* lf, const stru
 
 static const char* log_get_priority_str(int level) {
 	static const char* s_priority_str[] = {
-		"Emerg",
-		"Alert",
-		"Crit",
-		"Err",
-		"Warning",
-		"Notice",
+		"Trace",
 		"Info",
 		"Debug"
+		"Error",
 	};
 	if (level < 0 || level >= sizeof(s_priority_str) / sizeof(s_priority_str[0])) {
 		return "";
@@ -181,7 +178,7 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 	structtmNormal(&item_info->dt);
 	item_info->priority_str = log_get_priority_str(priority);
 
-	prefix_len = lf->opt.fn_output_prefix_length(item_info);
+	prefix_len = lf->output_opt.fn_prefix_length(item_info);
 	if (prefix_len < 0) {
 		return;
 	}
@@ -197,7 +194,7 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 	if (!cache) {
 		return;
 	}
-	lf->opt.fn_output_sprintf_prefix(cache->txt, item_info);
+	lf->output_opt.fn_sprintf_prefix(cache->txt, item_info);
 	va_copy(varg, ap);
 	res = vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg);
 	va_end(varg);
@@ -227,45 +224,40 @@ Log_t* logOpen(void) {
 	return log;
 }
 
-const LogFileOption_t* logFileOptionDefaultDay(void) {
-	static LogFileOption_t opt = {
+const LogFileRotateOption_t* logFileRotateOptionDefaultDay(void) {
+	static LogFileRotateOption_t opt = {
 		86400,
-		default_prefix_length,
-		default_sprintf_prefix,
 		default_gen_path_day,
 		default_free_path
 	};
 	return &opt;
 }
 
-const LogFileOption_t* logFileOptionDefaultHour(void) {
-	static LogFileOption_t opt = {
+const LogFileRotateOption_t* logFileRotateOptionDefaultHour(void) {
+	static LogFileRotateOption_t opt = {
 		3600,
-		default_prefix_length,
-		default_sprintf_prefix,
 		default_gen_path_hour,
 		default_free_path
 	};
 	return &opt;
 }
 
-const LogFileOption_t* logFileOptionDefaultMinute(void) {
-	static LogFileOption_t opt = {
+const LogFileRotateOption_t* logFileRotateOptionDefaultMinute(void) {
+	static LogFileRotateOption_t opt = {
 		60,
-		default_prefix_length,
-		default_sprintf_prefix,
 		default_gen_path_minute,
 		default_free_path
 	};
 	return &opt;
 }
 
-Log_t* logEnableFile(struct Log_t* log, const char* key, const LogFileOption_t* opt, const char* base_path) {
+Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, const LogFileOutputOption_t* output_opt, const LogFileRotateOption_t* rotate_opt) {
 	LogFile_t* lf, **p;
 	lf = get_log_file(log, key);
 	if (lf) {
 		return NULL;
 	}
+	/* new log file */
 	p = (LogFile_t**)realloc(log->files, sizeof(LogFile_t*) * (log->files_cnt + 1));
 	if (!p) {
 		goto err;
@@ -292,14 +284,24 @@ Log_t* logEnableFile(struct Log_t* log, const char* key, const LogFileOption_t* 
 		goto err;
 	}
 	lf->fd = INVALID_FD_HANDLE;
-	lf->opt = *opt;
-	if (opt->rotate_timelen_sec > 0) {
-		time_t t = localtimeSecond() / opt->rotate_timelen_sec * opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
-		lf->rotate_timestamp_sec = t + opt->rotate_timelen_sec;
+	/* output option */
+	if (output_opt) {
+		lf->output_opt = *output_opt;
+	}
+	else {
+		lf->output_opt.fn_prefix_length = default_prefix_length;
+		lf->output_opt.fn_sprintf_prefix = default_sprintf_prefix;
+	}
+	/* rotate option */
+	lf->rotate_opt = *rotate_opt;
+	if (rotate_opt->rotate_timelen_sec > 0) {
+		time_t t = localtimeSecond() / rotate_opt->rotate_timelen_sec * rotate_opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
+		lf->rotate_timestamp_sec = t + rotate_opt->rotate_timelen_sec;
 	}
 	else {
 		lf->rotate_timestamp_sec = 0;
 	}
+	/* save */
 	p[log->files_cnt++] = lf;
 	log->files = p;
 	return log;
@@ -310,6 +312,22 @@ err:
 		free(lf);
 	}
 	return NULL;
+}
+
+void logEnableFileRotate(struct Log_t* log, const char* key, const LogFileRotateOption_t* opt) {
+	LogFile_t* lf;
+	lf = get_log_file(log, key);
+	if (!lf) {
+		return;
+	}
+	lf->rotate_opt = *opt;
+	if (opt->rotate_timelen_sec > 0) {
+		time_t t = localtimeSecond() / opt->rotate_timelen_sec * opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
+		lf->rotate_timestamp_sec = t + opt->rotate_timelen_sec;
+	}
+	else {
+		lf->rotate_timestamp_sec = 0;
+	}
 }
 
 void logDestroy(Log_t* log) {
