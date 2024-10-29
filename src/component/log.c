@@ -119,15 +119,30 @@ static const char* log_get_priority_str(int level) {
 }
 
 static const char* default_gen_path_minute(const char* base_path, const char* key, const struct tm* dt) {
-	return strFormat(NULL, "%s/%d%02d%02d_%d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+	if (key && key[0]) {
+		return strFormat(NULL, "%s/%s_%d%02d%02d_%d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+	}
+	else {
+		return strFormat(NULL, "%s/%d%02d%02d_%d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+	}
 }
 
 static const char* default_gen_path_hour(const char* base_path, const char* key, const struct tm* dt) {
-	return strFormat(NULL, "%s/%d%02d%02d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+	if (key && key[0]) {
+		return strFormat(NULL, "%s/%s_%d%02d%02d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+	}
+	else {
+		return strFormat(NULL, "%s/%d%02d%02d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+	}
 }
 
 static const char* default_gen_path_day(const char* base_path, const char* key, const struct tm* dt) {
-	return strFormat(NULL, "%s/%d%02d%02d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday);
+	if (key && key[0]) {
+		return strFormat(NULL, "%s/%s_%d%02d%02d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday);
+	}
+	else {
+		return strFormat(NULL, "%s/%d%02d%02d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday);
+	}
 }
 
 static void default_free_path(char* path) { free(path); }
