@@ -293,12 +293,13 @@ Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, 
 		lf->output_opt.fn_sprintf_prefix = default_sprintf_prefix;
 	}
 	/* rotate option */
-	lf->rotate_opt = *rotate_opt;
-	if (rotate_opt->rotate_timelen_sec > 0) {
+	if (rotate_opt && rotate_opt->rotate_timelen_sec > 0) {
+		lf->rotate_opt = *rotate_opt;
 		time_t t = localtimeSecond() / rotate_opt->rotate_timelen_sec * rotate_opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
 		lf->rotate_timestamp_sec = t + rotate_opt->rotate_timelen_sec;
 	}
 	else {
+		memset(&lf->rotate_opt, 0, sizeof(lf->rotate_opt));
 		lf->rotate_timestamp_sec = 0;
 	}
 	/* save */
@@ -312,22 +313,6 @@ err:
 		free(lf);
 	}
 	return NULL;
-}
-
-void logEnableFileRotate(struct Log_t* log, const char* key, const LogFileRotateOption_t* opt) {
-	LogFile_t* lf;
-	lf = get_log_file(log, key);
-	if (!lf) {
-		return;
-	}
-	lf->rotate_opt = *opt;
-	if (opt->rotate_timelen_sec > 0) {
-		time_t t = localtimeSecond() / opt->rotate_timelen_sec * opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
-		lf->rotate_timestamp_sec = t + opt->rotate_timelen_sec;
-	}
-	else {
-		lf->rotate_timestamp_sec = 0;
-	}
 }
 
 void logDestroy(Log_t* log) {
