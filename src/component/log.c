@@ -123,28 +123,28 @@ static const char* log_get_priority_str(int level) {
 
 static const char* default_gen_path_minute(const char* base_path, const char* key, const struct tm* dt) {
 	if (key && key[0]) {
-		return strFormat(NULL, "%s/%s_%d%02d%02d_%d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+		return strFormat(NULL, "%s%s_%d%02d%02d_%d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
 	}
 	else {
-		return strFormat(NULL, "%s/%d%02d%02d_%d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+		return strFormat(NULL, "%s%d%02d%02d_%d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
 	}
 }
 
 static const char* default_gen_path_hour(const char* base_path, const char* key, const struct tm* dt) {
 	if (key && key[0]) {
-		return strFormat(NULL, "%s/%s_%d%02d%02d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+		return strFormat(NULL, "%s%s_%d%02d%02d_%d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
 	}
 	else {
-		return strFormat(NULL, "%s/%d%02d%02d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+		return strFormat(NULL, "%s%d%02d%02d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
 	}
 }
 
 static const char* default_gen_path_day(const char* base_path, const char* key, const struct tm* dt) {
 	if (key && key[0]) {
-		return strFormat(NULL, "%s/%s_%d%02d%02d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday);
+		return strFormat(NULL, "%s%s_%d%02d%02d.log", base_path, key, dt->tm_year, dt->tm_mon, dt->tm_mday);
 	}
 	else {
-		return strFormat(NULL, "%s/%d%02d%02d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday);
+		return strFormat(NULL, "%s%d%02d%02d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday);
 	}
 }
 
@@ -282,7 +282,7 @@ Log_t* logEnableFile(struct Log_t* log, const char* key, const LogFileOption_t* 
 		goto err;
 	}
 	if (!base_path || !base_path[0]) {
-		base_path = ".";
+		base_path = "./";
 	}
 	lf->base_path = strdup(base_path);
 	if (!lf->base_path) {
