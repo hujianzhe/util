@@ -224,6 +224,14 @@ Log_t* logOpen(void) {
 	return log;
 }
 
+const LogFileOutputOption_t* logFileOutputOptionDefault(void) {
+	static LogFileOutputOption_t opt = {
+		default_prefix_length,
+		default_sprintf_prefix
+	};
+	return &opt;
+}
+
 const LogFileRotateOption_t* logFileRotateOptionDefaultDay(void) {
 	static LogFileRotateOption_t opt = {
 		86400,
@@ -289,19 +297,17 @@ Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, 
 		lf->output_opt = *output_opt;
 	}
 	else {
-		lf->output_opt.fn_prefix_length = default_prefix_length;
-		lf->output_opt.fn_sprintf_prefix = default_sprintf_prefix;
+		memset(&lf->output_opt, 0, sizeof(lf->output_opt));
 	}
 	/* rotate option */
-	if (rotate_opt && rotate_opt->rotate_timelen_sec > 0) {
-		lf->rotate_opt = *rotate_opt;
+	if (rotate_opt->rotate_timelen_sec > 0) {
 		time_t t = localtimeSecond() / rotate_opt->rotate_timelen_sec * rotate_opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
 		lf->rotate_timestamp_sec = t + rotate_opt->rotate_timelen_sec;
 	}
 	else {
-		memset(&lf->rotate_opt, 0, sizeof(lf->rotate_opt));
 		lf->rotate_timestamp_sec = 0;
 	}
+	lf->rotate_opt = *rotate_opt;
 	/* save */
 	p[log->files_cnt++] = lf;
 	log->files = p;

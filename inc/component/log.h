@@ -37,6 +37,7 @@ __declspec_dll struct Log_t* logOpen(void);
 __declspec_dll void logDestroy(struct Log_t* log);
 
 __declspec_dll struct Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, const LogFileOutputOption_t* output_opt, const LogFileRotateOption_t* rotate_opt);
+__declspec_dll const LogFileOutputOption_t* logFileOutputOptionDefault(void);
 __declspec_dll const LogFileRotateOption_t* logFileRotateOptionDefaultDay(void);
 __declspec_dll const LogFileRotateOption_t* logFileRotateOptionDefaultHour(void);
 __declspec_dll const LogFileRotateOption_t* logFileRotateOptionDefaultMinute(void);
