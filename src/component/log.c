@@ -38,6 +38,9 @@ typedef struct CacheBlock_t {
 
 static LogFile_t* get_log_file(Log_t* log, const char* key) {
 	size_t i;
+	if (!key) {
+		key = "";
+	}
 	for (i = 0; i < log->files_cnt; ++i) {
 		LogFile_t* lf = log->files[i];
 		if (!strcmp(lf->key, key)) {
