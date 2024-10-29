@@ -16,22 +16,19 @@
 #include <string.h>
 
 typedef struct LogFile_t {
-	CriticalSection_t lock;
 	FD_t fd;
-	const char*(*fn_gen_path)(const char* ident, const struct tm* dt);
-	void(*fn_free_path)(char*);
-	time_t rotate_timestamp;
-	int rotate_timelen;
+	const char* key;
+	const char* base_path;
+	CriticalSection_t lock;
+	time_t rotate_timestamp_sec;
+	LogFileOption_t opt;
 } LogFile_t;
 
 typedef struct Log_t {
-	const char* ident;
-	FILE* print_stdio;
 	int cur_filter_priority;
 	int(*fn_priority_filter)(int, int);
-	int(*fn_prefix_length)(const LogItemInfo_t*);
-	void(*fn_sprintf_prefix)(char*, const LogItemInfo_t*);
-	LogFile_t* file;
+	LogFile_t** files;
+	size_t files_cnt;
 } Log_t;
 
 typedef struct CacheBlock_t {
@@ -39,27 +36,49 @@ typedef struct CacheBlock_t {
 	char txt[1];
 } CacheBlock_t;
 
-static void log_rotate(LogFile_t* lf, const char* ident, const struct tm* dt, time_t cur_timestamp) {
+static LogFile_t* get_log_file(Log_t* log, const char* key) {
+	size_t i;
+	for (i = 0; i < log->files_cnt; ++i) {
+		LogFile_t* lf = log->files[i];
+		if (!strcmp(lf->key, key)) {
+			return lf;
+		}
+	}
+	return NULL;
+}
+
+static void free_log_file(LogFile_t* lf) {
+	if (INVALID_FD_HANDLE != lf->fd) {
+		fdClose(lf->fd);
+	}
+	criticalsectionClose(&lf->lock);
+	free((void*)lf->key);
+	free((void*)lf->base_path);
+	free(lf);
+}
+
+static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 	const char* new_path = NULL;
+	const LogFileOption_t* opt = &lf->opt;
 	criticalsectionEnter(&lf->lock);
 
-	if (cur_timestamp >= lf->rotate_timestamp && lf->rotate_timelen > 0) {
+	if (cur_sec >= lf->rotate_timestamp_sec && opt->rotate_timelen_sec > 0) {
 		time_t t;
 		if (lf->fd != INVALID_FD_HANDLE) {
 			fdClose(lf->fd);
 			lf->fd = INVALID_FD_HANDLE;
 		}
-		new_path = lf->fn_gen_path(ident, dt);
-		t = (cur_timestamp - lf->rotate_timestamp) / lf->rotate_timelen;
+		new_path = opt->fn_new_fullpath(lf->base_path, lf->key, dt);
+		t = (cur_sec - lf->rotate_timestamp_sec) / opt->rotate_timelen_sec;
 		if (t <= 0) {
-			lf->rotate_timestamp += lf->rotate_timelen;
+			lf->rotate_timestamp_sec += opt->rotate_timelen_sec;
 		}
 		else {
-			lf->rotate_timestamp += (t + 1) * lf->rotate_timelen;
+			lf->rotate_timestamp_sec += (t + 1) * opt->rotate_timelen_sec;
 		}
 	}
 	else if (INVALID_FD_HANDLE == lf->fd) {
-		new_path = lf->fn_gen_path(ident, dt);
+		new_path = opt->fn_new_fullpath(lf->base_path, lf->key, dt);
 	}
 	if (!new_path) {
 		goto end;
@@ -70,19 +89,14 @@ static void log_rotate(LogFile_t* lf, const char* ident, const struct tm* dt, ti
 	}
 end:
 	criticalsectionLeave(&lf->lock);
-	lf->fn_free_path((char*)new_path);
+	opt->fn_free_path((char*)new_path);
 	return;
 }
 
-static void log_write(Log_t* log, CacheBlock_t* cache, const struct tm* dt, time_t cur_timestamp) {
-	if (log->print_stdio) {
-		fputs(cache->txt, log->print_stdio);
-	}
-	if (log->file) {
-		log_rotate(log->file, log->ident, dt, cur_timestamp);
-		if (log->file->fd != INVALID_FD_HANDLE) {
-			fdWrite(log->file->fd, cache->txt, cache->len);
-		}
+static void log_write(Log_t* log, CacheBlock_t* cache, LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
+	log_rotate(lf, dt, cur_sec);
+	if (lf->fd != INVALID_FD_HANDLE) {
+		fdWrite(lf->fd, cache->txt, cache->len);
 	}
 	free(cache);
 }
@@ -104,39 +118,52 @@ static const char* log_get_priority_str(int level) {
 	return s_priority_str[level];
 }
 
-static int log_default_prefix_length(const LogItemInfo_t* item_info) {
+static const char* default_gen_path_minute(const char* base_path, const char* key, const struct tm* dt) {
+	return strFormat(NULL, "%s/%d%02d%02d_%d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour, dt->tm_min);
+}
+
+static const char* default_gen_path_hour(const char* base_path, const char* key, const struct tm* dt) {
+	return strFormat(NULL, "%s/%d%02d%02d_%d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday, dt->tm_hour);
+}
+
+static const char* default_gen_path_day(const char* base_path, const char* key, const struct tm* dt) {
+	return strFormat(NULL, "%s/%d%02d%02d.log", base_path, dt->tm_year, dt->tm_mon, dt->tm_mday);
+}
+
+static void default_free_path(char* path) { free(path); }
+
+static int default_prefix_length(const LogItemInfo_t* item_info) {
 	return strFormatLen("%d-%d-%d %d:%d:%d|%s|%s:%u|",
 						item_info->dt.tm_year, item_info->dt.tm_mon, item_info->dt.tm_mday,
 						item_info->dt.tm_hour, item_info->dt.tm_min, item_info->dt.tm_sec,
 						item_info->priority_str, item_info->source_file, item_info->source_line);
 }
 
-static void log_default_sprintf_prefix(char* buf, const LogItemInfo_t* item_info) {
+static void default_sprintf_prefix(char* buf, const LogItemInfo_t* item_info) {
 	sprintf(buf, "%d-%d-%d %d:%d:%d|%s|%s:%u|",
 			item_info->dt.tm_year, item_info->dt.tm_mon, item_info->dt.tm_mday,
 			item_info->dt.tm_hour, item_info->dt.tm_min, item_info->dt.tm_sec,
 			item_info->priority_str, item_info->source_file, item_info->source_line);
 }
 
-static void log_build(Log_t* log, LogItemInfo_t* item_info, int priority, const char* format, va_list ap) {
+static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* item_info, const char* format, va_list ap) {
 	va_list varg;
 	int len, res, prefix_len;
 	char test_buf;
-	time_t cur_timestamp;
+	time_t cur_sec;
 	CacheBlock_t* cache;
 
 	if (!format || 0 == *format) {
 		return;
 	}
-	cur_timestamp = gmtimeSecond();
-	if (!gmtimeLocalTM(cur_timestamp, &item_info->dt)) {
+	cur_sec = gmtimeSecond();
+	if (!gmtimeLocalTM(cur_sec, &item_info->dt)) {
 		return;
 	}
 	structtmNormal(&item_info->dt);
-	item_info->ident = log->ident;
 	item_info->priority_str = log_get_priority_str(priority);
 
-	prefix_len = log->fn_prefix_length(item_info);
+	prefix_len = lf->opt.fn_output_prefix_length(item_info);
 	if (prefix_len < 0) {
 		return;
 	}
@@ -152,7 +179,7 @@ static void log_build(Log_t* log, LogItemInfo_t* item_info, int priority, const 
 	if (!cache) {
 		return;
 	}
-	log->fn_sprintf_prefix(cache->txt, item_info);
+	lf->opt.fn_output_sprintf_prefix(cache->txt, item_info);
 	va_copy(varg, ap);
 	res = vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg);
 	va_end(varg);
@@ -163,106 +190,141 @@ static void log_build(Log_t* log, LogItemInfo_t* item_info, int priority, const 
 	cache->txt[len - 1] = '\n';
 	cache->txt[len] = 0;
 	cache->len = len;
-	log_write(log, cache, &item_info->dt, cur_timestamp);
+	log_write(log, cache, lf, &item_info->dt, cur_sec);
 }
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-Log_t* logOpen(const char* ident) {
+Log_t* logOpen(void) {
 	Log_t* log = (Log_t*)malloc(sizeof(Log_t));
 	if (!log) {
 		return NULL;
 	}
-	log->ident = strdup(ident ? ident : "");
-	if (!log->ident || !log->ident[0]) {
-		goto err;
-	}
-	log->file = NULL;
-	log->print_stdio = NULL;
 	log->cur_filter_priority = -1;
 	log->fn_priority_filter = NULL;
-	log->fn_prefix_length = log_default_prefix_length;
-	log->fn_sprintf_prefix = log_default_sprintf_prefix;
+	log->files = NULL;
+	log->files_cnt = 0;
 	return log;
-err:
-	free((void*)log->ident);
-	free(log);
-	return NULL;
 }
 
-void logSetOutputPrefix(Log_t* log, int(*fn_prefix_length)(const LogItemInfo_t*), void(*fn_sprintf_prefix)(char*, const LogItemInfo_t*)) {
-	log->fn_prefix_length = fn_prefix_length;
-	log->fn_sprintf_prefix = fn_sprintf_prefix;
+const LogFileOption_t* logFileOptionDefaultDay(void) {
+	static LogFileOption_t opt = {
+		86400,
+		default_prefix_length,
+		default_sprintf_prefix,
+		default_gen_path_day,
+		default_free_path
+	};
+	return &opt;
 }
 
-Log_t* logEnableFile(struct Log_t* log, int rotate_timelen_sec, const char*(*fn_gen_path)(const char* ident, const struct tm* dt), void(*fn_free_path)(char*)) {
-	LogFile_t* lf;
-	if (log->file) {
-		return log;
+const LogFileOption_t* logFileOptionDefaultHour(void) {
+	static LogFileOption_t opt = {
+		3600,
+		default_prefix_length,
+		default_sprintf_prefix,
+		default_gen_path_hour,
+		default_free_path
+	};
+	return &opt;
+}
+
+const LogFileOption_t* logFileOptionDefaultMinute(void) {
+	static LogFileOption_t opt = {
+		60,
+		default_prefix_length,
+		default_sprintf_prefix,
+		default_gen_path_minute,
+		default_free_path
+	};
+	return &opt;
+}
+
+Log_t* logEnableFile(struct Log_t* log, const char* key, const LogFileOption_t* opt, const char* base_path) {
+	LogFile_t* lf, **p;
+	lf = get_log_file(log, key);
+	if (lf) {
+		return NULL;
+	}
+	p = (LogFile_t**)realloc(log->files, sizeof(LogFile_t*) * (log->files_cnt + 1));
+	if (!p) {
+		goto err;
 	}
 	lf = (LogFile_t*)malloc(sizeof(LogFile_t));
 	if (!lf) {
-		return NULL;
+		goto err;
+	}
+	if (!key) {
+		key = "";
+	}
+	lf->key = strdup(key);
+	if (!lf->key) {
+		goto err;
+	}
+	if (!base_path || !base_path[0]) {
+		base_path = ".";
+	}
+	lf->base_path = strdup(base_path);
+	if (!lf->base_path) {
+		goto err;
 	}
 	if (!criticalsectionCreate(&lf->lock)) {
 		goto err;
 	}
-	lf->fn_gen_path = fn_gen_path;
-	lf->fn_free_path = fn_free_path;
 	lf->fd = INVALID_FD_HANDLE;
-	if (rotate_timelen_sec > 0) {
-		time_t t = localtimeSecond() / rotate_timelen_sec * rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
-		lf->rotate_timelen = rotate_timelen_sec;
-		lf->rotate_timestamp = t + rotate_timelen_sec;
+	lf->opt = *opt;
+	if (opt->rotate_timelen_sec > 0) {
+		time_t t = localtimeSecond() / opt->rotate_timelen_sec * opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
+		lf->rotate_timestamp_sec = t + opt->rotate_timelen_sec;
 	}
 	else {
-		lf->rotate_timelen = 0;
-		lf->rotate_timestamp = 0;
+		lf->rotate_timestamp_sec = 0;
 	}
-	log->file = lf;
+	p[log->files_cnt++] = lf;
+	log->files = p;
 	return log;
 err:
-	free(lf);
+	if (lf) {
+		free((void*)lf->key);
+		free((void*)lf->base_path);
+		free(lf);
+	}
 	return NULL;
 }
 
-void logSetStdioFile(struct Log_t* log, FILE* p_file) {
-	log->print_stdio = p_file;
-}
-
 void logDestroy(Log_t* log) {
-	LogFile_t* lf;
+	unsigned int i;
 	if (!log) {
 		return;
 	}
-	lf = log->file;
-	if (lf) {
-		criticalsectionClose(&lf->lock);
-		if (INVALID_FD_HANDLE != lf->fd) {
-			fdClose(lf->fd);
-		}
-		free(lf);
+	for (i = 0; i < log->files_cnt; ++i) {
+		free_log_file(log->files[i]);
 	}
-	free((void*)log->ident);
+	free(log->files);
 	free(log);
 }
 
-void logPrintlnNoFilter(Log_t* log, LogItemInfo_t* ii, int priority, const char* format, ...) {
+void logPrintlnNoFilter(Log_t* log, const char* key, int priority, LogItemInfo_t* ii, const char* format, ...) {
 	va_list varg;
+	LogFile_t* lf = get_log_file(log, key);
+	if (!lf) {
+		return;
+	}
 	va_start(varg, format);
-	log_build(log, ii, priority, format, varg);
+	log_build(log, lf, priority, ii, format, varg);
 	va_end(varg);
 }
 
-void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
+void logPrintRaw(Log_t* log, const char* key, int priority, const char* format, ...) {
 	va_list varg;
 	int len;
 	char test_buf;
-	time_t cur_timestamp;
+	time_t cur_sec;
 	struct tm dt;
 	CacheBlock_t* cache;
+	LogFile_t* lf;
 
 	if (!format || 0 == *format) {
 		return;
@@ -270,8 +332,12 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 	if (logCheckPriorityFilter(log, priority)) {
 		return;
 	}
-	cur_timestamp = gmtimeSecond();
-	if (!gmtimeLocalTM(cur_timestamp, &dt)) {
+	lf = get_log_file(log, key);
+	if (!lf) {
+		return;
+	}
+	cur_sec = gmtimeSecond();
+	if (!gmtimeLocalTM(cur_sec, &dt)) {
 		return;
 	}
 	structtmNormal(&dt);
@@ -295,7 +361,7 @@ void logPrintRaw(Log_t* log, int priority, const char* format, ...) {
 	}
 	cache->txt[len] = 0;
 	cache->len = len;
-	log_write(log, cache, &dt, cur_timestamp);
+	log_write(log, cache, lf, &dt, cur_sec);
 }
 
 int logFilterPriorityLess(int log_priority, int filter_priority) {
