@@ -52,14 +52,13 @@ __declspec_dll void logSetPriorityFilter(struct Log_t* log, int filter_priority,
 __declspec_dll int logCheckPriorityFilter(struct Log_t* log, int priority);
 
 __declspec_dll void logPrintlnNoFilter(struct Log_t* log, const char* key, int priority, LogItemInfo_t* ii, const char* format, ...);
-__declspec_dll void logPrintRaw(struct Log_t* log, const char* key, int priority, const char* format, ...);
 
 #define logPrintlnTempletePrivate(log, key, priority, format, ...)	\
 if (!logCheckPriorityFilter(log, priority))	{ \
 	LogItemInfo_t ii; \
 	ii.source_file = __FILE__; \
 	ii.source_line = __LINE__; \
-	logPrintlnNoFilter(log, key, priority, &ii, format, ##__VA_ARGS__); \
+	logPrintlnNoFilter(log, key, priority, &ii, ""format, ##__VA_ARGS__); \
 }
 
 #define	logTrace(log, key, format, ...)		logPrintlnTempletePrivate(log, key, 0, format, ##__VA_ARGS__)

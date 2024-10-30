@@ -167,6 +167,7 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 	char test_buf;
 	time_t cur_sec;
 	CacheBlock_t* cache;
+	const LogFileOutputOption_t* opt;
 
 	if (!format || 0 == *format) {
 		return;
@@ -178,9 +179,15 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 	structtmNormal(&item_info->dt);
 	item_info->priority_str = log_get_priority_str(priority);
 
-	prefix_len = lf->output_opt.fn_prefix_length(item_info);
-	if (prefix_len < 0) {
-		return;
+	opt = &lf->output_opt;
+	if (opt->fn_prefix_length) {
+		prefix_len = opt->fn_prefix_length(item_info);
+		if (prefix_len < 0) {
+			return;
+		}
+	}
+	else {
+		prefix_len = 0;
 	}
 	va_copy(varg, ap);
 	res = vsnprintf(&test_buf, 0, format, varg);
@@ -194,7 +201,9 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 	if (!cache) {
 		return;
 	}
-	lf->output_opt.fn_sprintf_prefix(cache->txt, item_info);
+	if (prefix_len > 0 && opt->fn_sprintf_prefix) {
+		opt->fn_sprintf_prefix(cache->txt, item_info);
+	}
 	va_copy(varg, ap);
 	res = vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg);
 	va_end(varg);
@@ -342,53 +351,6 @@ void logPrintlnNoFilter(Log_t* log, const char* key, int priority, LogItemInfo_t
 	va_start(varg, format);
 	log_build(log, lf, priority, ii, format, varg);
 	va_end(varg);
-}
-
-void logPrintRaw(Log_t* log, const char* key, int priority, const char* format, ...) {
-	va_list varg;
-	int len;
-	char test_buf;
-	time_t cur_sec;
-	struct tm dt;
-	CacheBlock_t* cache;
-	LogFile_t* lf;
-
-	if (!format || 0 == *format) {
-		return;
-	}
-	if (logCheckPriorityFilter(log, priority)) {
-		return;
-	}
-	lf = get_log_file(log, key);
-	if (!lf) {
-		return;
-	}
-	cur_sec = gmtimeSecond();
-	if (!gmtimeLocalTM(cur_sec, &dt)) {
-		return;
-	}
-	structtmNormal(&dt);
-
-	va_start(varg, format);
-	len = vsnprintf(&test_buf, 0, format, varg);
-	va_end(varg);
-	if (len <= 0) {
-		return;
-	}
-	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
-	if (!cache) {
-		return;
-	}
-	va_start(varg, format);
-	len = vsnprintf(cache->txt, len + 1, format, varg);
-	va_end(varg);
-	if (len <= 0) {
-		free(cache);
-		return;
-	}
-	cache->txt[len] = 0;
-	cache->len = len;
-	log_write(log, cache, lf, &dt, cur_sec);
 }
 
 int logFilterPriorityLess(int log_priority, int filter_priority) {
