@@ -381,9 +381,9 @@ static void reactor_exec_connect_timeout(NetReactor_t* reactor, long long now_ms
 static void reactor_stream_writeev(NetReactor_t* reactor, NetChannel_t* channel, NetReactorObject_t* o) {
 	ListNode_t* cur, *next;
 	StreamTransportCtx_t* ctxptr = &channel->stream_ctx;
-	Iobuf_t iov[8];
+	Iobuf_t iov[16];
 	size_t iov_cnt = 0;
-	int res;
+	ssize_t res;
 	size_t iov_wnd_bytes = channel->stream_writeev_wnd_bytes;
 
 	for (cur = ctxptr->sendlist.head; cur && iov_cnt < sizeof(iov)/sizeof(iov[0]); cur = next) {

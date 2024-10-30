@@ -974,7 +974,7 @@ int socketRecvFrom(FD_t sockfd, void* buf, unsigned int buflen, int flags, struc
 #endif
 }
 
-int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen) {
+ssize_t socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, struct sockaddr* from, socklen_t* p_slen) {
 #if defined(_WIN32) || defined(_WIN64)
 	int res;
 	DWORD dwBytes, dwFlags = flags;
@@ -1010,7 +1010,7 @@ int socketReadv(FD_t sockfd, Iobuf_t iov[], unsigned int iovcnt, int flags, stru
 #endif
 }
 
-int socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen) {
+ssize_t socketWritev(FD_t sockfd, const Iobuf_t iov[], unsigned int iovcnt, int flags, const struct sockaddr* to, socklen_t tolen) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD realbytes;
 	return WSASendTo(sockfd, (LPWSABUF)iov, iovcnt, &realbytes, flags, to, tolen, NULL, NULL) ? -1 : realbytes;
@@ -1037,7 +1037,7 @@ int socketTcpWriteAll(FD_t sockfd, const void* buf, int nbytes) {
 	return nbytes;
 }
 
-int socketTcpReadAll(FD_t sockfd, void* buf, unsigned int nbytes) {
+int socketTcpReadAll(FD_t sockfd, void* buf, int nbytes) {
 #ifdef	MSG_WAITALL
 	return recv(sockfd, (char*)buf, nbytes, MSG_WAITALL);
 #else
@@ -1120,7 +1120,10 @@ int socketTcpReadableBytes(FD_t sockfd) {
 	/* for udp: there is no a reliable sysapi to get udp next pending dgram size in different platform */
 #if defined(_WIN32) || defined(_WIN64)
 	u_long bytes;
-	return ioctlsocket(sockfd, FIONREAD, &bytes) ? -1 : bytes;
+	if (ioctlsocket(sockfd, FIONREAD, &bytes)) {
+		return -1;
+	}
+	return bytes < 0x80000000 ? bytes : 0x7fffffff;
 #else
 	int bytes;
 	return ioctl(sockfd, FIONREAD, &bytes) ? -1 : bytes;
