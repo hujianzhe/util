@@ -104,14 +104,14 @@ static void log_write(Log_t* log, CacheBlock_t* cache, LogFile_t* lf, const stru
 	free(cache);
 }
 
-static const char* log_get_priority_str(int level) {
+static const char* log_get_priority_str(unsigned int level) {
 	static const char* s_priority_str[] = {
 		"Trace",
 		"Info",
 		"Debug"
 		"Error",
 	};
-	if (level < 0 || level >= sizeof(s_priority_str) / sizeof(s_priority_str[0])) {
+	if (level >= sizeof(s_priority_str) / sizeof(s_priority_str[0])) {
 		return "";
 	}
 	return s_priority_str[level];
@@ -385,11 +385,11 @@ void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filt
 	}
 }
 
-int logCheckPriorityEnabled(Log_t* log, int priority) {
-	if (((unsigned int)priority) >= sizeof(log->enable_priority) / sizeof(log->enable_priority[0])) {
+int logCheckPriorityEnabled(Log_t* log, unsigned int priority) {
+	if (priority >= sizeof(log->enable_priority) / sizeof(log->enable_priority[0])) {
 		return 0;
 	}
-	return log->enable_priority[(unsigned int)priority];
+	return log->enable_priority[priority];
 }
 
 #ifdef	__cplusplus
