@@ -227,7 +227,7 @@ Log_t* logOpen(void) {
 		return NULL;
 	}
 	for (i = 0; i < sizeof(log->enable_priority) / sizeof(log->enable_priority[0]); ++i) {
-		log->enable_priority[i] = 1;;
+		log->enable_priority[i] = 1;
 	}
 	log->files = NULL;
 	log->files_cnt = 0;
