@@ -57,8 +57,8 @@ __declspec_dll FD_t fdDup(FD_t fd);
 __declspec_dll FD_t fdDup2(FD_t oldfd, FD_t newfd);
 /* file operator */
 __declspec_dll FD_t fdOpen(const char* path, int obit);
-__declspec_dll int fdRead(FD_t fd, void* buf, unsigned int nbytes);
-__declspec_dll int fdWrite(FD_t fd, const void* buf, unsigned int nbytes);
+__declspec_dll ssize_t fdRead(FD_t fd, void* buf, size_t nbytes);
+__declspec_dll ssize_t fdWrite(FD_t fd, const void* buf, size_t nbytes);
 __declspec_dll long long fdSeek(FD_t fd, long long offset, int whence);
 __declspec_dll long long fdTell(FD_t fd);
 __declspec_dll BOOL fdFlush(FD_t fd);
@@ -74,7 +74,7 @@ __declspec_dll BOOL fileIsExist(const char* path);
 __declspec_dll const char* fileExtName(const char* path);
 __declspec_dll const char* fileFileName(const char* path);
 __declspec_dll char* fileReadAllData(const char* path, long long* ptr_file_sz);
-__declspec_dll int fileWriteCoverData(const char* path, const void* data, unsigned int len);
+__declspec_dll ssize_t fileWriteCoverData(const char* path, const void* data, size_t len);
 /* file link */
 __declspec_dll BOOL fileCreateSymlink(const char* actualpath, const char* sympath);
 __declspec_dll BOOL fileCreateHardLink(const char* existpath, const char* newpath);

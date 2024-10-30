@@ -234,7 +234,7 @@ FD_t fdOpen(const char* path, int obit) {
 #endif
 }
 
-int fdRead(FD_t fd, void* buf, unsigned int nbytes) {
+ssize_t fdRead(FD_t fd, void* buf, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _readbytes;
 	return ReadFile((HANDLE)fd, buf, nbytes, &_readbytes, NULL) ? _readbytes : -1;
@@ -243,7 +243,7 @@ int fdRead(FD_t fd, void* buf, unsigned int nbytes) {
 #endif
 }
 
-int fdWrite(FD_t fd, const void* buf, unsigned int nbytes) {
+ssize_t fdWrite(FD_t fd, const void* buf, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD _writebytes = 0;
 	return WriteFile((HANDLE)fd, buf, nbytes, &_writebytes, NULL) ? _writebytes : -1;
@@ -467,11 +467,12 @@ char* fileReadAllData(const char* path, long long* ptr_file_sz) {
 	return file_data;
 }
 
-int fileWriteCoverData(const char* path, const void* data, unsigned int len) {
-	int res;
+ssize_t fileWriteCoverData(const char* path, const void* data, size_t len) {
+	ssize_t res;
 	FD_t fd = fdOpen(path, FILE_WRITE_BIT | FILE_CREAT_BIT | FILE_TRUNC_BIT);
-	if (INVALID_FD_HANDLE == fd)
-		return FALSE;
+	if (INVALID_FD_HANDLE == fd) {
+		return -1;
+	}
 	res = fdWrite(fd, data, len);
 	fdClose(fd);
 	return res;
