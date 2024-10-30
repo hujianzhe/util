@@ -26,8 +26,7 @@ typedef struct LogFile_t {
 } LogFile_t;
 
 typedef struct Log_t {
-	int cur_filter_priority;
-	int(*fn_priority_filter)(int, int);
+	int enable_priority[4];
 	LogFile_t** files;
 	size_t files_cnt;
 } Log_t;
@@ -222,12 +221,14 @@ extern "C" {
 #endif
 
 Log_t* logOpen(void) {
+	size_t i ;
 	Log_t* log = (Log_t*)malloc(sizeof(Log_t));
 	if (!log) {
 		return NULL;
 	}
-	log->cur_filter_priority = -1;
-	log->fn_priority_filter = NULL;
+	for (i = 0; i < sizeof(log->enable_priority) / sizeof(log->enable_priority[0]); ++i) {
+		log->enable_priority[i] = 1;;
+	}
 	log->files = NULL;
 	log->files_cnt = 0;
 	return log;
@@ -378,12 +379,17 @@ int logFilterPriorityNotEqual(int log_priority, int filter_priority) {
 }
 
 void logSetPriorityFilter(Log_t* log, int filter_priority, int(*fn_priority_filter)(int, int)) {
-	log->cur_filter_priority = filter_priority;
-	log->fn_priority_filter = fn_priority_filter;
+	size_t i;
+	for (i = 0; i < sizeof(log->enable_priority) / sizeof(log->enable_priority[0]); ++i) {
+		log->enable_priority[i] = !fn_priority_filter(i, filter_priority);
+	}
 }
 
-int logCheckPriorityFilter(Log_t* log, int priority) {
-	return log->fn_priority_filter && log->fn_priority_filter(priority, log->cur_filter_priority);
+int logCheckPriorityEnabled(Log_t* log, int priority) {
+	if (((unsigned int)priority) >= sizeof(log->enable_priority) / sizeof(log->enable_priority[0])) {
+		return 0;
+	}
+	return log->enable_priority[(unsigned int)priority];
 }
 
 #ifdef	__cplusplus
