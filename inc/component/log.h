@@ -58,7 +58,7 @@ if (!logCheckPriorityFilter(log, priority))	{ \
 	LogItemInfo_t ii; \
 	ii.source_file = __FILE__; \
 	ii.source_line = __LINE__; \
-	logPrintlnNoFilter(log, key, priority, &ii, ""format, ##__VA_ARGS__); \
+	logPrintlnNoFilter(log, key, priority, &ii, "" format, ##__VA_ARGS__); \
 }
 
 #define	logTrace(log, key, format, ...)		logPrintlnTempletePrivate(log, key, 0, format, ##__VA_ARGS__)
