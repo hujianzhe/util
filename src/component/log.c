@@ -221,7 +221,7 @@ extern "C" {
 #endif
 
 Log_t* logOpen(void) {
-	size_t i ;
+	size_t i;
 	Log_t* log = (Log_t*)malloc(sizeof(Log_t));
 	if (!log) {
 		return NULL;
@@ -332,7 +332,7 @@ err:
 }
 
 void logDestroy(Log_t* log) {
-	unsigned int i;
+	size_t i;
 	if (!log) {
 		return;
 	}
