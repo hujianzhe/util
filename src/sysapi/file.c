@@ -259,7 +259,7 @@ ssize_t fdWritev(FD_t fd, const Iobuf_t iov[], unsigned int iov_cnt) {
 	DWORD _writebytes;
 	ssize_t total_length = 0, off;
 	for (i = 0; i < iov_cnt; ++i) {
-		total_length = iov[i].len;
+		total_length += iov[i].len;
 	}
 	if (total_length <= 0) {
 		return total_length;
