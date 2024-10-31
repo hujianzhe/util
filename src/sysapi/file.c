@@ -252,6 +252,39 @@ ssize_t fdWrite(FD_t fd, const void* buf, size_t nbytes) {
 #endif
 }
 
+ssize_t fdWritev(FD_t fd, const Iobuf_t iov[], unsigned int iov_cnt) {
+#if defined(_WIN32) || defined(_WIN64)
+	char* buffer;
+	unsigned int i;
+	DWORD _writebytes;
+	ssize_t total_length = 0, off;
+	for (i = 0; i < iov_cnt; ++i) {
+		total_length = iov[i].len;
+	}
+	if (total_length <= 0) {
+		return total_length;
+	}
+	buffer = (char*)malloc(total_length);
+	if (!buffer) {
+		return -1;
+	}
+	off = 0;
+	for (i = 0; i < iov_cnt; ++i) {
+		memcpy(buffer + off, iov[i].buf, iov[i].len);
+		off += iov[i].len;
+	}
+	_writebytes = 0;
+	if (!WriteFile((HANDLE)fd, buffer, total_length, &_writebytes, NULL)) {
+		free(buffer);
+		return -1;
+	}
+	free(buffer);
+	return _writebytes;
+#else
+	return writev(fd, iov, iov_cnt);
+#endif
+}
+
 long long fdSeek(FD_t fd, long long offset, int whence) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};

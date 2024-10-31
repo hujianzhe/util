@@ -3,9 +3,11 @@
 //
 
 #include "../../inc/datastruct/list.h"
+#include "../../inc/sysapi/atomic.h"
 #include "../../inc/sysapi/ipc.h"
 #include "../../inc/sysapi/error.h"
 #include "../../inc/sysapi/file.h"
+#include "../../inc/sysapi/process.h"
 #include "../../inc/sysapi/time.h"
 #include "../../inc/crt/string.h"
 #include "../../inc/component/log.h"
@@ -15,12 +17,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct LogAsyncOutputThread_t {
+	Thread_t tid;
+	unsigned int interval_scan_msec;
+	long long next_output_msec;
+	volatile char exit_flag;
+	List_t cache_list;
+	CriticalSection_t cache_list_lock;
+} LogAsyncOutputThread_t;
+
 typedef struct LogFile_t {
 	FD_t fd;
 	const char* key;
 	const char* base_path;
 	CriticalSection_t lock;
 	time_t rotate_timestamp_sec;
+	LogAsyncOutputThread_t* output_thrd;
 	LogFileOutputOption_t output_opt;
 	LogFileRotateOption_t rotate_opt;
 } LogFile_t;
@@ -29,12 +41,49 @@ typedef struct Log_t {
 	int enable_priority[4];
 	LogFile_t** files;
 	size_t files_cnt;
+	size_t async_output_select_idx;
+	LogAsyncOutputThread_t** async_output_thrds;
+	size_t async_output_thrds_cnt;
 } Log_t;
 
 typedef struct CacheBlock_t {
 	size_t len;
 	char txt[1];
 } CacheBlock_t;
+
+typedef struct AsyncCacheBlock_t {
+	ListNode_t _lnode;
+	LogFile_t* lf;
+	LogItemInfo_t item_info;
+	int prefix_len;
+	size_t txt_len;
+	char txt[1];
+} AsyncCacheBlock_t;
+
+static int init_async_output_thread(LogAsyncOutputThread_t* thrd) {
+	if (!criticalsectionCreate(&thrd->cache_list_lock)) {
+		return 0;
+	}
+	thrd->exit_flag = 0;
+	thrd->next_output_msec = 0;
+	listInit(&thrd->cache_list);
+	return 1;
+}
+
+void free_async_output_thread_cache_list(List_t* cache_list) {
+	ListNode_t* lcur, *lnext;
+	for (lcur = cache_list->head; lcur; lcur = lnext) {
+		AsyncCacheBlock_t* cache = pod_container_of(lcur, AsyncCacheBlock_t, _lnode);
+		lnext = lcur->next;
+		free(cache);
+	}
+}
+
+void free_async_output_thread(LogAsyncOutputThread_t* thrd) {
+	free_async_output_thread_cache_list(&thrd->cache_list);
+	criticalsectionClose(&thrd->cache_list_lock);
+	free(thrd);
+}
 
 static LogFile_t* get_log_file(Log_t* log, const char* key) {
 	size_t i;
@@ -55,15 +104,14 @@ static void free_log_file(LogFile_t* lf) {
 		fdClose(lf->fd);
 	}
 	criticalsectionClose(&lf->lock);
-	free((void*)lf->key);
-	free((void*)lf->base_path);
+	free((char*)lf->key);
+	free((char*)lf->base_path);
 	free(lf);
 }
 
 static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 	const char* new_path = NULL;
 	const LogFileRotateOption_t* opt = &lf->rotate_opt;
-	criticalsectionEnter(&lf->lock);
 
 	if (cur_sec >= lf->rotate_timestamp_sec && opt->rotate_timelen_sec > 0) {
 		time_t t;
@@ -84,24 +132,82 @@ static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 		new_path = opt->fn_new_fullpath(lf->base_path, lf->key, dt);
 	}
 	if (!new_path) {
-		goto end;
+		return;
 	}
 	lf->fd = fdOpen(new_path, FILE_CREAT_BIT | FILE_WRITE_BIT | FILE_APPEND_BIT);
-	if (INVALID_FD_HANDLE == lf->fd) {
-		goto end;
-	}
-end:
-	criticalsectionLeave(&lf->lock);
 	opt->fn_free_path((char*)new_path);
-	return;
 }
 
-static void log_write(Log_t* log, CacheBlock_t* cache, LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
-	log_rotate(lf, dt, cur_sec);
-	if (lf->fd != INVALID_FD_HANDLE) {
-		fdWrite(lf->fd, cache->txt, cache->len);
+static unsigned int log_async_output_thrd_entry(void* arg) {
+	LogAsyncOutputThread_t* output_thrd = (LogAsyncOutputThread_t*)arg;
+	List_t cache_list;
+	ListNode_t* lcur;
+	long long cur_msec = gmtimeMillisecond();
+	char* prefix_buffer = NULL;
+	size_t max_prefix_buffer_len = 0;
+	while (!output_thrd->exit_flag) {
+		if (output_thrd->next_output_msec > output_thrd->interval_scan_msec + cur_msec) {
+			threadSleepMillsecond(10);
+			cur_msec += 10;
+			continue;
+		}
+		listInit(&cache_list);
+		criticalsectionEnter(&output_thrd->cache_list_lock);
+		listSwap(&cache_list, &output_thrd->cache_list);
+		criticalsectionLeave(&output_thrd->cache_list_lock);
+
+		while ((lcur = listPopNodeFront(&cache_list))) {
+			AsyncCacheBlock_t* cache = pod_container_of(lcur, AsyncCacheBlock_t, _lnode);
+			LogFile_t* lf = cache->lf;
+			log_rotate(lf, &cache->item_info.dt, cache->item_info.timestamp_sec);
+			if (lf->fd != INVALID_FD_HANDLE) {
+				Iobuf_t iov[2];
+				/* fill prefix */
+				if (cache->prefix_len > 0 && lf->output_opt.fn_sprintf_prefix) {
+					if (max_prefix_buffer_len < cache->prefix_len + 1) {
+						char* tmp_ptr = (char*)realloc(prefix_buffer, cache->prefix_len + 1);
+						if (!tmp_ptr) {
+							free(cache);
+							continue;
+						}
+						prefix_buffer = tmp_ptr;
+						max_prefix_buffer_len = cache->prefix_len + 1;
+					}
+					lf->output_opt.fn_sprintf_prefix(prefix_buffer, &cache->item_info);
+					iobufPtr(&iov[0]) = prefix_buffer;
+					iobufLen(&iov[0]) = cache->prefix_len;
+				}
+				else {
+					iobufPtr(&iov[0]) = NULL;
+					iobufLen(&iov[0]) = 0;
+				}
+				/* io write */
+				iobufPtr(&iov[1]) = cache->txt;
+				iobufLen(&iov[1]) = cache->txt_len;
+				fdWritev(lf->fd, iov, sizeof(iov) / sizeof(iov[0]));
+			}
+			free(cache);
+			if (output_thrd->exit_flag) {
+				goto end;
+			}
+		}
+
+		cur_msec = gmtimeMillisecond();
+		output_thrd->next_output_msec = cur_msec + output_thrd->interval_scan_msec;
 	}
-	free(cache);
+end:
+	free(prefix_buffer);
+	free_async_output_thread_cache_list(&cache_list);
+	return 0;
+}
+
+static void log_sync_write(Log_t* log, const char* txt, size_t txt_len, LogFile_t* lf, const LogItemInfo_t* item_info) {
+	criticalsectionEnter(&lf->lock);
+	log_rotate(lf, &item_info->dt, item_info->timestamp_sec);
+	if (lf->fd != INVALID_FD_HANDLE) {
+		fdWrite(lf->fd, txt, txt_len);
+	}
+	criticalsectionLeave(&lf->lock);
 }
 
 static const char* log_get_priority_str(unsigned int level) {
@@ -160,25 +266,25 @@ static void default_sprintf_prefix(char* buf, const LogItemInfo_t* item_info) {
 			item_info->priority_str, item_info->source_file, item_info->source_line);
 }
 
-static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* item_info, const char* format, va_list ap) {
-	va_list varg;
-	int len, res, prefix_len;
-	char test_buf;
-	time_t cur_sec;
-	CacheBlock_t* cache;
-	const LogFileOutputOption_t* opt;
-
-	if (!format || 0 == *format) {
-		return;
-	}
-	cur_sec = gmtimeSecond();
-	if (!gmtimeLocalTM(cur_sec, &item_info->dt)) {
-		return;
+static LogItemInfo_t* fill_log_item_info(LogItemInfo_t* item_info, int priority) {
+	item_info->timestamp_sec = gmtimeSecond();
+	if (!gmtimeLocalTM(item_info->timestamp_sec, &item_info->dt)) {
+		return NULL;
 	}
 	structtmNormal(&item_info->dt);
 	item_info->priority_str = log_get_priority_str(priority);
+	return item_info;
+}
 
-	opt = &lf->output_opt;
+static void log_async_build(Log_t* log, LogFile_t* lf, const LogItemInfo_t* item_info, const char* format, va_list ap) {
+	va_list varg;
+	ssize_t txt_len;
+	char test_buf;
+	int prefix_len;
+	AsyncCacheBlock_t* cache;
+	LogAsyncOutputThread_t* output_thrd;
+	const LogFileOutputOption_t* opt = &lf->output_opt;
+	/* calculate buffer total length */
 	if (opt->fn_prefix_length) {
 		prefix_len = opt->fn_prefix_length(item_info);
 		if (prefix_len < 0) {
@@ -189,31 +295,91 @@ static void log_build(Log_t* log, LogFile_t* lf, int priority, LogItemInfo_t* it
 		prefix_len = 0;
 	}
 	va_copy(varg, ap);
-	res = vsnprintf(&test_buf, 0, format, varg);
+	txt_len = vsnprintf(&test_buf, 0, format, varg);
 	va_end(varg);
-	if (res <= 0) {
+	if (txt_len <= 0) {
 		return;
 	}
-	len = prefix_len + res;
+	++txt_len;/* append '\n' */
+	if (txt_len <= 0) {
+		return;
+	}
+	/* alloc buffer */
+	cache = (AsyncCacheBlock_t*)malloc(sizeof(AsyncCacheBlock_t) + txt_len);
+	if (!cache) {
+		return;
+	}
+	/* fill buffer */
+	va_copy(varg, ap);
+	if (vsnprintf(cache->txt, txt_len + 1, format, varg) <= 0) {
+		free(cache);
+		va_end(varg);
+		return;
+	}
+	va_end(varg);
+	cache->txt[txt_len - 1] = '\n';
+	cache->txt[txt_len] = 0;
+	cache->txt_len = txt_len;
+	cache->prefix_len = prefix_len;
+	cache->lf = lf;
+	cache->item_info = *item_info;
+	/* insert cache list */
+	output_thrd = lf->output_thrd;
+	criticalsectionEnter(&output_thrd->cache_list_lock);
+	listPushNodeBack(&output_thrd->cache_list, &cache->_lnode);
+	criticalsectionLeave(&output_thrd->cache_list_lock);
+}
+
+static void log_sync_build(Log_t* log, LogFile_t* lf, const LogItemInfo_t* item_info, const char* format, va_list ap) {
+	va_list varg;
+	ssize_t len;
+	char test_buf;
+	int prefix_len;
+	CacheBlock_t* cache;
+	const LogFileOutputOption_t* opt = &lf->output_opt;
+	/* calculate buffer total length */
+	if (opt->fn_prefix_length) {
+		prefix_len = opt->fn_prefix_length(item_info);
+		if (prefix_len < 0) {
+			return;
+		}
+	}
+	else {
+		prefix_len = 0;
+	}
+	va_copy(varg, ap);
+	len = vsnprintf(&test_buf, 0, format, varg);
+	va_end(varg);
+	if (len <= 0) {
+		return;
+	}
+	len += prefix_len;
 	++len;/* append '\n' */
+	if (len <= 0) {
+		return;
+	}
+	/* alloc buffer */
 	cache = (CacheBlock_t*)malloc(sizeof(CacheBlock_t) + len);
 	if (!cache) {
 		return;
 	}
+	/* fill buffer */
 	if (prefix_len > 0 && opt->fn_sprintf_prefix) {
 		opt->fn_sprintf_prefix(cache->txt, item_info);
 	}
 	va_copy(varg, ap);
-	res = vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg);
-	va_end(varg);
-	if (res <= 0) {
+	if (vsnprintf(cache->txt + prefix_len, len - prefix_len + 1, format, varg) <= 0) {
 		free(cache);
+		va_end(varg);
 		return;
 	}
+	va_end(varg);
 	cache->txt[len - 1] = '\n';
 	cache->txt[len] = 0;
 	cache->len = len;
-	log_write(log, cache, lf, &item_info->dt, cur_sec);
+	/* io write */
+	log_sync_write(log, cache->txt, cache->len, lf, item_info);
+	free(cache);
 }
 
 #ifdef	__cplusplus
@@ -231,13 +397,57 @@ Log_t* logOpen(void) {
 	}
 	log->files = NULL;
 	log->files_cnt = 0;
+	log->async_output_select_idx = 0;
+	log->async_output_thrds = NULL;
+	log->async_output_thrds_cnt = 0;
 	return log;
+}
+
+Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt, unsigned int interval_scan_msec) {
+	size_t i;
+	LogAsyncOutputThread_t** thrds;
+	if (log->async_output_thrds_cnt > 0) {
+		return log;
+	}
+	thrds = (LogAsyncOutputThread_t**)malloc(sizeof(LogAsyncOutputThread_t*) * thrd_cnt);
+	if (!thrds) {
+		return NULL;
+	}
+	for (i = 0; i < thrd_cnt; ++i) {
+		LogAsyncOutputThread_t* t = (LogAsyncOutputThread_t*)malloc(sizeof(LogAsyncOutputThread_t));
+		if (!t) {
+			goto err;
+		}
+		if (!init_async_output_thread(t)) {
+			free(t);
+			goto err;
+		}
+		if (!threadCreate(&t->tid, log_async_output_thrd_entry, t)) {
+			free(t);
+			goto err;
+		}
+		t->interval_scan_msec = interval_scan_msec;
+		thrds[i] = t;
+	}
+	log->async_output_thrds = thrds;
+	log->async_output_thrds_cnt = thrd_cnt;
+	return log;
+err:
+	while (i > 0) {
+		LogAsyncOutputThread_t* t = thrds[--i];
+		t->exit_flag = 1;
+		threadJoin(t->tid, NULL);
+		free_async_output_thread(t);
+	}
+	free(thrds);
+	return NULL;
 }
 
 const LogFileOutputOption_t* logFileOutputOptionDefault(void) {
 	static LogFileOutputOption_t opt = {
 		default_prefix_length,
-		default_sprintf_prefix
+		default_sprintf_prefix,
+		0
 	};
 	return &opt;
 }
@@ -309,6 +519,13 @@ Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, 
 	else {
 		memset(&lf->output_opt, 0, sizeof(lf->output_opt));
 	}
+	if (lf->output_opt.async_output && log->async_output_thrds_cnt > 0) {
+		size_t idx = (log->async_output_select_idx++) % log->async_output_thrds_cnt;
+		lf->output_thrd = log->async_output_thrds[idx];
+	}
+	else {
+		lf->output_thrd = NULL;
+	}
 	/* rotate option */
 	if (rotate_opt->rotate_timelen_sec > 0) {
 		time_t t = localtimeSecond() / rotate_opt->rotate_timelen_sec * rotate_opt->rotate_timelen_sec + gmtimeTimezoneOffsetSecond();
@@ -336,21 +553,44 @@ void logDestroy(Log_t* log) {
 	if (!log) {
 		return;
 	}
+
+	for (i = 0; i < log->async_output_thrds_cnt; ++i) {
+		LogAsyncOutputThread_t* output_thrd = log->async_output_thrds[i];
+		output_thrd->exit_flag = 1;
+		threadJoin(output_thrd->tid, NULL);
+		free_async_output_thread(output_thrd);
+	}
+	free(log->async_output_thrds);
+
 	for (i = 0; i < log->files_cnt; ++i) {
 		free_log_file(log->files[i]);
 	}
 	free(log->files);
+
 	free(log);
 }
 
 void logPrintlnNoFilter(Log_t* log, const char* key, int priority, LogItemInfo_t* ii, const char* format, ...) {
 	va_list varg;
-	LogFile_t* lf = get_log_file(log, key);
+	LogFile_t* lf;
+
+	if (!format || 0 == *format) {
+		return;
+	}
+	lf = get_log_file(log, key);
 	if (!lf) {
 		return;
 	}
+	if (!fill_log_item_info(ii, priority)) {
+		return;
+	}
 	va_start(varg, format);
-	log_build(log, lf, priority, ii, format, varg);
+	if (lf->output_thrd) {
+		log_async_build(log, lf, ii, format, varg);
+	}
+	else {
+		log_sync_build(log, lf, ii, format, varg);
+	}
 	va_end(varg);
 }
 

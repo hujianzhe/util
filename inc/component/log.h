@@ -16,6 +16,7 @@ typedef struct LogItemInfo_t {
 	const char* source_file;
 	unsigned int source_line;
 	struct tm dt;
+	time_t timestamp_sec;
 } LogItemInfo_t;
 
 typedef struct LogFileRotateOption_t {
@@ -27,6 +28,7 @@ typedef struct LogFileRotateOption_t {
 typedef struct LogFileOutputOption_t {
 	int(*fn_prefix_length)(const LogItemInfo_t*);
 	void(*fn_sprintf_prefix)(char*, const LogItemInfo_t*);
+	int async_output;
 } LogFileOutputOption_t;
 
 #ifdef	__cplusplus
@@ -34,6 +36,7 @@ extern "C" {
 #endif
 
 __declspec_dll struct Log_t* logOpen(void);
+__declspec_dll struct Log_t* logEnableAsyncOuputThreads(struct Log_t* log, size_t thrd_cnt, unsigned int interval_scan_msec);
 __declspec_dll void logDestroy(struct Log_t* log);
 
 __declspec_dll struct Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, const LogFileOutputOption_t* output_opt, const LogFileRotateOption_t* rotate_opt);

@@ -5,7 +5,7 @@
 #ifndef	UTIL_C_SYSLIB_FILE_H
 #define UTIL_C_SYSLIB_FILE_H
 
-#include "../platform_define.h"
+#include "io_overlapped.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 	typedef HANDLE					Dir_t;
@@ -59,6 +59,7 @@ __declspec_dll FD_t fdDup2(FD_t oldfd, FD_t newfd);
 __declspec_dll FD_t fdOpen(const char* path, int obit);
 __declspec_dll ssize_t fdRead(FD_t fd, void* buf, size_t nbytes);
 __declspec_dll ssize_t fdWrite(FD_t fd, const void* buf, size_t nbytes);
+__declspec_dll ssize_t fdWritev(FD_t fd, const Iobuf_t iov[], unsigned int iov_cnt);
 __declspec_dll long long fdSeek(FD_t fd, long long offset, int whence);
 __declspec_dll long long fdTell(FD_t fd);
 __declspec_dll BOOL fdFlush(FD_t fd);
