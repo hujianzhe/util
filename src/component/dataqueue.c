@@ -102,17 +102,16 @@ void dataqueueWake(DataQueue_t* dq) {
 }
 
 ListNode_t* dataqueueClean(DataQueue_t* dq) {
-	List_t list;
-	listInit(&list);
+	ListNode_t* head;
 
 	criticalsectionEnter(&dq->m_cslock);
 
-	list = dq->m_datalist;
+	head = dq->m_datalist.head;
 	listInit(&dq->m_datalist);
 
 	criticalsectionLeave(&dq->m_cslock);
 
-	return list.head;
+	return head;
 }
 
 ListNode_t* dataqueueDestroy(DataQueue_t* dq) {

@@ -225,7 +225,7 @@ err:
 void SwitchCoSche_destroy(SwitchCoSche_t* sche) {
 	ListNode_t *lcur, *lnext;
 
-	for (lcur = dataqueuePopWait(&sche->dq, 0, -1); lcur; lcur = lnext) {
+	for (lcur = dataqueueClean(&sche->dq); lcur; lcur = lnext) {
 		SwitchCoHdr_t* hdr = pod_container_of(lcur, SwitchCoHdr_t, listnode);
 		lnext = lcur->next;
 
