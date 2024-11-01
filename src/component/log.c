@@ -422,7 +422,7 @@ Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt, unsigned int inte
 			free(t);
 			goto err;
 		}
-		if (!threadCreate(&t->tid, log_async_output_thrd_entry, t)) {
+		if (!threadCreate(&t->tid, 0, log_async_output_thrd_entry, t)) {
 			free(t);
 			goto err;
 		}

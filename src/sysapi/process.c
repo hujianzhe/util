@@ -183,7 +183,7 @@ static void* thread_entry_(void* arg) {
 #endif
 }
 
-BOOL threadCreate(Thread_t* p_thread, unsigned int(*entry)(void*), void* arg) {
+BOOL threadCreate(Thread_t* p_thread, unsigned int stack_size, unsigned int(*entry)(void*), void* arg) {
 #if defined(_WIN32) || defined(_WIN64)
 	HANDLE handle;
 	void** boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
@@ -192,7 +192,7 @@ BOOL threadCreate(Thread_t* p_thread, unsigned int(*entry)(void*), void* arg) {
 	}
 	boot_arg[0] = (void*)entry;
 	boot_arg[1] = arg;
-	handle = (HANDLE)_beginthreadex(NULL, 0, thread_entry_, boot_arg, 0, &p_thread->id);
+	handle = (HANDLE)_beginthreadex(NULL, stack_size, thread_entry_, boot_arg, STACK_SIZE_PARAM_IS_A_RESERVATION, &p_thread->id);
 	if ((HANDLE)-1 == handle) {
 		free(boot_arg);
 		return FALSE;

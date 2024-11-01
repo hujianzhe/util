@@ -66,7 +66,7 @@ __declspec_dll size_t processId(void);
 __declspec_dll BOOL processWait(Process_t process, unsigned char* retcode);
 __declspec_dll BOOL processTryWait(Process_t process, unsigned char* retcode);
 /* thread operator */
-__declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int(*entry)(void*), void* arg);
+__declspec_dll BOOL threadCreate(Thread_t* p_thread, unsigned int stack_size, unsigned int(*entry)(void*), void* arg);
 __declspec_dll BOOL threadDetach(Thread_t thread);
 __declspec_dll BOOL threadJoin(Thread_t thread, unsigned int* retcode);
 __declspec_dll void threadExit(unsigned int retcode);
