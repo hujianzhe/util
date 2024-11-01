@@ -201,19 +201,44 @@ BOOL threadCreate(Thread_t* p_thread, unsigned int stack_size, unsigned int(*ent
 	return TRUE;
 #else
 	int res;
-	void** boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
+	void** boot_arg = NULL;
+	pthread_attr_t attr, *p_attr = NULL;
+
+	if (stack_size > 0) {
+		res = pthread_attr_init(&attr);
+		if (res) {
+			errno = res;
+			goto err;
+		}
+		p_attr = &attr;
+		res = pthread_attr_setstacksize(&attr, stack_size);
+		if (res) {
+			errno = res;
+			goto err;
+		}
+
+	}
+	boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
 	if (!boot_arg) {
-		return FALSE;
+		goto err;
 	}
 	boot_arg[0] = (void*)entry;
 	boot_arg[1] = arg;
-	res = pthread_create(&p_thread->id, NULL, thread_entry_, boot_arg);
+	res = pthread_create(&p_thread->id, p_attr, thread_entry_, boot_arg);
 	if (res) {
-		free(boot_arg);
 		errno = res;
-		return FALSE;
+		goto err;
+	}
+	if (p_attr) {
+		pthread_attr_destroy(p_attr);
 	}
 	return TRUE;
+err:
+	if (p_attr) {
+		pthread_attr_destroy(p_attr);
+	}
+	free(boot_arg);
+	return FALSE;
 #endif
 }
 
