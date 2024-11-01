@@ -219,6 +219,9 @@ ConditionVariable_t* conditionvariableCreate(ConditionVariable_t* condition) {
 
 BOOL conditionvariableWait(ConditionVariable_t* condition, CriticalSection_t* cs, int msec) {
 #if defined(_WIN32) || defined(_WIN64)
+	if (msec < 0) {
+		msec = INFINITE;
+	}
 	return SleepConditionVariableCS(condition, cs, msec);
 #else
 	int res;
