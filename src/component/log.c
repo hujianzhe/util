@@ -140,7 +140,7 @@ static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 
 static unsigned int log_async_output_thrd_entry(void* arg) {
 	LogAsyncOutputThread_t* output_thrd = (LogAsyncOutputThread_t*)arg;
-	ListNode_t* lcur;
+	ListNode_t* lcur = NULL;
 	char* prefix_buffer = NULL;
 	size_t max_prefix_buffer_len = 0;
 	while (!output_thrd->exit_flag) {
