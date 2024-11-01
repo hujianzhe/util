@@ -70,7 +70,8 @@ typedef struct StackCoResume_t {
 } StackCoResume_t;
 
 typedef struct StackCoSche_t {
-	volatile int exit_flag;
+	volatile short exit_flag;
+	short exit_handle;
 	int handle_cnt;
 	void* userdata;
 	void(*fn_at_exit)(struct StackCoSche_t*, void*);
@@ -372,6 +373,9 @@ static StackCoLock_t* sche_lock(StackCoSche_t* sche, const StackCoLockOwner_t* o
 	listPushNodeBack(&lock->wait_block_list, &block_node->ready_resume_listnode);
 
 	StackCoSche_yield(sche);
+	if (sche->exit_handle) {
+		return NULL;
+	}
 	return lock;
 err:
 	if (clone_owner) {
@@ -407,6 +411,7 @@ StackCoSche_t* StackCoSche_new(size_t stack_size, void* userdata) {
 	}
 	timer_ok = 1;
 	sche->exit_flag = 0;
+	sche->exit_handle = 0;
 	sche->handle_cnt = 100;
 	sche->userdata = userdata;
 	sche->fn_at_exit = NULL;
@@ -697,6 +702,9 @@ StackCoLock_t* StackCoSche_lock(StackCoSche_t* sche, const StackCoLockOwner_t* o
 		co_lock_alloc = 1;
 	}
 	if (!sche_lock(sche, owner, lock)) {
+		if (sche->exit_handle) {
+			return NULL;
+		}
 		goto err;
 	}
 	return lock;
@@ -724,6 +732,9 @@ StackCoLock_t* StackCoSche_try_lock(StackCoSche_t* sche, const StackCoLockOwner_
 		return NULL;
 	}
 	if (!sche_lock(sche, owner, lock)) {
+		if (sche->exit_handle) {
+			return NULL;
+		}
 		goto err;
 	}
 	return lock;
@@ -739,11 +750,28 @@ void StackCoSche_unlock(StackCoSche_t* sche, StackCoLock_t* lock) {
 	ListNode_t* lnode;
 	StackCoBlockNode_t* block_node;
 
+	if (!lock) {
+		return;
+	}
 	if (lock->enter_times > 1) {
 		lock->enter_times--;
 		return;
 	}
 	if (listIsEmpty(&lock->wait_block_list)) {
+		/* free lock */
+		hashtableRemoveNode(&sche->lock_htbl, &lock->htnode);
+		free_stack_co_lock(lock);
+		return;
+	}
+	if (sche->exit_handle) {
+		/* clear all waiter coroutine */
+		for (lnode = lock->wait_block_list.head; lnode; lnode = lnode->next) {
+			block_node = pod_container_of(lnode, StackCoBlockNode_t, ready_resume_listnode);
+			StackCoSche_free_lock_owner(block_node->lock_owner);
+			block_node->lock_owner = NULL;
+			block_node->wait_lock = NULL;
+		}
+		/* free lock */
 		hashtableRemoveNode(&sche->lock_htbl, &lock->htnode);
 		free_stack_co_lock(lock);
 		return;
@@ -918,6 +946,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	}
 
 	if (sche->exit_flag) {
+		sche->exit_handle = 1;
 		for (lcur = sche->exec_co_list.head; lcur; lcur = lnext) {
 			StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
 			lnext = lcur->next;
