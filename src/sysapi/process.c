@@ -216,7 +216,6 @@ BOOL threadCreate(Thread_t* p_thread, unsigned int stack_size, unsigned int(*ent
 			errno = res;
 			goto err;
 		}
-
 	}
 	boot_arg = (void**)malloc(sizeof(void*) + sizeof(void*));
 	if (!boot_arg) {
