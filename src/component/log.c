@@ -10,6 +10,7 @@
 #include "../../inc/sysapi/process.h"
 #include "../../inc/sysapi/time.h"
 #include "../../inc/crt/string.h"
+#include "../../inc/component/dataqueue.h"
 #include "../../inc/component/log.h"
 #include <stddef.h>
 #include <stdarg.h>
@@ -19,11 +20,9 @@
 
 typedef struct LogAsyncOutputThread_t {
 	Thread_t tid;
-	unsigned int interval_scan_msec;
 	long long next_output_msec;
 	volatile char exit_flag;
-	List_t cache_list;
-	CriticalSection_t cache_list_lock;
+	DataQueue_t cache_dq;
 } LogAsyncOutputThread_t;
 
 typedef struct LogFile_t {
@@ -61,27 +60,28 @@ typedef struct AsyncCacheBlock_t {
 } AsyncCacheBlock_t;
 
 static int init_async_output_thread(LogAsyncOutputThread_t* thrd) {
-	if (!criticalsectionCreate(&thrd->cache_list_lock)) {
+	if (!dataqueueInit(&thrd->cache_dq)) {
 		return 0;
 	}
 	thrd->exit_flag = 0;
 	thrd->next_output_msec = 0;
-	listInit(&thrd->cache_list);
 	return 1;
 }
 
-void free_async_output_thread_cache_list(List_t* cache_list) {
+void free_async_output_thread_cache_list(ListNode_t* head) {
 	ListNode_t* lcur, *lnext;
-	for (lcur = cache_list->head; lcur; lcur = lnext) {
+	for (lcur = head; lcur; lcur = lnext) {
 		AsyncCacheBlock_t* cache = pod_container_of(lcur, AsyncCacheBlock_t, _lnode);
 		lnext = lcur->next;
 		free(cache);
 	}
 }
 
-void free_async_output_thread(LogAsyncOutputThread_t* thrd) {
-	free_async_output_thread_cache_list(&thrd->cache_list);
-	criticalsectionClose(&thrd->cache_list_lock);
+void exit_free_async_output_thread(LogAsyncOutputThread_t* thrd) {
+	thrd->exit_flag = 1;
+	dataqueueWake(&thrd->cache_dq);
+	threadJoin(thrd->tid, NULL);
+	free_async_output_thread_cache_list(dataqueueDestroy(&thrd->cache_dq));
 	free(thrd);
 }
 
@@ -140,25 +140,15 @@ static void log_rotate(LogFile_t* lf, const struct tm* dt, time_t cur_sec) {
 
 static unsigned int log_async_output_thrd_entry(void* arg) {
 	LogAsyncOutputThread_t* output_thrd = (LogAsyncOutputThread_t*)arg;
-	List_t cache_list;
 	ListNode_t* lcur;
-	long long cur_msec = gmtimeMillisecond();
 	char* prefix_buffer = NULL;
 	size_t max_prefix_buffer_len = 0;
 	while (!output_thrd->exit_flag) {
-		if (output_thrd->next_output_msec > output_thrd->interval_scan_msec + cur_msec) {
-			threadSleepMillsecond(10);
-			cur_msec += 10;
-			continue;
-		}
-		listInit(&cache_list);
-		criticalsectionEnter(&output_thrd->cache_list_lock);
-		listSwap(&cache_list, &output_thrd->cache_list);
-		criticalsectionLeave(&output_thrd->cache_list_lock);
-
-		while ((lcur = listPopNodeFront(&cache_list))) {
+		lcur = dataqueuePopWait(&output_thrd->cache_dq, -1, -1);
+		while (lcur) {
 			AsyncCacheBlock_t* cache = pod_container_of(lcur, AsyncCacheBlock_t, _lnode);
 			LogFile_t* lf = cache->lf;
+			lcur = lcur->next;
 			log_rotate(lf, &cache->item_info.dt, cache->item_info.timestamp_sec);
 			if (lf->fd != INVALID_FD_HANDLE) {
 				Iobuf_t iov[2];
@@ -191,13 +181,10 @@ static unsigned int log_async_output_thrd_entry(void* arg) {
 				goto end;
 			}
 		}
-
-		cur_msec = gmtimeMillisecond();
-		output_thrd->next_output_msec = cur_msec + output_thrd->interval_scan_msec;
 	}
 end:
 	free(prefix_buffer);
-	free_async_output_thread_cache_list(&cache_list);
+	free_async_output_thread_cache_list(lcur);
 	return 0;
 }
 
@@ -325,9 +312,7 @@ static void log_async_build(Log_t* log, LogFile_t* lf, const LogItemInfo_t* item
 	cache->item_info = *item_info;
 	/* insert cache list */
 	output_thrd = lf->output_thrd;
-	criticalsectionEnter(&output_thrd->cache_list_lock);
-	listPushNodeBack(&output_thrd->cache_list, &cache->_lnode);
-	criticalsectionLeave(&output_thrd->cache_list_lock);
+	dataqueuePush(&output_thrd->cache_dq, &cache->_lnode);
 }
 
 static void log_sync_build(Log_t* log, LogFile_t* lf, const LogItemInfo_t* item_info, const char* format, va_list ap) {
@@ -403,7 +388,7 @@ Log_t* logOpen(void) {
 	return log;
 }
 
-Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt, unsigned int interval_scan_msec) {
+Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt) {
 	size_t i;
 	LogAsyncOutputThread_t** thrds;
 	if (log->async_output_thrds_cnt > 0) {
@@ -426,7 +411,6 @@ Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt, unsigned int inte
 			free(t);
 			goto err;
 		}
-		t->interval_scan_msec = interval_scan_msec;
 		thrds[i] = t;
 	}
 	log->async_output_thrds = thrds;
@@ -434,10 +418,7 @@ Log_t* logEnableAsyncOuputThreads(Log_t* log, size_t thrd_cnt, unsigned int inte
 	return log;
 err:
 	while (i > 0) {
-		LogAsyncOutputThread_t* t = thrds[--i];
-		t->exit_flag = 1;
-		threadJoin(t->tid, NULL);
-		free_async_output_thread(t);
+		exit_free_async_output_thread(thrds[--i]);
 	}
 	free(thrds);
 	return NULL;
@@ -555,10 +536,7 @@ void logDestroy(Log_t* log) {
 	}
 
 	for (i = 0; i < log->async_output_thrds_cnt; ++i) {
-		LogAsyncOutputThread_t* output_thrd = log->async_output_thrds[i];
-		output_thrd->exit_flag = 1;
-		threadJoin(output_thrd->tid, NULL);
-		free_async_output_thread(output_thrd);
+		exit_free_async_output_thread(log->async_output_thrds[i]);
 	}
 	free(log->async_output_thrds);
 

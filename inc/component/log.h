@@ -36,7 +36,7 @@ extern "C" {
 #endif
 
 __declspec_dll struct Log_t* logOpen(void);
-__declspec_dll struct Log_t* logEnableAsyncOuputThreads(struct Log_t* log, size_t thrd_cnt, unsigned int interval_scan_msec);
+__declspec_dll struct Log_t* logEnableAsyncOuputThreads(struct Log_t* log, size_t thrd_cnt);
 __declspec_dll void logDestroy(struct Log_t* log);
 
 __declspec_dll struct Log_t* logEnableFile(struct Log_t* log, const char* key, const char* base_path, const LogFileOutputOption_t* output_opt, const LogFileRotateOption_t* rotate_opt);
