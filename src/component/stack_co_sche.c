@@ -1059,7 +1059,7 @@ void StackCoSche_set_handle_cnt(struct StackCoSche_t* sche, int handle_cnt) {
 }
 
 int StackCoSche_has_exit(struct StackCoSche_t* sche) {
-	return sche->exit_flag;
+	return sche->exit_handle;
 }
 
 void StackCoSche_at_exit(StackCoSche_t* sche, void(*fn_at_exit)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
