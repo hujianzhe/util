@@ -524,7 +524,7 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 			free_inbuf(o);
 		}
 	}
-	else if (o->m_inbufoff > 0 && o->m_inbuflen - o->m_inbufoff <= 512) { /* temp default 512 bytes */
+	else if (o->m_inbufoff > 0) {
 		memmove(o->m_inbuf, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff);
 		o->m_inbuflen -= o->m_inbufoff;
 		o->m_inbufoff = 0;
