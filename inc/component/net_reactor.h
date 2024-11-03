@@ -86,7 +86,7 @@ typedef struct NetChannel_t {
 	socklen_t to_addrlen;
 	int heartbeat_timeout_msec; /* optional, > 0 enable heartbeat */
 	short heartbeat_sender; /* optional, if true, will call proc.on_heartbeat */
-	unsigned short heartbeat_maxtimes; /* client use, optional */
+	unsigned short heartbeat_maxtimes; /* optional */
 	char has_recvfin;
 	char has_sendfin;
 	char valid;
