@@ -121,7 +121,6 @@ static void free_inbuf(NetReactorObject_t* o) {
 		free(o->m_inbuf);
 		o->m_inbuf = NULL;
 		o->m_inbuflen = 0;
-		o->m_inbufoff = 0;
 		o->m_inbufsize = 0;
 	}
 }
@@ -464,6 +463,7 @@ static void reactor_stream_accept(NetChannel_t* channel, NetReactorObject_t* o, 
 }
 
 static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, NetReactorObject_t* o, long long timestamp_msec) {
+	int overflowed = 0, inbuf_off;
 	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
@@ -474,13 +474,19 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 		stream_recvfin_handler(reactor, channel, timestamp_msec);
 		return;
 	}
-	if (check_cache_overflow(o->m_inbuflen, res, o->inbuf_maxlen)) {
-		channel->valid = 0;
-		channel->detach_error = NET_REACTOR_CACHE_READ_OVERFLOW_ERR;
-		return;
+	if (o->inbuf_maxlen > o->m_inbuflen && o->inbuf_maxlen - o->m_inbuflen <= res) {
+		overflowed = 1;
+		res = o->inbuf_maxlen - o->m_inbuflen;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
-		unsigned char* ptr = (unsigned char*)realloc(o->m_inbuf, o->m_inbuflen + res + 1);
+		unsigned char* ptr;
+		int sz = o->m_inbuflen + res + 1;
+		if (sz <= 0) {
+			channel->valid = 0;
+			channel->detach_error = NET_REACTOR_CACHE_READ_OVERFLOW_ERR;
+			return;
+		}
+		ptr = (unsigned char*)realloc(o->m_inbuf, sz);
 		if (!ptr) {
 			channel->valid = 0;
 			return;
@@ -502,8 +508,9 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 	}
 	o->m_inbuflen += res;
 	o->m_inbuf[o->m_inbuflen] = 0; /* convienent for text data */
-	while (o->m_inbufoff < o->m_inbuflen) {
-		res = channel->proc->on_read(channel, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff,
+	inbuf_off = 0;
+	while (inbuf_off < o->m_inbuflen) {
+		res = channel->proc->on_read(channel, o->m_inbuf + inbuf_off, o->m_inbuflen - inbuf_off,
 				timestamp_msec, &channel->connect_addr.sa, channel->connect_addrlen);
 		if (res < 0 || !after_call_channel_interface(channel)) {
 			channel->valid = 0;
@@ -512,22 +519,25 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 		if (0 == res) {
 			break;
 		}
-		o->m_inbufoff += res;
+		inbuf_off += res;
 	}
 	channel_update_heartbeat_on_read(channel, timestamp_msec);
-	if (o->m_inbufoff >= o->m_inbuflen) {
+	if (inbuf_off >= o->m_inbuflen) {
 		if (o->inbuf_saved) {
-			o->m_inbufoff = 0;
 			o->m_inbuflen = 0;
 		}
 		else {
 			free_inbuf(o);
 		}
 	}
-	else if (o->m_inbufoff > 0) {
-		memmove(o->m_inbuf, o->m_inbuf + o->m_inbufoff, o->m_inbuflen - o->m_inbufoff);
-		o->m_inbuflen -= o->m_inbufoff;
-		o->m_inbufoff = 0;
+	else if (inbuf_off > 0) {
+		memmove(o->m_inbuf, o->m_inbuf + inbuf_off, o->m_inbuflen - inbuf_off);
+		o->m_inbuflen -= inbuf_off;
+	}
+	else if (overflowed) {
+		channel->valid = 0;
+		channel->detach_error = NET_REACTOR_CACHE_READ_OVERFLOW_ERR;
+		return;
 	}
 }
 
@@ -817,7 +827,6 @@ static void reactorobject_init_comm(NetReactorObject_t* o, FD_t fd, int domain) 
 	o->m_channel = NULL;
 	o->m_inbuf = NULL;
 	o->m_inbuflen = 0;
-	o->m_inbufoff = 0;
 	o->m_inbufsize = 0;
 	niofdInit(&o->niofd, fd, domain);
 }

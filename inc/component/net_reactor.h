@@ -71,7 +71,6 @@ typedef struct NetReactorObject_t {
 	} stream;
 	char m_connected;
 	unsigned char* m_inbuf;
-	int m_inbufoff;
 	int m_inbuflen;
 	int m_inbufsize;
 } NetReactorObject_t;
