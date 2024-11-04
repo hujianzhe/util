@@ -37,10 +37,11 @@ typedef struct NetChannelSession_t {
 
 typedef struct NetChannelProc_t {
 	void(*on_exec)(struct NetChannel_t* self, long long timestamp_msec); /* optional */
+	/* return > 0 decode length, == 0 imcomplete, < 0 decode error */
 	int(*on_read)(struct NetChannel_t* self, unsigned char* buf, unsigned int len, long long timestamp_msec, const struct sockaddr* from_addr, socklen_t addrlen);
 	unsigned int(*on_hdrsize)(struct NetChannel_t* self, unsigned int bodylen); /* optional */
 	int(*on_pre_send)(struct NetChannel_t* self, NetPacket_t* packet, long long timestamp_msec); /* optional */
-	void(*on_heartbeat)(struct NetChannel_t* self, int heartbeat_times); /* client use, optional */
+	void(*on_heartbeat)(struct NetChannel_t* self, int heartbeat_times); /* heartbeat_sender use, optional */
 	void(*on_detach)(struct NetChannel_t* self);
 	void(*on_free)(struct NetChannel_t* self); /* optional */
 } NetChannelProc_t;
