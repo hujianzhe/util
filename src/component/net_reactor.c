@@ -463,7 +463,7 @@ static void reactor_stream_accept(NetChannel_t* channel, NetReactorObject_t* o, 
 }
 
 static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, NetReactorObject_t* o, long long timestamp_msec) {
-	int overflowed = 0, inbuf_off;
+	int overflowed, inbuf_off;
 	int res = socketTcpReadableBytes(o->niofd.fd);
 	if (res < 0) {
 		channel->valid = 0;
@@ -477,6 +477,9 @@ static void reactor_stream_readev(NetReactor_t* reactor, NetChannel_t* channel, 
 	if (o->inbuf_maxlen > o->m_inbuflen && o->inbuf_maxlen - o->m_inbuflen <= res) {
 		overflowed = 1;
 		res = o->inbuf_maxlen - o->m_inbuflen;
+	}
+	else {
+		overflowed = 0;
 	}
 	if (o->m_inbufsize < o->m_inbuflen + res) {
 		unsigned char* ptr;
