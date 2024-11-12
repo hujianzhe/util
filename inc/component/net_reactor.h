@@ -6,6 +6,7 @@
 #define	UTIL_C_COMPONENT_REACTOR_H
 
 #include "../sysapi/nio.h"
+#include "../sysapi/io_overlapped.h"
 #include "../sysapi/ipc.h"
 #include "../sysapi/socket.h"
 #include "../datastruct/list.h"

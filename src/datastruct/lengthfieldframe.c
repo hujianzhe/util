@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 int lengthfieldframeDecode(unsigned short lengthfieldsize,
-		unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen)
+		const unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen)
 {
 	if (lengthfieldsize > len)
 		return 0;
@@ -31,7 +31,7 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 		return 0;
 
 	if (*datalen)
-		*data = buf + lengthfieldsize;
+		*data = (unsigned char*)buf + lengthfieldsize;
 	else
 		*data = (unsigned char*)0;
 	return lengthfieldsize + *datalen;
