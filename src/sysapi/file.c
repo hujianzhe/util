@@ -285,7 +285,7 @@ ssize_t fdWritev(FD_t fd, const Iobuf_t iov[], unsigned int iov_cnt) {
 #endif
 }
 
-long long fdSeek(FD_t fd, long long offset, int whence) {
+static long long fd_seek_impl(FD_t fd, long long offset, int whence) {
 #if defined(_WIN32) || defined(_WIN64)
 	LARGE_INTEGER pos = {0};
 	LARGE_INTEGER off = {0};
@@ -296,6 +296,30 @@ long long fdSeek(FD_t fd, long long offset, int whence) {
 	return pos.QuadPart;
 #else
 	return lseek(fd, offset, whence);
+#endif
+}
+
+long long fdSeekFromCurrent(FD_t fd, long long offset) {
+#if defined(_WIN32) || defined(_WIN64)
+	return fd_seek_impl(fd, offset, FILE_CURRENT);
+#else
+	return fd_seek_impl(fd, offset, SEEK_CUR);
+#endif
+}
+
+long long fdSeekFromBegin(FD_t fd, long long offset) {
+#if defined(_WIN32) || defined(_WIN64)
+	return fd_seek_impl(fd, offset, FILE_BEGIN);
+#else
+	return fd_seek_impl(fd, offset, SEEK_SET);
+#endif
+}
+
+long long fdSeekFromEnd(FD_t fd, long long offset) {
+#if defined(_WIN32) || defined(_WIN64)
+	return fd_seek_impl(fd, offset, FILE_END);
+#else
+	return fd_seek_impl(fd, offset, SEEK_END);
 #endif
 }
 
