@@ -3,7 +3,7 @@ OBJECT_FILE=`find . -name "*.o"`
 SOURCE_C_FILE=`find . -name "*.c"`
 SOURCE_CPP_FILE=`find . -name "*.cpp"`
 MACRO="-D_REENTRANT"
-COMPILE_OPTION="-Wno-deprecated -Wno-parentheses -pthread"
+COMPILE_OPTION="-Wno-deprecated -Wno-parentheses -Wno-unused-result -Wreturn-type -pthread"
 
 COMPILER="gcc"
 if [ $COMPILER == "gcc" ];then
@@ -16,9 +16,13 @@ elif [ $1 == "debug" ];then
 	MACRO="-D_DEBUG $MACRO"
 	COMPILE_OPTION="-g $COMPILE_OPTION"
 	TARGET="libUtilStaticDebug.a"
+elif [ $1 == "asan" ];then
+	MACRO="-D_DEBUG $MACRO"
+	COMPILE_OPTION="-g -fsanitize=address $COMPILE_OPTION"
+	TARGET="libUtilStaticAsan.a"
 elif [ $1 == "release" ];then
 	MACRO="-DNDEBUG $MACRO"
-	COMPILE_OPTION="-O1 $COMPILE_OPTION"
+	COMPILE_OPTION="-O2 $COMPILE_OPTION"
 	TARGET="libUtilStatic.a"
 else
 	echo "no spec build mode"
