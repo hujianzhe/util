@@ -107,6 +107,7 @@ typedef struct NetChannel_t {
 			void(*on_ack_halfconn)(struct NetChannel_t* self, FD_t newfd, const struct sockaddr* peer_addr, socklen_t addrlen, long long ts_msec);
 			Sockaddr_t listen_addr;
 			socklen_t listen_addrlen;
+			int listen_backlog;
 		};
 		struct { /* client use */
 			void(*on_syn_ack)(struct NetChannel_t* self, long long timestamp_msec); /* optional */

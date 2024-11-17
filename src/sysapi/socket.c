@@ -854,9 +854,11 @@ BOOL socketTcpListen(FD_t sockfd, const struct sockaddr* saddr, socklen_t slen, 
 	if (!socketBindAndReuse(sockfd, saddr, slen)) {
 		return FALSE;
 	}
+	/*
 	if (backlog <= 0) {
 		backlog = SOMAXCONN;
 	}
+	*/
 	return listen(sockfd, backlog) == 0;
 }
 

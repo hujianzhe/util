@@ -975,6 +975,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 		channel->on_ack_halfconn = NULL;
 		channel->listen_addr.sa.sa_family = AF_UNSPEC;
 		channel->listen_addrlen = 0;
+		channel->listen_backlog = 4096;
 	}
 	if (SOCK_STREAM == socktype) {
 		streamtransportctxInit(&channel->stream_ctx);
@@ -1252,13 +1253,13 @@ NetChannel_t* NetChannel_set_operator_sockaddr(NetChannel_t* channel, const stru
 	if (NET_CHANNEL_SIDE_LISTEN == side) {
 		if (SOCK_STREAM == channel->socktype) {
 			if (AF_UNSPEC == channel->listen_addr.sa.sa_family) {
-				if (!socketTcpListen(fd, op_addr, op_addrlen, SOMAXCONN)) {
+				if (!socketTcpListen(fd, op_addr, op_addrlen, channel->listen_backlog)) {
 					return NULL;
 				}
 				memmove(&channel->listen_addr, op_addr, op_addrlen);
 				channel->listen_addrlen = op_addrlen;
 			}
-			else if (listen(fd, SOMAXCONN)) {
+			else if (listen(fd, channel->listen_backlog)) {
 				return NULL;
 			}
 		}
