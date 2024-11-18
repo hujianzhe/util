@@ -313,7 +313,7 @@ static int channel_heartbeat_handler(NetChannel_t* channel, long long now_msec) 
 		channel_set_timestamp(channel, channel->m_heartbeat_msec);
 		return 1;
 	}
-	if (channel->m_heartbeat_times >= channel->heartbeat_maxtimes) {
+	if (channel->m_heartbeat_times >= channel->heartbeat_max_times) {
 		return 0;
 	}
 	channel->m_heartbeat_times++;
@@ -952,7 +952,7 @@ static void channelbaseInit(NetChannel_t* channel, unsigned short side, const Ne
 	channel->to_addrlen = 0;
 	channel->heartbeat_timeout_msec = 0;
 	channel->heartbeat_sender = (NET_CHANNEL_SIDE_CLIENT == side);
-	channel->heartbeat_maxtimes = 0;
+	channel->heartbeat_max_times = 0;
 	channel->has_recvfin = 0;
 	channel->has_sendfin = 0;
 	channel->valid = 1;
