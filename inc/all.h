@@ -20,7 +20,6 @@
 #include "datastruct/memheap.h"
 #include "datastruct/random.h"
 #include "datastruct/rbtree.h"
-#include "datastruct/serial_exec.h"
 #include "datastruct/sha1.h"
 #include "datastruct/transport_ctx.h"
 #include "datastruct/tree.h"
