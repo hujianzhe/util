@@ -2,7 +2,7 @@ SOURCE_C_FILE += $(shell find . -name "*.c")
 SOURCE_CPP_FILE += $(shell find . -name "*.cpp")
 
 TARGET_PATH += .
-COMPILE_OPTION := -fPIC -shared -fvisibility=hidden -Wno-deprecated -Wno-parentheses -Wno-unused-result -Wreturn-type -fno-strict-aliasing
+COMPILE_OPTION := -fPIC -shared -fvisibility=hidden -Wno-deprecated -Wno-parentheses -Wno-unused-result -Wreturn-type -fwrapv -fno-strict-aliasing
 MACRO := -D_REENTRANT -DDECLSPEC_DLL_EXPORT
 
 DEFAULT_LINK := -pthread -lm -ldl
