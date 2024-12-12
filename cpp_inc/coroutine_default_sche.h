@@ -17,8 +17,8 @@
 namespace util {
 class CoroutineDefaultSche : public CoroutineScheBaseImpl {
 public:
-    typedef std::function<CoroutinePromise<void>(const std::any&)> EntryFunc;
-    typedef CoroutinePromise<void>(*EntryFuncPtr)(const std::any&);
+    typedef std::function<CoroutinePromise<void>()> EntryFunc;
+    typedef CoroutinePromise<void>(*EntryFuncPtr)();
 
     enum {
         ST_RUN = 0,
@@ -54,20 +54,20 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     }
 
-    void readyExec(const EntryFunc& func, const std::any& param = std::any()) {
-        readyExecUtil(func, 0, param);
+    void readyExec(const EntryFunc& func) {
+		postEvent(Event(func, 0));
     }
-    void readyExecTimeout(const EntryFunc& func, long long tlen_msec, const std::any& param = std::any()) {
+    void readyExecTimeout(const EntryFunc& func, long long tlen_msec) {
         if (!func) {
             return;
         }
-        readyExecUtil(func, get_current_ts_msec() + tlen_msec, param);
+		postEvent(Event(func, get_current_ts_msec() + tlen_msec));
     }
-    void readyExecUtil(const EntryFunc& func, long long ts_msec, const std::any& param = std::any()) {
+    void readyExecUtil(long long ts_msec, const EntryFunc& func) {
         if (!func) {
             return;
         }
-		postEvent(Event(func, param, ts_msec));
+		postEvent(Event(func, ts_msec));
     }
 
 	CoroutineAwaiter blockPoint() {
@@ -161,12 +161,11 @@ private:
             ,ts(0)
             ,sleep_co_node(nullptr)
         {}
-        Event(const EntryFunc& fn, const std::any& param, long long ts)
+        Event(const EntryFunc& fn, long long ts)
             :resume_id(CoroutineAwaiter::INVALID_AWAITER_ID)
 			,status(CoroutineAwaiter::STATUS_FINISH)
             ,ts(ts)
             ,func(fn)
-            ,param(param)
             ,sleep_co_node(nullptr)
         {}
         Event(int64_t resume_id, const std::any& param, long long ts)
@@ -301,7 +300,7 @@ private:
             }
             if (e.func) {
 				CoroutineScheBase::p = this;
-                e.func(e.param);
+                e.func();
             }
 			else if (e.sleep_co_node) {
 				doResume(e.sleep_co_node, CoroutineAwaiter::STATUS_FINISH, e.param);
@@ -335,7 +334,7 @@ private:
                 Event& e = evlist.front();
                 if (e.func) {
 					CoroutineScheBase::p = this;
-                    e.func(e.param);
+                    e.func();
                 }
                 else if (e.sleep_co_node) {
                     doResume(e.sleep_co_node, CoroutineAwaiter::STATUS_FINISH, e.param);
