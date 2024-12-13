@@ -238,8 +238,6 @@ public:
         CoroutineScheBase::p->m_current_co_node = CoroutineScheBase::p->m_current_co_node->m_parent;
     }
 
-    const std::any& getAny() const { return m_co_node->m_value; }
-
 protected:
     CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
 	CoroutinePromiseBase(const CoroutinePromiseBase& other)
