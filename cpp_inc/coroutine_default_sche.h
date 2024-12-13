@@ -13,6 +13,7 @@
 #include <climits>
 #include <functional>
 #include <condition_variable>
+#include <type_traits>
 
 namespace util {
 class CoroutineDefaultSche : public CoroutineScheBaseImpl {
@@ -69,6 +70,24 @@ public:
         }
 		postEvent(Event(func, ts_msec));
     }
+
+	template <typename T, typename std::enable_if<!std::is_void<T>::value, int>::type = 0>
+	void readyExecUtil(long long ts_msec, const std::function<CoroutinePromise<T>()>& func) {
+		if (!func) {
+			return;
+		}
+		postEvent(Event([func]() -> util::CoroutinePromise<void> {
+			func();
+			co_return;
+		}, ts_msec));
+	}
+	template <typename T, typename std::enable_if<std::is_void<T>::value, int>::type = 0>
+	void readyExecUtil(long long ts_msec, const std::function<CoroutinePromise<T>()>& func) {
+		if (!func) {
+			return;
+		}
+		postEvent(Event(func, ts_msec));
+	}
 
 	CoroutineAwaiter blockPoint() {
 		CoroutineAwaiter awaiter(CoroutineAwaiter::gen_id());
