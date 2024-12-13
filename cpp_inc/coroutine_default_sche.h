@@ -13,7 +13,6 @@
 #include <climits>
 #include <functional>
 #include <condition_variable>
-#include <type_traits>
 
 namespace util {
 class CoroutineDefaultSche : public CoroutineScheBaseImpl {
