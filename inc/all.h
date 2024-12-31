@@ -28,7 +28,6 @@
 #include "crt/dynarr.h"
 #include "crt/export_free.h"
 #include "crt/json.h"
-#include "crt/math.h"
 #include "crt/string.h"
 #include "crt/protocol/hiredis_cli_protocol.h"
 #include "crt/protocol/httpframe.h"
