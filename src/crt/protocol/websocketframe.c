@@ -107,6 +107,8 @@ char* websocketframeEncodeHandshakeResponseWithProtocol(const char* sec_accept, 
 	return buf;
 }
 
+void websocketframeFreeString(char* s) { free(s); }
+
 int websocketframeDecode(unsigned char* buf, unsigned long long len,
 		unsigned char** data, unsigned long long* datalen, int* is_fin, int* type)
 {
