@@ -29,6 +29,9 @@
 	#ifndef UMDF_USING_NTSTATUS
 		#define UMDF_USING_NTSTATUS
 	#endif
+	#ifndef NOMINMAX
+		#define	NOMINMAX
+	#endif
 	#include <winsock2.h>
 	#include <windows.h>
 	#include <ntstatus.h>
