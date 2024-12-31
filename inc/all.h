@@ -26,7 +26,6 @@
 #include "datastruct/url.h"
 #include "crt/cXML.h"
 #include "crt/dynarr.h"
-#include "crt/export_free.h"
 #include "crt/json.h"
 #include "crt/string.h"
 #include "crt/protocol/hiredis_cli_protocol.h"

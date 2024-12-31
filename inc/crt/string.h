@@ -14,6 +14,7 @@ extern "C" {
 
 __declspec_dll int strFormatLen(const char* format, ...);
 __declspec_dll char* strFormat(int* out_len, const char* format, ...);
+__declspec_dll void strFreeMemory(char* s);
 
 #ifdef	__cplusplus
 }

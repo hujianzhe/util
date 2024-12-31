@@ -50,6 +50,8 @@ char* strFormat(int* out_len, const char* format, ...) {
 	return buf;
 }
 
+void strFreeMemory(char* s) { free(s); }
+
 #ifdef __cplusplus
 }
 #endif
