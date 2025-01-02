@@ -365,10 +365,11 @@ namespace obj3d
 
 		bool LoadFile(std::string Path)
 		{
+			/*
 			// If the file is not an .obj file return false
 			if (Path.substr(Path.size() - 4, 4) != ".obj")
 				return false;
-
+			*/
 
 			std::ifstream file(Path);
 
