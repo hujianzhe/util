@@ -306,19 +306,34 @@ namespace obj3d
 
 		inline std::string tail(const std::string &in)
 		{
-			size_t token_start = in.find_first_not_of(" \t");
-			size_t space_start = in.find_first_of(" \t", token_start);
-			size_t tail_start = in.find_first_not_of(" \t", space_start);
-			size_t tail_end = in.find_last_not_of(" \t");
-			if (tail_start != std::string::npos && tail_end != std::string::npos)
-			{
-				return in.substr(tail_start, tail_end - tail_start + 1);
+			if (in.empty()) {
+				return std::string();
 			}
-			else if (tail_start != std::string::npos)
-			{
-				return in.substr(tail_start);
+			size_t s = 0, e;
+			for (; s < in.size(); ++s) {
+				if (std::isprint(in[s]) && !std::isspace(in[s])) {
+					break;
+				}
 			}
-			return "";
+			for (; s < in.size(); ++s) {
+				if (in[s] == ' ') {
+					break;
+				}
+			}
+			for (; s < in.size(); ++s) {
+				if (std::isprint(in[s]) && !std::isspace(in[s])) {
+					break;
+				}
+			}
+			for (e = in.size(); e > 0; --e) {
+				if (std::isprint(in[e - 1]) && !std::isspace(in[e - 1])) {
+					break;
+				}
+			}
+			if (e <= s) {
+				return std::string();
+			}
+			return in.substr(s, e - s);
 		}
 
 		inline std::string firstToken(const std::string &in)
