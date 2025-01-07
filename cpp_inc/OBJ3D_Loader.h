@@ -60,12 +60,12 @@ namespace obj3d
 	{
 		Vector3f()
 		{
-			X = 0.0f;
-			Y = 0.0f;
-			Z = 0.0f;
+			X = 0.0;
+			Y = 0.0;
+			Z = 0.0;
 		}
 
-		Vector3f(float X_, float Y_, float Z_)
+		Vector3f(double X_, double Y_, double Z_)
 		{
 			X = X_;
 			Y = Y_;
@@ -103,9 +103,9 @@ namespace obj3d
 		}
 
 
-		float X;
-		float Y;
-		float Z;
+		double X;
+		double Y;
+		double Z;
 	};
 
 	struct Vertex
@@ -491,11 +491,12 @@ namespace obj3d
 				{
 					std::vector<std::string> spos;
 					Vector3f vpos;
+
 					algorithm::split(algorithm::tail(curline), spos, " ");
 
-					vpos.X = std::stof(spos[0]);
-					vpos.Y = std::stof(spos[1]);
-					vpos.Z = std::stof(spos[2]);
+					vpos.X = std::stod(spos[0]);
+					vpos.Y = std::stod(spos[1]);
+					vpos.Z = std::stod(spos[2]);
 
 					Positions.push_back(vpos);
 				}
@@ -506,8 +507,8 @@ namespace obj3d
 					Vector2f vtex;
 					algorithm::split(algorithm::tail(curline), stex, " ");
 
-					vtex.X = std::stof(stex[0]);
-					vtex.Y = std::stof(stex[1]);
+					vtex.X = std::stod(stex[0]);
+					vtex.Y = std::stod(stex[1]);
 
 					TCoords.push_back(vtex);
 				}
@@ -518,9 +519,9 @@ namespace obj3d
 					Vector3f vnor;
 					algorithm::split(algorithm::tail(curline), snor, " ");
 
-					vnor.X = std::stof(snor[0]);
-					vnor.Y = std::stof(snor[1]);
-					vnor.Z = std::stof(snor[2]);
+					vnor.X = std::stod(snor[0]);
+					vnor.Y = std::stod(snor[1]);
+					vnor.Z = std::stod(snor[2]);
 
 					Normals.push_back(vnor);
 				}
@@ -1019,9 +1020,9 @@ namespace obj3d
 					if (temp.size() != 3)
 						continue;
 
-					tempMaterial.Ka.X = std::stof(temp[0]);
-					tempMaterial.Ka.Y = std::stof(temp[1]);
-					tempMaterial.Ka.Z = std::stof(temp[2]);
+					tempMaterial.Ka.X = std::stod(temp[0]);
+					tempMaterial.Ka.Y = std::stod(temp[1]);
+					tempMaterial.Ka.Z = std::stod(temp[2]);
 				}
 				// Diffuse Color
 				if (algorithm::firstToken(curline) == "Kd")
@@ -1032,9 +1033,9 @@ namespace obj3d
 					if (temp.size() != 3)
 						continue;
 
-					tempMaterial.Kd.X = std::stof(temp[0]);
-					tempMaterial.Kd.Y = std::stof(temp[1]);
-					tempMaterial.Kd.Z = std::stof(temp[2]);
+					tempMaterial.Kd.X = std::stod(temp[0]);
+					tempMaterial.Kd.Y = std::stod(temp[1]);
+					tempMaterial.Kd.Z = std::stod(temp[2]);
 				}
 				// Specular Color
 				if (algorithm::firstToken(curline) == "Ks")
@@ -1045,24 +1046,24 @@ namespace obj3d
 					if (temp.size() != 3)
 						continue;
 
-					tempMaterial.Ks.X = std::stof(temp[0]);
-					tempMaterial.Ks.Y = std::stof(temp[1]);
-					tempMaterial.Ks.Z = std::stof(temp[2]);
+					tempMaterial.Ks.X = std::stod(temp[0]);
+					tempMaterial.Ks.Y = std::stod(temp[1]);
+					tempMaterial.Ks.Z = std::stod(temp[2]);
 				}
 				// Specular Exponent
 				if (algorithm::firstToken(curline) == "Ns")
 				{
-					tempMaterial.Ns = std::stof(algorithm::tail(curline));
+					tempMaterial.Ns = std::stod(algorithm::tail(curline));
 				}
 				// Optical Density
 				if (algorithm::firstToken(curline) == "Ni")
 				{
-					tempMaterial.Ni = std::stof(algorithm::tail(curline));
+					tempMaterial.Ni = std::stod(algorithm::tail(curline));
 				}
 				// Dissolve
 				if (algorithm::firstToken(curline) == "d")
 				{
-					tempMaterial.d = std::stof(algorithm::tail(curline));
+					tempMaterial.d = std::stod(algorithm::tail(curline));
 				}
 				// Illumination
 				if (algorithm::firstToken(curline) == "illum")
