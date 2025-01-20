@@ -32,7 +32,7 @@ struct buffer_view {
 		if (!valid(off, sizeof(T))) {
 			return -1;
 		}
-		*v = *(T*)(ptr + off);
+		*v = *(T*)(m_ptr + off);
 		return off + sizeof(T);
 	}
 
