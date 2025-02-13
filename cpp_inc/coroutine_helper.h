@@ -198,8 +198,8 @@ public:
 
 public:
     static int64_t gen_id() {
-        static std::atomic_int64_t SEQ;
-        int64_t v;
+        static std::atomic_uint64_t SEQ;
+        uint64_t v;
         do {
             v = ++SEQ;
         } while (INVALID_AWAITER_ID == v);
