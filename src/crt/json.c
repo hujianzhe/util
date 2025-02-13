@@ -466,13 +466,11 @@ cJSON* cJSON_Append(cJSON* parent, cJSON* node) {
 	cJSON* c = parent->child;
 	if (!c) {
 		parent->child = node;
+		parent->child_last = node;
 	}
 	else {
-		while (c->next) {
-			c = c->next;
-		}
-		c->next = node;
-		node->prev = c;
+		parent->child_last->next = node;
+		node->prev = parent->child_last;
 	}
 	node->parent = parent;
 	parent->child_num++;
@@ -550,6 +548,9 @@ cJSON* cJSON_Detach(cJSON* node) {
 		if (parent) {
 			if (parent->child == node) {
 				parent->child = node->next;
+			}
+			if (parent->child_last == node) {
+				parent->child_last = node->prev;
 			}
 			parent->child_num--;
 		}

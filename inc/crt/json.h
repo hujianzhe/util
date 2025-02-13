@@ -35,6 +35,7 @@ typedef struct cJSON {
 	struct cJSON *parent;
 	struct cJSON *next, *prev;
 	struct cJSON *child;
+	struct cJSON* child_last;
 	size_t child_num;
 } cJSON;
 
