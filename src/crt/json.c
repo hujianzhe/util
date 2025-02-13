@@ -466,12 +466,12 @@ cJSON* cJSON_Append(cJSON* parent, cJSON* node) {
 	cJSON* c = parent->child;
 	if (!c) {
 		parent->child = node;
-		parent->child_last = node;
 	}
 	else {
 		parent->child_last->next = node;
 		node->prev = parent->child_last;
 	}
+	parent->child_last = node;
 	node->parent = parent;
 	parent->child_num++;
 	return node;
