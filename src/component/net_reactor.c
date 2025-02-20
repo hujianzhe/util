@@ -1313,8 +1313,10 @@ void NetChannel_close_ref(NetChannel_t* channel) {
 		channel->proc->on_free(channel);
 	}
 	if (!reactor) {
-		socketClose(channel->o->niofd.fd);
-		reactorobject_free(channel->o);
+		if (channel->o) {
+			socketClose(channel->o->niofd.fd);
+			reactorobject_free(channel->o);
+		}
 		channelobject_free(channel);
 		return;
 	}
