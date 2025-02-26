@@ -56,9 +56,11 @@ size_t processorCount(void) {
 	GetSystemInfo(&si);
 	return si.dwNumberOfProcessors ? si.dwNumberOfProcessors : 1;
 #else
-	long count = sysconf(_SC_NPROCESSORS_CONF);
-	if (count <= 0)
-		count = 1;
+	/*long count = sysconf(_SC_NPROCESSORS_CONF);*/
+	long count = sysconf(_SC_NPROCESSORS_ONLN);
+	if (count <= 0) {
+		return 1;
+	}
 	return count;
 #endif
 }
