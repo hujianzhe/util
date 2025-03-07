@@ -62,6 +62,17 @@ static const char* cJSON_strpbrk(const char* s) {
 	}
 }
 
+static const char* cJSON_strpbrk_str(const char* s) {
+	while (1) {
+		const char* p = strchr(s, '"');
+		if (p && p > s && p[-1] == '\\') {
+			s = p + 1;
+			continue;
+		}
+		return p;
+	}
+}
+
 static char* cJSON_strdup(const char* str) {
 	size_t len = strlen(str) + 1;
 	char* copy = (char*)cJSON_malloc(len);
@@ -692,7 +703,7 @@ cJSON* cJSON_FromString(const char* s, int deep_copy) {
 		else if (*s == '\"') {
 			++s;
 			value_beg = s;
-			s = cJSON_strpbrk(s);
+			s = cJSON_strpbrk_str(s);
 			if (!s || *s != '\"') {
 				parse_ok = 0;
 				break;
