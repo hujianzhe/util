@@ -8,12 +8,11 @@
 #include <string.h>
 
 namespace util {
-template <typename T>
-struct cstruct_wrap : public T {
-	virtual ~cstruct_wrap() {}
-
-	T* c_ptr() { return this; }
-	const T* c_ptr() const { return this; }
+template <typename T, void(*Deleter)(T*)>
+struct cstruct_raii : public T {
+	~cstruct_raii() {
+		Deleter(this);
+	}
 
 	void bzero() {
 		memset((T*)this, 0, sizeof(T));
