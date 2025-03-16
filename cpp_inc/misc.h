@@ -10,12 +10,12 @@
 namespace util {
 template <typename T, void(*Deleter)(T*)>
 struct cstruct_raii : public T {
+	cstruct_raii() {}
+	cstruct_raii(int ch) {
+		memset((T*)this, ch, sizeof(T));
+	}
 	~cstruct_raii() {
 		Deleter(this);
-	}
-
-	void bzero() {
-		memset((T*)this, 0, sizeof(T));
 	}
 };
 
