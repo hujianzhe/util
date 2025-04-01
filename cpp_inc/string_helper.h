@@ -18,7 +18,7 @@ public:
 	static void split(const char* str, int delim, std::vector<std::string>& v) {
 		const char* p;
 		for (p = str; *str; ++str) {
-			if (*p == delim) {
+			if (delim == *str) {
 				v.push_back(std::string(p, str - p));
 				p = str + 1;
 			}
