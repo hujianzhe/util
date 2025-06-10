@@ -6,6 +6,9 @@
 #define	UTIL_CPP_MISC_H
 
 #include <string.h>
+#include <vector>
+#include <algorithm>
+#include <utility>
 
 namespace util {
 template <typename T, void(*Deleter)(T*)>
@@ -29,6 +32,17 @@ template <typename T>
 void delete_arr_fn(void* p) { delete [] (T*)p; }
 template <typename T>
 void free_fn(T* p) { free((void*)p); }
+
+template <typename T, typename Alloc, typename U>
+bool std_vector_erase_unordered(::std::vector<T, Alloc>* v, const U& u) {
+	typename ::std::vector<T, Alloc>::iterator it = ::std::find(v->begin(), v->end(), u);
+	if (it == v->end()) {
+		return false;
+	}
+	::std::swap(*it, v->back());
+	v->pop_back();
+	return true;
+}
 }
 
 #endif

@@ -5,6 +5,7 @@
 build
 tags
 /*.dSYM
+/.vs
 /x64
 /Debug
 /Release
