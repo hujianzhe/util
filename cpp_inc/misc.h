@@ -34,12 +34,21 @@ template <typename T>
 void free_fn(T* p) { free((void*)p); }
 
 template <typename T, typename Alloc, typename U>
-bool std_vector_erase_unordered(::std::vector<T, Alloc>* v, const U& u) {
+bool std_vector_erase_value_unordered(::std::vector<T, Alloc>* v, const U& u) {
 	typename ::std::vector<T, Alloc>::iterator it = ::std::find(v->begin(), v->end(), u);
 	if (it == v->end()) {
 		return false;
 	}
 	::std::swap(*it, v->back());
+	v->pop_back();
+	return true;
+}
+template <typename T, typename Alloc>
+bool std_vector_erase_idx_unordered(::std::vector<T, Alloc>* v, size_t idx) {
+	if (idx >= v->size()) {
+		return false;
+	}
+	::std::swap((*v)[idx], v->back());
 	v->pop_back();
 	return true;
 }
