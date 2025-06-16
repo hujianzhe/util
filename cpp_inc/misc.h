@@ -43,6 +43,17 @@ bool std_vector_erase_value_unordered(::std::vector<T, Alloc>* v, const U& u) {
 	v->pop_back();
 	return true;
 }
+template <typename T, typename Alloc, typename U, typename EqualCmp>
+bool std_vector_erase_value_unordered(::std::vector<T, Alloc>* v, const U& u, const EqualCmp& fn) {
+	for (auto it = v->begin(); it != v->end(); ++it) {
+		if (fn(*it, u)) {
+			::std::swap(*it, v->back());
+			v->pop_back();
+			return true;
+		}
+	}
+	return false;
+}
 template <typename T, typename Alloc>
 bool std_vector_erase_idx_unordered(::std::vector<T, Alloc>* v, size_t idx) {
 	if (idx >= v->size()) {
