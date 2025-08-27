@@ -111,6 +111,14 @@ FD_t terminalStderr(void) {
 #endif
 }
 
+BOOL terminalSetUTF8(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	return SetConsoleCP(CP_UTF8) && SetConsoleOutputCP(CP_UTF8);
+#else
+	return 1;
+#endif
+}
+
 BOOL terminalFlushInput(FD_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FlushConsoleInputBuffer((HANDLE)fd);
