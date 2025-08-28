@@ -9,19 +9,6 @@ extern "C" {
 #endif
 
 #if	defined(_WIN32) || defined(_WIN64)
-static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
-	DWORD flag_mask;
-	flag_mask = flag & mask;
-	if (0 == flag_mask && !bval)
-		return flag;
-	if (mask == flag_mask && bval)
-		return flag;
-	if (bval)
-		flag |= mask;
-	else
-		flag &= ~mask;
-	return flag;
-}
 #else
 #include <dirent.h>
 #include <errno.h>
@@ -33,19 +20,6 @@ static DWORD __set_tty_flag(DWORD flag, DWORD mask, BOOL bval) {
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-static tcflag_t __set_tty_flag(tcflag_t flag, tcflag_t mask, int bval) {
-	tcflag_t flag_mask;
-	flag_mask = flag & mask;
-	if (0 == flag_mask && !bval)
-		return flag;
-	if (mask == flag_mask && bval)
-		return flag;
-	if (bval)
-		flag |= mask;
-	else
-		flag &= ~mask;
-	return flag;
-}
 #endif
 
 /***********************************************************************/
@@ -130,9 +104,10 @@ BOOL terminalFlushInput(FD_t fd) {
 BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode, new_mode;
-	if (!GetConsoleMode((HANDLE)fd, &mode))
+	if (!GetConsoleMode((HANDLE)fd, &mode)) {
 		return FALSE;
-	new_mode = __set_tty_flag(mode, ENABLE_ECHO_INPUT, bval);
+	}
+	new_mode = bval ? (mode | ENABLE_ECHO_INPUT) : (mode & ~ENABLE_ECHO_INPUT);
 	if (new_mode != mode) {
 		return SetConsoleMode((HANDLE)fd, new_mode);
 	}
@@ -140,9 +115,10 @@ BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
-	if (tcgetattr(fd, &tm))
+	if (tcgetattr(fd, &tm)) {
 		return 0;
-	new_lflag = __set_tty_flag(tm.c_lflag, ECHO, bval);
+	}
+	new_lflag = bval ? (tm.c_lflag | ECHO) : (tm.c_lflag & ~ECHO);
 	if (new_lflag != tm.c_lflag) {
 		tm.c_lflag = new_lflag;
 		return tcsetattr(fd, TCSANOW, &tm) == 0;
@@ -154,10 +130,18 @@ BOOL terminalEnableEcho(FD_t fd, BOOL bval) {
 BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode, new_mode;
-	if (!GetConsoleMode((HANDLE)fd, &mode))
+	if (!GetConsoleMode((HANDLE)fd, &mode)) {
 		return FALSE;
-	new_mode = __set_tty_flag(mode, ENABLE_MOUSE_INPUT, !bval);
-	new_mode = __set_tty_flag(new_mode, ENABLE_LINE_INPUT, bval);
+	}
+	new_mode = mode;
+	if (bval) {
+		new_mode &= ~ENABLE_MOUSE_INPUT;
+		new_mode |= ENABLE_LINE_INPUT;
+	}
+	else {
+		new_mode |= ENABLE_MOUSE_INPUT;
+		new_mode &= ~ENABLE_LINE_INPUT;
+	}
 	if (new_mode != mode) {
 		return SetConsoleMode((HANDLE)fd, new_mode);
 	}
@@ -165,9 +149,16 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
-	if (tcgetattr(fd, &tm))
+	if (tcgetattr(fd, &tm)) {
 		return 0;
-	new_lflag = __set_tty_flag(tm.c_lflag, ICANON | ECHO | IEXTEN, bval);
+	}
+	new_lflag = tm.c_lflag;
+	if (bval) {
+		new_lflag |= ICANON | ECHO | IEXTEN;
+	}
+	else {
+		new_lflag &= ~(ICANON | ECHO | IEXTEN);
+	}
 	if (new_lflag != tm.c_lflag) {
 		tm.c_lflag = new_lflag;
 		return tcsetattr(fd, TCSANOW, &tm) == 0;
@@ -179,9 +170,10 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 BOOL terminalEnableSignal(FD_t fd, BOOL bval) {
 #if defined(_WIN32) || defined(_WIN64)
 	DWORD mode, new_mode;
-	if (!GetConsoleMode((HANDLE)fd, &mode))
+	if (!GetConsoleMode((HANDLE)fd, &mode)) {
 		return FALSE;
-	new_mode = __set_tty_flag(mode, ENABLE_PROCESSED_INPUT, bval);
+	}
+	new_mode = bval ? (mode | ENABLE_PROCESSED_INPUT) : (mode & ~ENABLE_PROCESSED_INPUT);
 	if (new_mode != mode) {
 		return SetConsoleMode((HANDLE)fd, new_mode);
 	}
@@ -189,9 +181,10 @@ BOOL terminalEnableSignal(FD_t fd, BOOL bval) {
 #else
 	tcflag_t new_lflag;
 	struct termios tm;
-	if (tcgetattr(fd, &tm))
+	if (tcgetattr(fd, &tm)) {
 		return 0;
-	new_lflag = __set_tty_flag(tm.c_lflag, ISIG, bval);
+	}
+	new_lflag = bval ? (tm.c_lflag | ISIG) : (tm.c_lflag & ~ISIG);
 	if (new_lflag != tm.c_lflag) {
 		tm.c_lflag = new_lflag;
 		return tcsetattr(fd, TCSANOW, &tm) == 0;
