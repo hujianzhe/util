@@ -136,11 +136,11 @@ BOOL terminalEnableLineInput(FD_t fd, BOOL bval) {
 	new_mode = mode;
 	if (bval) {
 		new_mode &= ~ENABLE_MOUSE_INPUT;
-		new_mode |= ENABLE_LINE_INPUT;
+		new_mode |= (ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
 	}
 	else {
 		new_mode |= ENABLE_MOUSE_INPUT;
-		new_mode &= ~ENABLE_LINE_INPUT;
+		new_mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
 	}
 	if (new_mode != mode) {
 		return SetConsoleMode((HANDLE)fd, new_mode);
