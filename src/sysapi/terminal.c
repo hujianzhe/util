@@ -9,6 +9,9 @@ extern "C" {
 #endif
 
 #if	defined(_WIN32) || defined(_WIN64)
+static HANDLE s_def_stdin_handle = INVALID_HANDLE_VALUE;
+static HANDLE s_def_stdout_handle = INVALID_HANDLE_VALUE;
+static HANDLE s_def_stderr_handle = INVALID_HANDLE_VALUE;
 #else
 #include <dirent.h>
 #include <errno.h>
@@ -58,30 +61,66 @@ char* terminalOriginalName(char* buf, size_t buflen) {
 #endif
 }
 
+BOOL terminalReady(void) {
+#if defined(_WIN32) || defined(_WIN64)
+	DWORD mode;
+	s_def_stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
+	if (INVALID_HANDLE_VALUE == s_def_stdin_handle) {
+		return FALSE;
+	}
+	s_def_stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (INVALID_HANDLE_VALUE == s_def_stdout_handle) {
+		return FALSE;
+	}
+	s_def_stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+	if (INVALID_HANDLE_VALUE == s_def_stderr_handle) {
+		return FALSE;
+	}
+	if (!GetConsoleMode(s_def_stdin_handle, &mode)) {
+		return FALSE;
+	}
+	if (!SetConsoleMode(s_def_stdin_handle, mode | ENABLE_VIRTUAL_TERMINAL_INPUT)) {
+		return FALSE;
+	}
+	if (!GetConsoleMode(s_def_stdout_handle, &mode)) {
+		return FALSE;
+	}
+	if (!SetConsoleMode(s_def_stdout_handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT)) {
+		return FALSE;
+	}
+	if (!SetConsoleCP(CP_UTF8)) {
+		return FALSE;
+	}
+	if (!SetConsoleOutputCP(CP_UTF8)) {
+		return FALSE;
+	}
+	return TRUE;
+#else
+	return TRUE;
+#endif
+}
+
 FD_t terminalStdin(void) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE fd = GetStdHandle(STD_INPUT_HANDLE);
-	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+	return (FD_t)s_def_stdin_handle;
 #else
-	return isatty(STDIN_FILENO) ? STDIN_FILENO : INVALID_FD_HANDLE;
+	return STDIN_FILENO;
 #endif
 }
 
 FD_t terminalStdout(void) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE fd = GetStdHandle(STD_OUTPUT_HANDLE);
-	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+	return (FD_t)s_def_stdout_handle;
 #else
-	return isatty(STDOUT_FILENO) ? STDOUT_FILENO : INVALID_FD_HANDLE;
+	return STDOUT_FILENO;
 #endif
 }
 
 FD_t terminalStderr(void) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE fd = GetStdHandle(STD_ERROR_HANDLE);
-	return fd ? (FD_t)fd : (FD_t)INVALID_HANDLE_VALUE;
+	return (FD_t)s_def_stderr_handle;
 #else
-	return isatty(STDERR_FILENO) ? STDERR_FILENO : INVALID_FD_HANDLE;
+	return STDERR_FILENO;
 #endif
 }
 
