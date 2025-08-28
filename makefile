@@ -19,7 +19,7 @@ DEBUG_TARGET := $(TARGET_PATH)/libUtilDynamicDebug.so
 ASAN_TARGET := $(TARGET_PATH)/libUtilDynamicAsan.so
 RELEASE_TARGET := $(TARGET_PATH)/libUtilDynamic.so
 
-all:
+all: debug release asan
 
 debug:
 	$(COMPILER) $(MACRO) -D_DEBUG -g $(COMPILE_OPTION) $(SOURCE_C_FILE) $(SOURCE_CPP_FILE) -o $(DEBUG_TARGET) $(DEFAULT_LINK)
