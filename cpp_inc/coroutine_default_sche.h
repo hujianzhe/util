@@ -35,7 +35,7 @@ public:
 
 	static CoroutineDefaultSche* get() { return (CoroutineDefaultSche*)CoroutineScheBase::p; }
 
-    bool check_exit() const { return ST_EXIT == m_status; }
+    bool check_exit() const { return ST_EXIT == m_status.load(); }
 
 	int handle_cnt() const { return m_handle_cnt; }
 	void set_handle_cnt(int cnt) {
@@ -130,13 +130,13 @@ public:
     }
 
     int doSche(int idle_msec) {
-        if (ST_RUN != m_status) {
+        if (ST_RUN != m_status.load()) {
             scheDestroy();
             return ST_EXIT;
         }
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
         doPeakEvent(idle_msec);
-        if (ST_RUN != m_status) {
+        if (ST_RUN != m_status.load()) {
             scheDestroy();
             return ST_EXIT;
         }

@@ -80,6 +80,7 @@ void free_async_output_thread_cache_list(ListNode_t* head) {
 void exit_free_async_output_thread(LogAsyncOutputThread_t* thrd) {
 	thrd->exit_flag = 1;
 	dataqueueWake(&thrd->cache_dq);
+	_memoryBarrier();
 	threadJoin(thrd->tid, NULL);
 	free_async_output_thread_cache_list(dataqueueDestroy(&thrd->cache_dq));
 	free(thrd);

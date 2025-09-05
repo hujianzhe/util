@@ -1043,6 +1043,7 @@ void StackCoSche_wake_up(StackCoSche_t* sche) {
 void StackCoSche_exit(StackCoSche_t* sche) {
 	sche->exit_flag = 1;
 	dataqueueWake(&sche->dq);
+	_memoryBarrier();
 }
 
 void* StackCoSche_userdata(StackCoSche_t* sche) {

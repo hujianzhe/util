@@ -32,6 +32,7 @@
 		#define	_xaddsize					_xadd32
 		typedef	Atom32_t					AtomSSize_t;
 	#endif
+	#define	_memoryBarrier					MemoryBarrier
 #else
 	typedef signed char volatile			Atom8_t;
 	typedef	short volatile					Atom16_t;
@@ -50,6 +51,7 @@
 	#define	_xadd32(addr, val32)			__sync_fetch_and_add((int volatile*)(addr), (int)(val32))
 	#define	_xadd64(addr, val64)			__sync_fetch_and_add((long long volatile*)(addr), (long long)(val64))
 	#define	_xaddsize(addr, val)			__sync_fetch_and_add((ssize_t volatile*)(addr), (ssize_t)(val))
+	#define	_memoryBarrier					__sync_synchronize
 #endif
 
 typedef	Atom8_t								AtomBool_t;
