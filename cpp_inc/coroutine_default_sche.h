@@ -35,7 +35,7 @@ public:
 
 	static CoroutineDefaultSche* get() { return (CoroutineDefaultSche*)CoroutineScheBase::p; }
 
-    bool check_exit() const { return ST_EXIT == m_status.load(); }
+    bool check_exit() const { return ST_EXIT == m_status.load(std::memory_order_acquire); }
 
 	int handle_cnt() const { return m_handle_cnt; }
 	void set_handle_cnt(int cnt) {
@@ -45,7 +45,7 @@ public:
 	}
 
     void doExit() {
-        if (m_status.exchange(ST_EXIT) == ST_RUN) {
+        if (m_status.exchange(ST_EXIT, std::memory_order_release) == ST_RUN) {
             m_cv.notify_one();
         }
     }
@@ -130,13 +130,13 @@ public:
     }
 
     int doSche(int idle_msec) {
-        if (ST_RUN != m_status.load()) {
+        if (ST_RUN != m_status.load(std::memory_order_acquire)) {
             scheDestroy();
             return ST_EXIT;
         }
         idle_msec = calculateWaitTimelen(get_current_ts_msec(), idle_msec);
         doPeakEvent(idle_msec);
-        if (ST_RUN != m_status.load()) {
+        if (ST_RUN != m_status.load(std::memory_order_acquire)) {
             scheDestroy();
             return ST_EXIT;
         }
