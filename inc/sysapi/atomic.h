@@ -33,8 +33,8 @@
 		typedef	Atom32_t					AtomSSize_t;
 	#endif
 	#define	memoryBarrier()					MemoryBarrier()
-	#define	memoryBarrierAcquire()
-	#define	memoryBarrierRelease()
+	#define	memoryBarrierAcquire()			MemoryBarrier()
+	#define	memoryBarrierRelease()			MemoryBarrier()
 #else
 	typedef signed char volatile			Atom8_t;
 	typedef	short volatile					Atom16_t;
