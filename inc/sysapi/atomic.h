@@ -22,14 +22,14 @@
 	#define	xadd32(addr, val32)				InterlockedExchangeAdd(addr, val32)
 	#define	xadd64(addr, val64)				InterlockedExchangeAdd64(addr, val64)
 	#ifdef	_WIN64
-		#define	xchgsize					_xchg64
-		#define	cmpxchgsize					_cmpxchg64
-		#define	xaddsize					_xadd64
+		#define	xchgsize					xchg64
+		#define	cmpxchgsize					cmpxchg64
+		#define	xaddsize					xadd64
 		typedef	Atom64_t					AtomSSize_t;
 	#else
-		#define	xchgsize					_xchg32
-		#define	cmpxchgsize					_cmpxchg32
-		#define	xaddsize					_xadd32
+		#define	xchgsize					xchg32
+		#define	cmpxchgsize					cmpxchg32
+		#define	xaddsize					xadd32
 		typedef	Atom32_t					AtomSSize_t;
 	#endif
 	#define	memoryBarrier()					MemoryBarrier()
