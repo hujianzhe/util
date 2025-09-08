@@ -292,7 +292,7 @@ static void stream_recvfin_handler(NetReactor_t* reactor, NetChannel_t* channel,
 		channel->valid = 0;
 		return;
 	}
-	if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
+	if (xchg8(&channel->m_has_commit_fincmd, 1)) {
 		return;
 	}
 	stream_sendfin_handler(reactor, channel);
@@ -1287,15 +1287,15 @@ NetChannel_t* NetChannel_set_operator_sockaddr(NetChannel_t* channel, const stru
 }
 
 NetChannel_t* NetChannel_add_ref(NetChannel_t* channel) {
-	_xadd32(&channel->m_refcnt, 1);
+	xadd32(&channel->m_refcnt, 1);
 	return channel;
 }
 
 void NetChannel_reg(NetReactor_t* reactor, NetChannel_t* channel) {
-	if (_xchg8(&channel->m_reghaspost, 1)) {
+	if (xchg8(&channel->m_reghaspost, 1)) {
 		return;
 	}
-	_xadd32(&channel->m_refcnt, 1);
+	xadd32(&channel->m_refcnt, 1);
 	channel->reactor = reactor;
 	reactor_commit_cmd(reactor, &channel->m_regcmd);
 }
@@ -1305,7 +1305,7 @@ void NetChannel_close_ref(NetChannel_t* channel) {
 	if (!channel) {
 		return;
 	}
-	if (_xadd32(&channel->m_refcnt, -1) > 1) {
+	if (xadd32(&channel->m_refcnt, -1) > 1) {
 		return;
 	}
 	reactor = channel->reactor;
@@ -1324,7 +1324,7 @@ void NetChannel_close_ref(NetChannel_t* channel) {
 }
 
 void NetChannel_send_fin(NetChannel_t* channel) {
-	if (_xchg8(&channel->m_has_commit_fincmd, 1)) {
+	if (xchg8(&channel->m_has_commit_fincmd, 1)) {
 		return;
 	}
 	if (!channel->reactor) {

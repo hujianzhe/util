@@ -633,7 +633,7 @@ int nioWait(Nio_t* nio, NioEv_t* e, unsigned int count, int msec) {
 }
 
 void nioWakeup(Nio_t* nio) {
-	if (0 == _xchg16(&nio->__wakeup, 1)) {
+	if (0 == xchg16(&nio->__wakeup, 1)) {
 #if defined(_WIN32) || defined(_WIN64)
 		PostQueuedCompletionStatus((HANDLE)nio->__hNio, 0, 0, NULL);
 #else
@@ -648,7 +648,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	NioFD_t* niofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)(e->lpOverlapped);
 	if (!ol) {
-		_xchg16(&nio->__wakeup, 0);
+		xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	iocp_nio_unlink_ol(nio, ol);
@@ -685,7 +685,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (e->data.ptr == (void*)&nio->__socketpair[0]) {
 		char c[256];
 		read(nio->__socketpair[0], c, sizeof(c));
-		_xchg16(&nio->__wakeup, 0);
+		xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	niofd = (NioFD_t*)e->data.ptr;
@@ -725,7 +725,7 @@ NioFD_t* nioEventCheck(Nio_t* nio, const NioEv_t* e, int* ev_mask) {
 	if (e->udata == (void*)&nio->__socketpair[0]) {
 		char c[256];
 		read(nio->__socketpair[0], c, sizeof(c));
-		_xchg16(&nio->__wakeup, 0);
+		xchg16(&nio->__wakeup, 0);
 		return NULL;
 	}
 	niofd = (NioFD_t*)e->udata;

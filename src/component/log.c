@@ -79,7 +79,7 @@ void free_async_output_thread_cache_list(ListNode_t* head) {
 
 void exit_free_async_output_thread(LogAsyncOutputThread_t* thrd) {
 	thrd->exit_flag = 1;
-	_memoryBarrier();
+	memoryBarrierRelease();
 	dataqueueWake(&thrd->cache_dq);
 	threadJoin(thrd->tid, NULL);
 	free_async_output_thread_cache_list(dataqueueDestroy(&thrd->cache_dq));
@@ -144,7 +144,11 @@ static unsigned int log_async_output_thrd_entry(void* arg) {
 	ListNode_t* lcur = NULL;
 	char* prefix_buffer = NULL;
 	size_t max_prefix_buffer_len = 0;
-	while (!output_thrd->exit_flag) {
+	while (1) {
+		memoryBarrierAcquire();
+		if (output_thrd->exit_flag) {
+			break;
+		}
 		lcur = dataqueuePopWait(&output_thrd->cache_dq, -1, -1);
 		while (lcur) {
 			AsyncCacheBlock_t* cache = pod_container_of(lcur, AsyncCacheBlock_t, _lnode);

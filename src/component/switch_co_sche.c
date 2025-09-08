@@ -68,7 +68,7 @@ extern "C" {
 static int gen_co_id() {
 	static Atom32_t s_id = 0;
 	int id;
-	while (0 == (id = _xadd32(&s_id, 1) + 1));
+	while (0 == (id = xadd32(&s_id, 1) + 1));
 	return id;
 }
 

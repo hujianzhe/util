@@ -907,7 +907,7 @@ int aioWait(Aio_t* aio, AioEv_t* e, unsigned int n, int msec) {
 }
 
 void aioWakeup(Aio_t* aio) {
-	if (_xchg16(&aio->__wakeup, 1)) {
+	if (xchg16(&aio->__wakeup, 1)) {
 		return;
 	}
 #if defined(_WIN32) || defined(_WIN64)
@@ -922,7 +922,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	AioFD_t* aiofd;
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->lpOverlapped;
 	if (!ol) {
-		_xchg16(&aio->__wakeup, 0);
+		xchg16(&aio->__wakeup, 0);
 		*ol_aiofd = NULL;
 		return NULL;
 	}
@@ -960,7 +960,7 @@ IoOverlapped_t* aioEventCheck(Aio_t* aio, const AioEv_t* e, AioFD_t** ol_aiofd) 
 	IoOverlapped_t* ol = (IoOverlapped_t*)e->ol;
 	if (&s_wakeup_ol == ol) {
 		uring_submit_wakeup__(&aio->__r, aio->__wakeup_fds[0]);
-		_xchg16(&aio->__wakeup, 0);
+		xchg16(&aio->__wakeup, 0);
 		*ol_aiofd = NULL;
 		return NULL;
 	}

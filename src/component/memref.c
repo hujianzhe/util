@@ -36,7 +36,7 @@ void* memrefGetPtr(MemRef_t* ref) { return ref ? ref->p : NULL; }
 
 MemRef_t* memrefIncr(MemRef_t* ref) {
 	if (ref) {
-		_xadd32(&ref->sp_cnt, 1);
+		xadd32(&ref->sp_cnt, 1);
 	}
 	return ref;
 }
@@ -49,7 +49,7 @@ void memrefDecr(MemRef_t** p_ref) {
 	}
 	*p_ref = NULL;
 
-	sp_cnt = _xadd32(&ref->sp_cnt, -1);
+	sp_cnt = xadd32(&ref->sp_cnt, -1);
 	if (sp_cnt > 1) {
 		return;
 	}
@@ -57,7 +57,7 @@ void memrefDecr(MemRef_t** p_ref) {
 		ref->fn_free(ref->p);
 	}
 	ref->p = NULL;
-	if (_xadd32(&ref->wp_cnt, -1) > 1) {
+	if (xadd32(&ref->wp_cnt, -1) > 1) {
 		return;
 	}
 	free(ref);
@@ -68,11 +68,11 @@ MemRef_t* memrefLockWeak(MemRef_t* ref) {
 		return NULL;
 	}
 	while (1) {
-		Atom32_t tmp = _xadd32(&ref->sp_cnt, 0);
+		Atom32_t tmp = xadd32(&ref->sp_cnt, 0);
 		if (tmp < 1) {
 			return NULL;
 		}
-		if (_cmpxchg32(&ref->sp_cnt, tmp + 1, tmp) == tmp) {
+		if (cmpxchg32(&ref->sp_cnt, tmp + 1, tmp) == tmp) {
 			return ref;
 		}
 	}
@@ -80,7 +80,7 @@ MemRef_t* memrefLockWeak(MemRef_t* ref) {
 
 MemRef_t* memrefIncrWeak(MemRef_t* ref) {
 	if (ref) {
-		_xadd32(&ref->wp_cnt, 1);
+		xadd32(&ref->wp_cnt, 1);
 	}
 	return ref;
 }
@@ -92,7 +92,7 @@ void memrefDecrWeak(MemRef_t** p_ref) {
 	}
 	*p_ref = NULL;
 
-	if (_xadd32(&ref->wp_cnt, -1) > 1) {
+	if (xadd32(&ref->wp_cnt, -1) > 1) {
 		return;
 	}
 	free(ref);

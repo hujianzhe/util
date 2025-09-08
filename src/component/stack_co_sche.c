@@ -101,7 +101,7 @@ extern "C" {
 static int64_t gen_co_id() {
 	static Atom64_t s_id = 0;
 	int64_t id;
-	while (0 == (id = _xadd64(&s_id, 1) + 1));
+	while (0 == (id = xadd64(&s_id, 1) + 1));
 	return id;
 }
 
@@ -931,6 +931,7 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 		sche->sche_fiber = sche_fiber;
 	}
 
+	memoryBarrierAcquire();
 	if (sche->exit_flag) {
 		sche->exit_handle = 1;
 		/* release lock suspend */
@@ -1042,7 +1043,7 @@ void StackCoSche_wake_up(StackCoSche_t* sche) {
 
 void StackCoSche_exit(StackCoSche_t* sche) {
 	sche->exit_flag = 1;
-	_memoryBarrier();
+	memoryBarrierRelease();
 	dataqueueWake(&sche->dq);
 }
 

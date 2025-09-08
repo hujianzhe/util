@@ -67,7 +67,7 @@ ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 
 	criticalsectionEnter(&dq->m_cslock);
 
-	while (!dq->m_datalist.head && !_xchg8(&dq->m_wakeup, 0)) {
+	while (!dq->m_datalist.head && !xchg8(&dq->m_wakeup, 0)) {
 		if (conditionvariableWait(&dq->m_condition, &dq->m_cslock, msec)) {
 			continue;
 		}
@@ -94,7 +94,7 @@ ListNode_t* dataqueuePopWait(DataQueue_t* dq, int msec, size_t expect_cnt) {
 }
 
 void dataqueueWake(DataQueue_t* dq) {
-	if (_xchg8(&dq->m_wakeup, 1))
+	if (xchg8(&dq->m_wakeup, 1))
 		return;
 	criticalsectionEnter(&dq->m_cslock);
 	conditionvariableSignal(&dq->m_condition);
