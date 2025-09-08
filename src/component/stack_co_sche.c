@@ -934,7 +934,6 @@ int StackCoSche_sche(StackCoSche_t* sche, int idle_msec) {
 	memoryBarrierAcquire();
 	if (sche->exit_flag) {
 		sche->exit_handle = 1;
-		memoryBarrierRelease();
 		/* release lock suspend */
 		for (lcur = sche->exec_co_list.head; lcur; lcur = lcur->next) {
 			StackCoNode_t* co_node = pod_container_of(lcur, StackCoNode_t, hdr.listnode);
@@ -1060,7 +1059,8 @@ void StackCoSche_set_handle_cnt(struct StackCoSche_t* sche, int handle_cnt) {
 }
 
 int StackCoSche_has_exit(struct StackCoSche_t* sche) {
-	return sche->exit_handle;
+	memoryBarrierAcquire();
+	return sche->exit_flag;
 }
 
 void StackCoSche_at_exit(StackCoSche_t* sche, void(*fn_at_exit)(StackCoSche_t*, void*), void* arg, void(*fn_arg_free)(void*)) {
