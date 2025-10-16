@@ -29,6 +29,7 @@ public:
         :CoroutineScheBaseImpl()
 		,m_handle_cnt(100)
         ,m_status(ST_RUN)
+        ,m_wakeup(0)
     {
         m_peak_events.reserve(m_handle_cnt);
     }
@@ -46,6 +47,12 @@ public:
 
     void doExit() {
         if (m_status.exchange(ST_EXIT, std::memory_order_release) == ST_RUN) {
+            m_cv.notify_one();
+        }
+    }
+
+    void doWakeUp() {
+        if (!m_wakeup.exchange(1)) {
             m_cv.notify_one();
         }
     }
@@ -205,12 +212,18 @@ private:
 
 private:
     bool checkBusy() {
+        if (ST_RUN != m_status) {
+            return true;
+        }
 		if (!m_events.empty()) {
 			return true;
 		}
 		if (CoroutineScheBaseImpl::checkBusy()) {
 			return true;
 		}
+        if (m_wakeup.exchange(0)) {
+            return true;
+        }
 		return false;
     }
 
@@ -275,10 +288,10 @@ private:
         m_peak_events.clear();
         std::unique_lock lk(m_mtx);
         if (wait_msec >= 0) {
-            m_cv.wait_for(lk, std::chrono::milliseconds(wait_msec), [this] { return ST_RUN != m_status || checkBusy(); });
+            m_cv.wait_for(lk, std::chrono::milliseconds(wait_msec), [this] { return checkBusy(); });
         }
         else {
-            m_cv.wait(lk, [this] { return ST_RUN != m_status || checkBusy(); });
+            m_cv.wait(lk, [this] { return checkBusy(); });
         }
         if (ST_RUN != m_status) {
             return;
@@ -372,6 +385,7 @@ private:
     std::condition_variable m_cv;
 	int m_handle_cnt;
     std::atomic_int m_status;
+    std::atomic_int m_wakeup;
     std::list<Event> m_events;
     std::vector<Event> m_peak_events;
     std::map<long long, std::list<Event> > m_timeout_events;
