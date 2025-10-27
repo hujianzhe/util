@@ -41,8 +41,8 @@ public:
 
 	void detach() {
 		if (m_ptrSched) {
-			*m_ptrSched = nullptr;
-			m_ptrSched = nullptr; 
+			m_ptrSched->e = nullptr;
+			m_ptrSched = nullptr;
 			m_timer = nullptr;
 		}
 	}
@@ -50,9 +50,13 @@ public:
 private:
 	HeapTimerEvent(const HeapTimerEvent&) {}
 	HeapTimerEvent& operator=(const HeapTimerEvent&) { return *this; }
+	struct ScheNode {
+		HeapTimerEvent* e;
+		int64_t t;
+	};
 
 private:
-	HeapTimerEvent** m_ptrSched;
+	ScheNode* m_ptrSched;
 	HeapTimer* m_timer;
 	int64_t m_timestamp;
 	HeapTimerFunction m_func;
@@ -92,49 +96,53 @@ public:
 			}
 			if (e->m_timestamp != timestamp) {
 				e->m_timestamp = timestamp;
-				std::make_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
+				e->m_ptrSched->e = e;
+				e->m_ptrSched->t = timestamp;
+				std::make_heap(m_nodes.begin(), m_nodes.end(), heapCompare);
 			}
 		}
 		else {
-			e->m_timestamp = timestamp;
-			HeapTimerEvent** ep = new HeapTimerEvent*(e);
+			HeapTimerEvent::ScheNode* node = new HeapTimerEvent::ScheNode();
 			try {
-				m_eventHeap.push_back(ep);
-				std::push_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
+				node->e = e;
+				node->t = timestamp;
+				m_nodes.push_back(node);
+				std::push_heap(m_nodes.begin(), m_nodes.end(), heapCompare);
 			}
 			catch (...) {
-				delete ep;
+				delete node;
 				return false;
 			}
+			e->m_timestamp = timestamp;
 			e->m_timer = this;
-			e->m_ptrSched = ep;
+			e->m_ptrSched = node;
 		}
 		return true;
 	}
 
 	void clearEvents() {
-		for (size_t i = 0; i < m_eventHeap.size(); ++i) {
-			HeapTimerEvent** ep = m_eventHeap[i];
-			HeapTimerEvent* e = *ep;
+		for (size_t i = 0; i < m_nodes.size(); ++i) {
+			HeapTimerEvent::ScheNode* node = m_nodes[i];
+			HeapTimerEvent* e = node->e;
 			if (e) {
 				e->m_timer = nullptr;
 				e->m_ptrSched = nullptr;
 			}
-			delete ep;
+			delete node;
 		}
-		m_eventHeap.clear();
+		m_nodes.clear();
 	}
 
 	HeapTimerEvent* popTimeoutEvent(int64_t timestamp) {
-		while (!m_eventHeap.empty()) {
-			HeapTimerEvent** ep = m_eventHeap.front();
-			HeapTimerEvent* e = *ep;
+		while (!m_nodes.empty()) {
+			HeapTimerEvent::ScheNode* node = m_nodes.front();
+			HeapTimerEvent* e = node->e;
 			if (e && e->m_timestamp > timestamp) {
 				break;
 			}
-			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
-			m_eventHeap.pop_back();
-			delete ep;
+			std::pop_heap(m_nodes.begin(), m_nodes.end(), heapCompare);
+			m_nodes.pop_back();
+			delete node;
 			if (!e) {
 				continue;
 			}
@@ -145,15 +153,15 @@ public:
 	}
 
 	int64_t getNextTimestamp() {
-		while (!m_eventHeap.empty()) {
-			HeapTimerEvent** ep = m_eventHeap.front();
-			HeapTimerEvent* e = *ep;
+		while (!m_nodes.empty()) {
+			HeapTimerEvent::ScheNode* node = m_nodes.front();
+			HeapTimerEvent* e = node->e;
 			if (e) {
 				return e->m_timestamp;
 			}
-			std::pop_heap(m_eventHeap.begin(), m_eventHeap.end(), heapCompare);
-			m_eventHeap.pop_back();
-			delete ep;
+			std::pop_heap(m_nodes.begin(), m_nodes.end(), heapCompare);
+			m_nodes.pop_back();
+			delete node;
 		}
 		return -1;
 	}
@@ -162,12 +170,12 @@ private:
 	HeapTimer(const HeapTimer&) {}
 	HeapTimer& operator=(const HeapTimer&) { return *this; }
 
-	static bool heapCompare(HeapTimerEvent** ap, HeapTimerEvent** bp) {
-		return (*ap ? (*ap)->m_timestamp : 0) > ( *bp ? (*bp)->m_timestamp : 0);
+	static bool heapCompare(HeapTimerEvent::ScheNode* ap, HeapTimerEvent::ScheNode* bp) {
+		return ap->t > bp->t;
 	}
 
 private:
-	std::vector<HeapTimerEvent**> m_eventHeap;
+	std::vector<HeapTimerEvent::ScheNode*> m_nodes;
 };
 }
 
