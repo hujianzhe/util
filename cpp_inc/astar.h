@@ -11,79 +11,89 @@
 #include <unordered_set>
 
 namespace util {
-class AStarNodeBase {
-public:
-	virtual ~AStarNodeBase() {}
-
-	static bool openheapCompare(const AStarNodeBase* a, const AStarNodeBase* b) { return a->f > b->f; }
-
-protected:
-	AStarNodeBase() : from(NULL), g(0), h(0), f(0) {}
-
-public:
-	const AStarNodeBase* from;
-	int g, h, f;
-};
-
+template <typename UserDataType>
 class AStarPathFinder {
 public:
-	AStarPathFinder() : m_max_search_num(-1) { reset(); }
-	virtual ~AStarPathFinder() {}
+	AStarPathFinder():
+		m_max_search_num(-1),
+		m_cur_track_idx(-1)
+	{}
+
+	size_t search_num() const { return m_tracks.size(); }
 
 	void setMaxSearchNum(size_t num) {
 		m_max_search_num = num;
 		if (m_max_search_num != -1) {
+			m_tracks.reserve(m_max_search_num);
 			m_openheap.reserve(m_max_search_num);
 		}
 	}
 
 	bool reachMaxSearch() const {
-		return m_cur_search_num >= m_max_search_num && m_max_search_num != -1;
+		return m_tracks.size() >= m_max_search_num && m_max_search_num != -1;
 	}
 
-	bool addOpenHeap(AStarNodeBase* node, AStarNodeBase* from_node) {
-		if (m_cur_search_num < m_max_search_num) {
-			m_cur_search_num++;
-		}
-		else if (m_max_search_num != -1) {
-			return false;
-		}
-		node->f = node->h + node->g;
-		node->from = from_node;
-		m_openheap.push_back(node);
-		std::push_heap(m_openheap.begin(), m_openheap.end(), AStarNodeBase::openheapCompare);
-		return true;
+	void pushCandidate(int f, const UserDataType* user_data) {
+		m_tracks.push_back({f, m_cur_track_idx, user_data});
+		m_openheap.push_back(m_tracks.size() - 1);
+		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 	}
 
-	AStarNodeBase* popOpenHeap() {
+	const UserDataType* popCandidate() {
 		if (m_openheap.empty()) {
 			return nullptr;
 		}
-		AStarNodeBase* next_node = m_openheap.front();
-		std::pop_heap(m_openheap.begin(), m_openheap.end(), AStarNodeBase::openheapCompare);
+		m_cur_track_idx = m_openheap.front();
+		std::pop_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 		m_openheap.pop_back();
-		return next_node;
+		m_closeset.insert(m_tracks[m_cur_track_idx].user_data);
+		return m_tracks[m_cur_track_idx].user_data;
 	}
 
-	void reset() {
+	bool checkDetected(const UserDataType* user_data) const {
+		return m_closeset.find(user_data) != m_closeset.end();
+	}
+
+	void start(const UserDataType* user_data) {
+		m_cur_track_idx = -1;
+		m_tracks.clear();
+		m_openheap.clear();
 		m_closeset.clear();
-		m_openheap.resize(0);
-		m_cur_search_num = 0;
+		m_closeset.insert(user_data);
 	}
 
-	bool addCloseSet(const AStarNodeBase* node) {
-		return m_closeset.insert(node).second;
+	const UserDataType* popTrack() {
+		if (-1 == m_cur_track_idx) {
+			return nullptr;
+		}
+		const UserDataType* user_data = m_tracks[m_cur_track_idx].user_data;
+		m_cur_track_idx = m_tracks[m_cur_track_idx].from_idx;
+		return user_data;
 	}
 
 private:
 	AStarPathFinder(const AStarPathFinder&) = delete;
 	AStarPathFinder& operator=(const AStarPathFinder&) = delete;
 
-protected:
+	struct ProcTracking {
+		int f;
+		size_t from_idx;
+		const UserDataType* user_data;
+	};
+	struct OpenHeapCompare {
+		const std::vector<ProcTracking>& tracks;
+		OpenHeapCompare(const std::vector<ProcTracking>& t) : tracks(t) {}
+		bool operator()(size_t a, size_t b) const {
+			return tracks[a].f > tracks[b].f;
+		}
+	};
+
+private:
 	size_t m_max_search_num;
-	size_t m_cur_search_num;
-	std::vector<AStarNodeBase*> m_openheap;
-	std::unordered_set<const AStarNodeBase*> m_closeset;
+	size_t m_cur_track_idx;
+	std::vector<ProcTracking> m_tracks;
+	std::vector<size_t> m_openheap;
+	std::unordered_set<const UserDataType*> m_closeset;
 };
 }
 
