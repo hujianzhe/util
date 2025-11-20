@@ -33,7 +33,7 @@ public:
 	bool arrived() const { return m_arrived; }
 	void set_arrived() { m_arrived = true; }
 
-	void setStart(const UserDataType* start_udata, size_t max_search_num = -1) {
+	ProcTrack* setStart(const UserDataType* start_udata, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
@@ -48,6 +48,7 @@ public:
 		m_current.g = 0;
 		m_current.h = 0;
 		m_current.user_data = start_udata;
+		return &m_current;
 	}
 
 	void pushCandidate(int g, int h, const UserDataType* user_data) {
