@@ -15,26 +15,32 @@ template <typename UserDataType>
 class AStarPathFinder {
 public:
 	AStarPathFinder():
+		m_arrived(false),
 		m_max_search_num(-1),
-		m_cur_track_idx(-1)
+		m_prev_track_idx(-1)
 	{}
 
 	size_t search_num() const { return m_tracks.size(); }
+	bool left_search_num_enough() const { return m_tracks.size() < m_max_search_num; }
+	bool arrived() const { return m_arrived; }
+	void set_arrived() { m_arrived = true; }
 
-	void setMaxSearchNum(size_t num) {
-		m_max_search_num = num;
+	void setStart(const UserDataType* start_udata, size_t max_search_num = -1) {
+		m_prev_track_idx = -1;
+		m_tracks.clear();
+		m_openheap.clear();
+		m_closeset.clear();
+		m_closeset.insert(start_udata);
+		m_arrived = false;
+		m_max_search_num = max_search_num;
 		if (m_max_search_num != -1) {
 			m_tracks.reserve(m_max_search_num);
 			m_openheap.reserve(m_max_search_num);
 		}
 	}
 
-	bool reachMaxSearch() const {
-		return m_tracks.size() >= m_max_search_num && m_max_search_num != -1;
-	}
-
 	void pushCandidate(int f, const UserDataType* user_data) {
-		m_tracks.push_back({f, m_cur_track_idx, user_data});
+		m_tracks.push_back({f, m_prev_track_idx, user_data});
 		m_openheap.push_back(m_tracks.size() - 1);
 		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 	}
@@ -43,31 +49,23 @@ public:
 		if (m_openheap.empty()) {
 			return nullptr;
 		}
-		m_cur_track_idx = m_openheap.front();
+		m_prev_track_idx = m_openheap.front();
 		std::pop_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 		m_openheap.pop_back();
-		m_closeset.insert(m_tracks[m_cur_track_idx].user_data);
-		return m_tracks[m_cur_track_idx].user_data;
+		m_closeset.insert(m_tracks[m_prev_track_idx].user_data);
+		return m_tracks[m_prev_track_idx].user_data;
 	}
 
 	bool checkDetected(const UserDataType* user_data) const {
 		return m_closeset.find(user_data) != m_closeset.end();
 	}
 
-	void start(const UserDataType* user_data) {
-		m_cur_track_idx = -1;
-		m_tracks.clear();
-		m_openheap.clear();
-		m_closeset.clear();
-		m_closeset.insert(user_data);
-	}
-
 	const UserDataType* popTrack() {
-		if (-1 == m_cur_track_idx) {
+		if (-1 == m_prev_track_idx) {
 			return nullptr;
 		}
-		const UserDataType* user_data = m_tracks[m_cur_track_idx].user_data;
-		m_cur_track_idx = m_tracks[m_cur_track_idx].from_idx;
+		const UserDataType* user_data = m_tracks[m_prev_track_idx].user_data;
+		m_prev_track_idx = m_tracks[m_prev_track_idx].from_idx;
 		return user_data;
 	}
 
@@ -89,8 +87,9 @@ private:
 	};
 
 private:
+	bool m_arrived;
 	size_t m_max_search_num;
-	size_t m_cur_track_idx;
+	size_t m_prev_track_idx;
 	std::vector<ProcTracking> m_tracks;
 	std::vector<size_t> m_openheap;
 	std::unordered_set<const UserDataType*> m_closeset;
