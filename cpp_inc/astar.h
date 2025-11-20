@@ -56,7 +56,7 @@ public:
 		return m_tracks[m_prev_track_idx].user_data;
 	}
 
-	bool checkDetected(const UserDataType* user_data) const {
+	bool isDetected(const UserDataType* user_data) const {
 		return m_closeset.find(user_data) != m_closeset.end();
 	}
 
