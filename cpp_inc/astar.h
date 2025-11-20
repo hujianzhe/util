@@ -16,6 +16,7 @@ class AStarPathFinder {
 public:
 	AStarPathFinder() :
 		m_arrived(false),
+		m_search_num(0),
 		m_max_search_num(-1),
 		m_prev_track_idx(-1)
 	{
@@ -28,18 +29,19 @@ public:
 		const UserDataType* user_data;
 	};
 
-	size_t search_num() const { return m_tracks.size(); }
-	bool left_search_num_enough() const { return m_tracks.size() < m_max_search_num; }
+	size_t search_num() const { return m_search_num; }
+	bool search_num_enough() const { return m_search_num < m_max_search_num; }
 	bool arrived() const { return m_arrived; }
 	void set_arrived() { m_arrived = true; }
 
-	ProcTrack* setStart(const UserDataType* start_udata, size_t max_search_num = -1) {
+	ProcTrack* beginTrack(const UserDataType* start_udata, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
 		m_closeset.clear();
 		m_closeset.insert(start_udata);
 		m_arrived = false;
+		m_search_num = 0;
 		m_max_search_num = max_search_num;
 		if (m_max_search_num != -1) {
 			m_tracks.reserve(m_max_search_num);
@@ -48,19 +50,14 @@ public:
 		m_current.g = 0;
 		m_current.h = 0;
 		m_current.user_data = start_udata;
-		return &m_current;
+		return m_search_num < m_max_search_num ? &m_current : nullptr;
 	}
 
-	void pushCandidate(int g, int h, const UserDataType* user_data) {
-		m_tracks.push_back({g, g + h, m_prev_track_idx, user_data});
-		m_openheap.push_back(m_tracks.size() - 1);
-		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
-	}
-
-	ProcTrack* popCandidate() {
-		if (m_openheap.empty()) {
+	ProcTrack* nextTrack() {
+		if (m_openheap.empty() || m_search_num >= m_max_search_num) {
 			return nullptr;
 		}
+		++m_search_num;
 		m_prev_track_idx = m_openheap.front();
 		std::pop_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 		m_openheap.pop_back();
@@ -70,6 +67,12 @@ public:
 		m_current.h = t.f - t.g;
 		m_current.user_data = t.user_data;
 		return &m_current;
+	}
+
+	void pushCandidate(int g, int h, const UserDataType* user_data) {
+		m_tracks.push_back({g, g + h, m_prev_track_idx, user_data});
+		m_openheap.push_back(m_tracks.size() - 1);
+		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 	}
 
 	bool isDetected(const UserDataType* user_data) const {
@@ -104,6 +107,7 @@ private:
 
 private:
 	bool m_arrived;
+	size_t m_search_num;
 	size_t m_max_search_num;
 	size_t m_prev_track_idx;
 	ProcTrack m_current;
