@@ -34,7 +34,7 @@ public:
 	bool arrived() const { return m_arrived; }
 	void set_arrived() { m_arrived = true; }
 
-	ProcTrack* beginTrack(const UserDataType* start_udata, size_t max_search_num = -1) {
+	ProcTrack* beginIter(const UserDataType* start_udata, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
@@ -53,7 +53,7 @@ public:
 		return m_search_num < m_max_search_num ? &m_current : nullptr;
 	}
 
-	ProcTrack* nextTrack() {
+	ProcTrack* nextIter() {
 		if (m_openheap.empty() || m_search_num >= m_max_search_num) {
 			return nullptr;
 		}
@@ -69,17 +69,17 @@ public:
 		return &m_current;
 	}
 
-	void pushCandidate(int g, int h, const UserDataType* user_data) {
+	void insert(int g, int h, const UserDataType* user_data) {
 		m_tracks.push_back({g, g + h, m_prev_track_idx, user_data});
 		m_openheap.push_back(m_tracks.size() - 1);
 		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 	}
 
-	bool isDetected(const UserDataType* user_data) const {
+	bool exist(const UserDataType* user_data) const {
 		return m_closeset.find(user_data) != m_closeset.end();
 	}
 
-	const UserDataType* popTrack() {
+	const UserDataType* backtrace() {
 		if (-1 == m_prev_track_idx) {
 			return nullptr;
 		}
