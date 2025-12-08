@@ -24,7 +24,7 @@ struct buffer_view {
 	}
 
 	bool valid(size_t off, size_t len) const {
-		return off < m_length && len < m_length - off;
+		return off < m_length && len <= m_length - off;
 	}
 
 	template <typename T>
