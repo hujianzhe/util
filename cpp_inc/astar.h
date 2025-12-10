@@ -33,7 +33,7 @@ public:
 	bool search_num_enough() const { return m_search_num < m_max_search_num; }
 	bool arrived() const { return m_arrived; }
 	void set_arrived() { m_arrived = true; }
-	const ProcTrack* current_track() const { return m_current; }
+	const ProcTrack* current_track() const { return &m_current; }
 
 	const ProcTrack* beginIter(const UserDataType* start_udata, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
