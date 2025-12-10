@@ -33,8 +33,9 @@ public:
 	bool search_num_enough() const { return m_search_num < m_max_search_num; }
 	bool arrived() const { return m_arrived; }
 	void set_arrived() { m_arrived = true; }
+	const ProcTrack* current_track() const { return m_current; }
 
-	ProcTrack* beginIter(const UserDataType* start_udata, size_t max_search_num = -1) {
+	const ProcTrack* beginIter(const UserDataType* start_udata, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
@@ -47,13 +48,16 @@ public:
 			m_tracks.reserve(m_max_search_num);
 			m_openheap.reserve(m_max_search_num);
 		}
+		if (m_search_num >= m_max_search_num) {
+			return nullptr;
+		}
 		m_current.g = 0;
 		m_current.h = 0;
 		m_current.user_data = start_udata;
-		return m_search_num < m_max_search_num ? &m_current : nullptr;
+		return &m_current;
 	}
 
-	ProcTrack* nextIter() {
+	const ProcTrack* nextIter() {
 		if (m_openheap.empty() || m_search_num >= m_max_search_num) {
 			return nullptr;
 		}
