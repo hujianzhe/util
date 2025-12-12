@@ -73,7 +73,6 @@ public:
 		std::pop_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 		m_openheap.pop_back();
 		const ProcTrackListNode& t = m_tracks[m_prev_track_idx];
-		m_closeset.insert(t.user_data);
 		m_current.g = t.g;
 		m_current.h = t.f - t.g;
 		m_current.user_data = t.user_data;
@@ -84,6 +83,9 @@ public:
 		if (user_data == m_destination) {
 			m_arrived = true;
 			m_openheap.clear();
+			return;
+		}
+		if (!m_closeset.insert(user_data).second) {
 			return;
 		}
 		m_tracks.push_back({g, g + h, m_prev_track_idx, user_data});
