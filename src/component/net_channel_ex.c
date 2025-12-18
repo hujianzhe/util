@@ -2,6 +2,7 @@
 // Created by hujianzhe on 2019-7-11.
 //
 
+#include "../../inc/datastruct/memfunc.h"
 #include "../../inc/component/net_reactor.h"
 #include "../../inc/component/net_channel_ex.h"
 #include "../../inc/sysapi/error.h"
@@ -230,7 +231,7 @@ static int on_read_dgram_listener(NetChannel_t* channel, unsigned char* buf, uns
 	pkg->bodylen = sizeof(local_port);
 	pkg->fragment_eof = 1;
 	rw->proc->on_encode(channel, pkg);
-	*(unsigned short*)(pkg->buf + hdrlen) = htons(local_port);
+	memWriteBE16(pkg->buf + hdrlen, local_port);
 	sendto(o->niofd.fd, (char*)pkg->buf, pkg->hdrlen + pkg->bodylen, 0, from_saddr, addrlen);
 
 	memmove(&halfconn->from_addr, from_saddr, addrlen);
@@ -310,8 +311,7 @@ static int on_read_reliable_dgram(NetChannel_t* channel, unsigned char* buf, uns
 				if (decode_result.bodylen < sizeof(port)) {
 					return decode_result.decodelen;
 				}
-				port = *(unsigned short*)decode_result.bodyptr;
-				port = ntohs(port);
+				port = memReadBE16(decode_result.bodyptr);
 				memmove(&channel->to_addr, from_saddr, addrlen);
 				channel->to_addrlen = addrlen;
 				sockaddrSetPort(&channel->to_addr.sa, port);

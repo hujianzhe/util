@@ -12,18 +12,21 @@ extern "C" {
 #endif
 
 __declspec_dll int byteorderIsLE(void);
-__declspec_dll unsigned short memToBE16(unsigned short v);
-__declspec_dll unsigned short memToLE16(unsigned short v);
-__declspec_dll unsigned short memFromBE16(unsigned short v);
-__declspec_dll unsigned short memFromLE16(unsigned short v);
-__declspec_dll unsigned int memToBE32(unsigned int v);
-__declspec_dll unsigned int memToLE32(unsigned int v);
-__declspec_dll unsigned int memFromBE32(unsigned int v);
-__declspec_dll unsigned int memFromLE32(unsigned int v);
-__declspec_dll unsigned long long memToBE64(unsigned long long v);
-__declspec_dll unsigned long long memToLE64(unsigned long long v);
-__declspec_dll unsigned long long memFromBE64(unsigned long long v);
-__declspec_dll unsigned long long memFromLE64(unsigned long long v);
+__declspec_dll unsigned short memRead16(const void* addr);
+__declspec_dll unsigned int memRead32(const void* addr);
+__declspec_dll unsigned long long memRead64(const void* addr);
+__declspec_dll unsigned short memReadBE16(const void* addr);
+__declspec_dll unsigned short memReadLE16(const void* addr);
+__declspec_dll unsigned int memReadBE32(const void* addr);
+__declspec_dll unsigned int memReadLE32(const void* addr);
+__declspec_dll unsigned long long memReadBE64(const void* addr);
+__declspec_dll unsigned long long memReadLE64(const void* addr);
+__declspec_dll void memWriteBE16(void* addr, unsigned short v);
+__declspec_dll void memWriteLE16(void* addr, unsigned short v);
+__declspec_dll void memWriteBE32(void* addr, unsigned int v);
+__declspec_dll void memWriteLE32(void* addr, unsigned int v);
+__declspec_dll void memWriteBE64(void* addr, unsigned long long v);
+__declspec_dll void memWriteLE64(void* addr, unsigned long long v);
 
 __declspec_dll int memBitCheck(char* arr, UnsignedPtr_t bit_idx);
 __declspec_dll void memBitSet(char* arr, UnsignedPtr_t bit_idx);
@@ -35,7 +38,6 @@ __declspec_dll unsigned char* memSkipByte(const void* p, UnsignedPtr_t n, const 
 __declspec_dll void* memZero(void* p, UnsignedPtr_t n);
 __declspec_dll void* memReverse(void* p, UnsignedPtr_t len);
 __declspec_dll unsigned short memCheckSum16(const void* buffer, int len);
-#define	memCheckSumIsOk(cksum)	(0 == (cksum))
 __declspec_dll void* memSearch(const void* buf, UnsignedPtr_t n, const void* s, UnsignedPtr_t sn);
 __declspec_dll void* memSearchValue(const void* buf, UnsignedPtr_t n, const void* d, UnsignedPtr_t dn);
 

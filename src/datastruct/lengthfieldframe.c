@@ -17,11 +17,11 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 
 	switch (lengthfieldsize) {
 		case 2:
-			*datalen = memFromBE16(*(unsigned short*)buf);
+			*datalen = memReadBE16(buf);
 			break;
 
 		case 4:
-			*datalen = memFromBE32(*(unsigned int*)buf);
+			*datalen = memReadBE32(buf);
 			break;
 
 		default:
@@ -40,13 +40,14 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen) {
 	switch (lengthfieldsize) {
 		case 2:
-			if (datalen > 0xffff)
+			if (datalen > 0xffff) {
 				return 0;
-			*(unsigned short*)lengthfieldbuf = memToBE16(datalen);
+			}
+			memWriteBE16(lengthfieldbuf, datalen);
 			return 1;
 
 		case 4:
-			*(unsigned int*)lengthfieldbuf = memToBE32(datalen);
+			memWriteBE32(lengthfieldbuf, datalen);
 			return 1;
 
 		default:
@@ -61,11 +62,11 @@ int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, 
 
 	switch (lengthfieldsize) {
 		case 2:
-			decodelen = memFromBE16(*(unsigned short*)buf);
+			decodelen = memReadBE16(buf);
 			break;
 
 		case 4:
-			decodelen = memFromBE32(*(unsigned int*)buf);
+			decodelen = memReadBE32(buf);
 			break;
 
 		default:

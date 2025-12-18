@@ -13,88 +13,176 @@ int byteorderIsLE(void) {
 	return *((unsigned char*)&v);
 }
 
-unsigned short memToBE16(unsigned short v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned short memRead16(const void* addr) {
+	unsigned short v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	vp[0] = ap[0];
+	vp[1] = ap[1];
 	return v;
 }
 
-unsigned short memToLE16(unsigned short v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned int memRead32(const void* addr) {
+	unsigned int v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	vp[0] = ap[0];
+	vp[1] = ap[1];
+	vp[2] = ap[2];
+	vp[3] = ap[3];
 	return v;
 }
 
-unsigned short memFromBE16(unsigned short v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned long long memRead64(const void* addr) {
+	unsigned long long v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	vp[0] = ap[0];
+	vp[1] = ap[1];
+	vp[2] = ap[2];
+	vp[3] = ap[3];
+	vp[4] = ap[4];
+	vp[5] = ap[5];
+	vp[6] = ap[6];
+	vp[7] = ap[7];
 	return v;
 }
 
-unsigned short memFromLE16(unsigned short v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+void memWrite16(void* addr, unsigned short v) {
+	const unsigned char* vp = (const unsigned char*)&v;
+	unsigned char* ap = (unsigned char*)addr;
+	ap[0] = vp[0];
+	ap[1] = vp[1];
+}
+
+void memWrite32(void* addr, unsigned int v) {
+	const unsigned char* vp = (const unsigned char*)&v;
+	unsigned char* ap = (unsigned char*)addr;
+	ap[0] = vp[0];
+	ap[1] = vp[1];
+	ap[2] = vp[2];
+	ap[3] = vp[3];
+}
+
+void memWrite64(void* addr, unsigned long long v) {
+	const unsigned char* vp = (const unsigned char*)&v;
+	unsigned char* ap = (unsigned char*)addr;
+	ap[0] = vp[0];
+	ap[1] = vp[1];
+	ap[2] = vp[2];
+	ap[3] = vp[3];
+	ap[4] = vp[4];
+	ap[5] = vp[5];
+	ap[6] = vp[6];
+	ap[7] = vp[7];
+}
+
+#define	macro_READ_BE(vp, ap, size) do {\
+int i;\
+if (byteorderIsLE()) { for (i = 0; i < size; ++i) vp[i] = ap[size - i - 1]; }\
+else { for (i = 0; i < size; ++i) vp[i] = ap[i]; }\
+} while (0)
+
+#define	macro_WRITE_BE(ap, vp, size) do {\
+int i;\
+if (byteorderIsLE()) { for (i = 0; i < size; ++i) ap[i] = vp[size - i - 1]; }\
+else { for (i = 0; i < size; ++i) ap[i] = vp[i]; }\
+} while (0)
+
+#define	macro_READ_LE(vp, ap, size) do {\
+int i;\
+if (byteorderIsLE()) { for (i = 0; i < size; ++i) vp[i] = ap[i]; }\
+else { for (i = 0; i < size; ++i) vp[i] = ap[size - i - 1]; }\
+} while (0)
+
+#define macro_WRITE_LE(ap, vp, size) do {\
+int i;\
+if (byteorderIsLE()) { for (i = 0; i < size; ++i) ap[i] = vp[i]; }\
+else { for (i = 0; i < size; ++i) ap[i] = vp[size - i - 1]; }\
+} while (0)
+
+unsigned short memReadBE16(const void* addr) {
+	unsigned short v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_BE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned int memToBE32(unsigned int v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned short memReadLE16(const void* addr) {
+	unsigned short v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_LE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned int memToLE32(unsigned int v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned int memReadBE32(const void* addr) {
+	unsigned int v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_BE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned int memFromBE32(unsigned int v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned int memReadLE32(const void* addr) {
+	unsigned int v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_LE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned int memFromLE32(unsigned int v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned long long memReadBE64(const void* addr) {
+	unsigned long long v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_BE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned long long memToBE64(unsigned long long v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
+unsigned long long memReadLE64(const void* addr) {
+	unsigned long long v;
+	unsigned char* vp = (unsigned char*)&v;
+	const unsigned char* ap = (const unsigned char*)addr;
+	macro_READ_LE(vp, ap, sizeof(v));
 	return v;
 }
 
-unsigned long long memToLE64(unsigned long long v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
-	return v;
+void memWriteBE16(void* addr, unsigned short v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_BE(ap, vp, sizeof(v));
 }
 
-unsigned long long memFromBE64(unsigned long long v) {
-	if (byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
-	return v;
+void memWriteLE16(void* addr, unsigned short v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-unsigned long long memFromLE64(unsigned long long v) {
-	if (!byteorderIsLE()) {
-		memReverse(&v, sizeof(v));
-	}
-	return v;
+void memWriteBE32(void* addr, unsigned int v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_BE(ap, vp, sizeof(v));
+}
+
+void memWriteLE32(void* addr, unsigned int v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_LE(ap, vp, sizeof(v));
+}
+
+void memWriteBE64(void* addr, unsigned long long v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_BE(ap, vp, sizeof(v));
+}
+
+void memWriteLE64(void* addr, unsigned long long v) {
+	unsigned char* ap = (unsigned char*)addr;
+	const unsigned char* vp = (const unsigned char*)&v;
+	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
 int memBitCheck(char* arr, UnsignedPtr_t bit_idx) {
