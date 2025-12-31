@@ -12,6 +12,7 @@ namespace util {
 template <typename T, typename D = std::default_delete<T> >
 class StdUniquePtrCopyMove {
 public:
+	StdUniquePtrCopyMove(T* p_, const D& d_) noexcept : p(p_), d(d_) {}
 	StdUniquePtrCopyMove(::std::unique_ptr<T, D> u) noexcept
 		: p(nullptr), d(D{})
 	{
