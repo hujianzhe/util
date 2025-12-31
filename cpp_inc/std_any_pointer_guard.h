@@ -9,6 +9,41 @@
 #include <memory>
 
 namespace util {
+template <typename T, typename D = std::default_delete<T> >
+class StdUniquePtrCopyMove {
+public:
+	StdUniquePtrCopyMove(::std::unique_ptr<T, D> u) noexcept
+		: p(nullptr), d(D{})
+	{
+		std::swap(u.get_deleter(), d);
+		p = u.release();
+	}
+	StdUniquePtrCopyMove(const StdUniquePtrCopyMove& o) noexcept
+		: p(nullptr), d(D{})
+	{
+		auto& mut_o = const_cast<StdUniquePtrCopyMove&>(o);
+		std::swap(mut_o.d, d);
+		p = mut_o.p;
+		mut_o.p = nullptr;
+	}
+	~StdUniquePtrCopyMove() noexcept {
+		if (p) d(p);
+	}
+
+	::std::unique_ptr<T, D> to_unique_ptr() noexcept {
+		std::unique_ptr<T, D> u{p, d};
+		p = nullptr;
+		return u;
+	}
+
+private:
+	StdUniquePtrCopyMove& operator=(const StdUniquePtrCopyMove&) = delete;
+
+private:
+	T* p;
+	D d;
+};
+
 class StdAnyPointerGuard {
 private:
 	template <typename T>
