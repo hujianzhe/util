@@ -281,7 +281,7 @@ public:
         }
         return true;
     }
-    std::pair<CoroutineNode*, size_t> await_resume() {
+    void await_resume() {
 		CoroutineScheBase::p->m_current_co_node->m_anyone_suspend = nullptr;
 		auto beg_it = m_done_nodes.begin();
 		if (beg_it != m_done_nodes.end()) {
@@ -289,9 +289,17 @@ public:
 			size_t ident = beg_it->second;
 			m_done_nodes.erase(beg_it);
 			CoroutineScheBase::p->awaitMaybeThrowUnhandleException(co_node);
-			return { co_node, ident };
+			/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
+			//return { co_node, ident };
+			m_await_resume.first = co_node;
+			m_await_resume.second = ident;
+			return;
 		}
-		return { nullptr, 0 };
+		/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
+		//return { nullptr, 0 };
+		m_await_resume.first = nullptr;
+		m_await_resume.second = 0;
+		return;
     }
     void await_suspend(std::coroutine_handle<void> h) {
 		CoroutineScheBase::p->m_current_co_node->m_anyone_suspend = this;
@@ -315,6 +323,8 @@ public:
         return m_done_nodes.empty() && m_run_nodes.empty();
     }
 
+	std::pair<CoroutineNode*, size_t> result() const { return m_await_resume; }
+
 private:
     void clearRunCoroutines() {
         for (auto it = m_run_nodes.begin(); it != m_run_nodes.end(); ) {
@@ -329,6 +339,7 @@ private:
     std::vector<CoroutineNode*> m_free_nodes;
     std::unordered_map<CoroutineNode*, size_t> m_run_nodes;
     std::unordered_map<CoroutineNode*, size_t> m_done_nodes;
+	std::pair<CoroutineNode*, size_t> m_await_resume;/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
 };
 
 template <typename T>
