@@ -49,12 +49,6 @@ friend class CoroutineAwaiter;
 friend class CoroutineAwaitAnyone;
 friend class CoroutinePromiseBase;
 public:
-    ~CoroutineNode() {
-		m_handle.destroy();
-    }
-
-    bool done() const { return m_handle.done(); }
-
     const std::any& getAny() const { return m_value; }
 
 private:
@@ -218,16 +212,14 @@ class CoroutinePromiseBase {
 friend class CoroutineScheBaseImpl;
 friend class CoroutineAwaitAnyone;
 public:
-    struct promise_type {
-        CoroutineNode* co_node = nullptr;
-
+    struct promise_type : public CoroutineNode {
         std::suspend_never initial_suspend() noexcept {
-			CoroutineScheBase::p->handleEnter(co_node);
+			CoroutineScheBase::p->handleEnter(this);
             return {};
         }
         std::suspend_always final_suspend() noexcept { return {}; }
         void unhandled_exception() {
-			CoroutineScheBase::p->saveUnhandleException(co_node, std::current_exception());
+			CoroutineScheBase::p->saveUnhandleException(this, std::current_exception());
 			CoroutineScheBase::p->handleReturn();
         }
     };
@@ -242,20 +234,16 @@ public:
 protected:
     CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
 	CoroutinePromiseBase(const CoroutinePromiseBase& other) = delete;
-    CoroutinePromiseBase()
-        :m_co_node(new CoroutineNode())
-    {
-        m_co_node->m_promise_base = this;
-    }
-    virtual ~CoroutinePromiseBase() {
+    CoroutinePromiseBase() : m_co_node(nullptr) {}
+    ~CoroutinePromiseBase() {
         if (!m_co_node) {
             return;
         }
-        if (!m_co_node->done()) {
+        if (!m_co_node->m_handle.done()) {
             m_co_node->m_promise_base = nullptr;
             return;
         }
-        delete m_co_node;
+        m_co_node->m_handle.destroy();
     }
 
 protected:
@@ -299,7 +287,7 @@ public:
         CoroutineNode* co_node = cpb.m_co_node;
         co_node->m_promise_base = nullptr;
         cpb.m_co_node = nullptr;
-        if (co_node->done()) {
+        if (co_node->m_handle.done()) {
 			m_done_nodes.emplace_back(co_node, ident);
             return;
         }
@@ -321,7 +309,7 @@ private:
             it = m_run_nodes.erase(it);
         }
 		for (auto& it : m_done_nodes) {
-            delete it.first;
+            it.first->m_handle.destroy();
         }
 		m_done_nodes.clear();
     }
@@ -342,7 +330,7 @@ friend class CoroutinePromiseBase;
         }
 
         void return_value(const T& v) {
-            co_node->m_value = v;
+            m_value = v;
 			CoroutineScheBase::p->handleReturn();
         }
     };
@@ -352,8 +340,9 @@ friend class CoroutinePromiseBase;
 	}
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
-        handle.promise().co_node = m_co_node;
-		m_co_node->m_handle = handle;
+		m_co_node = &handle.promise();
+		handle.promise().m_handle = handle;
+		handle.promise().m_promise_base = this;
     }
 };
 
@@ -374,8 +363,9 @@ friend class CoroutinePromiseBase;
 	}
 
     CoroutinePromise(std::coroutine_handle<promise_type> handle) {
-        handle.promise().co_node = m_co_node;
-		m_co_node->m_handle = handle;
+		m_co_node = &handle.promise();
+		handle.promise().m_handle = handle;
+		handle.promise().m_promise_base = this;
     }
 };
 
@@ -402,7 +392,7 @@ private:
 				cur = cur->m_call_from_suspend;
 			}
 			else {
-				delete cur;
+				cur->m_handle.destroy();
 				break;
 			}
         } while (cur);
@@ -464,7 +454,7 @@ protected:
 		else {
 			call_from_suspend = nullptr;
 		}
-        delete co_node;
+        co_node->m_handle.destroy();
         return call_from_suspend;
     }
 
