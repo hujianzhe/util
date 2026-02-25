@@ -14,7 +14,7 @@ class HeapTimer;
 class HeapTimerEvent;
 typedef std::function<void(HeapTimer*, HeapTimerEvent*)> HeapTimerFunction;
 
-class HeapTimerEvent {
+class HeapTimerEvent final {
 friend class HeapTimer;
 public:
 	HeapTimerEvent(const HeapTimerFunction& f = nullptr) :
@@ -24,7 +24,7 @@ public:
 		m_func(f)
 	{}
 
-	virtual ~HeapTimerEvent() { detach(); }
+	~HeapTimerEvent() { detach(); }
 
 	int64_t timestamp() const { return m_timestamp; }
 
