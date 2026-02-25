@@ -385,7 +385,6 @@ private:
         CoroutineNode* cur = co_node;
 		CoroutineScheBase::p = this;
         do {
-			CoroutineNode* call_from_suspend;
             m_current_co_node = cur;
 			cur->m_handle.resume();
             if (!cur->m_handle.done()) {
