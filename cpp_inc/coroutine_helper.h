@@ -269,10 +269,6 @@ public:
     }
     void await_resume() {
 		CoroutineScheBase::p->m_current_co_node->m_anyone_suspend = nullptr;
-		if (m_done_nodes.empty()) {
-			m_done_visit_idx = -1;
-			return;
-		}
 		CoroutineScheBase::p->awaitMaybeThrowUnhandleException(m_done_nodes.back().first);
 		/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
 		//return m_done_nodes.back();
@@ -303,11 +299,10 @@ public:
 
 private:
     void clear() {
-        for (auto it = m_run_nodes.begin(); it != m_run_nodes.end(); ) {
-			CoroutineNode* co_node = it->first;
-			co_node->m_anyone = nullptr;
-            it = m_run_nodes.erase(it);
+        for (auto& it : m_run_nodes) {
+			it.first->m_anyone = nullptr;
         }
+		m_run_nodes.clear();
 		for (auto& it : m_done_nodes) {
             it.first->m_handle.destroy();
         }
