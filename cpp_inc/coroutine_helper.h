@@ -165,10 +165,12 @@ public:
     CoroutineAwaiter& operator=(const CoroutineAwaiter&) = delete;
     CoroutineAwaiter()
         :m_id(INVALID_AWAITER_ID)
+		,m_co_node(nullptr)
 		,m_status(STATUS_START)
     {}
 	CoroutineAwaiter(int64_t id)
 		:m_id(id)
+		,m_co_node(nullptr)
 		,m_status(STATUS_START)
 	{}
 
@@ -178,6 +180,7 @@ public:
 		/* Return Type: Earlier versions of the compiler have bugs or are not fully supported features */
     }
     void await_suspend(std::coroutine_handle<void> h) {
+		m_co_node = CoroutineScheBase::p->m_current_co_node;
 		CoroutineScheBase::p->m_current_co_node->m_awaiter_suspend = this;
 		CoroutineScheBase::p->handleReturn();
     }
@@ -204,6 +207,7 @@ public:
 
 private:
     int64_t m_id;
+	CoroutineNode* m_co_node;
 	int m_status;
     std::any m_value;
 };
@@ -224,6 +228,9 @@ public:
         }
     };
     bool await_ready() const {
+		if (!m_co_node) {
+			return true;
+		}
 		return m_co_node->m_handle.done();
     }
     void await_suspend(std::coroutine_handle<void> h) {
