@@ -19,7 +19,7 @@ extern "C" {
 BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
 /* note: if already exist, size is lesser or equal than the size of that segment */
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((long long)nbytes) >> 32, nbytes, name);
+	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((UINT64)nbytes) >> 32, nbytes, name);
 	if (!handle) {
 		return FALSE;
 	}

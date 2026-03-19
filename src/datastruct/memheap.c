@@ -10,9 +10,7 @@ typedef struct MemHeapBlock_t {
 	UnsignedPtr_t uselen;
 } MemHeapBlock_t;
 
-#define	memheapblock_ptr(block)	((unsigned char*)((block) + 1))
-#define	ptr_memheapblock(ptr)	((MemHeapBlock_t*)(((unsigned char*)(ptr)) - sizeof(MemHeapBlock_t)))
-#define	PTR_VALUE_MAX			((UnsignedPtr_t)(~0))
+#define	ptr_memheapblock__(ptr)	((MemHeapBlock_t*)(((unsigned char*)(ptr)) - sizeof(MemHeapBlock_t)))
 
 typedef struct MemHeap_t {
 	UnsignedPtr_t len;
@@ -77,17 +75,12 @@ MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
 }
 
 void* memheapAlloc(MemHeap_t* memheap, UnsignedPtr_t nbytes) {
-	if (sizeof(void*) > 4) {
-		return memheapAlignAlloc(memheap, nbytes, 16);
-	}
-	else {
-		return memheapAlignAlloc(memheap, nbytes, 8);
-	}
+	return memheapAlignAlloc(memheap, nbytes, sizeof(void*) + sizeof(void*));
 }
 
 void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment) {
 	UnsignedPtr_t realbytes, curoff, prevoff, mask;
-	if (PTR_VALUE_MAX - sizeof(MemHeapBlock_t) < nbytes) {
+	if (((UnsignedPtr_t)(~0)) - sizeof(MemHeapBlock_t) < nbytes) {
 		return (void*)0;
 	}
 	mask = alignment - 1;
@@ -104,7 +97,7 @@ void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, Unsigne
 			if (leftlen < realbytes) {
 				continue;
 			}
-			MemHeapBlock_t* newblock = ptr_memheapblock(newptr);
+			MemHeapBlock_t* newblock = ptr_memheapblock__(newptr);
 			newblock->uselen = nbytes;
 			__insertback(memheap, block, newblock);
 			return (void*)newptr;
@@ -124,7 +117,7 @@ void* memheapRealloc(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
 	else {
 		char* new_p, *old_p;
 		void* new_addr;
-		MemHeapBlock_t* block = ptr_memheapblock(addr);
+		MemHeapBlock_t* block = ptr_memheapblock__(addr);
 		if (block->uselen >= nbytes) {
 			block->uselen = nbytes;
 			return addr;
@@ -152,7 +145,7 @@ void* memheapRealloc(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
 
 void memheapFree(MemHeap_t* memheap, void* addr) {
 	if (addr) {
-		MemHeapBlock_t* block = ptr_memheapblock(addr);
+		MemHeapBlock_t* block = ptr_memheapblock__(addr);
 		__remove(memheap, block);
 	}
 }
