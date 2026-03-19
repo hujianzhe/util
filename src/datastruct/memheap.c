@@ -62,11 +62,19 @@ void* memheapStartAddr(MemHeap_t* memheap) { return (void*)(memheap + 1); }
 
 MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
 	MemHeap_t* memheap;
-	if (len < sizeof(MemHeap_t)) {
+	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
+	UnsignedPtr_t aligned_len, mask = sizeof(void*) - 1;
+	UnsignedPtr_t addr_aligned;
+	if (MAX_PTR_VALUE - mask < (UnsignedPtr_t)addr) {
 		return (MemHeap_t*)0;
 	}
-	memheap = (MemHeap_t*)addr;
-	memheap->len = len;
+	addr_aligned = (((UnsignedPtr_t)addr) + mask) & (~mask);
+	aligned_len = addr_aligned - (UnsignedPtr_t)addr;
+	if (len < sizeof(MemHeap_t) + aligned_len) {
+		return (MemHeap_t*)0;
+	}
+	memheap = (MemHeap_t*)addr_aligned;
+	memheap->len = len - aligned_len;
 	memheap->tailoff = (UnsignedPtr_t)&memheap->guard_block - (UnsignedPtr_t)memheap;
 	memheap->guard_block.prevoff = 0;
 	memheap->guard_block.nextoff = 0;
@@ -80,27 +88,39 @@ void* memheapAlloc(MemHeap_t* memheap, UnsignedPtr_t nbytes) {
 
 void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment) {
 	UnsignedPtr_t realbytes, curoff, prevoff, mask;
-	if (((UnsignedPtr_t)(~0)) - sizeof(MemHeapBlock_t) < nbytes) {
+	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
+	if (MAX_PTR_VALUE - sizeof(MemHeapBlock_t) < nbytes) {
+		return (void*)0;
+	}
+	if (0 == alignment) {
 		return (void*)0;
 	}
 	mask = alignment - 1;
+	if (alignment & mask) {
+		return (void*)0;
+	}
 	realbytes = nbytes + sizeof(MemHeapBlock_t);
 	for (curoff = memheap->tailoff; curoff; curoff = prevoff) {
 		MemHeapBlock_t* block = (MemHeapBlock_t*)(curoff + (UnsignedPtr_t)memheap);
 		UnsignedPtr_t leftlen = __heapblock_leftlen(memheap, block);
 		prevoff = block->prevoff;
 		if (leftlen >= realbytes) {
-			UnsignedPtr_t newoff = curoff + sizeof(MemHeapBlock_t) + block->uselen;
-			UnsignedPtr_t ptr = newoff + (UnsignedPtr_t)memheap + sizeof(MemHeapBlock_t);
-			UnsignedPtr_t newptr = (ptr + mask) & (~mask);
-			realbytes += newptr - ptr;
-			if (leftlen < realbytes) {
+			UnsignedPtr_t newptr, ptr;
+			ptr = (UnsignedPtr_t)block + sizeof(MemHeapBlock_t) + block->uselen;
+			if (MAX_PTR_VALUE - sizeof(MemHeapBlock_t) <= ptr) {
 				continue;
 			}
-			MemHeapBlock_t* newblock = ptr_memheapblock__(newptr);
-			newblock->uselen = nbytes;
-			__insertback(memheap, block, newblock);
-			return (void*)newptr;
+			ptr += sizeof(MemHeapBlock_t);
+			if (MAX_PTR_VALUE - mask < ptr) {
+				continue;
+			}
+			newptr = (ptr + mask) & (~mask);
+			if (leftlen - realbytes >= newptr - ptr) {
+				MemHeapBlock_t* newblock = ptr_memheapblock__(newptr);
+				newblock->uselen = nbytes;
+				__insertback(memheap, block, newblock);
+				return (void*)newptr;
+			}
 		}
 	}
 	return (void*)0;
