@@ -8,29 +8,17 @@
 #include "../../inc/sysapi/ipc.h"
 #include "../../inc/sysapi/mmap.h"
 
-struct MemHeap_t;
-
-typedef struct MemHeapMt_t {
-	Semaphore_t seminit;
-	Semaphore_t semlock;
-	ShareMemMap_t mm;
-	struct MemHeap_t* ptr;
-	size_t len;
-	short initok;
-	short is_open;
-	char* name_ext;
-	size_t namelen;
-} MemHeapMt_t;
+struct MemHeapMt_t;
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-__declspec_dll MemHeapMt_t* memheapmtCreate(MemHeapMt_t* memheap, size_t len, const char* name);
-__declspec_dll MemHeapMt_t* memheapmtOpen(MemHeapMt_t* memheap, size_t len, const char* name);
-__declspec_dll void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes);
-__declspec_dll void memheapmtFree(MemHeapMt_t* memheap, void* addr);
-__declspec_dll void memheapmtClose(MemHeapMt_t* memheap);
+__declspec_dll struct MemHeapMt_t* memheapmtCreate(size_t len, const char* name);
+__declspec_dll struct MemHeapMt_t* memheapmtOpen(size_t len, const char* name);
+__declspec_dll void* memheapmtAlloc(struct MemHeapMt_t* memheap, size_t nbytes);
+__declspec_dll void memheapmtFree(struct MemHeapMt_t* memheap, void* addr);
+__declspec_dll void memheapmtClose(struct MemHeapMt_t* memheap);
 
 #ifdef	__cplusplus
 }

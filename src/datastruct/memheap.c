@@ -59,21 +59,26 @@ extern "C" {
 
 UnsignedPtr_t memheapLength(MemHeap_t* memheap) { return memheap->len; }
 void* memheapStartAddr(MemHeap_t* memheap) { return (void*)(memheap + 1); }
-
-MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
-	MemHeap_t* memheap;
+MemHeap_t* memheapSetupAddr(void* addr) {
 	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
-	UnsignedPtr_t aligned_len, mask = sizeof(void*) - 1;
-	UnsignedPtr_t addr_aligned;
+	UnsignedPtr_t addr_aligned, mask = sizeof(void*) - 1;
 	if (MAX_PTR_VALUE - mask < (UnsignedPtr_t)addr) {
-		return (MemHeap_t*)0;
+		return (void*)0;
 	}
 	addr_aligned = (((UnsignedPtr_t)addr) + mask) & (~mask);
-	aligned_len = addr_aligned - (UnsignedPtr_t)addr;
+	return (MemHeap_t*)addr_aligned;
+}
+
+MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
+	UnsignedPtr_t aligned_len;
+	MemHeap_t* memheap = memheapSetupAddr(addr);
+	if (!memheap) {
+		return (MemHeap_t*)0;
+	}
+	aligned_len = (UnsignedPtr_t)memheap - (UnsignedPtr_t)addr;
 	if (len < sizeof(MemHeap_t) + aligned_len) {
 		return (MemHeap_t*)0;
 	}
-	memheap = (MemHeap_t*)addr_aligned;
 	memheap->len = len - aligned_len;
 	memheap->tailoff = (UnsignedPtr_t)&memheap->guard_block - (UnsignedPtr_t)memheap;
 	memheap->guard_block.prevoff = 0;
