@@ -20,7 +20,7 @@ __declspec_dll struct MemHeap_t* memheapSetupAddr(void* addr);
 __declspec_dll struct MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len);
 __declspec_dll void* memheapAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes);
 __declspec_dll void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment);
-__declspec_dll void* memheapRealloc(struct MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes);
+__declspec_dll void* memheapTryResize(struct MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes);
 __declspec_dll void memheapFree(struct MemHeap_t* memheap, void* addr);
 __declspec_dll void memheapFreeAll(struct MemHeap_t* memheap);
 

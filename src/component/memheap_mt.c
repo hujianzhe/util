@@ -144,12 +144,36 @@ void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes) {
 	return addr;
 }
 
+void* memheapmtAlignAlloc(struct MemHeapMt_t* memheap, size_t nbytes, size_t alignment) {
+	void* addr;
+	if (0 == alignment || (alignment & (alignment - 1))) {
+		return NULL;
+	}
+	semaphoreWait(&memheap->semlock);
+	addr = memheapAlignAlloc(memheap->layout, nbytes, alignment);
+	semaphorePost(&memheap->semlock);
+	return addr;
+}
+
+void* memheapmtTryResize(struct MemHeapMt_t* memheap, void* addr, size_t nbytes) {
+	semaphoreWait(&memheap->semlock);
+	addr = memheapTryResize(memheap->layout, addr, nbytes);
+	semaphorePost(&memheap->semlock);
+	return addr;
+}
+
 void memheapmtFree(MemHeapMt_t* memheap, void* addr) {
 	if (addr) {
 		semaphoreWait(&memheap->semlock);
 		memheapFree(memheap->layout, addr);
 		semaphorePost(&memheap->semlock);
 	}
+}
+
+void memheapmtFreeAll(struct MemHeapMt_t* memheap) {
+	semaphoreWait(&memheap->semlock);
+	memheapFreeAll(memheap->layout);
+	semaphorePost(&memheap->semlock);
 }
 
 void memheapmtClose(MemHeapMt_t* memheap) {

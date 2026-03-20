@@ -131,41 +131,17 @@ void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, Unsigne
 	return (void*)0;
 }
 
-void* memheapRealloc(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
-	if (!addr) {
-		return memheapAlloc(memheap, nbytes);
+void* memheapTryResize(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
+	MemHeapBlock_t* block = ptr_memheapblock__(addr);
+	if (block->uselen >= nbytes) {
+		block->uselen = nbytes;
+		return addr;
 	}
-	else if (!nbytes) {
-		memheapFree(memheap, addr);
-		return (void*)0;
+	if (__heapblock_leftlen(memheap, block) + block->uselen >= nbytes) {
+		block->uselen = nbytes;
+		return addr;
 	}
-	else {
-		char* new_p, *old_p;
-		void* new_addr;
-		MemHeapBlock_t* block = ptr_memheapblock__(addr);
-		if (block->uselen >= nbytes) {
-			block->uselen = nbytes;
-			return addr;
-		}
-		if (__heapblock_leftlen(memheap, block) + block->uselen >= nbytes) {
-			block->uselen = nbytes;
-			return addr;
-		}
-		new_addr = memheapAlloc(memheap, nbytes);
-		if (!new_addr) {
-			return (void*)0;
-		}
-		new_p = (char*)new_addr;
-		old_p = (char*)addr;
-		nbytes = block->uselen;
-		while (nbytes--) {
-			*new_p = *old_p;
-			++new_p;
-			++old_p;
-		}
-		memheapFree(memheap, addr);
-		return new_addr;
-	}
+	return (void*)0;
 }
 
 void memheapFree(MemHeap_t* memheap, void* addr) {
