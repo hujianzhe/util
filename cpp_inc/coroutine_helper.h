@@ -238,7 +238,10 @@ public:
 
 protected:
     CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
-	CoroutinePromiseBase(const CoroutinePromiseBase& other) = delete;
+	CoroutinePromiseBase(const CoroutinePromiseBase& other) {
+		std::swap(m_co_node, other.m_co_node);
+		m_co_node->m_promise_base = this;
+	}
     CoroutinePromiseBase() : m_co_node(nullptr) {}
     ~CoroutinePromiseBase() {
         if (!m_co_node) {
