@@ -239,6 +239,7 @@ public:
 protected:
     CoroutinePromiseBase& operator=(const CoroutinePromiseBase&) = delete;
 	CoroutinePromiseBase(const CoroutinePromiseBase& other) {
+		/* Clang need copy constructor... but never execute these code ??? */
 		std::swap(m_co_node, other.m_co_node);
 		m_co_node->m_promise_base = this;
 	}
