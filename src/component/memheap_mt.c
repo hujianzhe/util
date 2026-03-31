@@ -46,7 +46,7 @@ MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
 		goto err;
 	}
 	mm_ok = 1;
-	if (!memoryDoMapping(memheap->mm, NULL, len, &memheap->mm_addr)) {
+	if (!memoryDoMapping(memheap->mm, NULL, &memheap->mm_addr)) {
 		goto err;
 	}
 	mm_addr_ok = 1;
@@ -79,7 +79,7 @@ err:
 	return NULL;
 }
 
-MemHeapMt_t* memheapmtOpen(size_t len, const char* name) {
+MemHeapMt_t* memheapmtOpen(const char* name) {
 	int sem_init_ok = 0, sem_lock_ok = 0, mm_ok = 0, mm_addr_ok = 0;
 	Semaphore_t seminit;
 	size_t namelen = strlen(name);
@@ -104,7 +104,7 @@ MemHeapMt_t* memheapmtOpen(size_t len, const char* name) {
 		goto err;
 	}
 	mm_ok = 1;
-	if (!memoryDoMapping(memheap->mm, NULL, len, &memheap->mm_addr)) {
+	if (!memoryDoMapping(memheap->mm, NULL, &memheap->mm_addr)) {
 		goto err;
 	}
 	mm_addr_ok = 1;

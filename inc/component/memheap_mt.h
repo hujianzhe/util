@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 __declspec_dll struct MemHeapMt_t* memheapmtCreate(size_t len, const char* name);
-__declspec_dll struct MemHeapMt_t* memheapmtOpen(size_t len, const char* name);
+__declspec_dll struct MemHeapMt_t* memheapmtOpen(const char* name);
 __declspec_dll void* memheapmtAlloc(struct MemHeapMt_t* memheap, size_t nbytes);
 __declspec_dll void* memheapmtAlignAlloc(struct MemHeapMt_t* memheap, size_t nbytes, size_t alignment);
 __declspec_dll void* memheapmtTryResize(struct MemHeapMt_t* memheap, void* addr, size_t nbytes);

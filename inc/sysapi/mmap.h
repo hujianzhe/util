@@ -20,7 +20,7 @@ extern "C" {
 __declspec_dll BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes);
 __declspec_dll BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name);
 __declspec_dll BOOL memoryCloseMapping(ShareMemMap_t mm);
-__declspec_dll BOOL memoryDoMapping(ShareMemMap_t mm, void* va_base, size_t nbytes, void** ret_mptr);
+__declspec_dll BOOL memoryDoMapping(ShareMemMap_t mm, void* va_base, void** ret_mptr);
 __declspec_dll BOOL memoryUndoMapping(void* mptr);
 
 #ifdef	__cplusplus

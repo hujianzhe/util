@@ -63,9 +63,9 @@ BOOL memoryCloseMapping(ShareMemMap_t mm) {
 #endif
 }
 
-BOOL memoryDoMapping(ShareMemMap_t mm, void* va_base, size_t nbytes, void** ret_mptr) {
+BOOL memoryDoMapping(ShareMemMap_t mm, void* va_base, void** ret_mptr) {
 #if defined(_WIN32) || defined(_WIN64)
-	void* addr = MapViewOfFileEx(mm, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, nbytes, va_base);
+	void* addr = MapViewOfFileEx(mm, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0, va_base);
 	if (!addr) {
 		return FALSE;
 	}
