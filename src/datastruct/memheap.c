@@ -57,8 +57,29 @@ static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) {
 extern "C" {
 #endif
 
-UnsignedPtr_t memheapLength(MemHeap_t* memheap) { return memheap->len; }
-void* memheapStartAddr(MemHeap_t* memheap) { return (void*)(memheap + 1); }
+UnsignedPtr_t memheapSetupUsableRange(MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment) {
+	UnsignedPtr_t ptr, newptr, end, mask;
+	*out_buf = (void*)0;
+	if (0 == alignment) {
+		return 0;
+	}
+	mask = alignment - 1;
+	if (alignment & mask) {
+		return 0;
+	}
+	ptr = (UnsignedPtr_t)(&memheap->guard_block + 1);
+	if ((UnsignedPtr_t)(~0) - mask < ptr) {
+		return 0;
+	}
+	newptr = (ptr + mask) & (~mask);
+	end = (UnsignedPtr_t)memheap + memheap->len;
+	if (end <= newptr) {
+		return 0;
+	}
+	*out_buf = (void*)newptr;
+	return end - newptr;
+}
+
 MemHeap_t* memheapSetupAddr(void* addr) {
 	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
 	UnsignedPtr_t addr_aligned, mask = sizeof(void*) - 1;

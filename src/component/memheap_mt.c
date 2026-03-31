@@ -136,6 +136,10 @@ err:
 	return NULL;
 }
 
+size_t memheapmtSetupUsableRange(struct MemHeapMt_t* memheap, void** out_buf, size_t alignment) {
+	return memheapSetupUsableRange(memheap->layout, out_buf, alignment);
+}
+
 void* memheapmtAlloc(MemHeapMt_t* memheap, size_t nbytes) {
 	void* addr;
 	semaphoreWait(&memheap->semlock);
