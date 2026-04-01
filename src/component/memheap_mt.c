@@ -11,7 +11,6 @@ typedef struct MemHeapMt_t {
 	Semaphore_t seminit;
 	Semaphore_t semlock;
 	ShareMemMap_t mm;
-	void* mm_addr;
 	struct MemHeap_t* layout;
 	short is_open;
 	size_t namelen;
@@ -25,6 +24,7 @@ extern "C" {
 MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
 	int sem_init_ok = 0, sem_lock_ok = 0, mm_ok = 0, mm_addr_ok = 0;
 	size_t namelen = strlen(name);
+	void* mm_addr;
 	MemHeapMt_t* memheap = (MemHeapMt_t*)malloc(sizeof(MemHeapMt_t) + namelen + 5);
 	if (!memheap) {
 		return NULL;
@@ -46,11 +46,11 @@ MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
 		goto err;
 	}
 	mm_ok = 1;
-	if (!memoryDoMapping(memheap->mm, NULL, &memheap->mm_addr)) {
+	if (!memoryDoMapping(&memheap->mm, NULL, &mm_addr)) {
 		goto err;
 	}
 	mm_addr_ok = 1;
-	memheap->layout = memheapSetup(memheap->mm_addr, len);
+	memheap->layout = memheapSetup(mm_addr, len);
 	if (!memheap->layout) {
 		goto err;
 	}
@@ -71,9 +71,9 @@ err:
 	}
 	if (mm_ok) {
 		if (mm_addr_ok) {
-			memoryUndoMapping(memheap->mm_addr);
+			memoryUndoMapping(&memheap->mm);
 		}
-		memoryCloseMapping(memheap->mm);
+		memoryCloseMapping(&memheap->mm);
 	}
 	free(memheap);
 	return NULL;
@@ -81,6 +81,7 @@ err:
 
 MemHeapMt_t* memheapmtOpen(const char* name) {
 	int sem_init_ok = 0, sem_lock_ok = 0, mm_ok = 0, mm_addr_ok = 0;
+	void* mm_addr;
 	Semaphore_t seminit;
 	size_t namelen = strlen(name);
 	MemHeapMt_t* memheap = (MemHeapMt_t*)malloc(sizeof(MemHeapMt_t) + namelen + 5);
@@ -104,11 +105,11 @@ MemHeapMt_t* memheapmtOpen(const char* name) {
 		goto err;
 	}
 	mm_ok = 1;
-	if (!memoryDoMapping(memheap->mm, NULL, &memheap->mm_addr)) {
+	if (!memoryDoMapping(&memheap->mm, NULL, &mm_addr)) {
 		goto err;
 	}
 	mm_addr_ok = 1;
-	memheap->layout = memheapSetupAddr(memheap->mm_addr);
+	memheap->layout = memheapSetupAddr(mm_addr);
 	if (!memheap->layout) {
 		goto err;
 	}
@@ -128,9 +129,9 @@ err:
 	}
 	if (mm_ok) {
 		if (mm_addr_ok) {
-			memoryUndoMapping(memheap->mm_addr);
+			memoryUndoMapping(&memheap->mm);
 		}
-		memoryCloseMapping(memheap->mm);
+		memoryCloseMapping(&memheap->mm);
 	}
 	free(memheap);
 	return NULL;
@@ -182,8 +183,8 @@ void memheapmtFreeAll(struct MemHeapMt_t* memheap) {
 
 void memheapmtClose(MemHeapMt_t* memheap) {
 	if (memheap) {
-		memoryUndoMapping(memheap->mm_addr);
-		memoryCloseMapping(memheap->mm);
+		memoryUndoMapping(&memheap->mm);
+		memoryCloseMapping(&memheap->mm);
 		semaphoreClose(&memheap->semlock);
 		if (!memheap->is_open) {
 			semaphoreClose(&memheap->seminit);

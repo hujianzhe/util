@@ -7,7 +7,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
+/*#include <sys/shm.h>*/
+#include <sys/mman.h>
 #include <sys/stat.h>
 /*#include <sys/sysctl.h>*/
 #endif
@@ -29,15 +30,30 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
 		return FALSE;
 	}
 	*/
-	*mm = handle;
+	mm->handle = handle;
+	mm->addr = NULL;
 	return TRUE;
 #else
+	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+	if (-1 == fd) {
+		return FALSE;
+	}
+	if (ftruncate(fd, nbytes)) {
+		close(fd);
+		return FALSE;
+	}
+	mm->fd = fd;
+	mm->addr = NULL;
+	mm->nbytes = nbytes;
+	return TRUE;
+	/*
 	key_t k = ftok(name, 0);
 	if ((key_t)-1 == k) {
 		return FALSE;
 	}
 	*mm = shmget(k, nbytes, 0666 | IPC_CREAT);
 	return (*mm) != -1;
+	*/
 #endif
 }
 
@@ -46,46 +62,77 @@ BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name) {
 	*mm = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
 	return (*mm) != NULL;
 #else
+	struct stat f_stat;
+	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+	if (-1 == fd) {
+		return FALSE;
+	}
+	if (fstat(fd, &f_stat)) {
+		close(fd);
+		return FALSE;
+	}
+	mm->fd = fd;
+	mm->addr = NULL;
+	mm->nbytes = f_stat.st_size;
+	return TRUE;
+	/*
 	key_t k = ftok(name, 0);
 	if ((key_t)-1 == k) {
 		return FALSE;
 	}
 	*mm = shmget(k, 0, 0666);
 	return (*mm) != -1;
+	*/
 #endif
 }
 
-BOOL memoryCloseMapping(ShareMemMap_t mm) {
+BOOL memoryCloseMapping(ShareMemMap_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(mm);
+	return CloseHandle(mm->handle);
 #else
+	return close(mm->fd) == 0;
+	/*
 	return shmctl(mm, IPC_RMID, NULL) == 0;
+	*/
 #endif
 }
 
-BOOL memoryDoMapping(ShareMemMap_t mm, void* va_base, void** ret_mptr) {
+BOOL memoryDoMapping(ShareMemMap_t* mm, void* va_base, void** ret_mptr) {
 #if defined(_WIN32) || defined(_WIN64)
-	void* addr = MapViewOfFileEx(mm, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0, va_base);
+	void* addr = MapViewOfFileEx(mm->handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0, va_base);
 	if (!addr) {
 		return FALSE;
 	}
+	mm->addr = addr;
 	*ret_mptr = addr;
 	return TRUE;
 #else
+	void* addr = mmap(NULL, mm->nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->fd, 0);
+	if (MAP_FAILED == addr) {
+		return FALSE;
+	}
+	mm->addr = addr;
+	*ret_mptr = addr;
+	return TRUE;
+	/*
 	void* addr = shmat(mm, va_base, 0);
 	if ((void*)-1 == addr) {
 		return FALSE;
 	}
 	*ret_mptr = addr;
 	return TRUE;
+	*/
 #endif
 }
 
-BOOL memoryUndoMapping(void* mptr) {
+BOOL memoryUndoMapping(ShareMemMap_t* mm) {
 #if defined(_WIN32) || defined(_WIN64)
-	return UnmapViewOfFile(mptr);
+	return UnmapViewOfFile(mm->addr);
 #else
+	return munmap(mm->addr, mm->nbytes) == 0;
+	/*
 	return shmdt(mptr) == 0;
+	*/
 #endif
 }
 
