@@ -59,8 +59,13 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
 
 BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name) {
 #if defined(_WIN32) || defined(_WIN64)
-	*mm = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
-	return (*mm) != NULL;
+	HANDLE handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
+	if (!handle) {
+		return FALSE;
+	}
+	mm->handle = handle;
+	mm->addr = NULL;
+	return TRUE;
 #else
 	struct stat f_stat;
 	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
