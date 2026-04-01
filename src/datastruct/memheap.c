@@ -57,7 +57,7 @@ static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) {
 extern "C" {
 #endif
 
-UnsignedPtr_t memheapSetupUsableRange(MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment) {
+UnsignedPtr_t memheapSetupUsableRange(const MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment) {
 	UnsignedPtr_t ptr, newptr, end, mask;
 	*out_buf = (void*)0;
 	if (0 == alignment) {

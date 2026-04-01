@@ -13,7 +13,7 @@ struct MemHeap_t;
 extern "C" {
 #endif
 
-__declspec_dll UnsignedPtr_t memheapSetupUsableRange(struct MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment);
+__declspec_dll UnsignedPtr_t memheapSetupUsableRange(const struct MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment);
 __declspec_dll struct MemHeap_t* memheapSetupAddr(void* addr);
 
 __declspec_dll struct MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len);

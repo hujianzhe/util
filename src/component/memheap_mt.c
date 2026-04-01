@@ -137,7 +137,7 @@ err:
 	return NULL;
 }
 
-size_t memheapmtSetupUsableRange(struct MemHeapMt_t* memheap, void** out_buf, size_t alignment) {
+size_t memheapmtSetupUsableRange(const struct MemHeapMt_t* memheap, void** out_buf, size_t alignment) {
 	return memheapSetupUsableRange(memheap->layout, out_buf, alignment);
 }
 
