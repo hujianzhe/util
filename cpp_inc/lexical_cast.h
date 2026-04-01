@@ -20,37 +20,28 @@ template <typename T, typename F>
 T lexical_cast(const F& f) {
 	std::stringstream ss;
 	ss << f;
-	if (!ss)
+	if (!ss) {
 		throw bad_lexical_cast();
+	}
 	T t;
 	ss >> t;
-	if (!ss)
+	if (!ss) {
 		throw bad_lexical_cast();
-	return t;
-}
-
-template <typename T, typename F>
-T lexical_cast_nothrow(const F& f) {
-	std::stringstream ss;
-	ss << f;
-	if (!ss)
-		return T();
-	T t;
-	ss >> t;
-	if (!ss)
-		return T();
+	}
 	return t;
 }
 
 template <typename F, typename T>
-bool lexical_cast(const F& f, T& t) {
+bool lexical_cast(const F& f, T* t) {
 	std::stringstream ss;
 	ss << f;
-	if (!ss)
+	if (!ss) {
 		return false;
-	ss >> t;
-	if (!ss)
+	}
+	ss >> (*t);
+	if (!ss) {
 		return false;
+	}
 	return true;
 }
 }
