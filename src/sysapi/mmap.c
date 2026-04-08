@@ -68,7 +68,7 @@ BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name) {
 	return TRUE;
 #else
 	struct stat f_stat;
-	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+	int fd = shm_open(name, O_RDWR, 0666);
 	if (-1 == fd) {
 		return FALSE;
 	}

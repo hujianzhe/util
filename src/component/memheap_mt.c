@@ -42,7 +42,7 @@ MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
 	}
 	sem_lock_ok = 1;
 	memheap->name_ext[namelen] = 0;
-	if (!memoryCreateMapping(&memheap->mm, strcat(memheap->name_ext, "mem"), len)) {
+	if (!memoryCreateMapping(&memheap->mm, name, len)) {
 		goto err;
 	}
 	mm_ok = 1;
@@ -101,7 +101,7 @@ MemHeapMt_t* memheapmtOpen(const char* name) {
 	}
 	sem_lock_ok = 1;
 	memheap->name_ext[namelen] = 0;
-	if (!memoryOpenMapping(&memheap->mm, strcat(memheap->name_ext, "mem"))) {
+	if (!memoryOpenMapping(&memheap->mm, name)) {
 		goto err;
 	}
 	mm_ok = 1;
