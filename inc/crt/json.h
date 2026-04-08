@@ -46,14 +46,14 @@ extern "C" {
 __declspec_dll cJSON_Setting* cJSON_GetSetting(cJSON_Setting* s);
 __declspec_dll void cJSON_SetSetting(const cJSON_Setting* s);
 
-__declspec_dll cJSON* cJSON_GetField(cJSON* root, const char* name);
-__declspec_dll cJSON* cJSON_GetIndex(cJSON* root, size_t idx);
-__declspec_dll size_t cJSON_ChildNum(cJSON* root);
+__declspec_dll cJSON* cJSON_GetField(const cJSON* root, const char* name);
+__declspec_dll cJSON* cJSON_GetIndex(const cJSON* root, size_t idx);
+__declspec_dll size_t cJSON_ChildNum(const cJSON* root);
 
-__declspec_dll long long cJSON_GetInteger(cJSON* node);
-__declspec_dll double cJSON_GetDouble(cJSON* node);
-__declspec_dll const char* cJSON_GetStringPtr(cJSON* node);
-__declspec_dll size_t cJSON_GetStringLength(cJSON* node);
+__declspec_dll long long cJSON_GetInteger(const cJSON* node);
+__declspec_dll double cJSON_GetDouble(const cJSON* node);
+__declspec_dll const char* cJSON_GetStringPtr(const cJSON* node);
+__declspec_dll size_t cJSON_GetStringLength(const cJSON* node);
 
 __declspec_dll cJSON* cJSON_SetInteger(cJSON* node, long long v);
 __declspec_dll cJSON* cJSON_SetDouble(cJSON* node, double v);
@@ -73,8 +73,8 @@ __declspec_dll void cJSON_Delete(cJSON* node);
 
 __declspec_dll cJSON* cJSON_FromString(const char* s, int deep_copy);
 __declspec_dll cJSON* cJSON_FromFile(const char* path);
-__declspec_dll size_t cJSON_BytesNum(cJSON* root);
-__declspec_dll char* cJSON_ToString(cJSON* root, char* buf);
+__declspec_dll size_t cJSON_BytesNum(const cJSON* root);
+__declspec_dll char* cJSON_ToString(const cJSON* root, char* buf);
 
 #ifdef __cplusplus
 }

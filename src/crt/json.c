@@ -256,7 +256,7 @@ void cJSON_SetSetting(const cJSON_Setting* s) {
 	cJSON_free = s->free_fn;
 }
 
-cJSON* cJSON_GetField(cJSON* root, const char* name) {
+cJSON* cJSON_GetField(const cJSON* root, const char* name) {
 	cJSON* child = root->child;
 	if (child) {
 		size_t len = strlen(name);
@@ -272,7 +272,7 @@ cJSON* cJSON_GetField(cJSON* root, const char* name) {
 	return child;
 }
 
-cJSON* cJSON_GetIndex(cJSON* root, size_t idx) {
+cJSON* cJSON_GetIndex(const cJSON* root, size_t idx) {
 	cJSON* child;
 	size_t i;
 	if (idx >= root->child_num) {
@@ -283,11 +283,11 @@ cJSON* cJSON_GetIndex(cJSON* root, size_t idx) {
 	return child;
 }
 
-size_t cJSON_ChildNum(cJSON* root) {
+size_t cJSON_ChildNum(const cJSON* root) {
 	return root ? root->child_num : 0;
 }
 
-long long cJSON_GetInteger(cJSON* node) {
+long long cJSON_GetInteger(const cJSON* node) {
 	long long v;
 	size_t i;
 	if (!node || node->type != cJSON_Value) {
@@ -324,7 +324,7 @@ long long cJSON_GetInteger(cJSON* node) {
 	return v;
 }
 
-double cJSON_GetDouble(cJSON* node) {
+double cJSON_GetDouble(const cJSON* node) {
 	double v;
 	int dot_num, e_sign, e;
 	size_t i, dot_i;
@@ -411,7 +411,7 @@ double cJSON_GetDouble(cJSON* node) {
 	return v;
 }
 
-const char* cJSON_GetStringPtr(cJSON* node) {
+const char* cJSON_GetStringPtr(const cJSON* node) {
 	if (!node) {
 		return NULL;
 	}
@@ -423,7 +423,7 @@ const char* cJSON_GetStringPtr(cJSON* node) {
 	return NULL;
 }
 
-size_t cJSON_GetStringLength(cJSON* node) {
+size_t cJSON_GetStringLength(const cJSON* node) {
 	if (!node) {
 		return 0;
 	}
@@ -807,10 +807,10 @@ cJSON *cJSON_FromFile(const char* path) {
 	return root;
 }
 
-size_t cJSON_BytesNum(cJSON* root) {
+size_t cJSON_BytesNum(const cJSON* root) {
 	size_t len = 0;
-	cJSON* node;
-	for (node = cJSON_TreeBegin(root); node; node = cJSON_TreeNext(node)) {
+	const cJSON* node;
+	for (node = cJSON_TreeBegin((cJSON*)root); node; node = cJSON_TreeNext((cJSON*)node)) {
 		if (cJSON_Object == node->type || cJSON_Array == node->type) {
 			len += 2; /* {} or [] */
 			if (node->child_num > 1) {
@@ -837,7 +837,7 @@ size_t cJSON_BytesNum(cJSON* root) {
 	return len;
 }
 
-static char* cJSON_NoLeafNodeToStringBegin(cJSON* node, char* buf) {
+static char* cJSON_NoLeafNodeToStringBegin(const cJSON* node, char* buf) {
 	size_t off = 0;
 	if (node->name && node->name_length > 0) {
 		buf[off++] = '\"';
@@ -855,7 +855,7 @@ static char* cJSON_NoLeafNodeToStringBegin(cJSON* node, char* buf) {
 	return buf + off;
 }
 
-static char* cJSON_NoLeafNodeToStringEnd(cJSON* node, char* buf) {
+static char* cJSON_NoLeafNodeToStringEnd(const cJSON* node, char* buf) {
 	if (node->type == cJSON_Object) {
 		*(buf++) = '}';
 	}
@@ -865,7 +865,7 @@ static char* cJSON_NoLeafNodeToStringEnd(cJSON* node, char* buf) {
 	return buf;
 }
 
-static char* cJSON_LeafNodeToString(cJSON* node, char* buf) {
+static char* cJSON_LeafNodeToString(const cJSON* node, char* buf) {
 	size_t off = 0;
 	if (node->name && node->name_length > 0) {
 		buf[off++] = '\"';
@@ -903,9 +903,9 @@ static char* cJSON_LeafNodeToString(cJSON* node, char* buf) {
 	return buf + off;
 }
 
-char* cJSON_ToString(cJSON* root, char* buf) {
+char* cJSON_ToString(const cJSON* root, char* buf) {
 	char* p = buf;
-	cJSON* node = root;
+	const cJSON* node = root;
 	while (node->child) {
 		p = cJSON_NoLeafNodeToStringBegin(node, p);
 		node = node->child;
