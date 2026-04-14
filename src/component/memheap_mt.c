@@ -21,7 +21,7 @@ typedef struct MemHeapMt_t {
 extern "C" {
 #endif
 
-MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
+MemHeapMt_t* memheapmtCreate(size_t len, const char* name, int prot_bits) {
 	int sem_init_ok = 0, sem_lock_ok = 0, mm_ok = 0, mm_addr_ok = 0;
 	size_t namelen = strlen(name);
 	void* mm_addr;
@@ -42,7 +42,7 @@ MemHeapMt_t* memheapmtCreate(size_t len, const char* name) {
 	}
 	sem_lock_ok = 1;
 	memheap->name_ext[namelen] = 0;
-	if (!memoryCreateMapping(&memheap->mm, name, len)) {
+	if (!memoryCreateMapping(&memheap->mm, name, len, prot_bits)) {
 		goto err;
 	}
 	mm_ok = 1;
@@ -79,7 +79,7 @@ err:
 	return NULL;
 }
 
-MemHeapMt_t* memheapmtOpen(const char* name) {
+MemHeapMt_t* memheapmtOpen(const char* name, int prot_bits) {
 	int sem_init_ok = 0, sem_lock_ok = 0, mm_ok = 0, mm_addr_ok = 0;
 	void* mm_addr;
 	Semaphore_t seminit;
@@ -101,7 +101,7 @@ MemHeapMt_t* memheapmtOpen(const char* name) {
 	}
 	sem_lock_ok = 1;
 	memheap->name_ext[namelen] = 0;
-	if (!memoryOpenMapping(&memheap->mm, name)) {
+	if (!memoryOpenMapping(&memheap->mm, name, prot_bits)) {
 		goto err;
 	}
 	mm_ok = 1;

@@ -17,10 +17,22 @@
 extern "C" {
 #endif
 
-BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
+BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes, int prot_bits) {
 /* note: if already exist, size is lesser or equal than the size of that segment */
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, ((UINT64)nbytes) >> 32, nbytes, name);
+	HANDLE handle;
+	DWORD flProtect = 0;
+	mm->prot_bits = FILE_MAP_READ | FILE_MAP_WRITE;
+	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
+#ifdef PAGE_EXECUTE_READWRITE
+		flProtect = PAGE_EXECUTE_READWRITE;
+		mm->prot_bits |= FILE_MAP_EXECUTE;
+#endif
+	}
+	else {
+		flProtect = PAGE_READWRITE;
+	}
+	handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, flProtect, ((UINT64)nbytes) >> 32, nbytes, name);
 	if (!handle) {
 		return FALSE;
 	}
@@ -34,6 +46,10 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
 	mm->addr = NULL;
 	return TRUE;
 #else
+	m->prot_bits = PROT_READ | PROT_WRITE;
+	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
+		m->prot_bits |= PROT_EXEC;
+	}
 	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
 	if (-1 == fd) {
 		return FALSE;
@@ -57,18 +73,43 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes) {
 #endif
 }
 
-BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name) {
+BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name, int prot_bits) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = OpenFileMappingA(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
+	HANDLE handle;
+	DWORD dwDesiredAccess = 0;
+	if (prot_bits & MMAP_PROT_READ_BIT) {
+		dwDesiredAccess |= FILE_MAP_READ;
+	}
+	if (prot_bits & MMAP_PROT_WRITE_BIT) {
+		dwDesiredAccess |= FILE_MAP_WRITE;
+	}
+	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
+		dwDesiredAccess |= FILE_MAP_EXECUTE;
+	}
+	handle = OpenFileMappingA(dwDesiredAccess, FALSE, name);
 	if (!handle) {
 		return FALSE;
 	}
 	mm->handle = handle;
 	mm->addr = NULL;
+	mm->prot_bits = dwDesiredAccess;
 	return TRUE;
 #else
 	struct stat f_stat;
-	int fd = shm_open(name, O_RDWR, 0666);
+	int fd, oflag = 0;
+	m->prot_bits = 0;
+	if (prot_bits & MMAP_PROT_WRITE_BIT) {
+		oflag = O_RDWR;
+		m->prot_bits |= (PROT_READ | PROT_WRITE);
+	}
+	else if (prot_bits & MMAP_PROT_READ_BIT) {
+		oflag = O_RDONLY;
+		m->prot_bits |= PROT_READ;
+	}
+	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
+		m->prot_bits |= PROT_EXEC;
+	}
+	fd = shm_open(name, oflag, 0666);
 	if (-1 == fd) {
 		return FALSE;
 	}
@@ -104,7 +145,7 @@ BOOL memoryCloseMapping(ShareMemMap_t* mm) {
 
 BOOL memoryDoMapping(ShareMemMap_t* mm, void* va_base, void** ret_mptr) {
 #if defined(_WIN32) || defined(_WIN64)
-	void* addr = MapViewOfFileEx(mm->handle, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 0, va_base);
+	void* addr = MapViewOfFileEx(mm->handle, mm->prot_bits, 0, 0, 0, va_base);
 	if (!addr) {
 		return FALSE;
 	}
@@ -112,7 +153,7 @@ BOOL memoryDoMapping(ShareMemMap_t* mm, void* va_base, void** ret_mptr) {
 	*ret_mptr = addr;
 	return TRUE;
 #else
-	void* addr = mmap(NULL, mm->nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mm->fd, 0);
+	void* addr = mmap(NULL, mm->nbytes, mm->prot_bits, MAP_SHARED, mm->fd, 0);
 	if (MAP_FAILED == addr) {
 		return FALSE;
 	}

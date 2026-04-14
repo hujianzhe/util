@@ -625,20 +625,24 @@ BOOL fdOpenMapping(FD_Mapping_t* m, FD_t fd, int prot_bits) {
 		if (prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
 #ifdef PAGE_EXECUTE_READWRITE
 			flProtect = PAGE_EXECUTE_READWRITE;
+			m->prot_bits = FILE_MAP_READ | FILE_MAP_WRITE | FILE_MAP_EXECUTE;
 #endif
 		}
 		else {
 			flProtect = PAGE_READWRITE;
+			m->prot_bits = FILE_MAP_READ | FILE_MAP_WRITE;
 		}
 	}
 	else if (prot_bits & FD_MAP_PROT_READ_BIT) {
 		if (prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
 #ifdef PAGE_EXECUTE_READ
 			flProtect = PAGE_EXECUTE_READ;
+			m->prot_bits = FILE_MAP_READ | FILE_MAP_EXECUTE;
 #endif
 		}
 		else {
 			flProtect = PAGE_READONLY;
+			m->prot_bits = FILE_MAP_READ;
 		}
 	}
 	handle = CreateFileMappingA((HANDLE)fd, NULL, flProtect, 0, 0, NULL);
@@ -666,17 +670,7 @@ BOOL fdOpenMapping(FD_Mapping_t* m, FD_t fd, int prot_bits) {
 
 BOOL fdDoMapping(FD_Mapping_t* m, void* va_base, long long offset, size_t nbytes, void** ret_mptr) {
 #if defined(_WIN32) || defined(_WIN64)
-	DWORD dwDesiredAccess = 0;
-	if (m->prot_bits & FD_MAP_PROT_READ_BIT) {
-		dwDesiredAccess |= FILE_MAP_READ;
-	}
-	if (m->prot_bits & FD_MAP_PROT_WRITE_BIT) {
-		dwDesiredAccess |= FILE_MAP_WRITE;
-	}
-	if (m->prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
-		dwDesiredAccess |= FILE_MAP_EXECUTE;
-	}
-	void* addr = MapViewOfFileEx(m->hFileMappingObject, dwDesiredAccess, offset >> 32, (DWORD)offset, nbytes, va_base);
+	void* addr = MapViewOfFileEx(m->hFileMappingObject, m->prot_bits, offset >> 32, (DWORD)offset, nbytes, va_base);
 	if (!addr) {
 		return FALSE;
 	}

@@ -12,7 +12,7 @@
 	typedef	WIN32_FIND_DATAA		DirItem_t;
 	typedef struct FD_Mapping_t {
 		HANDLE hFileMappingObject;
-		int prot_bits;
+		DWORD prot_bits;
 	} FD_Mapping_t;
 	#pragma comment(lib, "ws2_32.lib")
 #else

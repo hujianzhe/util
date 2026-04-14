@@ -14,8 +14,8 @@ struct MemHeapMt_t;
 extern "C" {
 #endif
 
-__declspec_dll struct MemHeapMt_t* memheapmtCreate(size_t len, const char* name);
-__declspec_dll struct MemHeapMt_t* memheapmtOpen(const char* name);
+__declspec_dll struct MemHeapMt_t* memheapmtCreate(size_t len, const char* name, int prot_bits);
+__declspec_dll struct MemHeapMt_t* memheapmtOpen(const char* name, int prot_bits);
 __declspec_dll size_t memheapmtSetupUsableRange(const struct MemHeapMt_t* memheap, void** out_buf, size_t alignment);
 __declspec_dll void* memheapmtAlloc(struct MemHeapMt_t* memheap, size_t nbytes);
 __declspec_dll void* memheapmtAlignAlloc(struct MemHeapMt_t* memheap, size_t nbytes, size_t alignment);
