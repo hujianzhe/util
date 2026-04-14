@@ -29,7 +29,7 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes, int
 		mm->prot_bits |= FILE_MAP_EXECUTE;
 #endif
 	}
-	else {
+	else if (prot_bits & MMAP_PROT_WRITE_BIT) {
 		flProtect = PAGE_READWRITE;
 	}
 	handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, flProtect, ((UINT64)nbytes) >> 32, nbytes, name);
@@ -46,11 +46,15 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes, int
 	mm->addr = NULL;
 	return TRUE;
 #else
+	int oflag = 0;
+	if (prot_bits & MMAP_PROT_WRITE_BIT) {
+		oflag = O_CREAT | O_RDWR;
+	}
 	mm->prot_bits = PROT_READ | PROT_WRITE;
 	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
 		mm->prot_bits |= PROT_EXEC;
 	}
-	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+	int fd = shm_open(name, oflag, 0666);
 	if (-1 == fd) {
 		return FALSE;
 	}
