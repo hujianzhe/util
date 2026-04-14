@@ -617,30 +617,73 @@ BOOL fileHardLinkCount(FD_t fd, unsigned int* count) {
 }
 
 /* file memory map */
-BOOL fdCreateMapping(FD_t fd, FD_Mapping_t* ret_mfd) {
+BOOL fdOpenMapping(FD_Mapping_t* m, FD_t fd, int prot_bits) {
 #if defined(_WIN32) || defined(_WIN64)
-	HANDLE handle = CreateFileMappingA((HANDLE)fd, NULL, PAGE_READWRITE, 0, 0, NULL);
+	HANDLE handle;
+	DWORD flProtect = 0;
+	if (prot_bits & FD_MAP_PROT_WRITE_BIT) {
+		if (prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
+#ifdef PAGE_EXECUTE_READWRITE
+			flProtect = PAGE_EXECUTE_READWRITE;
+#endif
+		}
+		else {
+			flProtect = PAGE_READWRITE;
+		}
+	}
+	else if (prot_bits & FD_MAP_PROT_READ_BIT) {
+		if (prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
+#ifdef PAGE_EXECUTE_READ
+			flProtect = PAGE_EXECUTE_READ;
+#endif
+		}
+		else {
+			flProtect = PAGE_READONLY;
+		}
+	}
+	handle = CreateFileMappingA((HANDLE)fd, NULL, flProtect, 0, 0, NULL);
 	if (!handle) {
 		return FALSE;
 	}
-	*ret_mfd = handle;
+	m->hFileMappingObject = handle;
+	m->prot_bits = prot_bits;
 	return TRUE;
 #else
-	*ret_mfd = fd;
+	m->fd = fd;
+	m->prot_bits = 0;
+	if (prot_bits & FD_MAP_PROT_READ_BIT) {
+		m->prot_bits |= PROT_READ;
+	}
+	if (prot_bits & FD_MAP_PROT_WRITE_BIT) {
+		m->prot_bits |= PROT_WRITE;
+	}
+	if (prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
+		m->prot_bits |= PROT_EXEC;
+	}
 	return TRUE;
 #endif
 }
 
-BOOL fdMapping(FD_Mapping_t mfd, void* va_base, long long offset, size_t nbytes, void** ret_mptr) {
+BOOL fdDoMapping(FD_Mapping_t* m, void* va_base, long long offset, size_t nbytes, void** ret_mptr) {
 #if defined(_WIN32) || defined(_WIN64)
-	void* addr = MapViewOfFileEx(mfd, FILE_MAP_READ | FILE_MAP_WRITE, offset >> 32, (DWORD)offset, nbytes, va_base);
+	DWORD dwDesiredAccess = 0;
+	if (m->prot_bits & FD_MAP_PROT_READ_BIT) {
+		dwDesiredAccess |= FILE_MAP_READ;
+	}
+	if (m->prot_bits & FD_MAP_PROT_WRITE_BIT) {
+		dwDesiredAccess |= FILE_MAP_WRITE;
+	}
+	if (m->prot_bits & FD_MAP_PROT_EXECUTE_BIT) {
+		dwDesiredAccess |= FILE_MAP_EXECUTE;
+	}
+	void* addr = MapViewOfFileEx(m->hFileMappingObject, dwDesiredAccess, offset >> 32, (DWORD)offset, nbytes, va_base);
 	if (!addr) {
 		return FALSE;
 	}
 	*ret_mptr = addr;
 	return TRUE;
 #else
-	void* addr = mmap(va_base, nbytes, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, offset);
+	void* addr = mmap(va_base, nbytes, m->prot_bits, MAP_SHARED, m->fd, offset);
 	if (MAP_FAILED == addr) {
 		return FALSE;
 	}
@@ -649,7 +692,7 @@ BOOL fdMapping(FD_Mapping_t mfd, void* va_base, long long offset, size_t nbytes,
 #endif
 }
 
-BOOL fdMappingSyncMemory(void* addr, size_t nbytes) {
+BOOL fdSyncMapping(void* addr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return FlushViewOfFile(addr, nbytes);
 #else
@@ -657,7 +700,7 @@ BOOL fdMappingSyncMemory(void* addr, size_t nbytes) {
 #endif
 }
 
-BOOL fdMappingUndoMemory(void* mptr, size_t nbytes) {
+BOOL fdUndoMapping(void* mptr, size_t nbytes) {
 #if defined(_WIN32) || defined(_WIN64)
 	return UnmapViewOfFile(mptr);
 #else
@@ -665,9 +708,9 @@ BOOL fdMappingUndoMemory(void* mptr, size_t nbytes) {
 #endif
 }
 
-BOOL fdMappingClose(FD_Mapping_t mfd) {
+BOOL fdCloseMapping(FD_Mapping_t* m) {
 #if defined(_WIN32) || defined(_WIN64)
-	return CloseHandle(mfd);
+	return CloseHandle(m->hFileMappingObject);
 #else
 	return TRUE;
 #endif
