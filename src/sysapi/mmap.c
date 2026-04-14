@@ -46,9 +46,9 @@ BOOL memoryCreateMapping(ShareMemMap_t* mm, const char* name, size_t nbytes, int
 	mm->addr = NULL;
 	return TRUE;
 #else
-	m->prot_bits = PROT_READ | PROT_WRITE;
+	mm->prot_bits = PROT_READ | PROT_WRITE;
 	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
-		m->prot_bits |= PROT_EXEC;
+		mm->prot_bits |= PROT_EXEC;
 	}
 	int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
 	if (-1 == fd) {
@@ -97,17 +97,17 @@ BOOL memoryOpenMapping(ShareMemMap_t* mm, const char* name, int prot_bits) {
 #else
 	struct stat f_stat;
 	int fd, oflag = 0;
-	m->prot_bits = 0;
+	mm->prot_bits = 0;
 	if (prot_bits & MMAP_PROT_WRITE_BIT) {
 		oflag = O_RDWR;
-		m->prot_bits |= (PROT_READ | PROT_WRITE);
+		mm->prot_bits |= (PROT_READ | PROT_WRITE);
 	}
 	else if (prot_bits & MMAP_PROT_READ_BIT) {
 		oflag = O_RDONLY;
-		m->prot_bits |= PROT_READ;
+		mm->prot_bits |= PROT_READ;
 	}
 	if (prot_bits & MMAP_PROT_EXECUTE_BIT) {
-		m->prot_bits |= PROT_EXEC;
+		mm->prot_bits |= PROT_EXEC;
 	}
 	fd = shm_open(name, oflag, 0666);
 	if (-1 == fd) {
