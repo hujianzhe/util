@@ -28,6 +28,8 @@ __declspec_dll void memWriteLE32(void* addr, unsigned int v);
 __declspec_dll void memWriteBE64(void* addr, unsigned long long v);
 __declspec_dll void memWriteLE64(void* addr, unsigned long long v);
 
+__declspec_dll int memAlignUpCheckLeft(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr_t alignment, UnsignedPtr_t nbytes, UnsignedPtr_t* ret_addr);
+
 __declspec_dll int memBitCheck(const void* arr, UnsignedPtr_t bit_idx);
 __declspec_dll void memBitSet(void* arr, UnsignedPtr_t bit_idx);
 __declspec_dll void memBitUnset(void* arr, UnsignedPtr_t bit_idx);
