@@ -185,7 +185,7 @@ void memWriteLE64(void* addr, unsigned long long v) {
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr_t alignment, UnsignedPtr_t nbytes, UnsignedPtr_t* ret_addr) {
+int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr_t alignment, UnsignedPtr_t nbytes, void** ret_addr) {
 	UnsignedPtr_t mask;
 	if (limit_addr < addr) {
 		return 0;
@@ -198,7 +198,7 @@ int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr
 	if (limit_addr - addr < nbytes) {
 		return 0;
 	}
-	*ret_addr = addr;
+	*ret_addr = (void*)addr;
 	return 1;
 }
 
