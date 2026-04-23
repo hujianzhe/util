@@ -185,7 +185,7 @@ void memWriteLE64(void* addr, unsigned long long v) {
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-int memBitCheck(char* arr, UnsignedPtr_t bit_idx) {
+int memBitCheck(const char* arr, UnsignedPtr_t bit_idx) {
 	return (arr[bit_idx >> 3] >> (bit_idx & 7)) & 1;
 }
 
