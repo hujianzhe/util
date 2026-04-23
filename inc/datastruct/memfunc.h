@@ -28,9 +28,9 @@ __declspec_dll void memWriteLE32(void* addr, unsigned int v);
 __declspec_dll void memWriteBE64(void* addr, unsigned long long v);
 __declspec_dll void memWriteLE64(void* addr, unsigned long long v);
 
-__declspec_dll int memBitCheck(const char* arr, UnsignedPtr_t bit_idx);
-__declspec_dll void memBitSet(char* arr, UnsignedPtr_t bit_idx);
-__declspec_dll void memBitUnset(char* arr, UnsignedPtr_t bit_idx);
+__declspec_dll int memBitCheck(const void* arr, UnsignedPtr_t bit_idx);
+__declspec_dll void memBitSet(void* arr, UnsignedPtr_t bit_idx);
+__declspec_dll void memBitUnset(void* arr, UnsignedPtr_t bit_idx);
 
 __declspec_dll void memSwap(void* p1, void* p2, UnsignedPtr_t n);
 __declspec_dll void* memCopy(void* dst, const void* src, UnsignedPtr_t n);

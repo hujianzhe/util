@@ -185,16 +185,16 @@ void memWriteLE64(void* addr, unsigned long long v) {
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-int memBitCheck(const char* arr, UnsignedPtr_t bit_idx) {
-	return (arr[bit_idx >> 3] >> (bit_idx & 7)) & 1;
+int memBitCheck(const void* arr, UnsignedPtr_t bit_idx) {
+	return (((const unsigned char*)arr)[bit_idx >> 3] >> (bit_idx & 7)) & 1;
 }
 
-void memBitSet(char* arr, UnsignedPtr_t bit_idx) {
-	arr[bit_idx >> 3] |= (1 << (bit_idx & 7));
+void memBitSet(void* arr, UnsignedPtr_t bit_idx) {
+	((unsigned char*)arr)[bit_idx >> 3] |= (1 << (bit_idx & 7));
 }
 
-void memBitUnset(char* arr, UnsignedPtr_t bit_idx) {
-	arr[bit_idx >> 3] &= ~(1 << (bit_idx & 7));
+void memBitUnset(void* arr, UnsignedPtr_t bit_idx) {
+	((unsigned char*)arr)[bit_idx >> 3] &= ~(1 << (bit_idx & 7));
 }
 
 void memSwap(void* p1, void* p2, UnsignedPtr_t n) {
