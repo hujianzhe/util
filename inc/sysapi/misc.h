@@ -29,6 +29,7 @@ extern "C" {
 
 __declspec_dll void* alignMalloc(size_t nbytes, size_t alignment);
 __declspec_dll void alignFree(const void* p);
+__declspec_dll void trimMalloc(void);
 
 #ifdef	__cplusplus
 }

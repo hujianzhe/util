@@ -42,6 +42,12 @@ void alignFree(const void* ptr) {
 #endif
 }
 
+void trimMalloc(void) {
+#if	__linux__
+	malloc_trim(0);
+#endif
+}
+
 #ifdef	__cplusplus
 }
 #endif
