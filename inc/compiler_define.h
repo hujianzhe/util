@@ -69,7 +69,14 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	STATIC_ASSERT(sizeof(SignedPtr_t) == sizeof(void*), "");
 	STATIC_ASSERT(sizeof(UnsignedPtr_t) == sizeof(void*), "");
 
+	#ifndef	__CPP_LANG_VERSION
+		#define	__CPP_LANG_VERSION	_MSVC_LANG
+	#endif
+
 #elif	defined(__GNUC__) || defined(__GNUG__)
+	#ifndef	__CPP_LANG_VERSION
+		#define	__CPP_LANG_VERSION	__cplusplus
+	#endif
 	#ifndef NDEBUG	/* ANSI define */
 		#ifndef _DEBUG
 			#define	_DEBUG	/* same as VC */
