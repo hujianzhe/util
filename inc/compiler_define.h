@@ -39,8 +39,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#pragma warning(disable:6255)
 	#pragma warning(disable:26451)
 
-	#define	__declspec_align(alignment)				__declspec(align(alignment))
-
 	#define	__declspec_code_seg(name)				__declspec(code_seg(name))
 	#define	__declspec_data_seg(name)				__pragma(data_seg(name))
 	#define	__declspec_bss_seg(name)				__pragma(bss_seg(name))
@@ -75,6 +73,10 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 		#else
 			#define	__CPP_LANG_VERSION	0
 		#endif
+		#if	__CPP_LANG_VERSION < 201400L
+			#define	alignof(t)	__alignof(t)
+			#define	alignas(n) __declspec(align(n))
+		#endif
 	#endif
 
 #elif	defined(__GNUC__) || defined(__GNUG__)
@@ -83,6 +85,10 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 			#define	__CPP_LANG_VERSION	__cplusplus
 		#else
 			#define	__CPP_LANG_VERSION	0
+		#endif
+		#if	__CPP_LANG_VERSION < 201400L
+			#define	alignof(t)	__alignof__(t)
+			#define	alignas(n)	__attribute__((aligned(n)))
 		#endif
 	#endif
 
@@ -93,8 +99,6 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#else
 		#undef	_DEBUG	/* same as VC */
 	#endif
-
-	#define	__declspec_align(alignment)				__attribute__ ((aligned(alignment)))
 
 	#define	__declspec_code_seg(name)				__attribute__((section(name)))
 	#define	__declspec_data_seg(name)				__attribute__((section(name)))
