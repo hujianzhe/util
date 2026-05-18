@@ -64,6 +64,11 @@ if (logCheckPriorityEnabled(log, priority))	{ \
 	logPrintlnNoFilter(log, key, priority, &ii, "" format, ##__VA_ARGS__); \
 }
 
+#define	logTraceEnabled(log)				logCheckPriorityEnabled(log, 0)
+#define	logInfoEnabled(log)					logCheckPriorityEnabled(log, 1)
+#define	logDebugEnabled(log)				logCheckPriorityEnabled(log, 2)
+#define	logErrorEnabled(log)				logCheckPriorityEnabled(log, 3)
+
 #define	logTrace(log, key, format, ...)		logPrintlnTempletePrivate(log, key, 0, format, ##__VA_ARGS__)
 #define	logInfo(log, key, format, ...)		logPrintlnTempletePrivate(log, key, 1, format, ##__VA_ARGS__)
 #define	logDebug(log, key, format, ...)		logPrintlnTempletePrivate(log, key, 2, format, ##__VA_ARGS__)
