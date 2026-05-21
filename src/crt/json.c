@@ -324,6 +324,19 @@ long long cJSON_GetInteger(const cJSON* node) {
 	return v;
 }
 
+int cJSON_GetBoolean(const cJSON* node) {
+	if (!node || node->type != cJSON_Value) {
+		return 0;
+	}
+	if (!node->value_string || node->value_strlen != 4) {
+		return 0;
+	}
+	return	't' == node->value_string[0] &&
+			'r' == node->value_string[1] &&
+			'u' == node->value_string[2] &&
+			'e' == node->value_string[3];
+}
+
 double cJSON_GetDouble(const cJSON* node) {
 	double v;
 	int dot_num, e_sign, e;
@@ -443,6 +456,21 @@ cJSON* cJSON_SetInteger(cJSON* node, long long v) {
 	node->value_integer = v;
 	node->value_strlen = cJSON_IntegerStrlen(v);
 	node->value_type = cJSON_ValueType_Integer;
+	return node;
+}
+
+cJSON* cJSON_SetBoolean(cJSON* node, int v) {
+	if (!node || node->type != cJSON_Value) {
+		return NULL;
+	}
+	cJSON_FreeValueString(node);
+	node->value_deep_copy = 0;
+	if (v) {
+		cJSON_AssignValue(node, "true", 4);
+	}
+	else {
+		cJSON_AssignValue(node, "false", 5);
+	}
 	return node;
 }
 

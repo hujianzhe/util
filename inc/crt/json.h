@@ -51,11 +51,13 @@ __declspec_dll cJSON* cJSON_GetIndex(const cJSON* root, size_t idx);
 __declspec_dll size_t cJSON_ChildNum(const cJSON* root);
 
 __declspec_dll long long cJSON_GetInteger(const cJSON* node);
+__declspec_dll int cJSON_GetBoolean(const cJSON* node);
 __declspec_dll double cJSON_GetDouble(const cJSON* node);
 __declspec_dll const char* cJSON_GetStringPtr(const cJSON* node);
 __declspec_dll size_t cJSON_GetStringLength(const cJSON* node);
 
 __declspec_dll cJSON* cJSON_SetInteger(cJSON* node, long long v);
+__declspec_dll cJSON* cJSON_SetBoolean(cJSON* node, int v);
 __declspec_dll cJSON* cJSON_SetDouble(cJSON* node, double v);
 __declspec_dll cJSON* cJSON_SetString(cJSON* node, const char* s, size_t slen);
 
