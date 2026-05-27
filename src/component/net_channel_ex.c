@@ -61,7 +61,7 @@ static unsigned char* merge_packet(List_t* list, unsigned int* mergelen) {
 	for (cur = list->head; cur; cur = next) {
 		packet = pod_container_of(cur, NetReactorPacket_t, _.node);
 		next = cur->next;
-		if (off + packet->_.bodylen < off) {
+		if (((unsigned int)-1) - off < packet->_.bodylen) {
 			return NULL;
 		}
 		off += packet->_.bodylen;
