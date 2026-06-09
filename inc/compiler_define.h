@@ -136,9 +136,13 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 
 #if	__CPP_LANG_VERSION < 201100L
 	#if	__CPP_LANG_VERSION > 0
-		#define	noexcept	throw()
+		#ifndef noexcept
+			#define	noexcept	throw()
+		#endif
 	#else
-		#define	noexcept
+		#ifndef noexcept
+			#define	noexcept
+		#endif
 	#endif
 #endif
 
