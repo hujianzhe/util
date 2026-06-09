@@ -134,4 +134,12 @@ STATIC_ASSERT(sizeof(unsigned long long) == 8, "");
 	#error "Unknown Compiler"
 #endif
 
+#if	__CPP_LANG_VERSION < 201100L
+	#if	__CPP_LANG_VERSION > 0
+		#define	noexcept	throw()
+	#else
+		#define	noexcept
+	#endif
+#endif
+
 #endif
