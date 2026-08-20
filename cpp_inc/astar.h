@@ -16,7 +16,7 @@ class AStarPathFinder {
 public:
 	AStarPathFinder() :
 		m_arrived(false),
-		m_destinationPeek(false),
+		m_destination_peek(false),
 		m_search_num(0),
 		m_max_search_num(-1),
 		m_prev_track_idx(-1),
@@ -42,7 +42,7 @@ public:
 		m_openheap.clear();
 		m_closeset.clear();
 		m_destination = destination;
-		m_destinationPeek = false;
+		m_destination_peek = false;
 		if (destination == start) {
 			m_arrived = true;
 			return nullptr;
@@ -98,8 +98,8 @@ public:
 	}
 
 	const UserDataType* backtrace_pop() {
-		if (!m_destinationPeek && m_arrived) {
-			m_destinationPeek = true;
+		if (!m_destination_peek && m_arrived) {
+			m_destination_peek = true;
 			return m_destination;
 		}
 		if (-1 == m_prev_track_idx) {
@@ -129,7 +129,7 @@ private:
 
 private:
 	bool m_arrived;
-	bool m_destinationPeek;
+	bool m_destination_peek;
 	size_t m_search_num;
 	size_t m_max_search_num;
 	size_t m_prev_track_idx;
