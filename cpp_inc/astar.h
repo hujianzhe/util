@@ -28,7 +28,7 @@ public:
 
 	struct ProcTrack {
 		int g, h;
-		const UserDataType* user_data;
+		UserDataType user_data;
 	};
 
 	size_t search_num() const { return m_search_num; }
@@ -36,7 +36,7 @@ public:
 	bool arrived() const { return m_arrived; }
 	const ProcTrack* current_track() const { return &m_current; }
 
-	const ProcTrack* beginIter(const UserDataType* start, const UserDataType* destination, size_t max_search_num = -1) {
+	const ProcTrack* beginIter(const UserDataType& start, const UserDataType& destination, size_t max_search_num = -1) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
@@ -79,7 +79,7 @@ public:
 		return &m_current;
 	}
 
-	void insert(int g, int h, const UserDataType* user_data) {
+	void insert(int g, int h, const UserDataType& user_data) {
 		if (user_data == m_destination) {
 			m_arrived = true;
 			m_openheap.clear();
@@ -93,21 +93,23 @@ public:
 		std::push_heap(m_openheap.begin(), m_openheap.end(), OpenHeapCompare(m_tracks));
 	}
 
-	bool exist(const UserDataType* user_data) const {
+	bool exist(const UserDataType& user_data) const {
 		return m_closeset.find(user_data) != m_closeset.end();
 	}
 
-	const UserDataType* backtrace_pop() {
+	bool backtrace_pop(UserDataType* ret) {
 		if (!m_destination_peek && m_arrived) {
 			m_destination_peek = true;
-			return m_destination;
+			*ret = m_destination;
+			return true;
 		}
 		if (-1 == m_prev_track_idx) {
-			return nullptr;
+			return false;
 		}
 		const ProcTrackListNode& t = m_tracks[m_prev_track_idx];
 		m_prev_track_idx = t.from_idx;
-		return t.user_data;
+		*ret = t.user_data;
+		return true;
 	}
 
 private:
@@ -117,7 +119,7 @@ private:
 	struct ProcTrackListNode {
 		int g, f;
 		size_t from_idx;
-		const UserDataType* user_data;
+		UserDataType user_data;
 	};
 	struct OpenHeapCompare {
 		const std::vector<ProcTrackListNode>& tracks;
@@ -133,11 +135,11 @@ private:
 	size_t m_search_num;
 	size_t m_max_search_num;
 	size_t m_prev_track_idx;
-	const UserDataType* m_destination;
+	UserDataType m_destination;
 	ProcTrack m_current;
 	std::vector<ProcTrackListNode> m_tracks;
 	std::vector<size_t> m_openheap;
-	std::unordered_set<const UserDataType*> m_closeset;
+	std::unordered_set<UserDataType> m_closeset;
 };
 }
 
