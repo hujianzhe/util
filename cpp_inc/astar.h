@@ -19,11 +19,9 @@ public:
 		m_destination_peek(false),
 		m_search_num(0),
 		m_max_search_num(-1),
-		m_prev_track_idx(-1),
-		m_destination(nullptr)
+		m_prev_track_idx(-1)
 	{
 		m_current.g = m_current.h = 0;
-		m_current.user_data = nullptr;
 	}
 
 	struct ProcTrack {
