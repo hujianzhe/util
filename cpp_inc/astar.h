@@ -30,11 +30,34 @@ public:
 	};
 
 	size_t search_num() const { return m_search_num; }
+	void set_max_search_num(size_t v) { m_max_search_num = v; }
 	bool search_num_enough() const { return m_search_num < m_max_search_num; }
 	bool arrived() const { return m_arrived; }
 	const ProcTrack* current_track() const { return &m_current; }
 
-	const ProcTrack* beginIter(const UserDataType& start, const UserDataType& destination, size_t max_search_num = -1) {
+	const ProcTrack* beginIter(const UserDataType& start) {
+		m_prev_track_idx = -1;
+		m_tracks.clear();
+		m_openheap.clear();
+		m_closeset.clear();
+		m_destination_peek = false;
+		m_arrived = false;
+		m_search_num = 0;
+		if (m_search_num >= m_max_search_num) {
+			return nullptr;
+		}
+		m_closeset.insert(start);
+		if (m_max_search_num != -1) {
+			m_tracks.reserve(m_max_search_num);
+			m_openheap.reserve(m_max_search_num);
+		}
+		m_current.g = 0;
+		m_current.h = 0;
+		m_current.user_data = start;
+		return &m_current;
+	}
+
+	const ProcTrack* beginIter(const UserDataType& start, const UserDataType& destination) {
 		m_prev_track_idx = -1;
 		m_tracks.clear();
 		m_openheap.clear();
@@ -46,15 +69,14 @@ public:
 			return nullptr;
 		}
 		m_arrived = false;
-		m_closeset.insert(start);
 		m_search_num = 0;
-		m_max_search_num = max_search_num;
+		if (m_search_num >= m_max_search_num) {
+			return nullptr;
+		}
+		m_closeset.insert(start);
 		if (m_max_search_num != -1) {
 			m_tracks.reserve(m_max_search_num);
 			m_openheap.reserve(m_max_search_num);
-		}
-		if (m_search_num >= m_max_search_num) {
-			return nullptr;
 		}
 		m_current.g = 0;
 		m_current.h = 0;
@@ -75,6 +97,12 @@ public:
 		m_current.h = t.f - t.g;
 		m_current.user_data = t.user_data;
 		return &m_current;
+	}
+
+	void arrivedDestination(const UserDataType& user_data) {
+		m_destination = user_data;
+		m_arrived = true;
+		m_openheap.clear();
 	}
 
 	void insert(int g, int h, const UserDataType& user_data) {
