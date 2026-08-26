@@ -16,6 +16,7 @@ class AStarPathFinder {
 public:
 	AStarPathFinder() :
 		m_arrived(false),
+		m_has_destination(false),
 		m_destination_peek(false),
 		m_search_num(0),
 		m_max_search_num(-1),
@@ -40,6 +41,7 @@ public:
 		m_tracks.clear();
 		m_openheap.clear();
 		m_closeset.clear();
+		m_has_destination = false;
 		m_destination_peek = false;
 		m_arrived = false;
 		m_search_num = 0;
@@ -63,6 +65,7 @@ public:
 		m_openheap.clear();
 		m_closeset.clear();
 		m_destination = destination;
+		m_has_destination = true;
 		m_destination_peek = false;
 		if (destination == start) {
 			m_arrived = true;
@@ -101,12 +104,13 @@ public:
 
 	void arrivedDestination(const UserDataType& user_data) {
 		m_destination = user_data;
+		m_has_destination = true;
 		m_arrived = true;
 		m_openheap.clear();
 	}
 
 	void insert(int g, int h, const UserDataType& user_data) {
-		if (user_data == m_destination) {
+		if (m_has_destination && user_data == m_destination) {
 			m_arrived = true;
 			m_openheap.clear();
 			return;
@@ -157,6 +161,7 @@ private:
 
 private:
 	bool m_arrived;
+	bool m_has_destination;
 	bool m_destination_peek;
 	size_t m_search_num;
 	size_t m_max_search_num;
