@@ -69,21 +69,21 @@ typedef struct StreamTransportCtx_t {
 extern "C" {
 #endif
 
-__declspec_dll DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq);
-__declspec_dll int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype);
-__declspec_dll void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list);
-__declspec_dll unsigned int dgramtransportctxNextSendSeq(DgramTransportCtx_t* ctx, int pktype);
-__declspec_dll int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket);
-__declspec_dll int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet);
+__declspec_dll DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) noexcept;
+__declspec_dll int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) noexcept;
+__declspec_dll void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
+__declspec_dll int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) noexcept;
+__declspec_dll unsigned int dgramtransportctxNextSendSeq(DgramTransportCtx_t* ctx, int pktype) noexcept;
+__declspec_dll int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
+__declspec_dll int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) noexcept;
+__declspec_dll int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
 
-__declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx);
-__declspec_dll void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list);
-__declspec_dll int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx);
-__declspec_dll int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
-__declspec_dll void streamtransportctxRemoveCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet);
+__declspec_dll StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx) noexcept;
+__declspec_dll void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
+__declspec_dll int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) noexcept;
+__declspec_dll int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) noexcept;
+__declspec_dll int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
+__declspec_dll void streamtransportctxRemoveCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept;
 
 #ifdef	__cplusplus
 }

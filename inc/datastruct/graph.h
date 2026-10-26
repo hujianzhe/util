@@ -41,16 +41,16 @@ typedef struct GraphEdge_t {
 extern "C" {
 #endif
 
-__declspec_dll Graph_t* graphInit(Graph_t* g);
-__declspec_dll Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v);
-__declspec_dll void graphRemoveNode(Graph_t* g, GraphNode_t* v, List_t* unlink_edgelist);
+__declspec_dll Graph_t* graphInit(Graph_t* g) noexcept;
+__declspec_dll Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v) noexcept;
+__declspec_dll void graphRemoveNode(Graph_t* g, GraphNode_t* v, List_t* unlink_edgelist) noexcept;
 
-__declspec_dll GraphEdge_t* graphLinkEdge(GraphEdge_t* e);
-__declspec_dll void graphUnlinkEdge(GraphEdge_t* e);
-__declspec_dll void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist);
+__declspec_dll GraphEdge_t* graphLinkEdge(GraphEdge_t* e) noexcept;
+__declspec_dll void graphUnlinkEdge(GraphEdge_t* e) noexcept;
+__declspec_dll void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist) noexcept;
 
-__declspec_dll GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v);
-__declspec_dll GraphNode_t* graphDFSNext(GraphNode_t* v);
+__declspec_dll GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v) noexcept;
+__declspec_dll GraphNode_t* graphDFSNext(GraphNode_t* v) noexcept;
 
 #ifdef	__cplusplus
 }

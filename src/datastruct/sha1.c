@@ -43,7 +43,7 @@ extern "C" {
 
 static const unsigned short BYTE_ORDER = 0x0001;
 
-static void* __byte_copy(void* dst, const void* src, unsigned int sz) {
+static void* __byte_copy(void* dst, const void* src, unsigned int sz) noexcept {
 	unsigned char* pdst = (unsigned char*)dst;
 	unsigned char* psrc = (unsigned char*)src;
 	while (sz--) {
@@ -56,7 +56,7 @@ static void* __byte_copy(void* dst, const void* src, unsigned int sz) {
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(unsigned int state[5], const unsigned char buffer[64])
+void SHA1Transform(unsigned int state[5], const unsigned char buffer[64]) noexcept
 {
 	unsigned int a, b, c, d, e;
 	typedef union {
@@ -110,7 +110,7 @@ void SHA1Transform(unsigned int state[5], const unsigned char buffer[64])
 
 /* SHA1Init - Initialize new context */
 
-void SHA1Init(SHA1_CTX* context)
+void SHA1Init(SHA1_CTX* context) noexcept
 {
 	/* SHA1 initialization constants */
 	context->state[0] = 0x67452301;
@@ -124,7 +124,7 @@ void SHA1Init(SHA1_CTX* context)
 
 /* Run your data through this. */
 
-void SHA1Update(SHA1_CTX* context, const unsigned char* data, unsigned int len)
+void SHA1Update(SHA1_CTX* context, const unsigned char* data, unsigned int len) noexcept
 {
 	unsigned int i;
 	unsigned int j;
@@ -149,7 +149,7 @@ void SHA1Update(SHA1_CTX* context, const unsigned char* data, unsigned int len)
 
 /* Add padding and return the message digest. */
 
-void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
+void SHA1Final(unsigned char digest[20], SHA1_CTX* context) noexcept
 {
 	unsigned i;
 	unsigned char finalcount[8];

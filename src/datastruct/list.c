@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-struct List_t* listInit(struct List_t* list) {
+struct List_t* listInit(struct List_t* list) noexcept {
 	list->head = list->tail = (struct ListNode_t*)0;
 	return list;
 }
 
-void listInsertNodeFront(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
+void listInsertNodeFront(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) noexcept {
 	if (!list->head) {
 		list->head = list->tail = new_node;
 		new_node->prev = new_node->next = (struct ListNode_t*)0;
@@ -31,7 +31,7 @@ void listInsertNodeFront(struct List_t* list, struct ListNode_t* node, struct Li
 	node->prev = new_node;
 }
 
-void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
+void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) noexcept {
 	if (!list->tail) {
 		list->head = list->tail = new_node;
 		new_node->prev = new_node->next = (struct ListNode_t*)0;
@@ -49,7 +49,7 @@ void listInsertNodeBack(struct List_t* list, struct ListNode_t* node, struct Lis
 	node->next = new_node;
 }
 
-void listInsertNodeSorted(struct List_t* list, struct ListNode_t* new_node, int(*cmp)(struct ListNode_t*, struct ListNode_t*)) {
+void listInsertNodeSorted(struct List_t* list, struct ListNode_t* new_node, int(*cmp)(struct ListNode_t*, struct ListNode_t*) noexcept) noexcept {
 	struct ListNode_t* cur;
 	for (cur = list->head; cur; cur = cur->next) {
 		if (cmp(cur, new_node) > 0)
@@ -61,7 +61,7 @@ void listInsertNodeSorted(struct List_t* list, struct ListNode_t* new_node, int(
 		listInsertNodeBack(list, list->tail, new_node);
 }
 
-void listRemoveNode(struct List_t* list, struct ListNode_t* node) {
+void listRemoveNode(struct List_t* list, struct ListNode_t* node) noexcept {
 	if (list->head == node) {
 		list->head = node->next;
 	}
@@ -77,7 +77,7 @@ void listRemoveNode(struct List_t* list, struct ListNode_t* node) {
 	}
 }
 
-void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) {
+void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNode_t* new_node) noexcept {
 	if (list->head == node) {
 		list->head = new_node;
 	}
@@ -98,52 +98,52 @@ void listReplaceNode(struct List_t* list, struct ListNode_t* node, struct ListNo
 	*new_node = *node;
 }
 
-struct List_t* listPushNodeFront(struct List_t* list, struct ListNode_t* node) {
+struct List_t* listPushNodeFront(struct List_t* list, struct ListNode_t* node) noexcept {
 	listInsertNodeFront(list, list->head, node);
 	return list;
 }
 
-struct List_t* listPushNodeBack(struct List_t* list, struct ListNode_t* node) {
+struct List_t* listPushNodeBack(struct List_t* list, struct ListNode_t* node) noexcept {
 	listInsertNodeBack(list, list->tail, node);
 	return list;
 }
 
-struct ListNode_t* listPopNodeFront(struct List_t* list) {
+struct ListNode_t* listPopNodeFront(struct List_t* list) noexcept {
 	struct ListNode_t* head = list->head;
 	if (head)
 		listRemoveNode(list, head);
 	return head;
 }
 
-struct ListNode_t* listPopNodeBack(struct List_t* list) {
+struct ListNode_t* listPopNodeBack(struct List_t* list) noexcept {
 	struct ListNode_t* tail = list->tail;
 	if (tail)
 		listRemoveNode(list, tail);
 	return tail;
 }
 
-struct ListNode_t* listAt(const struct List_t* list, UnsignedPtr_t index) {
+struct ListNode_t* listAt(const struct List_t* list, UnsignedPtr_t index) noexcept {
 	struct ListNode_t* node;
 	for (node = list->head; node && index--; node = node->next);
 	return node;
 }
 
-struct ListNode_t* listAtMost(const struct List_t* list, UnsignedPtr_t index) {
+struct ListNode_t* listAtMost(const struct List_t* list, UnsignedPtr_t index) noexcept {
 	struct ListNode_t* node, *prev;
 	for (prev = node = list->head; node && index--; prev = node, node = node->next);
 	return node ? node : prev;
 }
 
-UnsignedPtr_t listNodeCount(const struct List_t* list) {
+UnsignedPtr_t listNodeCount(const struct List_t* list) noexcept {
 	UnsignedPtr_t count;
 	struct ListNode_t* node;
 	for (count = 0, node = list->head; node; node = node->next, ++count);
 	return count;
 }
 
-int listIsEmpty(const struct List_t* list) { return !list->head; }
+int listIsEmpty(const struct List_t* list) noexcept { return !list->head; }
 
-void listAppend(struct List_t* to, struct List_t* from) {
+void listAppend(struct List_t* to, struct List_t* from) noexcept {
 	if (!to->head) {
 		to->head = from->head;
 	}
@@ -160,13 +160,13 @@ void listAppend(struct List_t* to, struct List_t* from) {
 	}
 }
 
-void listSwap(struct List_t* one, struct List_t* two) {
+void listSwap(struct List_t* one, struct List_t* two) noexcept {
 	struct List_t temp = *one;
 	*one = *two;
 	*two = temp;
 }
 
-void listReverse(struct List_t* list) {
+void listReverse(struct List_t* list) noexcept {
 	struct ListNode_t* cur = list->head;
 	list->tail = cur;
 	while (cur) {
@@ -178,7 +178,7 @@ void listReverse(struct List_t* list) {
 	}
 }
 
-struct List_t listSplit(struct List_t* old_list, struct ListNode_t* head, struct ListNode_t* tail) {
+struct List_t listSplit(struct List_t* old_list, struct ListNode_t* head, struct ListNode_t* tail) noexcept {
 	struct List_t new_list;
 	if (!head || !tail) {
 		new_list.head = new_list.tail = (struct ListNode_t*)0;
@@ -203,7 +203,7 @@ struct List_t listSplit(struct List_t* old_list, struct ListNode_t* head, struct
 	return new_list;
 }
 
-struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head) {
+struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_head) noexcept {
 	struct List_t new_list;
 	if (new_head) {
 		new_list.head = new_head;
@@ -223,7 +223,7 @@ struct List_t listSplitByHead(struct List_t* old_list, struct ListNode_t* new_he
 	return new_list;
 }
 
-struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_tail) {
+struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_tail) noexcept {
 	struct List_t new_list;
 	if (new_tail) {
 		new_list.head = old_list->head;
@@ -243,7 +243,7 @@ struct List_t listSplitByTail(struct List_t* old_list, struct ListNode_t* new_ta
 	return new_list;
 }
 
-struct ListNode_t* listFindNode(const struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*), const void* key) {
+struct ListNode_t* listFindNode(const struct List_t* list, int(*cmp)(const struct ListNode_t*, const void*) noexcept, const void* key) noexcept {
 	struct ListNode_t* cur;
 	for (cur = list->head; cur; cur = cur->next) {
 		if (cmp(cur, key))

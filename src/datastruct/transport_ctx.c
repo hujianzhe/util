@@ -12,7 +12,7 @@ extern "C" {
 
 /*********************************************************************************/
 
-DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) {
+DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned int initseq) noexcept {
 	ctx->send_all_acked = 1;
 	ctx->cwndsize = 1;
 	ctx->cache_recv_bytes = 0;
@@ -24,7 +24,7 @@ DgramTransportCtx_t* dgramtransportctxInit(DgramTransportCtx_t* ctx, unsigned in
 	return ctx;
 }
 
-int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) {
+int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int pktype) noexcept {
 	ListNode_t* cur;
 	if (pktype < NETPACKET_DGRAM_HAS_SEND_SEQ) {
 		return 0;
@@ -45,7 +45,7 @@ int dgramtransportctxRecvCheck(DgramTransportCtx_t* ctx, unsigned int seq, int p
 	return 1;
 }
 
-void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	ListNode_t* cur = ctx->m_recvnode ? ctx->m_recvnode : ctx->recvlist.head;
 	for (; cur; cur = cur->next) {
 		NetPacket_t* pk = pod_container_of(cur, NetPacket_t, node);
@@ -74,7 +74,7 @@ void dgramtransportctxCacheRecvPacket(DgramTransportCtx_t* ctx, NetPacket_t* pac
 	ctx->cache_recv_bytes += (packet->hdrlen + packet->bodylen);
 }
 
-int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
+int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) noexcept {
 	ListNode_t* cur;
 	if (!ctx->m_recvnode) {
 		return 0;
@@ -98,11 +98,11 @@ int dgramtransportctxMergeRecvPacket(DgramTransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
-unsigned int dgramtransportctxNextSendSeq(DgramTransportCtx_t* ctx, int pktype) {
+unsigned int dgramtransportctxNextSendSeq(DgramTransportCtx_t* ctx, int pktype) noexcept {
 	return pktype < NETPACKET_DGRAM_HAS_SEND_SEQ ? 0 : ctx->m_sendseq++;
 }
 
-int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	if (packet->type < NETPACKET_DGRAM_HAS_SEND_SEQ) {
 		return 0;
 	}
@@ -116,7 +116,7 @@ int dgramtransportctxCacheSendPacket(DgramTransportCtx_t* ctx, NetPacket_t* pack
 	return 1;
 }
 
-int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) {
+int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq, NetPacket_t** ackpacket) noexcept {
 	ListNode_t* cur, *next;
 	int cwndskip = 0;
 	*ackpacket = (NetPacket_t*)0;
@@ -159,7 +159,7 @@ int dgramtransportctxAckSendPacket(DgramTransportCtx_t* ctx, unsigned int ackseq
 	return cwndskip;
 }
 
-int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) {
+int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	if (NETPACKET_FIN == packet->type && ctx->sendlist.head != &packet->node) {
 		return 0;
 	}
@@ -168,7 +168,7 @@ int dgramtransportctxSendWindowHasPacket(DgramTransportCtx_t* ctx, NetPacket_t* 
 
 /*********************************************************************************/
 
-StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx) {
+StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx) noexcept {
 	ctx->cache_recv_bytes = 0;
 	ctx->cache_send_bytes = 0;
 	listInit(&ctx->recvlist);
@@ -176,13 +176,13 @@ StreamTransportCtx_t* streamtransportctxInit(StreamTransportCtx_t* ctx) {
 	return ctx;
 }
 
-void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
+void streamtransportctxCacheRecvPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	listInsertNodeBack(&ctx->recvlist, ctx->recvlist.tail, &packet->node);
 	packet->cached = 1;
 	ctx->cache_recv_bytes += (packet->hdrlen + packet->bodylen);
 }
 
-int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
+int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) noexcept {
 	ListNode_t* cur;
 	for (cur = ctx->recvlist.head; cur; cur = cur->next) {
 		NetPacket_t* packet = pod_container_of(cur, NetPacket_t, node);
@@ -200,7 +200,7 @@ int streamtransportctxMergeRecvPacket(StreamTransportCtx_t* ctx, List_t* list) {
 	return 0;
 }
 
-int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
+int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) noexcept {
 	if (ctx->sendlist.tail) {
 		NetPacket_t* packet = pod_container_of(ctx->sendlist.tail, NetPacket_t, node);
 		if (packet->off < packet->hdrlen + packet->bodylen) {
@@ -210,7 +210,7 @@ int streamtransportctxSendCheckBusy(StreamTransportCtx_t* ctx) {
 	return 0;
 }
 
-int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
+int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	if (packet->off >= packet->hdrlen + packet->bodylen) {
 		return 0;
 	}
@@ -220,7 +220,7 @@ int streamtransportctxCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* pa
 	return 1;
 }
 
-void streamtransportctxRemoveCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) {
+void streamtransportctxRemoveCacheSendPacket(StreamTransportCtx_t* ctx, NetPacket_t* packet) noexcept {
 	listRemoveNode(&ctx->sendlist, &packet->node);
 	ctx->cache_send_bytes -= (packet->hdrlen + packet->bodylen);
 	packet->cached = 0;

@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-int bstreeDefaultKeyCmpU32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpU32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	if (key->u32 == node_key->u32)
 		return 0;
@@ -18,7 +18,7 @@ int bstreeDefaultKeyCmpU32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 1;
 }
 
-int bstreeDefaultKeyCmpI32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpI32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	if (key->i32 == node_key->i32)
 		return 0;
@@ -28,7 +28,7 @@ int bstreeDefaultKeyCmpI32(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 1;
 }
 
-int bstreeDefaultKeyCmpU64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpU64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	if (key->u64 == node_key->u64)
 		return 0;
@@ -38,7 +38,7 @@ int bstreeDefaultKeyCmpU64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 1;
 }
 
-int bstreeDefaultKeyCmpI64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpI64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	if (key->i64 == node_key->i64)
 		return 0;
@@ -48,7 +48,7 @@ int bstreeDefaultKeyCmpI64(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 1;
 }
 
-int bstreeDefaultKeyCmpSSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) {
+int bstreeDefaultKeyCmpSSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept {
 	if (key->int_ptr == node_key->int_ptr)
 		return 0;
 	else if (key->int_ptr < node_key->int_ptr)
@@ -57,7 +57,7 @@ int bstreeDefaultKeyCmpSSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 1;
 }
 
-int bstreeDefaultKeyCmpSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	if (key->ptr == node_key->ptr)
 		return 0;
@@ -67,7 +67,7 @@ int bstreeDefaultKeyCmpSZ(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t
 		return 1;
 }
 
-int bstreeDefaultKeyCmpStr(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key)
+int bstreeDefaultKeyCmpStr(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_t* key) noexcept
 {
 	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
 	const unsigned char* s2 = (const unsigned char*)key->ptr;
@@ -83,14 +83,14 @@ int bstreeDefaultKeyCmpStr(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 0;
 }
 
-struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*)) {
+struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*)) noexcept {
 	tree->bs_root = (struct BSTreeNode_t*)0;
 	tree->keycmp = keycmp;
 	tree->count = 0;
 	return tree;
 }
 
-struct BSTreeNode_t* bstreeInsertNode(struct BSTree_t* tree, struct BSTreeNode_t* node) {
+struct BSTreeNode_t* bstreeInsertNode(struct BSTree_t* tree, struct BSTreeNode_t* node) noexcept {
 	struct BSTreeNode_t* parent = tree->bs_root;
 	while (parent) {
 		int res = tree->keycmp(&parent->key, &node->key);
@@ -125,7 +125,7 @@ struct BSTreeNode_t* bstreeInsertNode(struct BSTree_t* tree, struct BSTreeNode_t
 	return node;
 }
 
-void bstreeReplaceNode(struct BSTree_t* tree, struct BSTreeNode_t* old_node, struct BSTreeNode_t* new_node) {
+void bstreeReplaceNode(struct BSTree_t* tree, struct BSTreeNode_t* old_node, struct BSTreeNode_t* new_node) noexcept {
 	if (old_node && old_node != new_node) {
 		BSTreeNodeKey_t key = new_node->key;
 		if (old_node->bs_left)
@@ -146,7 +146,7 @@ void bstreeReplaceNode(struct BSTree_t* tree, struct BSTreeNode_t* old_node, str
 	}
 }
 
-void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t* node) {
+void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t* node) noexcept {
 	if (node->bs_right) {
 		struct BSTreeNode_t* min_node = node->bs_right;
 		while (min_node->bs_left)
@@ -195,19 +195,19 @@ void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t* node) {
 	--(tree->count);
 }
 
-struct BSTreeNode_t* bstreeMinNode(const struct BSTreeNode_t* node) {
+struct BSTreeNode_t* bstreeMinNode(const struct BSTreeNode_t* node) noexcept {
 	while (node->bs_left)
 		node = node->bs_left;
 	return (struct BSTreeNode_t*)node;
 }
 
-struct BSTreeNode_t* bstreeMaxNode(const struct BSTreeNode_t* node) {
+struct BSTreeNode_t* bstreeMaxNode(const struct BSTreeNode_t* node) noexcept {
 	while (node->bs_right)
 		node = node->bs_right;
 	return (struct BSTreeNode_t*)node;
 }
 
-struct BSTreeNode_t* bstreeSearchKey(struct BSTree_t* tree, const BSTreeNodeKey_t key) {
+struct BSTreeNode_t* bstreeSearchKey(struct BSTree_t* tree, const BSTreeNodeKey_t key) noexcept {
 	struct BSTreeNode_t* node = tree->bs_root;
 	while (node) {
 		int res = tree->keycmp(&node->key, &key);
@@ -221,26 +221,26 @@ struct BSTreeNode_t* bstreeSearchKey(struct BSTree_t* tree, const BSTreeNodeKey_
 	return node;
 }
 
-struct BSTreeNode_t* bstreeRemoveKey(struct BSTree_t* tree, const BSTreeNodeKey_t key) {
+struct BSTreeNode_t* bstreeRemoveKey(struct BSTree_t* tree, const BSTreeNodeKey_t key) noexcept {
 	struct BSTreeNode_t* exist_node = bstreeSearchKey(tree, key);
 	if (exist_node)
 		bstreeRemoveNode(tree, exist_node);
 	return exist_node;
 }
 
-struct BSTreeNode_t* bstreeFirstNode(const struct BSTree_t* tree) {
+struct BSTreeNode_t* bstreeFirstNode(const struct BSTree_t* tree) noexcept {
 	if (tree->bs_root)
 		return bstreeMinNode(tree->bs_root);
 	return (struct BSTreeNode_t*)0;
 }
 
-struct BSTreeNode_t* bstreeLastNode(const struct BSTree_t* tree) {
+struct BSTreeNode_t* bstreeLastNode(const struct BSTree_t* tree) noexcept {
 	if (tree->bs_root)
 		return bstreeMaxNode(tree->bs_root);
 	return (struct BSTreeNode_t*)0;
 }
 
-struct BSTreeNode_t* bstreeNextNode(struct BSTreeNode_t* node) {
+struct BSTreeNode_t* bstreeNextNode(struct BSTreeNode_t* node) noexcept {
 	struct BSTreeNode_t* parent;
 	if (node->bs_right)
 		return bstreeMinNode(node->bs_right);
@@ -249,7 +249,7 @@ struct BSTreeNode_t* bstreeNextNode(struct BSTreeNode_t* node) {
 	return parent;
 }
 
-struct BSTreeNode_t* bstreePrevNode(struct BSTreeNode_t* node) {
+struct BSTreeNode_t* bstreePrevNode(struct BSTreeNode_t* node) noexcept {
 	struct BSTreeNode_t* parent;
 	if (node->bs_left)
 		return bstreeMaxNode(node->bs_left);

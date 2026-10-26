@@ -24,7 +24,7 @@ extern "C" {
 #define A2					0x5
 #define C					0xB
 #define SET3(x, x0, x1, x2)	((x)[0] = (x0), (x)[1] = (x1), (x)[2] = (x2))
-void rand48Seed(Rand48_t* ctx, int seedval) {
+void rand48Seed(Rand48_t* ctx, int seedval) noexcept {
 	ctx->x[0] = X0;
 	ctx->x[1] = LOW(seedval);
 	ctx->x[2] = HIGH(seedval);
@@ -35,7 +35,7 @@ void rand48Seed(Rand48_t* ctx, int seedval) {
 
 	ctx->c = C;
 }
-int rand48_l(Rand48_t* ctx) {
+int rand48_l(Rand48_t* ctx) noexcept {
 	unsigned int p[2], q[2], r[2], carry0, carry1;
 
 	MUL(ctx->a[0], ctx->x[0], p);
@@ -50,7 +50,7 @@ int rand48_l(Rand48_t* ctx) {
 	ctx->x[0] = LOW(p[0]);
 	return (((int)(ctx->x[2]) << (N - 1)) + (ctx->x[1] >> 1));
 }
-int rand48Range(Rand48_t* ctx, int start, int end) {
+int rand48Range(Rand48_t* ctx, int start, int end) noexcept {
 	/* [start, end) */
 	if (start >= end)
 		return start;
@@ -58,7 +58,7 @@ int rand48Range(Rand48_t* ctx, int start, int end) {
 }
 
 /* mt19937 */
-void mt19937Seed(RandMT19937_t* ctx, int seedval) {
+void mt19937Seed(RandMT19937_t* ctx, int seedval) noexcept {
 	int i;
 	unsigned long long* x = ctx->x;
 	x[0] = seedval;
@@ -66,7 +66,7 @@ void mt19937Seed(RandMT19937_t* ctx, int seedval) {
 		x[i] = 6364136223846793005ULL * (x[i - 1] ^ (x[i - 1] >> (64 - 2))) + i;
 	ctx->k = 0;
 }
-unsigned long long mt19937_ull(RandMT19937_t* ctx) {
+unsigned long long mt19937_ull(RandMT19937_t* ctx) noexcept {
 	int k = ctx->k;
 	unsigned long long* x = ctx->x;
 	unsigned long long y, z;
@@ -85,7 +85,7 @@ unsigned long long mt19937_ull(RandMT19937_t* ctx) {
 	ctx->k = (k + 1) % 312;
 	return y;
 }
-long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) {
+long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) noexcept {
 	/* [start, end) */
 	if (start >= end)
 		return start;
@@ -93,7 +93,7 @@ long long mt19937Range(RandMT19937_t* ctx, long long start, long long end) {
 }
 
 /* random string */
-char* randAlphabetNumber(int seedval, char* s, UnsignedPtr_t length) {
+char* randAlphabetNumber(int seedval, char* s, UnsignedPtr_t length) noexcept {
 	static char table[] = "0123456789abcdefghigklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ";
 	UnsignedPtr_t i;
 	RandMT19937_t ctx;

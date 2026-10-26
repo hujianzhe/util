@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
+URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) noexcept {
 	const char* schema;
 	unsigned int schemalen;
 	const char* user;
@@ -273,7 +273,7 @@ URL_t* urlParse(URL_t* url, const char* str, UnsignedPtr_t slen) {
 #define char_isdigit(c)		((unsigned int)(((int)(c)) - '0') < 10u)
 #define	char_isalpha(c)		((unsigned int)((((int)(c)) | 0x20) - 'a') < 26u)
 
-unsigned int urlEncode(const char* src, unsigned int srclen, char* dst) {
+unsigned int urlEncode(const char* src, unsigned int srclen, char* dst) noexcept {
 	static const char hex2char[] = "0123456789ABCDEF";
 	unsigned int i, dstlen;
 	for (dstlen = 0, i = 0; i < srclen; ++i) {
@@ -305,7 +305,7 @@ unsigned int urlEncode(const char* src, unsigned int srclen, char* dst) {
 	return dstlen;
 }
 
-unsigned int urlDecode(const char* src, unsigned int srclen, char* dst) {
+unsigned int urlDecode(const char* src, unsigned int srclen, char* dst) noexcept {
 	unsigned int i, dstlen;
 	for (dstlen = 0, i = 0; i < srclen; ++i) {
 		char c = src[i];

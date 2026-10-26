@@ -28,8 +28,8 @@ typedef struct HashtableNode_t {
 typedef struct Hashtable_t {
 	struct HashtableNode_t** buckets;
 	unsigned int buckets_size;
-	int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
-	unsigned int (*keyhash)(const HashtableNodeKey_t*);
+	int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept;
+	unsigned int (*keyhash)(const HashtableNodeKey_t*) noexcept;
 	struct HashtableNode_t *head, *tail;
 	UnsignedPtr_t count;
 } Hashtable_t;
@@ -38,35 +38,35 @@ typedef struct Hashtable_t {
 extern "C" {
 #endif
 
-__declspec_dll int hashtableDefaultKeyCmp32(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
-__declspec_dll unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t*);
-__declspec_dll int hashtableDefaultKeyCmp64(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
-__declspec_dll unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t*);
-__declspec_dll int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
-__declspec_dll unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t*);
-__declspec_dll int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t*, const HashtableNodeKey_t*);
-__declspec_dll unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t*);
+__declspec_dll int hashtableDefaultKeyCmp32(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept;
+__declspec_dll unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t*) noexcept;
+__declspec_dll int hashtableDefaultKeyCmp64(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept;
+__declspec_dll unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t*) noexcept;
+__declspec_dll int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept;
+__declspec_dll unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t*) noexcept;
+__declspec_dll int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept;
+__declspec_dll unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t*) noexcept;
 
 __declspec_dll struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
 		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*),
-		unsigned int (*keyhash)(const HashtableNodeKey_t*));
+		unsigned int (*keyhash)(const HashtableNodeKey_t*)) noexcept;
 
-__declspec_dll struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
-__declspec_dll void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node);
-__declspec_dll void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node);
+__declspec_dll struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) noexcept;
+__declspec_dll void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node) noexcept;
+__declspec_dll void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) noexcept;
 
-__declspec_dll struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key);
-__declspec_dll struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const HashtableNodeKey_t key);
+__declspec_dll struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key) noexcept;
+__declspec_dll struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const HashtableNodeKey_t key) noexcept;
 
-__declspec_dll int hashtableIsEmpty(const struct Hashtable_t* hashtable);
-__declspec_dll struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable);
-__declspec_dll struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node);
-__declspec_dll struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable);
-__declspec_dll struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node);
+__declspec_dll int hashtableIsEmpty(const struct Hashtable_t* hashtable) noexcept;
+__declspec_dll struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable) noexcept;
+__declspec_dll struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node) noexcept;
+__declspec_dll struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable) noexcept;
+__declspec_dll struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node) noexcept;
 
-__declspec_dll void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size);
-__declspec_dll void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2);
+__declspec_dll void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size) noexcept;
+__declspec_dll void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2) noexcept;
 
 #ifdef	__cplusplus
 }

@@ -8,13 +8,13 @@
 extern "C" {
 #endif
 
-Graph_t* graphInit(Graph_t* g) {
+Graph_t* graphInit(Graph_t* g) noexcept {
 	listInit(&g->vnodelist);
 	g->dfs_visit = 0;
 	return g;
 }
 
-Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v) {
+Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v) noexcept {
 	int i;
 	for (i = 0; i < 2; ++i) {
 		listInit(&v->edgelist[i]);
@@ -26,12 +26,12 @@ Graph_t* graphAddNode(Graph_t* g, GraphNode_t* v) {
 	return g;
 }
 
-void graphRemoveNode(Graph_t* g, GraphNode_t* v, List_t* unlink_edgelist) {
+void graphRemoveNode(Graph_t* g, GraphNode_t* v, List_t* unlink_edgelist) noexcept {
 	graphUnlinkNode(v, unlink_edgelist);
 	listRemoveNode(&g->vnodelist, &v->node);
 }
 
-GraphEdge_t* graphLinkEdge(GraphEdge_t* e) {
+GraphEdge_t* graphLinkEdge(GraphEdge_t* e) noexcept {
 	if (e->v[0] && e->v[1]) {
 		int i;
 		for (i = 0; i < 2; ++i) {
@@ -43,7 +43,7 @@ GraphEdge_t* graphLinkEdge(GraphEdge_t* e) {
 	return e;
 }
 
-void graphUnlinkEdge(GraphEdge_t* e) {
+void graphUnlinkEdge(GraphEdge_t* e) noexcept {
 	if (e->v[0] && e->v[1]) {
 		int i;
 		for (i = 0; i < 2; ++i) {
@@ -55,7 +55,7 @@ void graphUnlinkEdge(GraphEdge_t* e) {
 	}
 }
 
-void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist) {
+void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist) noexcept {
 	int i;
 	for (i = 0; i < 2; ++i) {
 		List_t* edgelist = &v->edgelist[i];
@@ -70,7 +70,7 @@ void graphUnlinkNode(GraphNode_t* v, List_t* unlink_edgelist) {
 	}
 }
 
-GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v) {
+GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v) noexcept {
 	if (0 == ++g->dfs_visit) {
 		ListNode_t* cur;
 		for (cur = g->vnodelist.head; cur; cur = cur->next) {
@@ -84,7 +84,7 @@ GraphNode_t* graphDFSFirst(Graph_t* g, GraphNode_t* v) {
 	return v;
 }
 
-GraphNode_t* graphDFSNext(GraphNode_t* v) {
+GraphNode_t* graphDFSNext(GraphNode_t* v) noexcept {
 	ListNode_t* cur = v->edgelist[0].head;
 	int dfs_visit = v->graph->dfs_visit;
 	while (1) {

@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-int byteorderIsLE(void) {
+int byteorderIsLE(void) noexcept {
 	unsigned short v = 0x0001;
 	return *((unsigned char*)&v);
 }
 
-unsigned short memRead16(const void* addr) {
+unsigned short memRead16(const void* addr) noexcept {
 	unsigned short v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -22,7 +22,7 @@ unsigned short memRead16(const void* addr) {
 	return v;
 }
 
-unsigned int memRead32(const void* addr) {
+unsigned int memRead32(const void* addr) noexcept {
 	unsigned int v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -33,7 +33,7 @@ unsigned int memRead32(const void* addr) {
 	return v;
 }
 
-unsigned long long memRead64(const void* addr) {
+unsigned long long memRead64(const void* addr) noexcept {
 	unsigned long long v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -48,14 +48,14 @@ unsigned long long memRead64(const void* addr) {
 	return v;
 }
 
-void memWrite16(void* addr, unsigned short v) {
+void memWrite16(void* addr, unsigned short v) noexcept {
 	const unsigned char* vp = (const unsigned char*)&v;
 	unsigned char* ap = (unsigned char*)addr;
 	ap[0] = vp[0];
 	ap[1] = vp[1];
 }
 
-void memWrite32(void* addr, unsigned int v) {
+void memWrite32(void* addr, unsigned int v) noexcept {
 	const unsigned char* vp = (const unsigned char*)&v;
 	unsigned char* ap = (unsigned char*)addr;
 	ap[0] = vp[0];
@@ -64,7 +64,7 @@ void memWrite32(void* addr, unsigned int v) {
 	ap[3] = vp[3];
 }
 
-void memWrite64(void* addr, unsigned long long v) {
+void memWrite64(void* addr, unsigned long long v) noexcept {
 	const unsigned char* vp = (const unsigned char*)&v;
 	unsigned char* ap = (unsigned char*)addr;
 	ap[0] = vp[0];
@@ -101,7 +101,7 @@ if (byteorderIsLE()) { for (i = 0; i < size; ++i) ap[i] = vp[i]; }\
 else { for (i = 0; i < size; ++i) ap[i] = vp[size - i - 1]; }\
 } while (0)
 
-unsigned short memReadBE16(const void* addr) {
+unsigned short memReadBE16(const void* addr) noexcept {
 	unsigned short v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -109,7 +109,7 @@ unsigned short memReadBE16(const void* addr) {
 	return v;
 }
 
-unsigned short memReadLE16(const void* addr) {
+unsigned short memReadLE16(const void* addr) noexcept {
 	unsigned short v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -117,7 +117,7 @@ unsigned short memReadLE16(const void* addr) {
 	return v;
 }
 
-unsigned int memReadBE32(const void* addr) {
+unsigned int memReadBE32(const void* addr) noexcept {
 	unsigned int v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -125,7 +125,7 @@ unsigned int memReadBE32(const void* addr) {
 	return v;
 }
 
-unsigned int memReadLE32(const void* addr) {
+unsigned int memReadLE32(const void* addr) noexcept {
 	unsigned int v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -133,7 +133,7 @@ unsigned int memReadLE32(const void* addr) {
 	return v;
 }
 
-unsigned long long memReadBE64(const void* addr) {
+unsigned long long memReadBE64(const void* addr) noexcept {
 	unsigned long long v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -141,7 +141,7 @@ unsigned long long memReadBE64(const void* addr) {
 	return v;
 }
 
-unsigned long long memReadLE64(const void* addr) {
+unsigned long long memReadLE64(const void* addr) noexcept {
 	unsigned long long v;
 	unsigned char* vp = (unsigned char*)&v;
 	const unsigned char* ap = (const unsigned char*)addr;
@@ -149,43 +149,43 @@ unsigned long long memReadLE64(const void* addr) {
 	return v;
 }
 
-void memWriteBE16(void* addr, unsigned short v) {
+void memWriteBE16(void* addr, unsigned short v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_BE(ap, vp, sizeof(v));
 }
 
-void memWriteLE16(void* addr, unsigned short v) {
+void memWriteLE16(void* addr, unsigned short v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-void memWriteBE32(void* addr, unsigned int v) {
+void memWriteBE32(void* addr, unsigned int v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_BE(ap, vp, sizeof(v));
 }
 
-void memWriteLE32(void* addr, unsigned int v) {
+void memWriteLE32(void* addr, unsigned int v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-void memWriteBE64(void* addr, unsigned long long v) {
+void memWriteBE64(void* addr, unsigned long long v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_BE(ap, vp, sizeof(v));
 }
 
-void memWriteLE64(void* addr, unsigned long long v) {
+void memWriteLE64(void* addr, unsigned long long v) noexcept {
 	unsigned char* ap = (unsigned char*)addr;
 	const unsigned char* vp = (const unsigned char*)&v;
 	macro_WRITE_LE(ap, vp, sizeof(v));
 }
 
-int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr_t alignment, UnsignedPtr_t nbytes, void** ret_addr) {
+int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr_t alignment, UnsignedPtr_t nbytes, void** ret_addr) noexcept {
 	UnsignedPtr_t mask;
 	if (limit_addr < addr) {
 		return 0;
@@ -202,19 +202,19 @@ int memAlignUpCheckFit(UnsignedPtr_t addr, UnsignedPtr_t limit_addr, UnsignedPtr
 	return 1;
 }
 
-int memBitCheck(const void* arr, UnsignedPtr_t bit_idx) {
+int memBitCheck(const void* arr, UnsignedPtr_t bit_idx) noexcept {
 	return (((const unsigned char*)arr)[bit_idx >> 3] >> (bit_idx & 7)) & 1;
 }
 
-void memBitSet(void* arr, UnsignedPtr_t bit_idx) {
+void memBitSet(void* arr, UnsignedPtr_t bit_idx) noexcept {
 	((unsigned char*)arr)[bit_idx >> 3] |= (1 << (bit_idx & 7));
 }
 
-void memBitUnset(void* arr, UnsignedPtr_t bit_idx) {
+void memBitUnset(void* arr, UnsignedPtr_t bit_idx) noexcept {
 	((unsigned char*)arr)[bit_idx >> 3] &= ~(1 << (bit_idx & 7));
 }
 
-void memSwap(void* p1, void* p2, UnsignedPtr_t n) {
+void memSwap(void* p1, void* p2, UnsignedPtr_t n) noexcept {
 	unsigned char* _p1 = (unsigned char*)p1;
 	unsigned char* _p2 = (unsigned char*)p2;
 	while (n--) {
@@ -224,7 +224,7 @@ void memSwap(void* p1, void* p2, UnsignedPtr_t n) {
 	}
 }
 
-void* memCopy(void* dst, const void* src, UnsignedPtr_t n) {
+void* memCopy(void* dst, const void* src, UnsignedPtr_t n) noexcept {
 	if (n && dst != src) {
 		if (dst < src) {
 			UnsignedPtr_t i;
@@ -239,7 +239,7 @@ void* memCopy(void* dst, const void* src, UnsignedPtr_t n) {
 	return dst;
 }
 
-unsigned char* memSkipByte(const void* p, UnsignedPtr_t n, const unsigned char* delim, UnsignedPtr_t dn) {
+unsigned char* memSkipByte(const void* p, UnsignedPtr_t n, const unsigned char* delim, UnsignedPtr_t dn) noexcept {
 	const unsigned char* ptr = (const unsigned char*)p;
 	while (n--) {
 		UnsignedPtr_t i = 0;
@@ -253,14 +253,14 @@ unsigned char* memSkipByte(const void* p, UnsignedPtr_t n, const unsigned char* 
 	return (unsigned char*)0;
 }
 
-void* memZero(void* p, UnsignedPtr_t n) {
+void* memZero(void* p, UnsignedPtr_t n) noexcept {
 	unsigned char* _p = (unsigned char*)p;
 	while (n--)
 		*(_p++) = 0;
 	return p;
 }
 
-void* memReverse(void* p, UnsignedPtr_t len) {
+void* memReverse(void* p, UnsignedPtr_t len) noexcept {
 	unsigned char* _p = (unsigned char*)p;
 	UnsignedPtr_t i, half_len = len >> 1;
 	for (i = 0; i < half_len; ++i) {
@@ -271,7 +271,7 @@ void* memReverse(void* p, UnsignedPtr_t len) {
 	return p;
 }
 
-unsigned short memCheckSum16(const void* buffer, int len) {
+unsigned short memCheckSum16(const void* buffer, int len) noexcept {
 	const unsigned short* pbuf = (const unsigned short*)buffer;
 	unsigned int cksum = 0;
 	while (len > 1) {
@@ -285,7 +285,7 @@ unsigned short memCheckSum16(const void* buffer, int len) {
 	return (unsigned short)(~cksum);
 }
 
-void* memSearch(const void* buf, UnsignedPtr_t n, const void* s, UnsignedPtr_t sn) {
+void* memSearch(const void* buf, UnsignedPtr_t n, const void* s, UnsignedPtr_t sn) noexcept {
 	const unsigned char* pbuf = (const unsigned char*)buf, *ps = (const unsigned char*)s;
 	UnsignedPtr_t i, j;
 	for (i = 0; i < n; ++i) {
@@ -302,7 +302,7 @@ void* memSearch(const void* buf, UnsignedPtr_t n, const void* s, UnsignedPtr_t s
 	return (void*)0;
 }
 
-void* memSearchValue(const void* buf, UnsignedPtr_t n, const void* d, UnsignedPtr_t dn) {
+void* memSearchValue(const void* buf, UnsignedPtr_t n, const void* d, UnsignedPtr_t dn) noexcept {
 	const unsigned char* pbuf = (const unsigned char*)buf, *ps = (const unsigned char*)d;
 	UnsignedPtr_t i = 0, j;
 	while (i < n) {
@@ -320,7 +320,7 @@ void* memSearchValue(const void* buf, UnsignedPtr_t n, const void* d, UnsignedPt
 	return (void*)0;
 }
 
-char* strSkipByte(const char* s, const char* delim) {
+char* strSkipByte(const char* s, const char* delim) noexcept {
 	while (*s) {
 		const char* p = delim;
 		while (*p) {
@@ -335,7 +335,7 @@ char* strSkipByte(const char* s, const char* delim) {
 	return (char*)s;
 }
 
-char* strChr(const char* s, UnsignedPtr_t n, char c) {
+char* strChr(const char* s, UnsignedPtr_t n, char c) noexcept {
 	UnsignedPtr_t i;
 	for (i = 0; i < n; ++i, ++s) {
 		if (0 == *s) {
@@ -348,7 +348,7 @@ char* strChr(const char* s, UnsignedPtr_t n, char c) {
 	return (char*)0;
 }
 
-char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t s2len) {
+char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t s2len) noexcept {
 	const char *p1, *p2;
 	UnsignedPtr_t i;
 	if (!s1 || !s2)
@@ -376,7 +376,7 @@ char* strStr(const char* s1, UnsignedPtr_t s1len, const char* s2, UnsignedPtr_t 
  *     printf("%.*s\n", sl - s, s);
  * }
  */
-char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char* delim) {
+char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char* delim) noexcept {
 	char* beg;
 	const char* sc;
 	if (len <= 0) {
@@ -422,7 +422,7 @@ char* strSplit(const char* str, UnsignedPtr_t len, const char** p_sc, const char
 	return beg;
 }
 
-UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
+UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) noexcept {
 	UnsignedPtr_t u8_len = 0;
 	UnsignedPtr_t i;
 	for (i = 0; i < s_bytelen && s[i]; ++u8_len) {
@@ -438,7 +438,7 @@ UnsignedPtr_t strLenUtf8(const char* s, UnsignedPtr_t s_bytelen) {
 	return u8_len;
 }
 
-int strUtf8CharacterByteNum(const char* s) {
+int strUtf8CharacterByteNum(const char* s) noexcept {
 	unsigned char c = *s;
 	if (c < 0x80) {
 		return 1;
@@ -464,7 +464,7 @@ int strUtf8CharacterByteNum(const char* s) {
 	return -1;
 }
 
-static int alphabet_no_case_delta(const char c) {
+static int alphabet_no_case_delta(const char c) noexcept {
 	if (c >= 'a' && c <= 'z')
 		return c - 'a';
 	else if (c >= 'A' && c <= 'Z')
@@ -473,7 +473,7 @@ static int alphabet_no_case_delta(const char c) {
 		return c - 'a';
 }
 
-int strCmpNoCase(const char* s1, const char* s2, UnsignedPtr_t n) {
+int strCmpNoCase(const char* s1, const char* s2, UnsignedPtr_t n) noexcept {
 	if (!n || !s1 || !s2)
 		return 0;
 	if (-1 != n) {
@@ -495,7 +495,7 @@ int strCmpNoCase(const char* s1, const char* s2, UnsignedPtr_t n) {
 	return 0;
 }
 
-int strIsInteger(const char* s, UnsignedPtr_t n) {
+int strIsInteger(const char* s, UnsignedPtr_t n) noexcept {
 	UnsignedPtr_t i;
 	for (i = 0; i < n && s[i]; ++i) {
 		if ('+' == s[i] || '-' == s[i]) {

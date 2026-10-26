@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 int lengthfieldframeDecode(unsigned short lengthfieldsize,
-		const unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen)
+		const unsigned char* buf, unsigned int len, unsigned char** data, unsigned int* datalen) noexcept
 {
 	if (lengthfieldsize > len)
 		return 0;
@@ -37,7 +37,7 @@ int lengthfieldframeDecode(unsigned short lengthfieldsize,
 	return lengthfieldsize + *datalen;
 }
 
-int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen) {
+int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize, unsigned int datalen) noexcept {
 	switch (lengthfieldsize) {
 		case 2:
 			if (datalen > 0xffff) {
@@ -55,7 +55,7 @@ int lengthfieldframeEncode(void* lengthfieldbuf, unsigned short lengthfieldsize,
 	}
 }
 
-int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, unsigned int len) {
+int lengthfieldframeDecode2(unsigned short lengthfieldsize, unsigned char* buf, unsigned int len) noexcept {
 	int decodelen;
 	if (len < lengthfieldsize)
 		return 0;

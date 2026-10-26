@@ -8,12 +8,12 @@
 extern "C" {
 #endif
 
-static struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const HashtableNodeKey_t* key) {
+static struct HashtableNode_t** __get_bucket_list_head(const struct Hashtable_t* hashtable, const HashtableNodeKey_t* key) noexcept {
 	unsigned int bucket_index = hashtable->keyhash(key) % hashtable->buckets_size;
 	return hashtable->buckets + bucket_index;
 }
 
-static struct HashtableNode_t* __get_node(const struct Hashtable_t* hashtable, struct HashtableNode_t** bucket_list_head, const HashtableNodeKey_t* key) {
+static struct HashtableNode_t* __get_node(const struct Hashtable_t* hashtable, struct HashtableNode_t** bucket_list_head, const HashtableNodeKey_t* key) noexcept {
 	if (*bucket_list_head) {
 		struct HashtableNode_t* node;
 		for (node = *bucket_list_head; node; node = node->next) {
@@ -26,15 +26,15 @@ static struct HashtableNode_t* __get_node(const struct Hashtable_t* hashtable, s
 	return (struct HashtableNode_t*)0;
 }
 
-int hashtableDefaultKeyCmp32(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+int hashtableDefaultKeyCmp32(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) noexcept {
 	return node_key->u32 != key->u32;
 }
-unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t* key) { return key->u32; }
+unsigned int hashtableDefaultKeyHash32(const HashtableNodeKey_t* key) noexcept { return key->u32; }
 
-int hashtableDefaultKeyCmp64(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+int hashtableDefaultKeyCmp64(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) noexcept {
 	return node_key->u64 != key->u64;
 }
-unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t* key) {
+unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t* key) noexcept {
 	unsigned int hash = 0, keylen = sizeof(key->u64);
 	const char* p;
 	for (p = (const char*)(&key->u64); keylen; --keylen, ++p) {
@@ -48,11 +48,11 @@ unsigned int hashtableDefaultKeyHash64(const HashtableNodeKey_t* key) {
 	return hash;
 }
 
-int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+int hashtableDefaultKeyCmpSZ(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) noexcept {
 	return node_key->ptr != key->ptr;
 }
 
-unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t* key) {
+unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t* key) noexcept {
 	if (sizeof(key->ptr) <= sizeof(unsigned int)) {
 		return (UnsignedPtr_t)key->ptr;
 	}
@@ -71,7 +71,7 @@ unsigned int hashtableDefaultKeyHashSZ(const HashtableNodeKey_t* key) {
 	}
 }
 
-int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) {
+int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t* node_key, const HashtableNodeKey_t* key) noexcept {
 	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
 	const unsigned char* s2 = (const unsigned char*)key->ptr;
 	while (*s1 && *s1 == *s2) {
@@ -80,7 +80,7 @@ int hashtableDefaultKeyCmpStr(const HashtableNodeKey_t* node_key, const Hashtabl
 	}
 	return *s1 != *s2;
 }
-unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t* key) {
+unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t* key) noexcept {
 	const char* str = (const char*)key->ptr;
 	unsigned int hash = 0;
 	while (*str)
@@ -91,7 +91,7 @@ unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t* key) {
 struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
 		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*),
-		unsigned int (*keyhash)(const HashtableNodeKey_t*))
+		unsigned int (*keyhash)(const HashtableNodeKey_t*)) noexcept
 {
 	unsigned int i;
 	for (i = 0; i < buckets_size; ++i) {
@@ -106,7 +106,7 @@ struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 	return hashtable;
 }
 
-struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) {
+struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) noexcept {
 	struct HashtableNode_t** bucket_list_head = __get_bucket_list_head(hashtable, &node->key);
 	struct HashtableNode_t* exist_node = __get_node(hashtable, bucket_list_head, &node->key);
 	if (exist_node) {
@@ -133,7 +133,7 @@ struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struc
 	return node;
 }
 
-void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node) {
+void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node) noexcept {
 	if (old_node && old_node != new_node) {
 		HashtableNodeKey_t key = new_node->key;
 		if (old_node->prev) {
@@ -165,7 +165,7 @@ void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t*
 	}
 }
 
-void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) {
+void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) noexcept {
 	struct HashtableNode_t** bucket_list_head = hashtable->buckets + node->bucket_index;
 	if (*bucket_list_head == node) {
 		*bucket_list_head = node->next;
@@ -191,11 +191,11 @@ void hashtableRemoveNode(struct Hashtable_t* hashtable, struct HashtableNode_t* 
 	}
 }
 
-struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key) {
+struct HashtableNode_t* hashtableSearchKey(const struct Hashtable_t* hashtable, const HashtableNodeKey_t key) noexcept {
 	return __get_node(hashtable, __get_bucket_list_head(hashtable, &key), &key);
 }
 
-struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const HashtableNodeKey_t key) {
+struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const HashtableNodeKey_t key) noexcept {
 	struct HashtableNode_t* exist_node = hashtableSearchKey(hashtable, key);
 	if (exist_node) {
 		hashtableRemoveNode(hashtable, exist_node);
@@ -203,27 +203,27 @@ struct HashtableNode_t* hashtableRemoveKey(struct Hashtable_t* hashtable, const 
 	return exist_node;
 }
 
-int hashtableIsEmpty(const struct Hashtable_t* hashtable) {
+int hashtableIsEmpty(const struct Hashtable_t* hashtable) noexcept {
 	return 0 == hashtable->count;
 }
 
-struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable) {
+struct HashtableNode_t* hashtableFirstNode(const struct Hashtable_t* hashtable) noexcept {
 	return hashtable->head;
 }
 
-struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node) {
+struct HashtableNode_t* hashtableNextNode(struct HashtableNode_t* node) noexcept {
 	return node->ele_next;
 }
 
-struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable) {
+struct HashtableNode_t* hashtableLastNode(const struct Hashtable_t* hashtable) noexcept {
 	return hashtable->tail;
 }
 
-struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node) {
+struct HashtableNode_t* hashtablePrevNode(struct HashtableNode_t* node) noexcept {
 	return node->ele_prev;
 }
 
-void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size) {
+void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buckets, unsigned int buckets_size) noexcept {
 	struct HashtableNode_t* cur, *next;
 	struct Hashtable_t tb;
 	hashtableInit(&tb, buckets, buckets_size, hashtable->keycmp, hashtable->keyhash);
@@ -236,7 +236,7 @@ void hashtableRehash(struct Hashtable_t* hashtable, struct HashtableNode_t** buc
 	hashtable->buckets_size = buckets_size;
 }
 
-void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2) {
+void hashtableSwap(struct Hashtable_t* h1, struct Hashtable_t* h2) noexcept {
 	struct Hashtable_t temp_h = *h1;
 	*h1 = *h2;
 	*h2 = temp_h;

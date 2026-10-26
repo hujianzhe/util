@@ -39,14 +39,14 @@ static unsigned char PADDING[] = { 0x80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-static void* _memcopy_(void* dst, const void* src, unsigned int n)
+static void* _memcopy_(void* dst, const void* src, unsigned int n) noexcept
 {
 	for (; n; --n)
 		((unsigned char*)dst)[n - 1] = ((unsigned char*)src)[n - 1];
 	return dst;
 }
 
-static void MD5Encode(unsigned char *output, unsigned int *input, unsigned int len)
+static void MD5Encode(unsigned char *output, unsigned int *input, unsigned int len) noexcept
 {
 	unsigned int i = 0, j = 0;
 	while (j < len)
@@ -60,7 +60,7 @@ static void MD5Encode(unsigned char *output, unsigned int *input, unsigned int l
 	}
 }
 
-static void MD5Decode(unsigned int *output, unsigned char *input, unsigned int len)
+static void MD5Decode(unsigned int *output, unsigned char *input, unsigned int len) noexcept
 {
 	unsigned int i = 0, j = 0;
 	while (j < len)
@@ -78,7 +78,7 @@ static void MD5Decode(unsigned int *output, unsigned char *input, unsigned int l
 extern "C" {
 #endif
 
-void MD5Transform(unsigned int state[4], unsigned char block[64])
+void MD5Transform(unsigned int state[4], unsigned char block[64]) noexcept
 {
 	unsigned int a = state[0];
 	unsigned int b = state[1];
@@ -162,7 +162,7 @@ void MD5Transform(unsigned int state[4], unsigned char block[64])
 	state[3] += d;
 }
 
-void MD5Init(MD5_CTX *context)
+void MD5Init(MD5_CTX *context) noexcept
 {
 	context->count[0] = 0;
 	context->count[1] = 0;
@@ -172,7 +172,7 @@ void MD5Init(MD5_CTX *context)
 	context->state[3] = 0x10325476;
 }
 
-void MD5Update(MD5_CTX *context, unsigned char *input, unsigned int inputlen)
+void MD5Update(MD5_CTX *context, unsigned char *input, unsigned int inputlen) noexcept
 {
 	unsigned int i = 0, index = 0, partlen = 0;
 	index = (context->count[0] >> 3) & 0x3F;
@@ -197,7 +197,7 @@ void MD5Update(MD5_CTX *context, unsigned char *input, unsigned int inputlen)
 	_memcopy_(&context->buffer[index], &input[i], inputlen - i);
 }
 
-void MD5Final(MD5_CTX *context, unsigned char digest[16])
+void MD5Final(MD5_CTX *context, unsigned char digest[16]) noexcept
 {
 	unsigned int index = 0, padlen = 0;
 	unsigned char bits[8];

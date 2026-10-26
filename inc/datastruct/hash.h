@@ -11,10 +11,10 @@
 extern "C" {
 #endif
 
-__declspec_dll unsigned int hashBKDR(const char *str);
-__declspec_dll unsigned int hashDJB(const char *str);
-__declspec_dll unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen);
-__declspec_dll unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen);
+__declspec_dll unsigned int hashBKDR(const char *str) noexcept;
+__declspec_dll unsigned int hashDJB(const char *str) noexcept;
+__declspec_dll unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen) noexcept;
+__declspec_dll unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen) noexcept;
 
 #ifdef	__cplusplus
 }

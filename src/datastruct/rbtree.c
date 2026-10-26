@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-static void __rb_rotate_left(struct RBTreeNode_t *node, struct RBTree_t *root)
+static void __rb_rotate_left(struct RBTreeNode_t *node, struct RBTree_t *root) noexcept
 {
 	struct RBTreeNode_t *right = node->rb_right;
 	struct RBTreeNode_t *parent = node->rb_parent;
@@ -34,7 +34,7 @@ static void __rb_rotate_left(struct RBTreeNode_t *node, struct RBTree_t *root)
 	node->rb_parent = right;
 }
 
-static void __rb_rotate_right(struct RBTreeNode_t *node, struct RBTree_t *root)
+static void __rb_rotate_right(struct RBTreeNode_t *node, struct RBTree_t *root) noexcept
 {
 	struct RBTreeNode_t *left = node->rb_left;
 	struct RBTreeNode_t *parent = node->rb_parent;
@@ -57,7 +57,7 @@ static void __rb_rotate_right(struct RBTreeNode_t *node, struct RBTree_t *root)
 	node->rb_parent = left;
 }
 
-static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
+static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root) noexcept
 {
 	struct RBTreeNode_t *parent, *gparent;
 
@@ -122,7 +122,7 @@ static void __rb_insert_color(struct RBTreeNode_t *node, struct RBTree_t *root)
 	root->rb_tree_node->rb_color = RB_BLACK;
 }
 
-int rbtreeDefaultKeyCmpU32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpU32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	if (key->u32 == node_key->u32)
 		return 0;
@@ -132,7 +132,7 @@ int rbtreeDefaultKeyCmpU32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpI32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpI32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	if (key->i32 == node_key->i32)
 		return 0;
@@ -142,7 +142,7 @@ int rbtreeDefaultKeyCmpI32(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpU64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpU64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	if (key->u64 == node_key->u64)
 		return 0;
@@ -152,7 +152,7 @@ int rbtreeDefaultKeyCmpU64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	if (key->i64 == node_key->i64)
 		return 0;
@@ -162,7 +162,7 @@ int rbtreeDefaultKeyCmpI64(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpSSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) {
+int rbtreeDefaultKeyCmpSSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept {
 	if (key->int_ptr == node_key->int_ptr)
 		return 0;
 	else if (key->int_ptr < node_key->int_ptr)
@@ -171,7 +171,7 @@ int rbtreeDefaultKeyCmpSSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	if (key->ptr == node_key->ptr)
 		return 0;
@@ -181,7 +181,7 @@ int rbtreeDefaultKeyCmpSZ(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t
 		return 1;
 }
 
-int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key)
+int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_t* key) noexcept
 {
 	const unsigned char* s1 = (const unsigned char*)node_key->ptr;
 	const unsigned char* s2 = (const unsigned char*)key->ptr;
@@ -197,7 +197,7 @@ int rbtreeDefaultKeyCmpStr(const RBTreeNodeKey_t* node_key, const RBTreeNodeKey_
 		return 0;
 }
 
-struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*))
+struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNodeKey_t*, const RBTreeNodeKey_t*) noexcept) noexcept
 {
 	root->rb_tree_node = (struct RBTreeNode_t*)0;
 	root->keycmp = keycmp;
@@ -205,7 +205,7 @@ struct RBTree_t* rbtreeInit(struct RBTree_t* root, int(*keycmp)(const RBTreeNode
 	return root;
 }
 
-struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node)
+struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t* node) noexcept
 {
 	struct RBTreeNode_t* parent = root->rb_tree_node;
 	while (parent) {
@@ -243,7 +243,7 @@ struct RBTreeNode_t* rbtreeInsertNode(struct RBTree_t* root, struct RBTreeNode_t
 	return node;
 }
 
-void rbtreeReplaceNode(struct RBTree_t* root, struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) {
+void rbtreeReplaceNode(struct RBTree_t* root, struct RBTreeNode_t* old_node, struct RBTreeNode_t* new_node) noexcept {
 	if (old_node && old_node != new_node) {
 		RBTreeNodeKey_t key = new_node->key;
 		if (old_node->rb_left) {
@@ -268,7 +268,7 @@ void rbtreeReplaceNode(struct RBTree_t* root, struct RBTreeNode_t* old_node, str
 	}
 }
 
-static void __rb_remove_color(struct RBTreeNode_t *node, struct RBTreeNode_t *parent, struct RBTree_t *root)
+static void __rb_remove_color(struct RBTreeNode_t *node, struct RBTreeNode_t *parent, struct RBTree_t *root) noexcept
 {
 	struct RBTreeNode_t *other;
 
@@ -347,7 +347,7 @@ static void __rb_remove_color(struct RBTreeNode_t *node, struct RBTreeNode_t *pa
 		node->rb_color = RB_BLACK;
 }
 
-void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node)
+void rbtreeRemoveNode(struct RBTree_t* root, struct RBTreeNode_t* node) noexcept
 {
 	struct RBTreeNode_t *child, *parent;
 	int color;
@@ -416,7 +416,7 @@ color:
 	--(root->count);
 }
 
-struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
+struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNodeKey_t key) noexcept
 {
 	struct RBTreeNode_t *node = root->rb_tree_node;
 	while (node) {
@@ -434,7 +434,7 @@ struct RBTreeNode_t* rbtreeSearchKey(const struct RBTree_t* root, const RBTreeNo
 	return node;
 }
 
-struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
+struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key) noexcept
 {
 	struct RBTreeNode_t *great_equal_node = (struct RBTreeNode_t*)0;
 	struct RBTreeNode_t *node = root->rb_tree_node;
@@ -455,7 +455,7 @@ struct RBTreeNode_t* rbtreeLowerBoundKey(const struct RBTree_t* root, const RBTr
 	return great_equal_node;
 }
 
-struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key)
+struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const RBTreeNodeKey_t key) noexcept
 {
 	struct RBTreeNode_t *great_node = (struct RBTreeNode_t*)0;
 	struct RBTreeNode_t *node = root->rb_tree_node;
@@ -472,7 +472,7 @@ struct RBTreeNode_t* rbtreeUpperBoundKey(const struct RBTree_t* root, const RBTr
 	return great_node;
 }
 
-struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const RBTreeNodeKey_t key)
+struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const RBTreeNodeKey_t key) noexcept
 {
 	struct RBTreeNode_t *node = rbtreeSearchKey(root, key);
 	if (node) {
@@ -484,7 +484,7 @@ struct RBTreeNode_t* rbtreeRemoveKey(struct RBTree_t* root, const RBTreeNodeKey_
 /*
  * This function returns the first node (in sort order) of the tree.
  */
-struct RBTreeNode_t* rbtreeFirstNode(const struct RBTree_t* root)
+struct RBTreeNode_t* rbtreeFirstNode(const struct RBTree_t* root) noexcept
 {
 	struct RBTreeNode_t *n;
 
@@ -496,7 +496,7 @@ struct RBTreeNode_t* rbtreeFirstNode(const struct RBTree_t* root)
 	return n;
 }
 
-struct RBTreeNode_t* rbtreeLastNode(const struct RBTree_t* root)
+struct RBTreeNode_t* rbtreeLastNode(const struct RBTree_t* root) noexcept
 {
 	struct RBTreeNode_t *n;
 
@@ -508,7 +508,7 @@ struct RBTreeNode_t* rbtreeLastNode(const struct RBTree_t* root)
 	return n;
 }
 
-struct RBTreeNode_t* rbtreeNextNode(struct RBTreeNode_t* node)
+struct RBTreeNode_t* rbtreeNextNode(struct RBTreeNode_t* node) noexcept
 {
 	struct RBTreeNode_t *parent;
 
@@ -536,7 +536,7 @@ struct RBTreeNode_t* rbtreeNextNode(struct RBTreeNode_t* node)
 	return parent;
 }
 
-struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node)
+struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node) noexcept
 {
 	struct RBTreeNode_t *parent;
 
@@ -560,7 +560,7 @@ struct RBTreeNode_t* rbtreePrevNode(struct RBTreeNode_t* node)
 	return parent;
 }
 
-void rbtreeSwap(struct RBTree_t* root1, struct RBTree_t* root2)
+void rbtreeSwap(struct RBTree_t* root1, struct RBTree_t* root2) noexcept
 {
 	struct RBTree_t temp_root1 = *root1;
 	*root1 = *root2;

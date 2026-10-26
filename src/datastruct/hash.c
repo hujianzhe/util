@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-unsigned int hashBKDR(const char *str) {
+unsigned int hashBKDR(const char *str) noexcept {
 	/* seed is 131 */
 	unsigned int hash = 0;
 	while (*str)
@@ -16,14 +16,14 @@ unsigned int hashBKDR(const char *str) {
 	return hash & 0x7fffffff;
 }
 
-unsigned int hashDJB(const char *str) {
+unsigned int hashDJB(const char *str) noexcept {
 	unsigned int hash = 5381;
 	while (*str)
 		hash = ((hash << 5) + hash) + (*str++);
 	return hash & 0x7fffffff;
 }
 
-unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen) {
+unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen) noexcept {
 	const char *p;
 	unsigned int hash = 0;
 	for (p = key; keylen; --keylen, ++p) {
@@ -37,7 +37,7 @@ unsigned int hashJenkins(const char *key, UnsignedPtr_t keylen) {
 	return hash;
 }
 
-unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen) {
+unsigned int hashMurmur2(const char *key, UnsignedPtr_t keylen) noexcept {
 	unsigned int h, k;
 	h = 0 ^ keylen;
 

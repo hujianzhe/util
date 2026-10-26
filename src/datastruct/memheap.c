@@ -18,7 +18,7 @@ typedef struct MemHeap_t {
 	MemHeapBlock_t guard_block;
 } MemHeap_t;
 
-static UnsignedPtr_t __heapblock_leftlen(MemHeap_t* memheap, MemHeapBlock_t* block) {
+static UnsignedPtr_t __heapblock_leftlen(MemHeap_t* memheap, MemHeapBlock_t* block) noexcept {
 	if (block->nextoff) {
 		return (UnsignedPtr_t)memheap + block->nextoff - (UnsignedPtr_t)block - sizeof(*block) - block->uselen;
 	}
@@ -27,7 +27,7 @@ static UnsignedPtr_t __heapblock_leftlen(MemHeap_t* memheap, MemHeapBlock_t* blo
 	}
 }
 
-static void __insertback(MemHeap_t* memheap, MemHeapBlock_t* node, MemHeapBlock_t* new_node) {
+static void __insertback(MemHeap_t* memheap, MemHeapBlock_t* node, MemHeapBlock_t* new_node) noexcept {
 	UnsignedPtr_t base = (UnsignedPtr_t)memheap;
 	new_node->prevoff = (UnsignedPtr_t)node - base;
 	new_node->nextoff = node->nextoff;
@@ -40,7 +40,7 @@ static void __insertback(MemHeap_t* memheap, MemHeapBlock_t* node, MemHeapBlock_
 	}
 }
 
-static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) {
+static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) noexcept {
 	UnsignedPtr_t base = (UnsignedPtr_t)memheap;
 	if (node->prevoff) {
 		((MemHeapBlock_t*)(base + node->prevoff))->nextoff = node->nextoff;
@@ -57,7 +57,7 @@ static void __remove(MemHeap_t* memheap, MemHeapBlock_t* node) {
 extern "C" {
 #endif
 
-UnsignedPtr_t memheapSetupUsableRange(const MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment) {
+UnsignedPtr_t memheapSetupUsableRange(const MemHeap_t* memheap, void** out_buf, UnsignedPtr_t alignment) noexcept {
 	UnsignedPtr_t ptr, newptr, end, mask;
 	*out_buf = (void*)0;
 	if (0 == alignment) {
@@ -80,7 +80,7 @@ UnsignedPtr_t memheapSetupUsableRange(const MemHeap_t* memheap, void** out_buf, 
 	return end - newptr;
 }
 
-MemHeap_t* memheapSetupAddr(void* addr) {
+MemHeap_t* memheapSetupAddr(void* addr) noexcept {
 	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
 	UnsignedPtr_t addr_aligned, mask = sizeof(void*) - 1;
 	if (MAX_PTR_VALUE - mask < (UnsignedPtr_t)addr) {
@@ -90,7 +90,7 @@ MemHeap_t* memheapSetupAddr(void* addr) {
 	return (MemHeap_t*)addr_aligned;
 }
 
-MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
+MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) noexcept {
 	UnsignedPtr_t aligned_len;
 	MemHeap_t* memheap = memheapSetupAddr(addr);
 	if (!memheap) {
@@ -108,11 +108,11 @@ MemHeap_t* memheapSetup(void* addr, UnsignedPtr_t len) {
 	return memheap;
 }
 
-void* memheapAlloc(MemHeap_t* memheap, UnsignedPtr_t nbytes) {
+void* memheapAlloc(MemHeap_t* memheap, UnsignedPtr_t nbytes) noexcept {
 	return memheapAlignAlloc(memheap, nbytes, sizeof(void*) + sizeof(void*));
 }
 
-void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment) {
+void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, UnsignedPtr_t alignment) noexcept {
 	UnsignedPtr_t realbytes, curoff, prevoff, mask;
 	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
 	if (MAX_PTR_VALUE - sizeof(MemHeapBlock_t) < nbytes) {
@@ -152,7 +152,7 @@ void* memheapAlignAlloc(struct MemHeap_t* memheap, UnsignedPtr_t nbytes, Unsigne
 	return (void*)0;
 }
 
-void* memheapTryResize(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
+void* memheapTryResize(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) noexcept {
 	MemHeapBlock_t* block = ptr_memheapblock__(addr);
 	if (block->uselen >= nbytes) {
 		block->uselen = nbytes;
@@ -165,14 +165,14 @@ void* memheapTryResize(MemHeap_t* memheap, void* addr, UnsignedPtr_t nbytes) {
 	return (void*)0;
 }
 
-void memheapFree(MemHeap_t* memheap, void* addr) {
+void memheapFree(MemHeap_t* memheap, void* addr) noexcept {
 	if (addr) {
 		MemHeapBlock_t* block = ptr_memheapblock__(addr);
 		__remove(memheap, block);
 	}
 }
 
-void memheapFreeAll(MemHeap_t* memheap) {
+void memheapFreeAll(MemHeap_t* memheap) noexcept {
 	memheap->tailoff = (UnsignedPtr_t)&memheap->guard_block - (UnsignedPtr_t)memheap;
 	memheap->guard_block.nextoff = 0;
 }

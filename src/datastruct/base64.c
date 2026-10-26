@@ -10,7 +10,7 @@ extern "C" {
 
 static const unsigned char base64map[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
 
-UnsignedPtr_t base64Encode(const unsigned char* src, UnsignedPtr_t srclen, char* dst) {
+UnsignedPtr_t base64Encode(const unsigned char* src, UnsignedPtr_t srclen, char* dst) noexcept {
 	UnsignedPtr_t i, dstLen;
 	UnsignedPtr_t leven = 3 * (srclen / 3);
 	for (dstLen = 0, i = 0; i < leven; i += 3) {
@@ -42,7 +42,7 @@ UnsignedPtr_t base64Encode(const unsigned char* src, UnsignedPtr_t srclen, char*
 	return dstLen;
 }
 
-static unsigned char base64byte(char c) {
+static unsigned char base64byte(char c) noexcept {
 	if (c >= '0' && c <= '9')
 		return (unsigned char)(c - '0' + 52);
 	if (c >= 'A' && c <= 'Z')
@@ -57,7 +57,7 @@ static unsigned char base64byte(char c) {
 		return 64;
 }
 
-UnsignedPtr_t base64Decode(const char* src, UnsignedPtr_t srclen, unsigned char* dst) {
+UnsignedPtr_t base64Decode(const char* src, UnsignedPtr_t srclen, unsigned char* dst) noexcept {
 	unsigned char input[4];
 	UnsignedPtr_t i, dstLen;
 	for (dstLen = 0, i = 0; i < srclen; i += 4) {

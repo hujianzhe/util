@@ -17,10 +17,10 @@ typedef struct {
 extern "C" {
 #endif
 
-__declspec_dll void MD5Transform(unsigned int state[4], unsigned char block[64]);
-__declspec_dll void MD5Init(MD5_CTX *context);
-__declspec_dll void MD5Update(MD5_CTX *context, unsigned char *input, unsigned int inputlen);
-__declspec_dll void MD5Final(MD5_CTX *context, unsigned char digest[16]);
+__declspec_dll void MD5Transform(unsigned int state[4], unsigned char block[64]) noexcept;
+__declspec_dll void MD5Init(MD5_CTX *context) noexcept;
+__declspec_dll void MD5Update(MD5_CTX *context, unsigned char *input, unsigned int inputlen) noexcept;
+__declspec_dll void MD5Final(MD5_CTX *context, unsigned char digest[16]) noexcept;
 
 #ifdef	__cplusplus
 }
