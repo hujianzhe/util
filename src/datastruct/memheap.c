@@ -84,7 +84,7 @@ MemHeap_t* memheapSetupAddr(void* addr) {
 	const UnsignedPtr_t MAX_PTR_VALUE = (UnsignedPtr_t)(~0);
 	UnsignedPtr_t addr_aligned, mask = sizeof(void*) - 1;
 	if (MAX_PTR_VALUE - mask < (UnsignedPtr_t)addr) {
-		return (void*)0;
+		return (MemHeap_t*)0;
 	}
 	addr_aligned = (((UnsignedPtr_t)addr) + mask) & (~mask);
 	return (MemHeap_t*)addr_aligned;
