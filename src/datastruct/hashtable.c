@@ -90,8 +90,8 @@ unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t* key) noexcept 
 
 struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*),
-		unsigned int (*keyhash)(const HashtableNodeKey_t*)) noexcept
+		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept,
+		unsigned int (*keyhash)(const HashtableNodeKey_t*) noexcept) noexcept
 {
 	unsigned int i;
 	for (i = 0; i < buckets_size; ++i) {

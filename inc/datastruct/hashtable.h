@@ -49,8 +49,8 @@ __declspec_dll unsigned int hashtableDefaultKeyHashStr(const HashtableNodeKey_t*
 
 __declspec_dll struct Hashtable_t* hashtableInit(struct Hashtable_t* hashtable,
 		struct HashtableNode_t** buckets, unsigned int buckets_size,
-		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*),
-		unsigned int (*keyhash)(const HashtableNodeKey_t*)) noexcept;
+		int (*keycmp)(const HashtableNodeKey_t*, const HashtableNodeKey_t*) noexcept,
+		unsigned int (*keyhash)(const HashtableNodeKey_t*) noexcept) noexcept;
 
 __declspec_dll struct HashtableNode_t* hashtableInsertNode(struct Hashtable_t* hashtable, struct HashtableNode_t* node) noexcept;
 __declspec_dll void hashtableReplaceNode(struct Hashtable_t* hashtable, struct HashtableNode_t* old_node, struct HashtableNode_t* new_node) noexcept;

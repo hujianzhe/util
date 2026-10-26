@@ -83,7 +83,7 @@ int bstreeDefaultKeyCmpStr(const BSTreeNodeKey_t* node_key, const BSTreeNodeKey_
 		return 0;
 }
 
-struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*)) noexcept {
+struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*) noexcept) noexcept {
 	tree->bs_root = (struct BSTreeNode_t*)0;
 	tree->keycmp = keycmp;
 	tree->count = 0;

@@ -42,7 +42,7 @@ __declspec_dll int bstreeDefaultKeyCmpSSZ(const BSTreeNodeKey_t*, const BSTreeNo
 __declspec_dll int bstreeDefaultKeyCmpSZ(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*) noexcept;
 __declspec_dll int bstreeDefaultKeyCmpStr(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*) noexcept;
 
-__declspec_dll struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*)) noexcept;
+__declspec_dll struct BSTree_t* bstreeInit(struct BSTree_t* tree, int(*keycmp)(const BSTreeNodeKey_t*, const BSTreeNodeKey_t*) noexcept) noexcept;
 __declspec_dll struct BSTreeNode_t* bstreeInsertNode(struct BSTree_t* tree, struct BSTreeNode_t* node) noexcept;
 __declspec_dll void bstreeReplaceNode(struct BSTree_t* tree, struct BSTreeNode_t* old_node, struct BSTreeNode_t* new_node) noexcept;
 __declspec_dll void bstreeRemoveNode(struct BSTree_t* tree, struct BSTreeNode_t* node) noexcept;

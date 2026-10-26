@@ -155,7 +155,7 @@ static void channelobject_free(NetChannel_t* channel) {
 	free(channel);
 }
 
-static int cmp_sorted_reactor_object_stream_connect_timeout(ListNode_t* node, ListNode_t* new_node) {
+static int cmp_sorted_reactor_object_stream_connect_timeout(ListNode_t* node, ListNode_t* new_node) noexcept {
 	NetReactorObject_t* o = pod_container_of(node, NetReactorObject_t, stream.m_connect_endnode);
 	NetReactorObject_t* new_o = pod_container_of(new_node, NetReactorObject_t, stream.m_connect_endnode);
 	return o->stream.m_connect_end_msec > new_o->stream.m_connect_end_msec;
