@@ -20,6 +20,10 @@ struct cstruct_raii : public T {
 	~cstruct_raii() {
 		Deleter(this);
 	}
+
+private:
+	cstruct_raii(const cstruct_raii&) {}
+	cstruct_raii& operator=(const cstruct_raii&) { return *this; }
 };
 
 template <typename T>
